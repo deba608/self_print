@@ -37,6 +37,10 @@ type Pricing = {
   expiryMinutes: number;
 };
 
+type PricingForm = {
+  [K in keyof Pricing]: Pricing[K] | "";
+};
+
 type PrinterOption = {
   name: string;
   driverName: string;
@@ -53,7 +57,7 @@ export default function AdminDashboard() {
   const [error, setError] = useState("");
   const [showSettings, setShowSettings] = useState(false);
   const [pricing, setPricing] = useState<Pricing | null>(null);
-  const [pricingForm, setPricingForm] = useState<Pricing | null>(null);
+  const [pricingForm, setPricingForm] = useState<PricingForm | null>(null);
   const [pricingSaved, setPricingSaved] = useState(false);
   const [newJobCount, setNewJobCount] = useState(0);
   const [sseConnected, setSseConnected] = useState(false);
@@ -140,12 +144,18 @@ export default function AdminDashboard() {
 
   async function savePricing() {
     if (!pricingForm) return;
+    const nextPricing = normalizePricingForm(pricingForm);
+    if (!nextPricing) {
+      setError("Please fill all pricing values before saving.");
+      return;
+    }
+    setError("");
     const response = await fetch("/api/admin/pricing", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(pricingForm)
+      body: JSON.stringify(nextPricing)
     });
-    if (response.ok) { setPricing(pricingForm); setPricingSaved(true); setShowSettings(false); setTimeout(() => setPricingSaved(false), 2000); }
+    if (response.ok) { setPricing(nextPricing); setPricingForm(nextPricing); setPricingSaved(true); setShowSettings(false); setTimeout(() => setPricingSaved(false), 2000); }
   }
 
   async function savePrinter() {
@@ -393,45 +403,46 @@ export default function AdminDashboard() {
           <div className="pricing-grid">
             <label>
               <span>B/W per page (₹)</span>
-              <input type="number" min="0" step="0.01" value={pricingForm.bwPerPagePaise / 100}
-                onChange={(e) => setPricingForm({ ...pricingForm, bwPerPagePaise: Math.round((Number(e.target.value) || 0) * 100) })} />
+              <input type="number" min="0" step="0.01" value={rupeeInputValue(pricingForm.bwPerPagePaise)}
+                onChange={(e) => setPricingForm({ ...pricingForm, bwPerPagePaise: rupeeInputChange(e.target.value) })} />
             </label>
             <label>
               <span>Color per page (₹)</span>
-              <input type="number" min="0" step="0.01" value={pricingForm.colorPerPagePaise / 100}
-                onChange={(e) => setPricingForm({ ...pricingForm, colorPerPagePaise: Math.round((Number(e.target.value) || 0) * 100) })} />
+              <input type="number" min="0" step="0.01" value={rupeeInputValue(pricingForm.colorPerPagePaise)}
+                onChange={(e) => setPricingForm({ ...pricingForm, colorPerPagePaise: rupeeInputChange(e.target.value) })} />
             </label>
             <label>
               <span>Photo print (₹)</span>
-              <input type="number" min="0" step="0.01" value={pricingForm.photoPrintPaise / 100}
-                onChange={(e) => setPricingForm({ ...pricingForm, photoPrintPaise: Math.round((Number(e.target.value) || 0) * 100) })} />
+              <input type="number" min="0" step="0.01" value={rupeeInputValue(pricingForm.photoPrintPaise)}
+                onChange={(e) => setPricingForm({ ...pricingForm, photoPrintPaise: rupeeInputChange(e.target.value) })} />
             </label>
             <label>
               <span>Copy multiplier</span>
               <input type="number" min="0" step="0.1" value={pricingForm.copyMultiplier}
-                onChange={(e) => setPricingForm({ ...pricingForm, copyMultiplier: Number(e.target.value) })} />
+                onChange={(e) => setPricingForm({ ...pricingForm, copyMultiplier: numberInputChange(e.target.value) })} />
             </label>
             <label>
               <span>A3 multiplier</span>
               <input type="number" min="0" step="0.1" value={pricingForm.a3Multiplier}
-                onChange={(e) => setPricingForm({ ...pricingForm, a3Multiplier: Number(e.target.value) })} />
+                onChange={(e) => setPricingForm({ ...pricingForm, a3Multiplier: numberInputChange(e.target.value) })} />
             </label>
             <label>
               <span>A5 multiplier</span>
               <input type="number" min="0" step="0.1" value={pricingForm.a5Multiplier}
-                onChange={(e) => setPricingForm({ ...pricingForm, a5Multiplier: Number(e.target.value) })} />
+                onChange={(e) => setPricingForm({ ...pricingForm, a5Multiplier: numberInputChange(e.target.value) })} />
             </label>
             <label>
               <span>Legal multiplier</span>
               <input type="number" min="0" step="0.1" value={pricingForm.legalMultiplier}
-                onChange={(e) => setPricingForm({ ...pricingForm, legalMultiplier: Number(e.target.value) })} />
+                onChange={(e) => setPricingForm({ ...pricingForm, legalMultiplier: numberInputChange(e.target.value) })} />
             </label>
             <label>
               <span>Job expiry (min)</span>
               <input type="number" min="30" step="10" value={pricingForm.expiryMinutes}
-                onChange={(e) => setPricingForm({ ...pricingForm, expiryMinutes: Number(e.target.value) })} />
+                onChange={(e) => setPricingForm({ ...pricingForm, expiryMinutes: numberInputChange(e.target.value) })} />
             </label>
           </div>
+          {error && <p className="error-msg">{error}</p>}
           <div className="panel-actions">
             <button className="btn-primary-sm" onClick={savePricing}>Save</button>
             {pricingSaved && <span className="saved-msg"><Check size={14} /> Saved</span>}
@@ -570,4 +581,22 @@ export default function AdminDashboard() {
       </div>
     </main>
   );
+}
+
+function rupeeInputValue(value: number | "") {
+  return value === "" ? "" : value / 100;
+}
+
+function rupeeInputChange(value: string) {
+  return value === "" ? "" : Math.round(Number(value) * 100);
+}
+
+function numberInputChange(value: string) {
+  return value === "" ? "" : Number(value);
+}
+
+function normalizePricingForm(form: PricingForm): Pricing | null {
+  const entries = Object.entries(form) as Array<[keyof Pricing, number | ""]>;
+  if (entries.some(([, value]) => value === "" || !Number.isFinite(value))) return null;
+  return Object.fromEntries(entries) as Pricing;
 }

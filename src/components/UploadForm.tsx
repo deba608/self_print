@@ -36,6 +36,7 @@ export default function UploadForm() {
   const [result, setResult] = useState<{ token: string; pricePaise: number; needsConversion: boolean; queuePosition: number } | null>(null);
   const [error, setError] = useState("");
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [filePageCount, setFilePageCount] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -47,8 +48,7 @@ export default function UploadForm() {
 
   const estimate = useMemo(() => {
     if (!pricing) return 0;
-    // Default to printing all pages (1 page assumed for estimate - actual count comes from server)
-    const selectedPages = pageRange.trim() ? estimateRange(pageRange) : 1;
+    const selectedPages = pageRange.trim() ? estimateRange(pageRange) : Math.max(filePageCount ?? 1, 1);
     if (paperSize === "Photo") return Math.round((pricing.photoPrintPaise / 100) * copies);
     const base = printType === "bw" ? pricing.bwPerPagePaise : pricing.colorPerPagePaise;
     let paperMultiplier = 1;
@@ -61,13 +61,15 @@ export default function UploadForm() {
       case "Legal": paperMultiplier = pricing.legalMultiplier; break;
     }
     return Math.round((base / 100) * selectedPages * copies * paperMultiplier * pricing.copyMultiplier);
-  }, [copies, pageRange, paperSize, printType, pricing]);
+  }, [copies, filePageCount, pageRange, paperSize, printType, pricing]);
 
   const pageInfo = useMemo(() => {
-    if (!pageRange.trim()) return "All pages";
+    if (!pageRange.trim()) {
+      return filePageCount && filePageCount > 1 ? `All pages (${filePageCount})` : "All pages";
+    }
     const pages = estimateRange(pageRange);
     return `${pages} page${pages !== 1 ? "s" : ""}`;
-  }, [pageRange]);
+  }, [filePageCount, pageRange]);
 
   const fileTypeLabel = useMemo(() => {
     if (!file) return null;
@@ -78,18 +80,22 @@ export default function UploadForm() {
     return "File";
   }, [file]);
 
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const selectedFile = e.target.files?.[0] ?? null;
     setFile(selectedFile);
+    setFilePageCount(null);
     if (selectedFile) {
       if (selectedFile.type === "application/pdf") {
         const url = URL.createObjectURL(selectedFile);
         setPreviewUrl(url);
+        setFilePageCount(await estimatePdfPages(selectedFile));
       } else if (selectedFile.type.startsWith("image/")) {
         const url = URL.createObjectURL(selectedFile);
         setPreviewUrl(url);
+        setFilePageCount(1);
       } else {
         setPreviewUrl(null);
+        setFilePageCount(1);
       }
       setStep("settings");
     }
@@ -135,6 +141,7 @@ export default function UploadForm() {
     setPagesPerSheet(1);
     setMargins("default");
     setScale("default");
+    setFilePageCount(null);
     setResult(null);
     setError("");
     if (previewUrl) {
@@ -433,4 +440,15 @@ function estimateRange(value: string) {
     for (let page = start; page <= end; page += 1) pages.add(page);
   }
   return Math.max(pages.size, 1);
+}
+
+async function estimatePdfPages(file: File) {
+  try {
+    const bytes = await file.arrayBuffer();
+    const text = new TextDecoder("latin1").decode(bytes);
+    const matches = text.match(/\/Type\s*\/Page\b/g);
+    return Math.max(matches?.length ?? 1, 1);
+  } catch {
+    return 1;
+  }
 }
