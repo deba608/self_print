@@ -1,0 +1,69 @@
+{
+  "name": "SelfPrint Xerox MVP",
+  "date": "2026-05-09",
+  "workspace": "C:\\Users\\Dev\\OneDrive\\Desktop\\Selfprint",
+  "status": "Implemented scaffold; verify typecheck/build and end-to-end flows next",
+  "decisions": {
+    "paymentFlow": "manual counter payment; admin marks paid before release",
+    "printing": "Windows Node.js agent using SumatraPDF",
+    "docxHandling": "accept/store DOC/DOCX but mark needs_conversion",
+    "database": "SQLite",
+    "storage": "local uploads directory",
+    "adminAuth": "password/PIN session",
+    "customerAuth": "none"
+  },
+  "entrypoints": {
+    "customer": "/",
+    "admin": "/admin",
+    "agent": "agent/src/index.ts",
+    "readme": "README.md"
+  },
+  "coreFiles": [
+    "src/lib/db.ts",
+    "src/lib/files.ts",
+    "src/lib/pricing.ts",
+    "src/lib/security.ts",
+    "src/app/api/jobs/route.ts",
+    "src/app/api/admin",
+    "src/app/api/agent",
+    "src/components/UploadForm.tsx",
+    "src/components/AdminDashboard.tsx",
+    "src/components/JobDetail.tsx",
+    "agent/config.example.json",
+    "scripts/seed.ts",
+    "scripts/cleanup.ts"
+  ],
+  "defaults": {
+    "adminUsername": "admin",
+    "adminPasswordPin": "1234",
+    "exampleAgentToken": "dev-agent-token-change-me",
+    "pricing": {
+      "bwPerPageInr": 2,
+      "colorPerPageInr": 10,
+      "photoPrintInr": 30,
+      "legalMultiplier": 1.25
+    }
+  },
+  "doNotShare": [
+    ".env",
+    "agent/config.json",
+    "data/*.sqlite",
+    "uploads/originals/*",
+    "uploads/converted/*"
+  ],
+  "nextVerification": [
+    "npm run typecheck",
+    "npm run build",
+    "npm run db:seed",
+    "npm run dev",
+    "npm run agent"
+  ],
+  "knownFollowUps": [
+    "Replace heuristic PDF page counting with a real PDF parser.",
+    "Verify SumatraPDF printing on the actual shop printer.",
+    "Add admin pricing editor if needed.",
+    "Schedule cleanup with Windows Task Scheduler.",
+    "Test QR/customer flow from a mobile phone on the shop network."
+  ],
+  "resumePrompt": "Continue work on the SelfPrint Xerox MVP in C:\\Users\\Dev\\OneDrive\\Desktop\\Selfprint. Preserve manual counter payment, SumatraPDF printing, DOC/DOCX store-only needs-conversion behavior, local uploads, admin password/PIN, and no customer login. Run typecheck/build first, fix compile/runtime issues, then verify customer upload, admin payment/release, and agent polling flows end to end."
+}
