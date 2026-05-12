@@ -34,6 +34,7 @@ export type Job = {
   updatedAt: string;
   paidAt: string | null;
   printedAt: string | null;
+  expiresAt: string;
 };
 
 export type JobFile = {

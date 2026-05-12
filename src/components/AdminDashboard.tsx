@@ -2,7 +2,10 @@
 
 import Link from "next/link";
 import { useEffect, useState, useRef, useCallback } from "react";
-import { RefreshCw, Settings, DollarSign, LogOut, Printer, Bell, BellOff, CheckSquare, Square } from "lucide-react";
+import {
+  RefreshCw, Settings, LogOut, Printer, Bell,
+  CheckSquare, Square, CreditCard, Eye, X, Check, Monitor, Loader2
+} from "lucide-react";
 
 type Job = {
   id: string;
@@ -13,6 +16,9 @@ type Job = {
   needsConversion: 0 | 1;
   queuePosition: number;
   expiresAt: string;
+  printType: string;
+  paperSize: string;
+  copies: number;
   file: { originalName: string };
 };
 
@@ -21,7 +27,11 @@ type Pricing = {
   colorPerPagePaise: number;
   photoPrintPaise: number;
   copyMultiplier: number;
+  a3Multiplier: number;
   a4Multiplier: number;
+  a5Multiplier: number;
+  a6Multiplier: number;
+  b5Multiplier: number;
   legalMultiplier: number;
   photoMultiplier: number;
   expiryMinutes: number;
@@ -32,7 +42,6 @@ type PrinterOption = {
   driverName: string;
   portName: string;
   isDefault: boolean;
-  seenAt: string;
 };
 
 export default function AdminDashboard() {
@@ -49,27 +58,23 @@ export default function AdminDashboard() {
   const [newJobCount, setNewJobCount] = useState(0);
   const [sseConnected, setSseConnected] = useState(false);
   const [selectedJobs, setSelectedJobs] = useState<Set<string>>(new Set());
-  const [showBatch, setShowBatch] = useState(false);
   const [printerName, setPrinterName] = useState("");
   const [printers, setPrinters] = useState<PrinterOption[]>([]);
   const [printerSaved, setPrinterSaved] = useState(false);
   const [showPrinter, setShowPrinter] = useState(false);
   const [now, setNow] = useState(Date.now());
+  const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
   const esRef = useRef<EventSource | null>(null);
-  const lastSeenIds = useRef<Set<string>>(new Set());
 
   const load = useCallback(async () => {
     const response = await fetch("/api/admin/jobs");
-    if (response.status === 401) {
-      setLoggedIn(false);
-      return;
-    }
+    if (response.status === 401) { setLoggedIn(false); return; }
     const body = await response.json();
     const jobsWithExpiry = (body.jobs ?? []).map((j: Job) => ({
       ...j,
       expiresAt: j.expiresAt || new Date(new Date(j.createdAt).getTime() + (body.expiryMinutes || 1440) * 60000).toISOString()
     }));
-    lastSeenIds.current = new Set(jobsWithExpiry.map((j: Job) => j.id));
     setJobs(jobsWithExpiry);
     setNewJobCount(0);
     setLoggedIn(true);
@@ -94,25 +99,15 @@ export default function AdminDashboard() {
     if (printersRes.ok) {
       const printersData = await printersRes.json();
       setPrinters(printersData.printers ?? []);
-      setPrinterName((current) => current || printersData.selectedPrinterName || "");
     }
   }
 
   async function connectSSE() {
     if (esRef.current) esRef.current.close();
     const es = new EventSource("/api/admin/notifications");
-    es.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      if (data.type === "new_job") {
-        setNewJobCount((n) => n + 1);
-      }
-      load();
-    };
+    es.onmessage = () => { setNewJobCount((n) => n + 1); load(); };
     es.onopen = () => setSseConnected(true);
-    es.onerror = () => {
-      setSseConnected(false);
-      setTimeout(connectSSE, 5000);
-    };
+    es.onerror = () => { setSseConnected(false); setTimeout(connectSSE, 5000); };
     esRef.current = es;
   }
 
@@ -120,16 +115,11 @@ export default function AdminDashboard() {
     if (loggedIn) {
       connectSSE();
       const interval = setInterval(() => setNow(Date.now()), 30000);
-      return () => {
-        clearInterval(interval);
-        if (esRef.current) esRef.current.close();
-      };
+      return () => { clearInterval(interval); if (esRef.current) esRef.current.close(); };
     }
   }, [loggedIn]);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  useEffect(() => { load(); }, [load]);
 
   async function login(event: React.FormEvent) {
     event.preventDefault();
@@ -139,10 +129,7 @@ export default function AdminDashboard() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username, password })
     });
-    if (!response.ok) {
-      setError("Invalid login");
-      return;
-    }
+    if (!response.ok) { setError("Invalid login"); return; }
     await load();
   }
 
@@ -158,11 +145,7 @@ export default function AdminDashboard() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(pricingForm)
     });
-    if (response.ok) {
-      setPricing(pricingForm);
-      setPricingSaved(true);
-      setTimeout(() => setPricingSaved(false), 2000);
-    }
+    if (response.ok) { setPricing(pricingForm); setPricingSaved(true); setShowSettings(false); setTimeout(() => setPricingSaved(false), 2000); }
   }
 
   async function savePrinter() {
@@ -174,259 +157,417 @@ export default function AdminDashboard() {
     if (response.ok) {
       setPrinterSaved(true);
       setTimeout(() => setPrinterSaved(false), 2000);
+      setShowPrinter(false);
+    }
+  }
+
+  async function choosePrinter(name: string) {
+    setPrinterName(name);
+    const response = await fetch("/api/admin/printer", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ printerName: name })
+    });
+    if (response.ok) {
+      setPrinterSaved(true);
+      setTimeout(() => setPrinterSaved(false), 2000);
+      setShowPrinter(false);
+    }
+  }
+
+  async function jobAction(jobId: string, action: "paid" | "approved" | "printed" | "cancelled") {
+    setActionLoading(jobId);
+    try {
+      await fetch(`/api/admin/jobs/${jobId}/status`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: action })
+      });
+    } finally {
+      setActionLoading(null);
+      await load();
     }
   }
 
   async function batchAction(action: "paid" | "approved") {
     const ids = Array.from(selectedJobs);
-    await Promise.all(
-      ids.map((id) =>
-        fetch(`/api/admin/jobs/${id}/status`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ status: action })
-        })
-      )
-    );
+    await Promise.all(ids.map((id) =>
+      fetch(`/api/admin/jobs/${id}/status`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: action })
+      })
+    ));
     setSelectedJobs(new Set());
-    setShowBatch(false);
     await load();
   }
 
   function toggleSelect(id: string) {
     const next = new Set(selectedJobs);
-    if (next.has(id)) next.delete(id);
-    else next.add(id);
+    if (next.has(id)) next.delete(id); else next.add(id);
     setSelectedJobs(next);
   }
 
   function selectAll() {
-    if (selectedJobs.size === jobs.filter((j) => j.status === "pending_payment").length) {
-      setSelectedJobs(new Set());
-    } else {
-      setSelectedJobs(new Set(jobs.filter((j) => j.status === "pending_payment").map((j) => j.id)));
-    }
+    const pending = filteredJobs.filter((j) => j.status === "pending_payment").map((j) => j.id);
+    setSelectedJobs(selectedJobs.size === pending.length ? new Set() : new Set(pending));
   }
 
   function expiryLabel(expiresAt: string) {
     const ms = new Date(expiresAt).getTime() - now;
-    if (ms <= 0) return "Expired";
+    if (ms <= 0) return { text: "Expired", urgent: true, expired: true };
     const mins = Math.floor(ms / 60000);
-    if (mins < 60) return `${mins}m left`;
+    if (mins < 60) return { text: `${mins}m left`, urgent: mins < 10, expired: false };
     const hrs = Math.floor(mins / 60);
-    if (hrs < 24) return `${hrs}h ${mins % 60}m left`;
-    return `${Math.floor(hrs / 24)}d left`;
+    if (hrs < 24) return { text: `${hrs}h ${mins % 60}m`, urgent: false, expired: false };
+    return { text: `${Math.floor(hrs / 24)}d left`, urgent: false, expired: false };
   }
 
-  function statusColor(status: string) {
-    if (status === "printed") return "ok";
-    if (status === "pending_payment") return "warn";
-    if (status === "failed" || status === "cancelled") return "danger";
-    return "";
+  function statusBadge(status: string) {
+    const map: Record<string, { label: string; cls: string }> = {
+      pending_payment: { label: "Unpaid", cls: "warn" },
+      paid: { label: "Paid", cls: "info" },
+      approved: { label: "Ready", cls: "ready" },
+      printing: { label: "Printing", cls: "info" },
+      printed: { label: "Done", cls: "ok" },
+      failed: { label: "Failed", cls: "danger" },
+      cancelled: { label: "Cancelled", cls: "danger" },
+    };
+    return map[status] ?? { label: status, cls: "" };
   }
+
+  function formatRupees(paise: number) {
+    return `₹${(paise / 100).toFixed(2)}`;
+  }
+
+  const filteredJobs = filterStatus === "all" ? jobs : jobs.filter((j) => j.status === filterStatus);
+  const pending = jobs.filter((j) => j.status === "pending_payment");
+  const activeJobs = jobs.filter((j) => !["printed", "cancelled", "failed"].includes(j.status));
+
+  const statusFilters = [
+    { value: "all", label: "All" },
+    { value: "pending_payment", label: "Unpaid" },
+    { value: "paid", label: "Paid" },
+    { value: "approved", label: "Ready" },
+    { value: "printing", label: "Printing" },
+    { value: "printed", label: "Done" },
+  ];
 
   if (!loggedIn) {
     return (
       <main className="customer-shell">
         <section className="panel stack">
-          <h1>Admin Login</h1>
+          <div className="admin-login-header">
+            <Printer size={36} className="admin-logo" />
+            <h1>SelfPrint Admin</h1>
+          </div>
           <form className="stack" onSubmit={login}>
-            <label>Username<input value={username} onChange={(event) => setUsername(event.target.value)} /></label>
-            <label>Password/PIN<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} /></label>
-            {error ? <p style={{ color: "var(--danger)" }}>{error}</p> : null}
-            <button>Login</button>
+            <label>Username<input value={username} onChange={(e) => setUsername(e.target.value)} /></label>
+            <label>Password<input type="password" value={password} onChange={(e) => setPassword(e.target.value)} /></label>
+            {error && <p className="error-msg">{error}</p>}
+            <button type="submit">Login</button>
           </form>
         </section>
       </main>
     );
   }
 
-  const pendingJobs = jobs.filter((j) => j.status === "pending_payment");
-  const paidJobs = jobs.filter((j) => j.status === "paid");
-  const activeJobs = jobs.filter((j) => !["printed", "cancelled", "failed"].includes(j.status));
-
   return (
-    <main className="shell stack">
-      <div className="row between">
-        <div>
-          <h1>Print Queue</h1>
-          <p className="muted">
-            {activeJobs.length} active · {summary.jobs} paid today · ₹{(summary.totalPaise / 100).toFixed(2)}
-            {sseConnected && <span className="sse-dot" title="Live updates connected" />}
-          </p>
+    <main className="shell">
+      {/* Top bar */}
+      <header className="admin-topbar">
+        {/* Brand */}
+        <div className="admin-brand">
+          <Printer size={24} />
+          <span>Self_Print</span>
         </div>
-        <div className="row">
+
+        {/* Stats */}
+        <div className="admin-stats">
+          <div className="stat-chip">
+            <span className="stat-label">Active</span>
+            <span className="stat-value">{activeJobs.length}</span>
+          </div>
+          <div className="stat-chip revenue-chip">
+            <span className="stat-label">₹ Today</span>
+            <span className="stat-value">{formatRupees(summary.totalPaise)}</span>
+          </div>
+        </div>
+
+        {/* Active printer */}
+        <button
+          className={`printer-chip ${printerName ? "active-printer" : "no-printer"}`}
+          onClick={() => { setShowPrinter(true); setShowSettings(false); }}
+          title="Click to change printer"
+        >
+          <Monitor size={16} />
+          <span className="printer-chip-label">
+            {printerName ? printerName : "No printer"}
+          </span>
+          {printerName && <span className="printer-active-dot" />}
+        </button>
+
+        {/* Actions */}
+        <div className="admin-actions">
           {newJobCount > 0 && (
-            <button className="notification-btn" onClick={load}>
-              <Bell size={16} /> {newJobCount} new
+            <button className="notif-btn" onClick={load}>
+              <Bell size={15} />
+              <span>{newJobCount} new</span>
             </button>
           )}
-          <button className="secondary" onClick={load}><RefreshCw size={16} /> Refresh</button>
-          <button className="secondary" onClick={() => { setShowPrinter(!showPrinter); setShowSettings(false); }}>
-            <Printer size={16} /> Printer
+          <button className="admin-action-btn" onClick={load} title="Refresh job list">
+            <RefreshCw size={18} />
+            <span>Refresh</span>
           </button>
-          <button className="secondary" onClick={() => { setShowSettings(!showSettings); setShowPrinter(false); }}>
-            <Settings size={16} /> Settings
+          <button
+            className={`admin-action-btn ${showSettings ? "active" : ""}`}
+            onClick={() => { setShowSettings(!showSettings); setShowPrinter(false); }}
+          >
+            <span className="rupee-icon">₹</span>
+            <span>Pricing</span>
           </button>
-          <button className="secondary" onClick={logout}><LogOut size={16} /> Logout</button>
+          <button className="admin-action-btn admin-action-danger" onClick={logout}>
+            <LogOut size={18} />
+            <span>Logout</span>
+          </button>
+          <span className={`sse-dot ${sseConnected ? "connected" : ""}`} title={sseConnected ? "Live updates connected" : "Connecting..."} />
         </div>
-      </div>
+      </header>
 
+      {/* Printer panel */}
       {showPrinter && (
-        <section className="panel stack">
-          <h2><Printer size={18} /> Printer Settings</h2>
-          {printers.length ? (
-            <label>
-              Active printer
-              <select value={printerName} onChange={(e) => setPrinterName(e.target.value)}>
+        <section className="admin-panel printer-dropdown-panel">
+          <div className="panel-header">
+            <Monitor size={18} />
+            <h3>Select Printer</h3>
+            <button className="panel-close-btn" onClick={() => setShowPrinter(false)} aria-label="Close printer menu">
+              <X size={14} />
+            </button>
+          </div>
+          {printers.length > 0 ? (
+            <div className="printer-list">
+              <div className="printer-options">
                 {printers.map((printer) => (
-                  <option value={printer.name} key={printer.name}>
-                    {printer.name}{printer.isDefault ? " (Windows default)" : ""}
-                  </option>
+                  <button
+                    key={printer.name}
+                    type="button"
+                    className={`printer-option ${printerName === printer.name ? "selected" : ""}`}
+                    onClick={() => choosePrinter(printer.name)}
+                  >
+                    <div className="printer-option-content">
+                      <span className="printer-name">{printer.name}</span>
+                      <span className="printer-driver">{printer.driverName}</span>
+                    </div>
+                    {printer.isDefault && <span className="default-badge">Default</span>}
+                    {printerName === printer.name && <Check size={15} className="printer-selected-check" />}
+                  </button>
                 ))}
-              </select>
-            </label>
-          ) : (
-            <label>
-              Active printer
-              <input
-                value={printerName}
-                onChange={(e) => setPrinterName(e.target.value)}
-                placeholder="e.g. HP LaserJet 4050"
-              />
-            </label>
-          )}
-          {printers.length ? (
-            <div className="stack" style={{ gap: 8 }}>
-              {printers.map((printer) => (
-                <div className="card" style={{ padding: 10 }} key={printer.name}>
-                  <strong>{printer.name}</strong>
-                  <p className="muted" style={{ marginBottom: 0 }}>
-                    {printer.driverName || "Unknown driver"} · {printer.portName || "Unknown port"}
-                  </p>
-                </div>
-              ))}
+              </div>
             </div>
-          ) : null}
-          <p className="muted" style={{ fontSize: 13, marginTop: -8 }}>
-            Start the Windows print agent to auto-detect connected printers. Manual entry is available when no printer list has been reported yet.
-          </p>
-          <div className="row">
-            <button onClick={savePrinter}>Save Printer</button>
-            {printerSaved && <span className="muted" style={{ color: "var(--ok)" }}>Saved!</span>}
+          ) : (
+            <div className="printer-empty">
+              <Printer size={28} />
+              <p>No printers detected</p>
+              <span>Make sure the print agent is running on the shop PC</span>
+            </div>
+          )}
+          <div className="panel-actions">
+            <button className="btn-primary-sm" onClick={savePrinter} disabled={!printerName || printers.length > 0}>
+              {printerSaved ? <><Check size={14} /> Saved</> : "Save manual printer"}
+            </button>
+            {printerSaved && <span className="saved-msg"><Check size={14} /> Saved</span>}
           </div>
         </section>
       )}
 
+      {/* Settings panel */}
       {showSettings && pricingForm && (
-        <section className="panel stack">
-          <h2><DollarSign size={18} /> Pricing & Settings</h2>
-          <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}>
+        <section className="admin-panel">
+          <div className="panel-header">
+            <span className="rupee-icon panel-rupee-icon">₹</span>
+            <h3>Pricing & Settings</h3>
+            <button className="panel-close-btn" onClick={() => setShowSettings(false)} aria-label="Close settings">
+              <X size={14} />
+            </button>
+          </div>
+          <div className="pricing-grid">
             <label>
-              B/W per page (₹)
-              <input type="number" min="0" step="0.01"
-                value={pricingForm.bwPerPagePaise / 100}
+              <span>B/W per page (₹)</span>
+              <input type="number" min="0" step="0.01" value={pricingForm.bwPerPagePaise / 100}
                 onChange={(e) => setPricingForm({ ...pricingForm, bwPerPagePaise: Math.round(Number(e.target.value) * 100) })} />
             </label>
             <label>
-              Color per page (₹)
-              <input type="number" min="0" step="0.01"
-                value={pricingForm.colorPerPagePaise / 100}
+              <span>Color per page (₹)</span>
+              <input type="number" min="0" step="0.01" value={pricingForm.colorPerPagePaise / 100}
                 onChange={(e) => setPricingForm({ ...pricingForm, colorPerPagePaise: Math.round(Number(e.target.value) * 100) })} />
             </label>
             <label>
-              Photo print (₹)
-              <input type="number" min="0" step="0.01"
-                value={pricingForm.photoPrintPaise / 100}
+              <span>Photo print (₹)</span>
+              <input type="number" min="0" step="0.01" value={pricingForm.photoPrintPaise / 100}
                 onChange={(e) => setPricingForm({ ...pricingForm, photoPrintPaise: Math.round(Number(e.target.value) * 100) })} />
             </label>
             <label>
-              Copy multiplier
-              <input type="number" min="0" step="0.1"
-                value={pricingForm.copyMultiplier}
+              <span>Copy multiplier</span>
+              <input type="number" min="0" step="0.1" value={pricingForm.copyMultiplier}
                 onChange={(e) => setPricingForm({ ...pricingForm, copyMultiplier: Number(e.target.value) })} />
             </label>
             <label>
-              Legal multiplier
-              <input type="number" min="0" step="0.1"
-                value={pricingForm.legalMultiplier}
+              <span>A3 multiplier</span>
+              <input type="number" min="0" step="0.1" value={pricingForm.a3Multiplier}
+                onChange={(e) => setPricingForm({ ...pricingForm, a3Multiplier: Number(e.target.value) })} />
+            </label>
+            <label>
+              <span>A5 multiplier</span>
+              <input type="number" min="0" step="0.1" value={pricingForm.a5Multiplier}
+                onChange={(e) => setPricingForm({ ...pricingForm, a5Multiplier: Number(e.target.value) })} />
+            </label>
+            <label>
+              <span>Legal multiplier</span>
+              <input type="number" min="0" step="0.1" value={pricingForm.legalMultiplier}
                 onChange={(e) => setPricingForm({ ...pricingForm, legalMultiplier: Number(e.target.value) })} />
             </label>
             <label>
-              Photo multiplier
-              <input type="number" min="0" step="0.1"
-                value={pricingForm.photoMultiplier}
-                onChange={(e) => setPricingForm({ ...pricingForm, photoMultiplier: Number(e.target.value) })} />
-            </label>
-            <label>
-              Job expiry (minutes)
-              <input type="number" min="30" step="10"
-                value={pricingForm.expiryMinutes}
+              <span>Job expiry (min)</span>
+              <input type="number" min="30" step="10" value={pricingForm.expiryMinutes}
                 onChange={(e) => setPricingForm({ ...pricingForm, expiryMinutes: Number(e.target.value) })} />
             </label>
           </div>
-          <div className="row">
-            <button onClick={savePricing}>Save Settings</button>
-            {pricingSaved && <span className="muted" style={{ color: "var(--ok)" }}>Saved!</span>}
+          <div className="panel-actions">
+            <button className="btn-primary-sm" onClick={savePricing}>Save</button>
+            {pricingSaved && <span className="saved-msg"><Check size={14} /> Saved</span>}
           </div>
         </section>
       )}
 
-      {pendingJobs.length > 0 && (
-        <section className="panel batch-panel">
-          <div className="row between">
-            <span className="batch-label">
-              {selectedJobs.size > 0 ? `${selectedJobs.size} selected` : `Pending (${pendingJobs.length})`}
-            </span>
-            <div className="row">
-              <button className="text-btn" onClick={selectAll}>
-                {selectedJobs.size === pendingJobs.length ? <CheckSquare size={14} /> : <Square size={14} />}
-                {selectedJobs.size === pendingJobs.length ? "Deselect all" : "Select all"}
+      {/* Filter tabs */}
+      <div className="filter-bar">
+        {statusFilters.map((f) => {
+          const count = f.value === "all" ? jobs.length : jobs.filter((j) => j.status === f.value).length;
+          return (
+            <button key={f.value} className={`filter-tab ${filterStatus === f.value ? "active" : ""}`} onClick={() => setFilterStatus(f.value)}>
+              {f.label} <span className="filter-count">{count}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Batch actions */}
+      {pending.length > 0 && (
+        <div className="batch-bar">
+          <span className="batch-info">
+            <button className="select-all-btn" onClick={selectAll}>
+              {selectedJobs.size === pending.length ? <CheckSquare size={15} /> : <Square size={15} />}
+              {selectedJobs.size > 0 ? `${selectedJobs.size} selected` : "Select all unpaid"}
+            </button>
+          </span>
+          {selectedJobs.size > 0 && (
+            <div className="batch-actions">
+              <button className="batch-btn-paid" onClick={() => batchAction("paid")}>
+                <CreditCard size={15} /> Mark paid
               </button>
-              {selectedJobs.size > 0 && (
-                <>
-                  <button className="batch-btn" onClick={() => batchAction("paid")}>Mark paid</button>
-                  <button className="batch-btn" onClick={() => setShowBatch(false)}>Cancel</button>
-                </>
-              )}
+              <button className="batch-btn-clear" onClick={() => setSelectedJobs(new Set())}>
+                <X size={15} /> Clear
+              </button>
             </div>
-          </div>
-        </section>
+          )}
+        </div>
       )}
 
-      <section className="job-list">
-        {jobs.map((job) => (
-          <div className={`job-item ${job.status === "pending_payment" ? "selectable" : ""}`} key={job.id}>
-            {job.status === "pending_payment" && (
-              <input
-                type="checkbox"
-                className="job-checkbox"
-                checked={selectedJobs.has(job.id)}
-                onChange={() => toggleSelect(job.id)}
-              />
-            )}
-            <Link className="job-link" href={`/admin/jobs/${job.id}`}>
-              <div className="row between">
-                <div className="row gap-sm">
-                  <span className="queue-pos">#{job.queuePosition}</span>
-                  <strong>Token {job.token}</strong>
+      {/* Job list */}
+      <div className="job-list">
+        {filteredJobs.length === 0 ? (
+          <div className="empty-state">
+            <Printer size={40} />
+            <p>No jobs found</p>
+            <span>{filterStatus === "all" ? "Waiting for customer uploads..." : `No ${filterStatus} jobs`}</span>
+          </div>
+        ) : filteredJobs.map((job) => {
+          const badge = statusBadge(job.status);
+          const expiry = expiryLabel(job.expiresAt);
+          const busy = actionLoading === job.id;
+
+          return (
+            <div key={job.id} className="job-card">
+              {/* Main row: info + actions inline */}
+              <div className="job-card-main">
+                {job.status === "pending_payment" && (
+                  <input type="checkbox" className="job-check"
+                    checked={selectedJobs.has(job.id)} onChange={(e) => { e.stopPropagation(); toggleSelect(job.id); }} />
+                )}
+                <span className="queue-badge">#{job.queuePosition}</span>
+                <div className="job-card-body">
+                  <div className="job-card-top">
+                    <span className="job-token">Token {job.token}</span>
+                    <span className={`status-badge ${badge.cls}`}>{badge.label}</span>
+                    {!["printed", "cancelled", "failed"].includes(job.status) && (
+                      <span className={`expiry-chip ${expiry.expired ? "expired" : expiry.urgent ? "urgent" : ""}`}>
+                        {expiry.text}
+                      </span>
+                    )}
+                  </div>
+                  <div className="job-card-info">
+                    <span className="job-filename">{job.file.originalName}</span>
+                    <span className="job-sep">·</span>
+                    <span className="job-details">{job.printType === "bw" ? "B&W" : "Color"}</span>
+                    <span className="job-sep">·</span>
+                    <span className="job-details">{job.copies} copy</span>
+                    <span className="job-sep">·</span>
+                    <span className="job-details">{job.paperSize}</span>
+                    <span className="job-sep">·</span>
+                    <span className="job-time">{new Date(job.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+                  </div>
                 </div>
-                <div className="row gap-sm">
-                  <span className={`expiry-badge ${expiryLabel(job.expiresAt) === "Expired" ? "expired" : ""}`}>
-                    {expiryLabel(job.expiresAt)}
-                  </span>
-                  <span className={`badge ${statusColor(job.status)}`}>
-                    {job.needsConversion ? "needs conversion" : job.status}
-                  </span>
+                <div className="job-card-actions-inline">
+                  {job.status === "pending_payment" && (
+                    <button className="job-action-btn job-action-paid" disabled={busy} onClick={() => jobAction(job.id, "paid")}>
+                      {busy ? <Loader2 size={13} className="spin" /> : <CreditCard size={13} />}
+                      <span>Mark Paid</span>
+                    </button>
+                  )}
+                  {job.status === "paid" && (
+                    <button className="job-action-btn job-action-release" disabled={busy} onClick={() => jobAction(job.id, "approved")}>
+                      {busy ? <Loader2 size={13} className="spin" /> : <Printer size={13} />}
+                      <span>Release</span>
+                    </button>
+                  )}
+                  {(job.status === "approved" || job.status === "printing") && (
+                    <button className="job-action-btn job-action-done" disabled={busy} onClick={() => jobAction(job.id, "printed")}>
+                      {busy ? <Loader2 size={13} className="spin" /> : <Check size={13} />}
+                      <span>Done</span>
+                    </button>
+                  )}
+                  {job.status === "printed" && (
+                    <button className="job-action-btn job-action-reprint" disabled={busy} onClick={() => jobAction(job.id, "approved")}>
+                      {busy ? <Loader2 size={13} className="spin" /> : <RefreshCw size={13} />}
+                      <span>Reprint</span>
+                    </button>
+                  )}
+                  {!["printed", "cancelled", "failed"].includes(job.status) && (
+                    <button className="job-action-btn job-action-cancel" disabled={busy} onClick={() => jobAction(job.id, "cancelled")}>
+                      <X size={13} />
+                    </button>
+                  )}
+                  <Link href={`/admin/jobs/${job.id}`} className="job-action-btn job-action-view">
+                    <Eye size={13} />
+                  </Link>
+                </div>
+                <div className="job-card-right">
+                  <strong className="job-price">{formatRupees(job.pricePaise)}</strong>
                 </div>
               </div>
-              <span>{job.file.originalName}</span>
-              <span className="muted">₹{(job.pricePaise / 100).toFixed(2)} · {new Date(job.createdAt).toLocaleString()}</span>
-            </Link>
-          </div>
-        ))}
-        {!jobs.length ? <p className="muted">No jobs yet.</p> : null}
-      </section>
+
+              {/* Conversion warning */}
+              {job.needsConversion === 1 && (
+                <div className="job-card-footer">
+                  <span className="conversion-note">
+                    ⚠ This DOC/DOCX file needs conversion before printing — use the job detail page to convert it first.
+                  </span>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </main>
   );
 }

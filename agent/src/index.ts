@@ -20,7 +20,7 @@ type AgentJob = {
     printType: "bw" | "color";
     copies: number;
     pageRange: string | null;
-    paperSize: "A4" | "Letter" | "Legal" | "Photo";
+    paperSize: "A3" | "A4" | "A5" | "A6" | "B5" | "Letter" | "Legal" | "Photo";
     layout: "portrait" | "landscape";
     pagesPerSheet: number;
     margins: "default" | "none" | "minimum";
@@ -30,6 +30,7 @@ type AgentJob = {
     originalName: string;
     mimeType: string;
     fileKind: "pdf" | "image" | "document";
+    sizeBytes: number;
   };
   printerName?: string;
 };
@@ -81,7 +82,7 @@ async function pollOnce() {
 
   const job = next.job;
   const extension = extensionFor(next.file.mimeType, next.file.originalName);
-  const tempPath = path.resolve(config.tempDir, `${job.token}-${job.id}${extension}`);
+  const tempPath = path.resolve(config.tempDir, `${job.token}-${safeFileName(next.file.originalName, extension)}`);
 
   try {
     let attempt = 0;
@@ -96,8 +97,13 @@ async function pollOnce() {
         });
         if (!fileResponse.ok) throw new Error(`Download failed: ${fileResponse.status}`);
 
-        await fs.writeFile(tempPath, Buffer.from(await fileResponse.arrayBuffer()));
-        log(`File downloaded to ${tempPath}`);
+        const fileBytes = Buffer.from(await fileResponse.arrayBuffer());
+        const expectedSize = Number(fileResponse.headers.get("x-original-file-size") ?? next.file.sizeBytes);
+        if (Number.isFinite(expectedSize) && expectedSize > 0 && fileBytes.length !== expectedSize) {
+          throw new Error(`Downloaded file size mismatch: expected ${expectedSize} bytes, got ${fileBytes.length} bytes`);
+        }
+        await fs.writeFile(tempPath, fileBytes);
+        log(`File downloaded to ${tempPath} (${fileBytes.length} bytes)`);
 
         const printer = cachedPrinterName || config.fallbackPrinter;
         log(`Printing ${job.copies} copy(s), paper: ${job.paperSize}, type: ${job.printType}, printer: ${printer}...`);
@@ -155,7 +161,7 @@ async function printWithSumatra(filePath: string, job: NonNullable<AgentJob["job
   }
 
   const printSettings = buildPrintSettings(job);
-  const args = ["-silent", "-exit-when-done", "-print-to", printer];
+  const args: string[] = ["-silent", "-exit-when-done", "-print-to", printer];
   if (printSettings) args.push("-print-settings", printSettings);
   args.push(filePath);
 
@@ -203,10 +209,11 @@ function buildPrintSettings(job: NonNullable<AgentJob["job"]>) {
 }
 
 function paperSetting(paperSize: NonNullable<AgentJob["job"]>["paperSize"]) {
-  if (paperSize === "A4") return "A4";
-  if (paperSize === "Letter") return "letter";
-  if (paperSize === "Legal") return "legal";
-  return null;
+  const map: Record<string, string> = {
+    A3: "A3", A4: "A4", A5: "A5", A6: "A6",
+    B5: "B5", Letter: "letter", Legal: "legal", Photo: "4x6"
+  };
+  return map[paperSize] ?? null;
 }
 
 type WindowsPrinter = {
@@ -301,6 +308,14 @@ function extensionFor(mimeType: string, originalName: string) {
   if (mimeType === "application/pdf") return ".pdf";
   if (mimeType === "image/png") return ".png";
   return ".jpg";
+}
+
+function safeFileName(originalName: string, fallbackExtension: string) {
+  const parsed = path.parse(originalName);
+  const base = parsed.name || "print-job";
+  const ext = parsed.ext || fallbackExtension;
+  const safeBase = base.replace(/[<>:"/\\|?*\x00-\x1F]/g, "_").trim().slice(0, 80) || "print-job";
+  return `${safeBase}${ext}`;
 }
 
 function sleep(ms: number) {

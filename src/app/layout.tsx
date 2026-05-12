@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "SelfPrint Xerox",
+  title: "Self_Print",
   description: "Self-service Xerox shop print queue"
 };
 

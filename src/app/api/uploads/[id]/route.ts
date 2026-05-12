@@ -14,6 +14,7 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
   return new NextResponse(fs.readFileSync(file.storagePath), {
     headers: {
       "Content-Type": file.mimeType,
+      "Content-Length": String(file.sizeBytes),
       "Content-Disposition": `inline; filename="${file.originalName.replaceAll('"', "")}"`
     }
   });

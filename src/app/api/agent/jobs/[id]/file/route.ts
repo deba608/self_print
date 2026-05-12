@@ -16,6 +16,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   return new NextResponse(fs.readFileSync(file.storagePath), {
     headers: {
       "Content-Type": file.mimeType,
+      "Content-Length": String(file.sizeBytes),
+      "X-Original-File-Size": String(file.sizeBytes),
+      "X-Original-File-Name": encodeURIComponent(file.originalName),
       "Content-Disposition": `attachment; filename="${file.originalName.replaceAll('"', "")}"`
     }
   });

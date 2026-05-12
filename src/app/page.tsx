@@ -7,7 +7,7 @@ export default function CustomerPage() {
       <header className="shop-header">
         <div className="shop-logo">
           <Printer size={28} />
-          <span>SelfPrint Xerox</span>
+          <span>Self_Print</span>
         </div>
       </header>
       <section className="panel stack">

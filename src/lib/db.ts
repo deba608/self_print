@@ -242,6 +242,9 @@ export function getAgentPrinters(): PrinterOption[] {
 }
 
 export function mapJob(row: Record<string, unknown>): Job {
+  const createdAt = String(row.created_at);
+  const expiryMinutes = getPricing().expiryMinutes ?? 1440;
+  const expiresAt = new Date(new Date(createdAt).getTime() + expiryMinutes * 60000).toISOString();
   return {
     id: String(row.id),
     token: String(row.token),
@@ -258,10 +261,11 @@ export function mapJob(row: Record<string, unknown>): Job {
     pricePaise: Number(row.price_paise),
     needsConversion: Number(row.needs_conversion) as 0 | 1,
     queuePosition: Number(row.queue_position),
-    createdAt: String(row.created_at),
+    createdAt,
     updatedAt: String(row.updated_at),
     paidAt: row.paid_at ? String(row.paid_at) : null,
-    printedAt: row.printed_at ? String(row.printed_at) : null
+    printedAt: row.printed_at ? String(row.printed_at) : null,
+    expiresAt
   };
 }
 

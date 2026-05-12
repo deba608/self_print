@@ -4,7 +4,13 @@
       "Bash(npm run *)",
       "Bash(Get-Content \"src\\\\app\\\\api\\\\admin\\\\pricing\\\\route.ts\")",
       "Bash(cat \"C:\\\\Users\\\\Dev\\\\Desktop\\\\Selfprint\\\\src\\\\components\\\\JobDetail.tsx\")",
-      "Read(//tmp/**)"
+      "Read(//tmp/**)",
+      "Bash(npx tsc *)",
+      "Bash(Get-ChildItem \"src/app/api/admin/jobs\" -Recurse)",
+      "Bash(Select-Object FullName)",
+      "Bash(powershell.exe *)",
+      "Bash(node -e ' *)",
+      "Bash(curl *)"
     ]
   }
 }

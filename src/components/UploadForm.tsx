@@ -47,8 +47,8 @@ export default function UploadForm() {
 
   const estimate = useMemo(() => {
     if (!pricing) return 0;
-    const pages = pageRange.trim() ? estimateRange(pageRange) : 1;
-    if (paperSize === "Photo") return (pricing.photoPrintPaise / 100) * copies * pricing.photoMultiplier;
+    const selectedPages = pageRange.trim() ? estimateRange(pageRange) : 1;
+    if (paperSize === "Photo") return Math.round((pricing.photoPrintPaise / 100) * copies);
     const base = printType === "bw" ? pricing.bwPerPagePaise : pricing.colorPerPagePaise;
     let paperMultiplier = 1;
     switch (paperSize) {
@@ -59,7 +59,7 @@ export default function UploadForm() {
       case "B5": paperMultiplier = pricing.b5Multiplier; break;
       case "Legal": paperMultiplier = pricing.legalMultiplier; break;
     }
-    return Math.round((base / 100) * pages * copies * paperMultiplier * pricing.copyMultiplier);
+    return Math.round((base / 100) * selectedPages * copies * paperMultiplier * pricing.copyMultiplier);
   }, [copies, pageRange, paperSize, printType, pricing]);
 
   const fileTypeLabel = useMemo(() => {
@@ -309,10 +309,11 @@ export default function UploadForm() {
           {/* Price box */}
           <div className="price-box">
             <div className="price-row">
-              <span>Estimated Total</span>
+              <span>{pageRange.trim() ? "Estimated Total" : "Estimated Price"}</span>
               <strong className="price">₹{estimate.toFixed(2)}</strong>
             </div>
-            {copies > 1 && <span className="price-note">{copies} copies × {paperSizeLabels[paperSize as keyof typeof paperSizeLabels] || paperSize}</span>}
+            {!pageRange.trim() && <span className="price-note">Enter page range for exact total</span>}
+            {pageRange.trim() && copies > 1 && <span className="price-note">{copies} copies × {paperSizeLabels[paperSize as keyof typeof paperSizeLabels] || paperSize}</span>}
           </div>
 
           {error && <p className="error-msg">{error}</p>}
