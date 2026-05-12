@@ -1,6 +1,6 @@
 .next/
 node_modules/
-data/*.sqlite
+data/*.sqlite*
 uploads/originals/*
 uploads/converted/*
 agent-temp/*

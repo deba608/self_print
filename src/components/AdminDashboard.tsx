@@ -394,17 +394,17 @@ export default function AdminDashboard() {
             <label>
               <span>B/W per page (₹)</span>
               <input type="number" min="0" step="0.01" value={pricingForm.bwPerPagePaise / 100}
-                onChange={(e) => setPricingForm({ ...pricingForm, bwPerPagePaise: Math.round(Number(e.target.value) * 100) })} />
+                onChange={(e) => setPricingForm({ ...pricingForm, bwPerPagePaise: Math.round((Number(e.target.value) || 0) * 100) })} />
             </label>
             <label>
               <span>Color per page (₹)</span>
               <input type="number" min="0" step="0.01" value={pricingForm.colorPerPagePaise / 100}
-                onChange={(e) => setPricingForm({ ...pricingForm, colorPerPagePaise: Math.round(Number(e.target.value) * 100) })} />
+                onChange={(e) => setPricingForm({ ...pricingForm, colorPerPagePaise: Math.round((Number(e.target.value) || 0) * 100) })} />
             </label>
             <label>
               <span>Photo print (₹)</span>
               <input type="number" min="0" step="0.01" value={pricingForm.photoPrintPaise / 100}
-                onChange={(e) => setPricingForm({ ...pricingForm, photoPrintPaise: Math.round(Number(e.target.value) * 100) })} />
+                onChange={(e) => setPricingForm({ ...pricingForm, photoPrintPaise: Math.round((Number(e.target.value) || 0) * 100) })} />
             </label>
             <label>
               <span>Copy multiplier</span>

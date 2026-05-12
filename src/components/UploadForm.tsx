@@ -47,6 +47,7 @@ export default function UploadForm() {
 
   const estimate = useMemo(() => {
     if (!pricing) return 0;
+    // Default to printing all pages (1 page assumed for estimate - actual count comes from server)
     const selectedPages = pageRange.trim() ? estimateRange(pageRange) : 1;
     if (paperSize === "Photo") return Math.round((pricing.photoPrintPaise / 100) * copies);
     const base = printType === "bw" ? pricing.bwPerPagePaise : pricing.colorPerPagePaise;
@@ -61,6 +62,12 @@ export default function UploadForm() {
     }
     return Math.round((base / 100) * selectedPages * copies * paperMultiplier * pricing.copyMultiplier);
   }, [copies, pageRange, paperSize, printType, pricing]);
+
+  const pageInfo = useMemo(() => {
+    if (!pageRange.trim()) return "All pages";
+    const pages = estimateRange(pageRange);
+    return `${pages} page${pages !== 1 ? "s" : ""}`;
+  }, [pageRange]);
 
   const fileTypeLabel = useMemo(() => {
     if (!file) return null;
@@ -309,11 +316,10 @@ export default function UploadForm() {
           {/* Price box */}
           <div className="price-box">
             <div className="price-row">
-              <span>{pageRange.trim() ? "Estimated Total" : "Estimated Price"}</span>
+              <span>Estimated Price</span>
               <strong className="price">₹{estimate.toFixed(2)}</strong>
             </div>
-            {!pageRange.trim() && <span className="price-note">Enter page range for exact total</span>}
-            {pageRange.trim() && copies > 1 && <span className="price-note">{copies} copies × {paperSizeLabels[paperSize as keyof typeof paperSizeLabels] || paperSize}</span>}
+            <span className="price-note">{pageInfo} × {copies} copy{copies !== 1 ? "ies" : ""} × {paperSizeLabels[paperSize as keyof typeof paperSizeLabels] || paperSize}</span>
           </div>
 
           {error && <p className="error-msg">{error}</p>}
@@ -391,7 +397,7 @@ export default function UploadForm() {
 
           {/* Total price */}
           <div className="total-price">
-            <span>Total</span>
+            <span>Total ({pageInfo} × {copies} copy{copies !== 1 ? "ies" : ""})</span>
             <strong>₹{estimate.toFixed(2)}</strong>
           </div>
 
