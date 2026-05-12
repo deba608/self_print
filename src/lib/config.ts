@@ -1,8 +1,14 @@
 import path from "node:path";
 
 export const ROOT_DIR = process.cwd();
-export const DB_PATH = path.resolve(ROOT_DIR, process.env.DATABASE_PATH ?? "data/selfprint.sqlite");
-export const UPLOAD_ROOT = path.resolve(ROOT_DIR, process.env.UPLOAD_DIR ?? "uploads");
+const isVercel = Boolean(process.env.VERCEL);
+const runtimeDataRoot = isVercel ? "/tmp/selfprint" : ROOT_DIR;
+export const DB_PATH = path.resolve(
+  process.env.DATABASE_PATH ?? path.join(runtimeDataRoot, "data/selfprint.sqlite")
+);
+export const UPLOAD_ROOT = path.resolve(
+  process.env.UPLOAD_DIR ?? path.join(runtimeDataRoot, "uploads")
+);
 export const ORIGINALS_DIR = path.join(UPLOAD_ROOT, "originals");
 export const CONVERTED_DIR = path.join(UPLOAD_ROOT, "converted");
 export const MAX_UPLOAD_MB = Number(process.env.MAX_UPLOAD_MB ?? 25);
