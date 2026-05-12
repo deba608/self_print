@@ -7,7 +7,7 @@ import { calculatePrice } from "@/lib/pricing";
 import type { PaperSize, PrintLayout, PrintMargins, PrintScale, PrintType } from "@/lib/types";
 
 const printTypes: PrintType[] = ["bw", "color"];
-const paperSizes: PaperSize[] = ["A4", "Letter", "Legal", "Photo"];
+const paperSizes: PaperSize[] = ["A3", "A4", "A5", "A6", "B5", "Letter", "Legal", "Photo"];
 const layouts: PrintLayout[] = ["portrait", "landscape"];
 const pagesPerSheetOptions = [1, 2, 4, 6, 9, 16];
 const marginsOptions: PrintMargins[] = ["default", "none", "minimum"];

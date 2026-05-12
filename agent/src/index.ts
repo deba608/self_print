@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { existsSync } from "node:fs";
-import { spawn } from "node:child_process";
+import { execFile, spawn } from "node:child_process";
 
 type AgentConfig = {
   serverUrl: string;
@@ -37,6 +37,7 @@ type AgentJob = {
 let config: AgentConfig;
 let isShuttingDown = false;
 let cachedPrinterName = "";
+let lastPrinterReportAt = 0;
 
 async function main() {
   config = await loadConfig();
@@ -65,6 +66,8 @@ main().catch((error) => {
 });
 
 async function pollOnce() {
+  await reportPrintersIfNeeded();
+
   const printerConfig = await api<{ printerName: string; configVersion: number }>("/api/agent/printer");
   if (printerConfig?.printerName) {
     cachedPrinterName = printerConfig.printerName;
@@ -118,6 +121,27 @@ async function pollOnce() {
     }
   } finally {
     await fs.rm(tempPath, { force: true }).catch(() => undefined);
+  }
+}
+
+async function reportPrintersIfNeeded() {
+  const now = Date.now();
+  if (now - lastPrinterReportAt < 60000) return;
+  lastPrinterReportAt = now;
+  try {
+    const printers = await listWindowsPrinters();
+    if (!printers.length) {
+      log("No Windows printers detected.");
+      return;
+    }
+    await api("/api/agent/printers", {
+      method: "POST",
+      headers: { ...authHeaders(), "Content-Type": "application/json" },
+      body: JSON.stringify({ printers })
+    });
+    log(`Reported ${printers.length} printer(s) to server.`);
+  } catch (error) {
+    log(`Printer discovery failed: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
@@ -183,6 +207,50 @@ function paperSetting(paperSize: NonNullable<AgentJob["job"]>["paperSize"]) {
   if (paperSize === "Letter") return "letter";
   if (paperSize === "Legal") return "legal";
   return null;
+}
+
+type WindowsPrinter = {
+  name: string;
+  driverName: string;
+  portName: string;
+  isDefault: boolean;
+};
+
+async function listWindowsPrinters(): Promise<WindowsPrinter[]> {
+  const script = [
+    "$printers = Get-Printer | Select-Object Name,DriverName,PortName,Default",
+    "$printers | ConvertTo-Json -Compress"
+  ].join("; ");
+  const output = await execPowerShell(script);
+  if (!output.trim()) return [];
+  const parsed = JSON.parse(output) as unknown;
+  const printers = Array.isArray(parsed) ? parsed : [parsed];
+  return printers.map((printer) => {
+    const item = printer as Record<string, unknown>;
+    return {
+      name: String(item.Name ?? "").trim(),
+      driverName: String(item.DriverName ?? "").trim(),
+      portName: String(item.PortName ?? "").trim(),
+      isDefault: Boolean(item.Default)
+    };
+  }).filter((printer) => printer.name);
+}
+
+function execPowerShell(script: string) {
+  return new Promise<string>((resolve, reject) => {
+    execFile(
+      "powershell.exe",
+      ["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script],
+      { windowsHide: true, timeout: 15000 },
+      (error, stdout, stderr) => {
+        if (error) {
+          reject(new Error(stderr.trim() || error.message));
+          return;
+        }
+        resolve(stdout);
+      }
+    );
+  });
 }
 
 async function updateStatus(jobId: string, status: "printing" | "printed" | "failed", message: string) {

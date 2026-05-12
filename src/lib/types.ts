@@ -8,7 +8,7 @@ export type JobStatus =
   | "cancelled";
 
 export type PrintType = "bw" | "color";
-export type PaperSize = "A4" | "Letter" | "Legal" | "Photo";
+export type PaperSize = "A3" | "A4" | "A5" | "A6" | "B5" | "Letter" | "Legal" | "Photo";
 export type PrintLayout = "portrait" | "landscape";
 export type PrintMargins = "default" | "none" | "minimum";
 export type PrintScale = "default" | "fit" | "shrink" | "noscale";
@@ -53,7 +53,11 @@ export type PricingConfig = {
   colorPerPagePaise: number;
   photoPrintPaise: number;
   copyMultiplier: number;
+  a3Multiplier: number;
   a4Multiplier: number;
+  a5Multiplier: number;
+  a6Multiplier: number;
+  b5Multiplier: number;
   legalMultiplier: number;
   photoMultiplier: number;
   expiryMinutes: number;
@@ -61,4 +65,12 @@ export type PricingConfig = {
 
 export type SseClient = {
   controller: ReadableStreamDefaultController;
+};
+
+export type PrinterOption = {
+  name: string;
+  driverName: string;
+  portName: string;
+  isDefault: boolean;
+  seenAt: string;
 };

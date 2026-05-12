@@ -1,26 +1,27 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { UploadCloud, Camera, FileText, Image } from "lucide-react";
+import { useEffect, useMemo, useState, useRef } from "react";
+import { UploadCloud, Camera, FileText, Image, ArrowLeft, ArrowRight, Check, Eye, X, Loader2 } from "lucide-react";
+import { paperSizeLabels, commonPaperSizes } from "@/lib/pricing";
 
 type Pricing = {
   bwPerPagePaise: number;
   colorPerPagePaise: number;
   photoPrintPaise: number;
   copyMultiplier: number;
+  a3Multiplier: number;
   a4Multiplier: number;
+  a5Multiplier: number;
+  a6Multiplier: number;
+  b5Multiplier: number;
   legalMultiplier: number;
   photoMultiplier: number;
 };
 
-const paperDescriptions: Record<string, string> = {
-  A4: "Standard A4 (210 x 297 mm)",
-  Letter: "US Letter (8.5 x 11 in)",
-  Legal: "US Legal (8.5 x 14 in)",
-  Photo: "Photo print (4x6 in)",
-};
+type Step = "upload" | "settings" | "preview" | "done";
 
 export default function UploadForm() {
+  const [step, setStep] = useState<Step>("upload");
   const [pricing, setPricing] = useState<Pricing | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [printType, setPrintType] = useState("bw");
@@ -34,6 +35,8 @@ export default function UploadForm() {
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<{ token: string; pricePaise: number; needsConversion: boolean; queuePosition: number } | null>(null);
   const [error, setError] = useState("");
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetch("/api/pricing")
@@ -47,7 +50,15 @@ export default function UploadForm() {
     const pages = pageRange.trim() ? estimateRange(pageRange) : 1;
     if (paperSize === "Photo") return (pricing.photoPrintPaise / 100) * copies * pricing.photoMultiplier;
     const base = printType === "bw" ? pricing.bwPerPagePaise : pricing.colorPerPagePaise;
-    const paperMultiplier = paperSize === "Legal" ? pricing.legalMultiplier : pricing.a4Multiplier;
+    let paperMultiplier = 1;
+    switch (paperSize) {
+      case "A3": paperMultiplier = pricing.a3Multiplier; break;
+      case "A4": case "Letter": paperMultiplier = pricing.a4Multiplier; break;
+      case "A5": paperMultiplier = pricing.a5Multiplier; break;
+      case "A6": paperMultiplier = pricing.a6Multiplier; break;
+      case "B5": paperMultiplier = pricing.b5Multiplier; break;
+      case "Legal": paperMultiplier = pricing.legalMultiplier; break;
+    }
     return Math.round((base / 100) * pages * copies * paperMultiplier * pricing.copyMultiplier);
   }, [copies, pageRange, paperSize, printType, pricing]);
 
@@ -60,14 +71,27 @@ export default function UploadForm() {
     return "File";
   }, [file]);
 
-  async function submit(event: React.FormEvent) {
-    event.preventDefault();
-    setError("");
-    if (!file) {
-      setError("Please choose a file.");
-      return;
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const selectedFile = e.target.files?.[0] ?? null;
+    setFile(selectedFile);
+    if (selectedFile) {
+      if (selectedFile.type === "application/pdf") {
+        const url = URL.createObjectURL(selectedFile);
+        setPreviewUrl(url);
+      } else if (selectedFile.type.startsWith("image/")) {
+        const url = URL.createObjectURL(selectedFile);
+        setPreviewUrl(url);
+      } else {
+        setPreviewUrl(null);
+      }
+      setStep("settings");
     }
+  }
+
+  async function handleSubmit() {
+    if (!file) return;
     setBusy(true);
+    setError("");
     const form = new FormData();
     form.set("file", file);
     form.set("printType", printType);
@@ -86,147 +110,309 @@ export default function UploadForm() {
       return;
     }
     setResult(body);
+    setStep("done");
+  }
+
+  function goToPreview() {
+    setStep("preview");
+  }
+
+  function resetForm() {
+    setStep("upload");
+    setFile(null);
+    setPrintType("bw");
+    setCopies(1);
+    setPageRange("");
+    setPaperSize("A4");
+    setLayout("portrait");
+    setPagesPerSheet(1);
+    setMargins("default");
+    setScale("default");
+    setResult(null);
+    setError("");
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+      setPreviewUrl(null);
+    }
+    if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
   if (result) {
     return (
-      <div className="stack">
+      <div className="result-screen">
+        <div className="success-icon"><Check size={48} /></div>
         <p className="muted">Your token number is</p>
         <div className="token">{result.token}</div>
         <p className="price">₹{(result.pricePaise / 100).toFixed(2)}</p>
-        <div className="queue-badge">Position #{result.queuePosition} in queue</div>
-        <p className="muted">
+        <div className="queue-badge">Position #{result.queuePosition}</div>
+        <p className="instruction">
           {result.needsConversion
-            ? "This document needs conversion. Please show this token at the counter."
-            : "Please show this token and pay at the counter. Staff will release the print."}
+            ? "Document needs conversion. Show token at counter."
+            : "Pay at counter, then collect your print."}
         </p>
-        <button className="secondary" onClick={() => window.location.reload()}>Upload another file</button>
+        <button className="btn-secondary" onClick={resetForm}>Upload Another</button>
       </div>
     );
   }
 
   return (
-    <form className="stack" onSubmit={submit}>
-      <div className={`upload-zone ${file ? "has-file" : ""}`}>
-        <input type="file" id="file-input"
-          accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,application/pdf,image/jpeg,image/png"
-          onChange={(event) => setFile(event.target.files?.[0] ?? null)} />
-        <label htmlFor="file-input" className="upload-label">
-          {file ? (
-            <div className="file-info">
-              <span className="file-icon">
-                {fileTypeLabel === "PDF" ? <FileText size={28} /> :
-                 fileTypeLabel === "Image" ? <Image size={28} /> :
-                 <FileText size={28} />}
-              </span>
-              <span className="file-name">{file.name}</span>
-              <span className="file-size">{(file.size / 1024 / 1024).toFixed(1)} MB</span>
-            </div>
-          ) : (
-            <>
-              <UploadCloud size={36} className="upload-icon" />
-              <strong>Tap to choose file</strong>
-              <span className="muted">PDF, JPG, PNG, DOC, DOCX</span>
-            </>
-          )}
-        </label>
+    <div className="upload-form">
+      {/* Step indicator */}
+      <div className="step-indicator">
+        <div className={`step ${step === "upload" || step === "settings" || step === "preview" ? "active" : step === "done" ? "done" : ""}`}>
+          <span className="step-num">1</span>
+          <span className="step-label">Upload</span>
+        </div>
+        <div className="step-line" />
+        <div className={`step ${step === "settings" || step === "preview" ? "active" : step === "done" ? "done" : ""}`}>
+          <span className="step-num">2</span>
+          <span className="step-label">Settings</span>
+        </div>
+        <div className="step-line" />
+        <div className={`step ${step === "preview" ? "active" : step === "done" ? "done" : ""}`}>
+          <span className="step-num">3</span>
+          <span className="step-label">Preview</span>
+        </div>
       </div>
 
-      <div className="print-type-toggle">
-        <button type="button"
-          className={`toggle-btn ${printType === "bw" ? "active" : ""}`}
-          onClick={() => setPrintType("bw")}>
-          Black &amp; white
-          {pricing && <span className="toggle-price">₹{(pricing.bwPerPagePaise / 100).toFixed(2)}/page</span>}
-        </button>
-        <button type="button"
-          className={`toggle-btn color-btn ${printType === "color" ? "active" : ""}`}
-          onClick={() => setPrintType("color")}>
-          Color
-          {pricing && <span className="toggle-price">₹{(pricing.colorPerPagePaise / 100).toFixed(2)}/page</span>}
-        </button>
-      </div>
-
-      <div className="grid" style={{ gridTemplateColumns: "1fr 1fr" }}>
-        <label>
-          Copies
-          <input type="number" min="1" max="99" value={copies} onChange={(event) => setCopies(Number(event.target.value))} />
-        </label>
-        <label>
-          Page range
-          <input placeholder="e.g. 1-3, 5" value={pageRange} onChange={(event) => setPageRange(event.target.value)} />
-        </label>
-      </div>
-
-      <label>
-        Paper size
-        <select value={paperSize} onChange={(event) => setPaperSize(event.target.value)}>
-          <option value="A4">A4 — Standard (210 x 297 mm)</option>
-          <option value="Letter">Letter — US (8.5 x 11 in)</option>
-          <option value="Legal">Legal — US (8.5 x 14 in)</option>
-          <option value="Photo">Photo — 4x6 in</option>
-        </select>
-      </label>
-
-      {paperSize === "Photo" && (
-        <div className="photo-note">
-          <Camera size={16} /> Photo prints are flat price — no page range or copies multiplier applied.
+      {/* Step 1: Upload */}
+      {step === "upload" && (
+        <div className="step-content fade-in">
+          <div className={`upload-zone ${file ? "has-file" : ""}`}>
+            <input
+              ref={fileInputRef}
+              type="file"
+              id="file-input"
+              accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,application/pdf,image/jpeg,image/png"
+              onChange={handleFileChange}
+            />
+            <label htmlFor="file-input" className="upload-label">
+              <UploadCloud size={48} className="upload-icon" />
+              <strong>Tap to select file</strong>
+              <span className="muted">PDF, JPG, PNG up to 25MB</span>
+            </label>
+          </div>
         </div>
       )}
 
-      <details className="advanced-details">
-        <summary>Advanced options</summary>
-        <div className="adv-grid">
-          <label>
-            Layout
-            <select value={layout} onChange={(e) => setLayout(e.target.value)}>
-              <option value="portrait">Portrait</option>
-              <option value="landscape">Landscape</option>
+      {/* Step 2: Settings */}
+      {step === "settings" && (
+        <div className="step-content fade-in">
+          {/* File summary */}
+          <div className="file-summary" onClick={() => setStep("upload")}>
+            <span className="file-icon">
+              {fileTypeLabel === "PDF" ? <FileText size={20} /> : fileTypeLabel === "Image" ? <Image size={20} /> : <FileText size={20} />}
+            </span>
+            <span className="file-name">{file?.name}</span>
+            <span className="change-link">Change</span>
+          </div>
+
+          {/* Print type toggle */}
+          <div className="print-type-toggle">
+            <button
+              type="button"
+              className={`toggle-btn ${printType === "bw" ? "active" : ""}`}
+              onClick={() => setPrintType("bw")}
+            >
+              <span className="toggle-label">Black & White</span>
+              {pricing && <span className="toggle-price">₹{(pricing.bwPerPagePaise / 100).toFixed(0)}/page</span>}
+            </button>
+            <button
+              type="button"
+              className={`toggle-btn color-btn ${printType === "color" ? "active" : ""}`}
+              onClick={() => setPrintType("color")}
+            >
+              <span className="toggle-label">Color</span>
+              {pricing && <span className="toggle-price">₹{(pricing.colorPerPagePaise / 100).toFixed(0)}/page</span>}
+            </button>
+          </div>
+
+          {/* Copies and page range */}
+          <div className="form-row">
+            <div className="form-group">
+              <label>Copies</label>
+              <div className="number-input">
+                <button onClick={() => setCopies(Math.max(1, copies - 1))}>-</button>
+                <input type="number" min="1" max="99" value={copies} onChange={(e) => setCopies(Number(e.target.value))} />
+                <button onClick={() => setCopies(Math.min(99, copies + 1))}>+</button>
+              </div>
+            </div>
+            <div className="form-group">
+              <label>Page Range</label>
+              <input
+                type="text"
+                placeholder="All or 1-5"
+                value={pageRange}
+                onChange={(e) => setPageRange(e.target.value)}
+              />
+            </div>
+          </div>
+
+          {/* Paper size */}
+          <div className="form-group">
+            <label>Paper Size</label>
+            <select value={paperSize} onChange={(e) => setPaperSize(e.target.value)}>
+              <optgroup label="A Series (ISO)">
+                {commonPaperSizes.map((size) => (
+                  <option key={size} value={size}>{paperSizeLabels[size as keyof typeof paperSizeLabels]}</option>
+                ))}
+              </optgroup>
+              <optgroup label="Other Sizes">
+                <option value="A6">{paperSizeLabels.A6}</option>
+                <option value="B5">{paperSizeLabels.B5}</option>
+                <option value="Legal">{paperSizeLabels.Legal}</option>
+              </optgroup>
             </select>
-          </label>
-          <label>
-            Pages per sheet
-            <select value={pagesPerSheet} onChange={(e) => setPagesPerSheet(Number(e.target.value))}>
-              <option value="1">1 page per sheet</option>
-              <option value="2">2 pages per sheet</option>
-              <option value="4">4 pages per sheet</option>
-              <option value="6">6 pages per sheet</option>
-              <option value="9">9 pages per sheet</option>
-              <option value="16">16 pages per sheet</option>
-            </select>
-          </label>
-          <label>
-            Margins
-            <select value={margins} onChange={(e) => setMargins(e.target.value)}>
-              <option value="default">Default</option>
-              <option value="minimum">Minimum</option>
-              <option value="none">No margins</option>
-            </select>
-          </label>
-          <label>
-            Scale
-            <select value={scale} onChange={(e) => setScale(e.target.value)}>
-              <option value="default">Auto (printers default)</option>
-              <option value="fit">Fit to page</option>
-              <option value="shrink">Shrink oversized pages</option>
-              <option value="noscale">No scaling (actual size)</option>
-            </select>
-          </label>
+          </div>
+
+          {/* Advanced options */}
+          <details className="advanced-section">
+            <summary>Advanced Options</summary>
+            <div className="adv-options">
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Layout</label>
+                  <select value={layout} onChange={(e) => setLayout(e.target.value)}>
+                    <option value="portrait">Portrait</option>
+                    <option value="landscape">Landscape</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label>Pages/Sheet</label>
+                  <select value={pagesPerSheet} onChange={(e) => setPagesPerSheet(Number(e.target.value))}>
+                    {[1, 2, 4, 6, 9, 16].map((n) => <option key={n} value={n}>{n}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Margins</label>
+                  <select value={margins} onChange={(e) => setMargins(e.target.value)}>
+                    <option value="default">Default</option>
+                    <option value="minimum">Minimum</option>
+                    <option value="none">None</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label>Scale</label>
+                  <select value={scale} onChange={(e) => setScale(e.target.value)}>
+                    <option value="default">Auto</option>
+                    <option value="fit">Fit to Page</option>
+                    <option value="shrink">Shrink if Oversized</option>
+                    <option value="noscale">Actual Size</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </details>
+
+          {/* Price box */}
+          <div className="price-box">
+            <div className="price-row">
+              <span>Estimated Total</span>
+              <strong className="price">₹{estimate.toFixed(2)}</strong>
+            </div>
+            {copies > 1 && <span className="price-note">{copies} copies × {paperSizeLabels[paperSize as keyof typeof paperSizeLabels] || paperSize}</span>}
+          </div>
+
+          {error && <p className="error-msg">{error}</p>}
+
+          {/* Actions */}
+          <div className="form-actions">
+            <button type="button" className="btn-secondary" onClick={() => setStep("upload")}>
+              <ArrowLeft size={18} /> Back
+            </button>
+            <button type="button" className="btn-primary" onClick={goToPreview}>
+              Preview <Eye size={18} />
+            </button>
+          </div>
         </div>
-      </details>
+      )}
 
-      <div className="price-box">
-        <span className="muted">Estimated price</span>
-        <strong className="price">₹{estimate.toFixed(2)}</strong>
-        {copies > 1 && <span className="price-breakdown">{copies} copies · {paperDescriptions[paperSize]}</span>}
-      </div>
+      {/* Step 3: Preview */}
+      {step === "preview" && (
+        <div className="step-content fade-in">
+          <h3 className="preview-title">Review Your Print Job</h3>
 
-      {error ? <p style={{ color: "var(--danger)" }}>{error}</p> : null}
-      <button disabled={busy || !file}>
-        <UploadCloud size={18} />
-        {busy ? "Submitting..." : "Submit print job"}
-      </button>
-    </form>
+          {/* Preview area */}
+          <div className="preview-area">
+            {file && file.type === "application/pdf" && previewUrl && (
+              <iframe src={previewUrl} className="preview-iframe" title="PDF Preview" />
+            )}
+            {file && file.type.startsWith("image/") && previewUrl && (
+              <img src={previewUrl} alt="Image Preview" className="preview-image" />
+            )}
+            {file && (file.name.endsWith(".doc") || file.name.endsWith(".docx")) && (
+              <div className="doc-preview">
+                <FileText size={48} />
+                <p>Word document preview not available</p>
+                <span className="muted">File will be reviewed at the shop</span>
+              </div>
+            )}
+          </div>
+
+          {/* Settings summary */}
+          <div className="settings-summary">
+            <h4>Print Settings</h4>
+            <div className="summary-grid">
+              <div className="summary-item">
+                <span className="summary-label">File</span>
+                <span className="summary-value">{file?.name}</span>
+              </div>
+              <div className="summary-item">
+                <span className="summary-label">Type</span>
+                <span className="summary-value">{printType === "bw" ? "Black & White" : "Color"}</span>
+              </div>
+              <div className="summary-item">
+                <span className="summary-label">Copies</span>
+                <span className="summary-value">{copies}</span>
+              </div>
+              <div className="summary-item">
+                <span className="summary-label">Pages</span>
+                <span className="summary-value">{pageRange || "All"}</span>
+              </div>
+              <div className="summary-item">
+                <span className="summary-label">Paper</span>
+                <span className="summary-value">{paperSizeLabels[paperSize as keyof typeof paperSizeLabels] || paperSize}</span>
+              </div>
+              <div className="summary-item">
+                <span className="summary-label">Layout</span>
+                <span className="summary-value">{layout}</span>
+              </div>
+              {pagesPerSheet > 1 && (
+                <div className="summary-item">
+                  <span className="summary-label">Pages/Sheet</span>
+                  <span className="summary-value">{pagesPerSheet}</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Total price */}
+          <div className="total-price">
+            <span>Total</span>
+            <strong>₹{estimate.toFixed(2)}</strong>
+          </div>
+
+          {/* Actions */}
+          <div className="form-actions">
+            <button type="button" className="btn-secondary" onClick={() => setStep("settings")}>
+              <ArrowLeft size={18} /> Edit
+            </button>
+            <button type="button" className="btn-primary" onClick={handleSubmit} disabled={busy}>
+              {busy ? <><Loader2 size={18} className="spin" /> Processing...</> : <><Check size={18} /> Confirm & Print</>}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Mobile-friendly help text */}
+      {step !== "done" && (
+        <p className="help-text">
+          Need help? Ask the shop staff for assistance.
+        </p>
+      )}
+    </div>
   );
 }
 

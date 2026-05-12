@@ -3,7 +3,7 @@ import path from "node:path";
 import Database from "better-sqlite3";
 import { DB_PATH, DEFAULT_ADMIN_PASSWORD, DEFAULT_ADMIN_USERNAME, DEFAULT_AGENT_TOKEN } from "./config";
 import { hashSecret } from "./security";
-import type { Job, JobFile, PricingConfig, SseClient } from "./types";
+import type { Job, JobFile, PricingConfig, PrinterOption, SseClient } from "./types";
 
 let db: Database.Database | null = null;
 
@@ -77,6 +77,14 @@ function initSchema(database: Database.Database) {
       updated_at TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS agent_printers (
+      name TEXT PRIMARY KEY,
+      driver_name TEXT NOT NULL,
+      port_name TEXT NOT NULL,
+      is_default INTEGER NOT NULL DEFAULT 0,
+      seen_at TEXT NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS admin_users (
       id TEXT PRIMARY KEY,
       username TEXT NOT NULL UNIQUE,
@@ -105,6 +113,7 @@ function initSchema(database: Database.Database) {
   database.exec(`CREATE INDEX IF NOT EXISTS idx_jobs_status ON jobs(status)`);
   database.exec(`CREATE INDEX IF NOT EXISTS idx_jobs_created ON jobs(created_at)`);
   database.exec(`CREATE INDEX IF NOT EXISTS idx_jobs_queue ON jobs(queue_position)`);
+  database.exec(`CREATE INDEX IF NOT EXISTS idx_agent_printers_seen ON agent_printers(seen_at)`);
 }
 
 function ensureJobColumns(database: Database.Database) {
@@ -131,8 +140,17 @@ function ensurePricingColumns(database: Database.Database) {
       (column) => column.name
     )
   );
-  if (!columns.has("expiry_minutes")) {
-    database.prepare("ALTER TABLE pricing_config ADD COLUMN expiry_minutes INTEGER NOT NULL DEFAULT 1440").run();
+  const additions = [
+    ["expiry_minutes", "INTEGER NOT NULL DEFAULT 1440"],
+    ["a3_multiplier", "REAL NOT NULL DEFAULT 2.5"],
+    ["a5_multiplier", "REAL NOT NULL DEFAULT 0.7"],
+    ["a6_multiplier", "REAL NOT NULL DEFAULT 0.5"],
+    ["b5_multiplier", "REAL NOT NULL DEFAULT 0.9"]
+  ];
+  for (const [name, definition] of additions) {
+    if (!columns.has(name)) {
+      database.prepare(`ALTER TABLE pricing_config ADD COLUMN ${name} ${definition}`).run();
+    }
   }
 }
 
@@ -141,8 +159,9 @@ function seedDefaults(database: Database.Database) {
   database.prepare(`
     INSERT OR IGNORE INTO pricing_config (
       id, bw_per_page_paise, color_per_page_paise, photo_print_paise, copy_multiplier,
-      a4_multiplier, legal_multiplier, photo_multiplier, expiry_minutes, updated_at
-    ) VALUES (1, 200, 1000, 3000, 1, 1, 1.25, 1, 1440, ?)
+      a3_multiplier, a4_multiplier, a5_multiplier, a6_multiplier, b5_multiplier,
+      legal_multiplier, photo_multiplier, expiry_minutes, updated_at
+    ) VALUES (1, 200, 1000, 3000, 1, 2.5, 1, 0.7, 0.5, 0.9, 1.25, 1, 1440, ?)
   `).run(now);
 
   database.prepare(`
@@ -168,10 +187,14 @@ export function getPricing(): PricingConfig {
     colorPerPagePaise: row.color_per_page_paise,
     photoPrintPaise: row.photo_print_paise,
     copyMultiplier: row.copy_multiplier,
-    a4Multiplier: row.a4_multiplier,
-    legalMultiplier: row.legal_multiplier,
-    photoMultiplier: row.photo_multiplier,
-    expiryMinutes: row.expiry_minutes
+    a3Multiplier: row.a3_multiplier ?? 2.5,
+    a4Multiplier: row.a4_multiplier ?? 1,
+    a5Multiplier: row.a5_multiplier ?? 0.7,
+    a6Multiplier: row.a6_multiplier ?? 0.5,
+    b5Multiplier: row.b5_multiplier ?? 0.9,
+    legalMultiplier: row.legal_multiplier ?? 1.25,
+    photoMultiplier: row.photo_multiplier ?? 1,
+    expiryMinutes: row.expiry_minutes ?? 1440
   };
 }
 
@@ -187,6 +210,35 @@ export function updateAgentConfig(printerName: string) {
   getDb().prepare(`
     UPDATE agent_config SET printer_name = ?, config_version = config_version + 1, updated_at = ? WHERE id = 1
   `).run(printerName, now);
+}
+
+export function replaceAgentPrinters(printers: Array<Omit<PrinterOption, "seenAt">>) {
+  const now = new Date().toISOString();
+  getDb().transaction(() => {
+    getDb().prepare("DELETE FROM agent_printers").run();
+    const insert = getDb().prepare(`
+      INSERT INTO agent_printers (name, driver_name, port_name, is_default, seen_at)
+      VALUES (?, ?, ?, ?, ?)
+    `);
+    for (const printer of printers) {
+      insert.run(printer.name, printer.driverName, printer.portName, printer.isDefault ? 1 : 0, now);
+    }
+  })();
+}
+
+export function getAgentPrinters(): PrinterOption[] {
+  const rows = getDb().prepare(`
+    SELECT name, driver_name, port_name, is_default, seen_at
+    FROM agent_printers
+    ORDER BY is_default DESC, name COLLATE NOCASE ASC
+  `).all() as Array<Record<string, unknown>>;
+  return rows.map((row) => ({
+    name: String(row.name),
+    driverName: String(row.driver_name),
+    portName: String(row.port_name),
+    isDefault: Boolean(row.is_default),
+    seenAt: String(row.seen_at)
+  }));
 }
 
 export function mapJob(row: Record<string, unknown>): Job {

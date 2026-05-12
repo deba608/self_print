@@ -27,9 +27,12 @@ type Pricing = {
   expiryMinutes: number;
 };
 
-type PrinterInfo = {
-  printerName: string;
-  configVersion: number;
+type PrinterOption = {
+  name: string;
+  driverName: string;
+  portName: string;
+  isDefault: boolean;
+  seenAt: string;
 };
 
 export default function AdminDashboard() {
@@ -48,6 +51,7 @@ export default function AdminDashboard() {
   const [selectedJobs, setSelectedJobs] = useState<Set<string>>(new Set());
   const [showBatch, setShowBatch] = useState(false);
   const [printerName, setPrinterName] = useState("");
+  const [printers, setPrinters] = useState<PrinterOption[]>([]);
   const [printerSaved, setPrinterSaved] = useState(false);
   const [showPrinter, setShowPrinter] = useState(false);
   const [now, setNow] = useState(Date.now());
@@ -86,6 +90,12 @@ export default function AdminDashboard() {
     const res = await fetch("/api/admin/printer");
     const data = await res.json();
     setPrinterName(data.printerName || "");
+    const printersRes = await fetch("/api/admin/printers");
+    if (printersRes.ok) {
+      const printersData = await printersRes.json();
+      setPrinters(printersData.printers ?? []);
+      setPrinterName((current) => current || printersData.selectedPrinterName || "");
+    }
   }
 
   async function connectSSE() {
@@ -265,16 +275,41 @@ export default function AdminDashboard() {
       {showPrinter && (
         <section className="panel stack">
           <h2><Printer size={18} /> Printer Settings</h2>
-          <label>
-            Active printer
-            <input
-              value={printerName}
-              onChange={(e) => setPrinterName(e.target.value)}
-              placeholder="e.g. HP LaserJet 4050"
-            />
-          </label>
+          {printers.length ? (
+            <label>
+              Active printer
+              <select value={printerName} onChange={(e) => setPrinterName(e.target.value)}>
+                {printers.map((printer) => (
+                  <option value={printer.name} key={printer.name}>
+                    {printer.name}{printer.isDefault ? " (Windows default)" : ""}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : (
+            <label>
+              Active printer
+              <input
+                value={printerName}
+                onChange={(e) => setPrinterName(e.target.value)}
+                placeholder="e.g. HP LaserJet 4050"
+              />
+            </label>
+          )}
+          {printers.length ? (
+            <div className="stack" style={{ gap: 8 }}>
+              {printers.map((printer) => (
+                <div className="card" style={{ padding: 10 }} key={printer.name}>
+                  <strong>{printer.name}</strong>
+                  <p className="muted" style={{ marginBottom: 0 }}>
+                    {printer.driverName || "Unknown driver"} · {printer.portName || "Unknown port"}
+                  </p>
+                </div>
+              ))}
+            </div>
+          ) : null}
           <p className="muted" style={{ fontSize: 13, marginTop: -8 }}>
-            This is the printer the agent will use. Make sure the name matches exactly with Windows printer name.
+            Start the Windows print agent to auto-detect connected printers. Manual entry is available when no printer list has been reported yet.
           </p>
           <div className="row">
             <button onClick={savePrinter}>Save Printer</button>

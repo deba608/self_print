@@ -641,3 +641,639 @@ td {
     padding: 12px 0 24px;
   }
 }
+
+/* === Customer Upload Form Improvements === */
+
+/* Shop header */
+.shop-header {
+  display: flex;
+  justify-content: center;
+  padding: 16px 0 12px;
+  margin-bottom: 8px;
+}
+
+.shop-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--accent);
+  font-weight: 800;
+  font-size: 22px;
+}
+
+/* Step indicator */
+.step-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  margin-bottom: 20px;
+  padding: 0 10px;
+}
+
+.step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.step-num {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--line);
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.step.active .step-num {
+  background: var(--accent);
+  color: #fff;
+}
+
+.step.done .step-num {
+  background: var(--ok);
+  color: #fff;
+}
+
+.step-label {
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.step.active .step-label {
+  color: var(--accent);
+}
+
+.step-line {
+  width: 40px;
+  height: 2px;
+  background: var(--line);
+  margin: 0 8px;
+  margin-bottom: 16px;
+}
+
+/* Upload zone improvements */
+.upload-zone {
+  border: 2px dashed var(--line);
+  border-radius: 12px;
+  transition: all 0.2s ease;
+}
+
+.upload-zone:hover {
+  border-color: var(--accent);
+  background: #f8fdfc;
+}
+
+.upload-zone.has-file {
+  border-style: solid;
+  border-color: var(--accent);
+  background: #f0faf9;
+}
+
+.upload-label {
+  padding: 32px 20px;
+  text-align: center;
+  cursor: pointer;
+}
+
+.upload-label strong {
+  display: block;
+  font-size: 17px;
+  margin-top: 8px;
+  color: var(--ink);
+}
+
+/* Form row */
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-group label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+/* Number input */
+.number-input {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.number-input button {
+  width: 40px;
+  height: 44px;
+  border: none;
+  background: #f5f5f5;
+  color: var(--ink);
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.number-input button:hover {
+  background: #eaeaea;
+}
+
+.number-input input {
+  flex: 1;
+  text-align: center;
+  border: none;
+  border-left: 1px solid var(--line);
+  border-right: 1px solid var(--line);
+  border-radius: 0;
+  min-height: unset;
+  height: 44px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+/* Toggle button */
+.print-type-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.toggle-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 14px 12px;
+  background: #fff;
+  border: 2px solid var(--line);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.toggle-btn:hover {
+  border-color: var(--accent);
+}
+
+.toggle-btn.active {
+  border-color: var(--accent);
+  background: #e6f4f1;
+}
+
+.toggle-btn.color-btn.active {
+  border-color: #0b7a75;
+}
+
+.toggle-label {
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--ink);
+}
+
+.toggle-price {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* File summary */
+.file-summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  cursor: pointer;
+}
+
+.file-summary:hover {
+  background: #f0f1f2;
+}
+
+.file-summary .file-icon {
+  color: var(--accent);
+}
+
+.file-summary .file-name {
+  flex: 1;
+  font-weight: 600;
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.file-summary .change-link {
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* Advanced section */
+.advanced-section {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  margin-top: 12px;
+  overflow: hidden;
+}
+
+.advanced-section summary {
+  padding: 12px 14px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 14px;
+  background: #fafbfc;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.advanced-section summary::-webkit-details-marker {
+  display: none;
+}
+
+.advanced-section[open] summary {
+  border-bottom: 1px solid var(--line);
+}
+
+.adv-options {
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Price box */
+.price-box {
+  background: linear-gradient(135deg, #eef7f5 0%, #e0f0eb 100%);
+  border: 1px solid #b8ded7;
+  border-radius: 12px;
+  padding: 16px;
+  margin-top: 16px;
+}
+
+.price-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.price-row span {
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.price-row .price {
+  font-size: 28px;
+}
+
+.price-note {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+/* Form actions */
+.form-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 20px;
+  position: sticky;
+  bottom: 0;
+  padding-top: 12px;
+  background: var(--panel);
+}
+
+.btn-primary {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 20px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  min-height: 50px;
+}
+
+.btn-primary:hover {
+  background: var(--accent-strong);
+}
+
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 20px;
+  background: #fff;
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  min-height: 50px;
+}
+
+.btn-secondary:hover {
+  background: #f5f5f5;
+}
+
+/* Preview screen */
+.step-content {
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease;
+}
+
+.preview-title {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 16px;
+  text-align: center;
+}
+
+.preview-area {
+  background: #f5f5f5;
+  border-radius: 10px;
+  overflow: hidden;
+  min-height: 300px;
+  max-height: 400px;
+  margin-bottom: 16px;
+}
+
+.preview-iframe {
+  width: 100%;
+  height: 400px;
+  border: none;
+}
+
+.preview-image {
+  width: 100%;
+  height: auto;
+  max-height: 400px;
+  object-fit: contain;
+  display: block;
+}
+
+.doc-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  color: var(--muted);
+  text-align: center;
+  gap: 8px;
+}
+
+/* Settings summary */
+.settings-summary {
+  background: #f8f9fa;
+  border-radius: 10px;
+  padding: 14px;
+  margin-bottom: 12px;
+}
+
+.settings-summary h4 {
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 10px;
+  color: var(--ink);
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.summary-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.summary-label {
+  font-size: 11px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.summary-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+/* Total price */
+.total-price {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  background: linear-gradient(135deg, #eef7f5 0%, #e0f0eb 100%);
+  border-radius: 10px;
+  margin-bottom: 16px;
+}
+
+.total-price span {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.total-price strong {
+  font-size: 26px;
+  color: var(--accent);
+}
+
+/* Result screen */
+.result-screen {
+  text-align: center;
+  padding: 20px 0;
+  animation: fadeIn 0.4s ease;
+}
+
+.success-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: #e7f5ec;
+  color: var(--ok);
+  margin-bottom: 16px;
+}
+
+.result-screen .token {
+  font-size: 42px;
+  margin: 12px 0;
+}
+
+.result-screen .price {
+  font-size: 36px;
+  margin-bottom: 8px;
+}
+
+.result-screen .instruction {
+  max-width: 280px;
+  margin: 0 auto 20px;
+  line-height: 1.5;
+}
+
+/* Help text */
+.help-text {
+  text-align: center;
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+/* Error message */
+.error-msg {
+  color: var(--danger);
+  font-size: 14px;
+  padding: 10px 12px;
+  background: #fde8e7;
+  border-radius: 6px;
+  margin-top: 12px;
+}
+
+/* Spinner */
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Intro section */
+.intro {
+  text-align: center;
+  margin-bottom: 8px;
+}
+
+.intro h1 {
+  font-size: 24px;
+  margin-bottom: 4px;
+}
+
+.intro p {
+  font-size: 14px;
+}
+
+/* === Mobile Responsive === */
+@media (max-width: 480px) {
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .print-type-toggle {
+    grid-template-columns: 1fr;
+  }
+
+  .step-indicator {
+    gap: 0;
+  }
+
+  .step-line {
+    width: 24px;
+    margin: 0 4px;
+  }
+
+  .summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .form-actions {
+    flex-direction: column-reverse;
+    padding: 12px;
+    margin: 0 -18px -18px;
+    background: var(--panel);
+    border-top: 1px solid var(--line);
+  }
+
+  .btn-primary,
+  .btn-secondary {
+    width: 100%;
+  }
+
+  .preview-area {
+    min-height: 250px;
+  }
+
+  .preview-iframe {
+    height: 300px;
+  }
+
+  .shop-logo {
+    font-size: 20px;
+  }
+
+  .shop-header {
+    padding: 12px 0 10px;
+  }
+}
+
+@media (min-width: 600px) {
+  .upload-form {
+    max-width: 500px;
+    margin: 0 auto;
+  }
+
+  .preview-area {
+    min-height: 350px;
+  }
+
+  .preview-iframe {
+    height: 450px;
+  }
+}

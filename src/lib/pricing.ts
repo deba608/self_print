@@ -1,5 +1,16 @@
 import type { PaperSize, PricingConfig, PrintType } from "./types";
 
+const paperMultipliers: Record<PaperSize, keyof Omit<PricingConfig, "bwPerPagePaise" | "colorPerPagePaise" | "photoPrintPaise" | "copyMultiplier" | "expiryMinutes">> = {
+  A3: "a3Multiplier",
+  A4: "a4Multiplier",
+  A5: "a5Multiplier",
+  A6: "a6Multiplier",
+  B5: "b5Multiplier",
+  Letter: "a4Multiplier",
+  Legal: "legalMultiplier",
+  Photo: "photoMultiplier"
+};
+
 export function selectedPageCount(pageCount: number, pageRange: string | null) {
   if (!pageRange?.trim()) return Math.max(pageCount, 1);
   const pages = new Set<number>();
@@ -27,10 +38,24 @@ export function calculatePrice(input: {
   const copies = Math.max(1, input.copies);
   if (input.paperSize === "Photo") return input.pricing.photoPrintPaise * copies;
   const base = input.printType === "bw" ? input.pricing.bwPerPagePaise : input.pricing.colorPerPagePaise;
-  const paperMultiplier = input.paperSize === "Legal" ? input.pricing.legalMultiplier : input.pricing.a4Multiplier;
+  const multiplierKey = paperMultipliers[input.paperSize];
+  const paperMultiplier = input.pricing[multiplierKey] as number;
   return Math.round(base * selectedPages * copies * paperMultiplier * input.pricing.copyMultiplier);
 }
 
 export function formatRupees(paise: number) {
   return `₹${(paise / 100).toFixed(2)}`;
 }
+
+export const paperSizeLabels: Record<PaperSize, string> = {
+  A3: "A3 (297 × 420 mm)",
+  A4: "A4 (210 × 297 mm)",
+  A5: "A5 (148 × 210 mm)",
+  A6: "A6 (105 × 148 mm)",
+  B5: "B5 (176 × 250 mm)",
+  Letter: "Letter (8.5 × 11 in)",
+  Legal: "Legal (8.5 × 14 in)",
+  Photo: "Photo (4 × 6 in)"
+};
+
+export const commonPaperSizes: PaperSize[] = ["A4", "A5", "A3", "Letter", "Photo"];
