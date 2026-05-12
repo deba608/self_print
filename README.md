@@ -106,4 +106,3 @@ The seeded pricing lives in the `pricing_config` table.
 ## Current Environment Note
 
 During scaffolding, this machine reported `node.exe` access denied and `npm` missing from PATH. Fix the local Node.js installation or use a proper Node.js 20+ install before running `npm install`.
-
