@@ -7,11 +7,14 @@ agent-temp/*
 agent/*.log
 agent/config.json
 .env
+.claude/
+CLAUDE.md
+capsules/
+cookies.txt
 
 !uploads/originals/.gitkeep
 !uploads/converted/.gitkeep
 !agent-temp/.gitkeep
-
 
 
 
