@@ -201,6 +201,380 @@ button:disabled {
   color: #835700;
 }
 
+.badge.danger {
+  background: #fde8e7;
+  color: var(--danger);
+}
+
+/* Expiry countdown */
+.header-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.expiry-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: #edf1f5;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.expiry-chip.urgent {
+  background: #fde8e7;
+  color: var(--danger);
+  animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+/* Queue position */
+.queue-pos {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+/* Expiry badge in job list */
+.expiry-badge {
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.expiry-badge.expired {
+  color: var(--danger);
+  font-weight: 700;
+}
+
+/* SSE indicator */
+.sse-dot {
+  display: inline-flex;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ok);
+  margin-left: 6px;
+  vertical-align: middle;
+  animation: sse-pulse 2s infinite;
+}
+
+@keyframes sse-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(0.85); }
+}
+
+/* Notification button */
+.notification-btn {
+  background: #fff5dd;
+  border-color: #e8c97a;
+  color: #835700;
+  font-size: 13px;
+  padding: 8px 12px;
+}
+
+/* Job item with checkbox */
+.job-item.selectable {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 12px;
+}
+
+.job-checkbox {
+  width: 20px;
+  height: 20px;
+  min-height: unset;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.job-link {
+  display: grid;
+  gap: 4px;
+}
+
+.gap-sm {
+  gap: 6px;
+}
+
+/* Batch panel */
+.batch-panel {
+  background: #f0f7f4;
+  border-color: #b8ded7;
+}
+
+.batch-label {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.text-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  min-height: unset;
+}
+
+.batch-btn {
+  padding: 6px 14px;
+  font-size: 13px;
+  min-height: unset;
+}
+
+/* Upload zone */
+.upload-zone {
+  position: relative;
+  border: 2px dashed var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.upload-zone input[type="file"] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  width: 100%;
+  height: 100%;
+  min-height: unset;
+  border: none;
+}
+
+.upload-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 28px 16px;
+  cursor: pointer;
+  text-align: center;
+}
+
+.upload-icon {
+  color: var(--accent);
+}
+
+.upload-zone.has-file {
+  border-color: var(--accent);
+  background: #f0faf9;
+}
+
+.file-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.file-icon {
+  color: var(--accent);
+}
+
+.file-name {
+  font-weight: 600;
+  word-break: break-all;
+  font-size: 14px;
+}
+
+.file-size {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* Print type toggle */
+.print-type-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.toggle-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 12px;
+  background: #fff;
+  border: 2px solid var(--line);
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 15px;
+  cursor: pointer;
+  color: var(--ink);
+}
+
+.toggle-btn.active {
+  border-color: var(--accent);
+  background: #e6f4f1;
+}
+
+.toggle-btn.color-btn.active {
+  border-color: #0b7a75;
+  background: #e6f4f1;
+}
+
+.toggle-price {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 400;
+}
+
+/* Price box */
+.price-box {
+  background: #eef7f5;
+  border: 1px solid #b8ded7;
+  border-radius: 8px;
+  padding: 14px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.price-breakdown {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* Photo note */
+.photo-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: #fff5dd;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #835700;
+}
+
+/* Queue badge */
+.queue-badge {
+  display: inline-flex;
+  padding: 5px 12px;
+  background: #e6f4f1;
+  border: 1px solid #b8ded7;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+/* Advanced details */
+.advanced-details {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.advanced-details summary {
+  padding: 12px 14px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 14px;
+  background: #fff;
+  list-style: none;
+  display: flex;
+  align-items: center;
+}
+
+.advanced-details summary::-webkit-details-marker { display: none; }
+
+.advanced-details[open] summary {
+  border-bottom: 1px solid var(--line);
+}
+
+.adv-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  padding: 14px;
+  background: #fafbfc;
+}
+
+/* Event log */
+.event-log {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.event-item {
+  display: grid;
+  grid-template-columns: 70px 80px 1fr;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: #fafbfc;
+  font-size: 13px;
+  align-items: baseline;
+}
+
+.event-time {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.event-type {
+  text-transform: capitalize;
+  font-weight: 600;
+  font-size: 12px;
+}
+
+/* Doc warning */
+.doc-warning {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 24px;
+  color: var(--muted);
+  text-align: center;
+}
+
+/* Action buttons */
+.action-buttons {
+  display: grid;
+  gap: 8px;
+}
+
+/* Print settings form in job detail */
+.action-buttons + form {
+  border-top: 1px solid var(--line);
+  padding-top: 14px;
+}
+
+/* Printer settings */
+.printer-settings input {
+  font-family: monospace;
+  font-size: 13px;
+}
+
 .preview {
   width: 100%;
   min-height: 420px;
@@ -238,5 +612,32 @@ td {
 
   .price {
     font-size: 28px;
+  }
+
+  .event-item {
+    grid-template-columns: 60px 1fr;
+    grid-template-rows: auto auto;
+  }
+
+  .event-msg {
+    grid-column: 2;
+  }
+
+  .adv-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .print-type-toggle {
+    grid-template-columns: 1fr;
+  }
+
+  .job-item.selectable {
+    grid-template-columns: auto 1fr;
+  }
+}
+
+@media (max-width: 540px) {
+  .customer-shell {
+    padding: 12px 0 24px;
   }
 }

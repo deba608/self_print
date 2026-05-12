@@ -1,9 +1,9 @@
 {
   "serverUrl": "http://localhost:3000",
   "agentToken": "selfprint-agent-token-9Kp4Lm72Qx",
-  "printerName": "Microsoft Print to PDF",
   "sumatraPath": "C:\\Program Files\\SumatraPDF\\SumatraPDF.exe",
   "pollIntervalMs": 5000,
   "tempDir": "./agent-temp",
-  "maxRetries": 3
+  "maxRetries": 3,
+  "fallbackPrinter": "Microsoft Print to PDF"
 }

@@ -13,7 +13,8 @@ export async function GET() {
     copyMultiplier: row.copy_multiplier,
     a4Multiplier: row.a4_multiplier,
     legalMultiplier: row.legal_multiplier,
-    photoMultiplier: row.photo_multiplier
+    photoMultiplier: row.photo_multiplier,
+    expiryMinutes: row.expiry_minutes
   });
 }
 
@@ -22,7 +23,7 @@ export async function PUT(request: NextRequest) {
     const unauthorized = await requireAdminResponse();
     if (unauthorized) return unauthorized;
     const body = await request.json();
-    const required = ["bwPerPagePaise", "colorPerPagePaise", "photoPrintPaise", "copyMultiplier", "a4Multiplier", "legalMultiplier", "photoMultiplier"];
+    const required = ["bwPerPagePaise", "colorPerPagePaise", "photoPrintPaise", "copyMultiplier", "a4Multiplier", "legalMultiplier", "photoMultiplier", "expiryMinutes"];
     for (const key of required) {
       if (typeof body[key] !== "number" || body[key] < 0) {
         return NextResponse.json({ error: `Invalid pricing field: ${key}` }, { status: 400 });
@@ -39,6 +40,7 @@ export async function PUT(request: NextRequest) {
         a4_multiplier = ?,
         legal_multiplier = ?,
         photo_multiplier = ?,
+        expiry_minutes = ?,
         updated_at = ?
       WHERE id = 1
     `).run(
@@ -49,6 +51,7 @@ export async function PUT(request: NextRequest) {
       body.a4Multiplier,
       body.legalMultiplier,
       body.photoMultiplier,
+      body.expiryMinutes,
       now
     );
 

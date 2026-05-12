@@ -8,7 +8,10 @@ export type JobStatus =
   | "cancelled";
 
 export type PrintType = "bw" | "color";
-export type PaperSize = "A4" | "Legal" | "Photo";
+export type PaperSize = "A4" | "Letter" | "Legal" | "Photo";
+export type PrintLayout = "portrait" | "landscape";
+export type PrintMargins = "default" | "none" | "minimum";
+export type PrintScale = "default" | "fit" | "shrink" | "noscale";
 export type FileKind = "pdf" | "image" | "document";
 
 export type Job = {
@@ -19,9 +22,14 @@ export type Job = {
   copies: number;
   pageRange: string | null;
   paperSize: PaperSize;
+  layout: PrintLayout;
+  pagesPerSheet: number;
+  margins: PrintMargins;
+  scale: PrintScale;
   pageCount: number;
   pricePaise: number;
   needsConversion: 0 | 1;
+  queuePosition: number;
   createdAt: string;
   updatedAt: string;
   paidAt: string | null;
@@ -48,4 +56,9 @@ export type PricingConfig = {
   a4Multiplier: number;
   legalMultiplier: number;
   photoMultiplier: number;
+  expiryMinutes: number;
+};
+
+export type SseClient = {
+  controller: ReadableStreamDefaultController;
 };

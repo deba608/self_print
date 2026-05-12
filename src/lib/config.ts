@@ -12,3 +12,4 @@ export const SESSION_SECRET = process.env.SESSION_SECRET ?? "dev-session-secret-
 export const DEFAULT_ADMIN_USERNAME = process.env.ADMIN_USERNAME ?? "admin";
 export const DEFAULT_ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? "1234";
 export const DEFAULT_AGENT_TOKEN = process.env.AGENT_TOKEN ?? "dev-agent-token-change-me";
+export const DEFAULT_EXPIRY_MINUTES = 1440;

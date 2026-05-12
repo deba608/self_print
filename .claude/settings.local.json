@@ -2,7 +2,9 @@
   "permissions": {
     "allow": [
       "Bash(npm run *)",
-      "Bash(Get-Content \"src\\\\app\\\\api\\\\admin\\\\pricing\\\\route.ts\")"
+      "Bash(Get-Content \"src\\\\app\\\\api\\\\admin\\\\pricing\\\\route.ts\")",
+      "Bash(cat \"C:\\\\Users\\\\Dev\\\\Desktop\\\\Selfprint\\\\src\\\\components\\\\JobDetail.tsx\")",
+      "Read(//tmp/**)"
     ]
   }
 }

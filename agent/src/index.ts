@@ -6,11 +6,11 @@ import { spawn } from "node:child_process";
 type AgentConfig = {
   serverUrl: string;
   agentToken: string;
-  printerName: string;
   sumatraPath: string;
   pollIntervalMs: number;
   tempDir: string;
   maxRetries: number;
+  fallbackPrinter: string;
 };
 
 type AgentJob = {
@@ -20,24 +20,30 @@ type AgentJob = {
     printType: "bw" | "color";
     copies: number;
     pageRange: string | null;
-    paperSize: "A4" | "Legal" | "Photo";
+    paperSize: "A4" | "Letter" | "Legal" | "Photo";
+    layout: "portrait" | "landscape";
+    pagesPerSheet: number;
+    margins: "default" | "none" | "minimum";
+    scale: "default" | "fit" | "shrink" | "noscale";
   } | null;
   file?: {
     originalName: string;
     mimeType: string;
     fileKind: "pdf" | "image" | "document";
   };
+  printerName?: string;
 };
 
 let config: AgentConfig;
 let isShuttingDown = false;
+let cachedPrinterName = "";
 
 async function main() {
   config = await loadConfig();
+  cachedPrinterName = config.fallbackPrinter;
   await fs.mkdir(config.tempDir, { recursive: true });
   log(`=== Agent started ===`);
   log(`Server: ${config.serverUrl}`);
-  log(`Printer: ${config.printerName}`);
   log(`Poll interval: ${config.pollIntervalMs}ms`);
 
   process.on("SIGINT", () => {
@@ -59,6 +65,12 @@ main().catch((error) => {
 });
 
 async function pollOnce() {
+  const printerConfig = await api<{ printerName: string; configVersion: number }>("/api/agent/printer");
+  if (printerConfig?.printerName) {
+    cachedPrinterName = printerConfig.printerName;
+    log(`Printer: ${cachedPrinterName}`);
+  }
+
   const next = await api<AgentJob>("/api/agent/jobs/next");
   if (!next.job || !next.file) return;
 
@@ -84,8 +96,9 @@ async function pollOnce() {
         await fs.writeFile(tempPath, Buffer.from(await fileResponse.arrayBuffer()));
         log(`File downloaded to ${tempPath}`);
 
-        log(`Printing ${job.copies} copy(s), paper: ${job.paperSize}, type: ${job.printType}...`);
-        await printWithSumatra(tempPath, job);
+        const printer = cachedPrinterName || config.fallbackPrinter;
+        log(`Printing ${job.copies} copy(s), paper: ${job.paperSize}, type: ${job.printType}, printer: ${printer}...`);
+        await printWithSumatra(tempPath, job, printer);
 
         await updateStatus(job.id, "printed", `Printed successfully on attempt ${attempt}.`);
         log(`Job ${job.token} completed successfully.`);
@@ -108,7 +121,7 @@ async function pollOnce() {
   }
 }
 
-async function printWithSumatra(filePath: string, job: NonNullable<AgentJob["job"]>) {
+async function printWithSumatra(filePath: string, job: NonNullable<AgentJob["job"]>, printer: string) {
   if (!existsSync(config.sumatraPath)) {
     throw new Error(`SumatraPDF not found at ${config.sumatraPath}. Please check sumatraPath in config.json`);
   }
@@ -118,7 +131,7 @@ async function printWithSumatra(filePath: string, job: NonNullable<AgentJob["job
   }
 
   const printSettings = buildPrintSettings(job);
-  const args = ["-silent", "-exit-when-done", "-print-to", config.printerName];
+  const args = ["-silent", "-exit-when-done", "-print-to", printer];
   if (printSettings) args.push("-print-settings", printSettings);
   args.push(filePath);
 
@@ -155,14 +168,21 @@ async function printWithSumatra(filePath: string, job: NonNullable<AgentJob["job
 
 function buildPrintSettings(job: NonNullable<AgentJob["job"]>) {
   const settings: string[] = [];
-  if (job.pageRange) settings.push(`page-ranges=${job.pageRange}`);
-  if (job.copies > 1) settings.push(`copies=${job.copies}`);
-  if (job.printType === "color") {
-    settings.push("collate");
-  } else {
-    settings.push("monochrome");
-  }
+  if (job.pageRange) settings.push(job.pageRange.replace(/\s+/g, ""));
+  if (job.copies > 1) settings.push(`${job.copies}x`);
+  settings.push(job.printType === "color" ? "color" : "monochrome");
+  settings.push(job.layout === "landscape" ? "landscape" : "portrait");
+  const paper = paperSetting(job.paperSize);
+  if (paper) settings.push(`paper=${paper}`);
+  if (job.scale !== "default") settings.push(job.scale);
   return settings.join(",");
+}
+
+function paperSetting(paperSize: NonNullable<AgentJob["job"]>["paperSize"]) {
+  if (paperSize === "A4") return "A4";
+  if (paperSize === "Letter") return "letter";
+  if (paperSize === "Legal") return "legal";
+  return null;
 }
 
 async function updateStatus(jobId: string, status: "printing" | "printed" | "failed", message: string) {
@@ -196,12 +216,13 @@ async function loadConfig() {
     throw new Error("Missing agent/config.json. Copy agent/config.example.json and edit it.");
   }
   const parsed = JSON.parse(await fs.readFile(configPath, "utf8")) as AgentConfig;
-  if (!parsed.serverUrl || !parsed.agentToken || !parsed.printerName || !parsed.sumatraPath) {
-    throw new Error("Agent config must include serverUrl, agentToken, printerName, and sumatraPath.");
+  if (!parsed.serverUrl || !parsed.agentToken || !parsed.sumatraPath) {
+    throw new Error("Agent config must include serverUrl, agentToken, and sumatraPath.");
   }
   parsed.pollIntervalMs = parsed.pollIntervalMs || 5000;
   parsed.tempDir = parsed.tempDir || "./agent-temp";
   parsed.maxRetries = parsed.maxRetries || 3;
+  parsed.fallbackPrinter = parsed.fallbackPrinter || "Microsoft Print to PDF";
   parsed.serverUrl = parsed.serverUrl.replace(/\/$/, "");
   return parsed;
 }

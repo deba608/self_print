@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
-import { getDb } from "@/lib/db";
+import { getDb, sseClients } from "@/lib/db";
 import { requireAdminResponse } from "@/lib/security";
 import type { JobStatus } from "@/lib/types";
 
@@ -14,8 +14,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return NextResponse.json({ error: "Unsupported status action" }, { status: 400 });
   }
   const { id } = await params;
-  const job = getDb().prepare("SELECT status, needs_conversion FROM jobs WHERE id = ?").get(id) as
-    | { status: JobStatus; needs_conversion: number }
+  const job = getDb().prepare("SELECT status, needs_conversion, token FROM jobs WHERE id = ?").get(id) as
+    | { status: JobStatus; needs_conversion: number; token: string }
     | undefined;
   if (!job) return NextResponse.json({ error: "Job not found" }, { status: 404 });
   if (status === "approved" && job.status !== "paid") {
@@ -33,5 +33,19 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   `).run(status, now, status, now, status, now, id);
   getDb().prepare("INSERT INTO print_events (id, job_id, event_type, message, created_at) VALUES (?, ?, ?, ?, ?)")
     .run(crypto.randomUUID(), id, status, `Admin set status to ${status}.`, now);
+
+  broadcast({ type: "job_update", jobId: id, status, token: job.token });
+
   return NextResponse.json({ ok: true });
+}
+
+function broadcast(data: object) {
+  const payload = `data: ${JSON.stringify(data)}\n\n`;
+  for (const client of sseClients) {
+    try {
+      client.controller.enqueue(new TextEncoder().encode(payload));
+    } catch {
+      sseClients.delete(client);
+    }
+  }
 }
