@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
+import { requireAdminResponse } from "@/lib/security";
 
 export async function GET() {
+  const unauthorized = await requireAdminResponse();
+  if (unauthorized) return unauthorized;
   const row = getDb().prepare("SELECT * FROM pricing_config WHERE id = 1").get() as Record<string, number>;
   return NextResponse.json({
     bwPerPagePaise: row.bw_per_page_paise,
@@ -16,7 +19,15 @@ export async function GET() {
 
 export async function PUT(request: NextRequest) {
   try {
+    const unauthorized = await requireAdminResponse();
+    if (unauthorized) return unauthorized;
     const body = await request.json();
+    const required = ["bwPerPagePaise", "colorPerPagePaise", "photoPrintPaise", "copyMultiplier", "a4Multiplier", "legalMultiplier", "photoMultiplier"];
+    for (const key of required) {
+      if (typeof body[key] !== "number" || body[key] < 0) {
+        return NextResponse.json({ error: `Invalid pricing field: ${key}` }, { status: 400 });
+      }
+    }
     const now = new Date().toISOString();
 
     getDb().prepare(`

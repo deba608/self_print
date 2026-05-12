@@ -68,37 +68,39 @@ async function pollOnce() {
   const extension = extensionFor(next.file.mimeType, next.file.originalName);
   const tempPath = path.resolve(config.tempDir, `${job.token}-${job.id}${extension}`);
 
-  let attempt = 0;
-  while (attempt < config.maxRetries) {
-    attempt++;
-    try {
-      await updateStatus(job.id, "printing", `Agent attempting print (attempt ${attempt}/${config.maxRetries}).`);
-      log(`Downloading file for job ${job.token}...`);
+  try {
+    let attempt = 0;
+    while (attempt < config.maxRetries) {
+      attempt++;
+      try {
+        await updateStatus(job.id, "printing", `Agent attempting print (attempt ${attempt}/${config.maxRetries}).`);
+        log(`Downloading file for job ${job.token}...`);
 
-      const fileResponse = await fetch(`${config.serverUrl}/api/agent/jobs/${job.id}/file`, {
-        headers: authHeaders()
-      });
-      if (!fileResponse.ok) throw new Error(`Download failed: ${fileResponse.status}`);
+        const fileResponse = await fetch(`${config.serverUrl}/api/agent/jobs/${job.id}/file`, {
+          headers: authHeaders()
+        });
+        if (!fileResponse.ok) throw new Error(`Download failed: ${fileResponse.status}`);
 
-      await fs.writeFile(tempPath, Buffer.from(await fileResponse.arrayBuffer()));
-      log(`File downloaded to ${tempPath}`);
+        await fs.writeFile(tempPath, Buffer.from(await fileResponse.arrayBuffer()));
+        log(`File downloaded to ${tempPath}`);
 
-      log(`Printing ${job.copies} copy(s), paper: ${job.paperSize}, type: ${job.printType}...`);
-      await printWithSumatra(tempPath, job);
+        log(`Printing ${job.copies} copy(s), paper: ${job.paperSize}, type: ${job.printType}...`);
+        await printWithSumatra(tempPath, job);
 
-      await updateStatus(job.id, "printed", `Printed successfully on attempt ${attempt}.`);
-      log(`Job ${job.token} completed successfully.`);
-      break;
-    } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : String(error);
-      log(`Job ${job.token} attempt ${attempt} failed: ${errorMsg}`);
+        await updateStatus(job.id, "printed", `Printed successfully on attempt ${attempt}.`);
+        log(`Job ${job.token} completed successfully.`);
+        break;
+      } catch (error) {
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        log(`Job ${job.token} attempt ${attempt} failed: ${errorMsg}`);
 
-      if (attempt >= config.maxRetries) {
-        await updateStatus(job.id, "failed", `Failed after ${config.maxRetries} attempts: ${errorMsg}`);
-        log(`Job ${job.token} failed permanently.`);
-      } else {
-        await updateStatus(job.id, "printing", `Retry ${attempt}/${config.maxRetries} after error: ${errorMsg}`);
-        await sleep(2000);
+        if (attempt >= config.maxRetries) {
+          await updateStatus(job.id, "failed", `Failed after ${config.maxRetries} attempts: ${errorMsg}`);
+          log(`Job ${job.token} failed permanently.`);
+        } else {
+          await updateStatus(job.id, "printing", `Retry ${attempt}/${config.maxRetries} after error: ${errorMsg}`);
+          await sleep(2000);
+        }
       }
     }
   } finally {
@@ -155,7 +157,11 @@ function buildPrintSettings(job: NonNullable<AgentJob["job"]>) {
   const settings: string[] = [];
   if (job.pageRange) settings.push(`page-ranges=${job.pageRange}`);
   if (job.copies > 1) settings.push(`copies=${job.copies}`);
-  settings.push("scaling=fit");
+  if (job.printType === "color") {
+    settings.push("collate");
+  } else {
+    settings.push("monochrome");
+  }
   return settings.join(",");
 }
 
