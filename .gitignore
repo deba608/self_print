@@ -23,3 +23,5 @@ cookies.txt
 .vercel
 *.tsbuildinfo
 *.tsbuildinfo
+graphify-out/
+GRAPHIFY_GUIDE.md
