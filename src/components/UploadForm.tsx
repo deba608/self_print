@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useRef } from "react";
-import { UploadCloud, Camera, FileText, Image, ArrowLeft, ArrowRight, Check, Eye, X, Loader2 } from "lucide-react";
+import { UploadCloud, FileText, Image, ArrowLeft, Check, Eye, Loader2, File, Settings2 } from "lucide-react";
 import { paperSizeLabels, commonPaperSizes } from "@/lib/pricing";
 
 type Pricing = {
@@ -19,6 +19,7 @@ type Pricing = {
 };
 
 type Step = "upload" | "settings" | "preview" | "done";
+type PageRangeMode = "all" | "even" | "odd" | "custom";
 
 export default function UploadForm() {
   const [step, setStep] = useState<Step>("upload");
@@ -26,7 +27,8 @@ export default function UploadForm() {
   const [file, setFile] = useState<File | null>(null);
   const [printType, setPrintType] = useState("bw");
   const [copies, setCopies] = useState(1);
-  const [pageRange, setPageRange] = useState("");
+  const [pageRangeMode, setPageRangeMode] = useState<PageRangeMode>("all");
+  const [customPageRange, setCustomPageRange] = useState("");
   const [paperSize, setPaperSize] = useState("A4");
   const [layout, setLayout] = useState("portrait");
   const [pagesPerSheet, setPagesPerSheet] = useState(1);
@@ -46,9 +48,26 @@ export default function UploadForm() {
       .catch(() => {});
   }, []);
 
+  const effectivePageRange = useMemo(() => {
+    if (pageRangeMode === "all") return "";
+    if (pageRangeMode === "even") return "even";
+    if (pageRangeMode === "odd") return "odd";
+    return customPageRange;
+  }, [pageRangeMode, customPageRange]);
+
   const estimate = useMemo(() => {
     if (!pricing) return 0;
-    const selectedPages = pageRange.trim() ? estimateRange(pageRange) : Math.max(filePageCount ?? 1, 1);
+    const totalPages = filePageCount ?? 1;
+    let selectedPages = totalPages;
+
+    if (pageRangeMode === "even") {
+      selectedPages = Math.floor(totalPages / 2);
+    } else if (pageRangeMode === "odd") {
+      selectedPages = Math.ceil(totalPages / 2);
+    } else if (pageRangeMode === "custom" && customPageRange.trim()) {
+      selectedPages = estimateRange(customPageRange);
+    }
+
     if (paperSize === "Photo") return Math.round((pricing.photoPrintPaise / 100) * copies);
     const base = printType === "bw" ? pricing.bwPerPagePaise : pricing.colorPerPagePaise;
     let paperMultiplier = 1;
@@ -61,22 +80,34 @@ export default function UploadForm() {
       case "Legal": paperMultiplier = pricing.legalMultiplier; break;
     }
     return Math.round((base / 100) * selectedPages * copies * paperMultiplier * pricing.copyMultiplier);
-  }, [copies, filePageCount, pageRange, paperSize, printType, pricing]);
+  }, [copies, filePageCount, customPageRange, pageRangeMode, paperSize, printType, pricing]);
 
   const pageInfo = useMemo(() => {
-    if (!pageRange.trim()) {
-      return filePageCount && filePageCount > 1 ? `All pages (${filePageCount})` : "All pages";
+    const totalPages = filePageCount ?? 1;
+    if (pageRangeMode === "all") {
+      return totalPages > 1 ? `All ${totalPages} pages` : "All pages";
     }
-    const pages = estimateRange(pageRange);
-    return `${pages} page${pages !== 1 ? "s" : ""}`;
-  }, [filePageCount, pageRange]);
+    if (pageRangeMode === "even") {
+      const count = Math.floor(totalPages / 2);
+      return `${count} even page${count !== 1 ? "s" : ""}`;
+    }
+    if (pageRangeMode === "odd") {
+      const count = Math.ceil(totalPages / 2);
+      return `${count} odd page${count !== 1 ? "s" : ""}`;
+    }
+    if (pageRangeMode === "custom" && customPageRange.trim()) {
+      const pages = estimateRange(customPageRange);
+      return `${pages} page${pages !== 1 ? "s" : ""}`;
+    }
+    return totalPages > 1 ? `All ${totalPages} pages` : "All pages";
+  }, [filePageCount, pageRangeMode, customPageRange]);
 
   const fileTypeLabel = useMemo(() => {
     if (!file) return null;
     const name = file.name.toLowerCase();
     if (name.endsWith(".pdf")) return "PDF";
     if (/\.(jpg|jpeg|png)$/.test(name)) return "Image";
-    if (/\.(doc|docx)$/.test(name)) return "Word doc";
+    if (/\.(doc|docx)$/.test(name)) return "Word";
     return "File";
   }, [file]);
 
@@ -88,7 +119,8 @@ export default function UploadForm() {
       if (selectedFile.type === "application/pdf") {
         const url = URL.createObjectURL(selectedFile);
         setPreviewUrl(url);
-        setFilePageCount(await estimatePdfPages(selectedFile));
+        const pages = await estimatePdfPages(selectedFile);
+        setFilePageCount(pages);
       } else if (selectedFile.type.startsWith("image/")) {
         const url = URL.createObjectURL(selectedFile);
         setPreviewUrl(url);
@@ -109,7 +141,7 @@ export default function UploadForm() {
     form.set("file", file);
     form.set("printType", printType);
     form.set("copies", String(copies));
-    form.set("pageRange", pageRange);
+    form.set("pageRange", effectivePageRange);
     form.set("paperSize", paperSize);
     form.set("layout", layout);
     form.set("pagesPerSheet", String(pagesPerSheet));
@@ -135,7 +167,8 @@ export default function UploadForm() {
     setFile(null);
     setPrintType("bw");
     setCopies(1);
-    setPageRange("");
+    setPageRangeMode("all");
+    setCustomPageRange("");
     setPaperSize("A4");
     setLayout("portrait");
     setPagesPerSheet(1);
@@ -153,11 +186,15 @@ export default function UploadForm() {
 
   if (result) {
     return (
-      <div className="result-screen">
-        <div className="success-icon"><Check size={48} /></div>
+      <div className="result-screen result-success" role="status" aria-live="polite">
+        <div className="success-animation">
+          <div className="success-icon" aria-hidden="true"><Check size={48} /></div>
+          <div className="success-burst"></div>
+        </div>
+        <h2 className="success-title">Print Job Submitted</h2>
         <p className="muted">Your token number is</p>
-        <div className="token">{result.token}</div>
-        <p className="price">₹{(result.pricePaise / 100).toFixed(2)}</p>
+        <div className="token bounce-in">{result.token}</div>
+        <p className="price">₹{estimate.toFixed(2)}</p>
         <div className="queue-badge">Position #{result.queuePosition}</div>
         <p className="instruction">
           {result.needsConversion
@@ -165,6 +202,10 @@ export default function UploadForm() {
             : "Pay at counter, then collect your print."}
         </p>
         <button className="btn-secondary" onClick={resetForm}>Upload Another</button>
+        <div className="thank-you-note">
+          <p>Thank you for using Self_Print</p>
+          <p className="visit-again">We appreciate your business</p>
+        </div>
       </div>
     );
   }
@@ -172,22 +213,22 @@ export default function UploadForm() {
   return (
     <div className="upload-form">
       {/* Step indicator */}
-      <div className="step-indicator">
-        <div className={`step ${step === "upload" || step === "settings" || step === "preview" ? "active" : step === "done" ? "done" : ""}`}>
-          <span className="step-num">1</span>
+      <nav className="step-indicator" aria-label="Upload progress">
+        <div className={`step ${step === "upload" || step === "settings" || step === "preview" ? "active" : step === "done" ? "done" : ""}`} aria-current={step === "upload" ? "step" : undefined}>
+          <span className="step-num" aria-hidden="true">1</span>
           <span className="step-label">Upload</span>
         </div>
-        <div className="step-line" />
-        <div className={`step ${step === "settings" || step === "preview" ? "active" : step === "done" ? "done" : ""}`}>
-          <span className="step-num">2</span>
+        <div className="step-line" aria-hidden="true" />
+        <div className={`step ${step === "settings" || step === "preview" ? "active" : step === "done" ? "done" : ""}`} aria-current={step === "settings" ? "step" : undefined}>
+          <span className="step-num" aria-hidden="true">2</span>
           <span className="step-label">Settings</span>
         </div>
-        <div className="step-line" />
-        <div className={`step ${step === "preview" ? "active" : step === "done" ? "done" : ""}`}>
-          <span className="step-num">3</span>
+        <div className="step-line" aria-hidden="true" />
+        <div className={`step ${step === "preview" ? "active" : step === "done" ? "done" : ""}`} aria-current={step === "preview" ? "step" : undefined}>
+          <span className="step-num" aria-hidden="true">3</span>
           <span className="step-label">Preview</span>
         </div>
-      </div>
+      </nav>
 
       {/* Step 1: Upload */}
       {step === "upload" && (
@@ -201,10 +242,16 @@ export default function UploadForm() {
               onChange={handleFileChange}
             />
             <label htmlFor="file-input" className="upload-label">
-              <UploadCloud size={48} className="upload-icon" />
+              <UploadCloud size={56} className="upload-icon" aria-hidden="true" />
               <strong>Tap to select file</strong>
               <span className="muted">PDF, JPG, PNG up to 25MB</span>
             </label>
+          </div>
+          <div className="supported-formats">
+            <span className="format-badge">PDF</span>
+            <span className="format-badge">JPG</span>
+            <span className="format-badge">PNG</span>
+            <span className="format-badge">DOC</span>
           </div>
         </div>
       )}
@@ -213,13 +260,13 @@ export default function UploadForm() {
       {step === "settings" && (
         <div className="step-content fade-in">
           {/* File summary */}
-          <div className="file-summary" onClick={() => setStep("upload")}>
+          <button className="file-summary" onClick={() => setStep("upload")} aria-label="Change file">
             <span className="file-icon">
-              {fileTypeLabel === "PDF" ? <FileText size={20} /> : fileTypeLabel === "Image" ? <Image size={20} /> : <FileText size={20} />}
+              {fileTypeLabel === "PDF" ? <FileText size={24} aria-hidden="true" /> : fileTypeLabel === "Image" ? <Image size={24} aria-hidden="true" /> : <File size={24} aria-hidden="true" />}
             </span>
             <span className="file-name">{file?.name}</span>
             <span className="change-link">Change</span>
-          </div>
+          </button>
 
           {/* Print type toggle */}
           <div className="print-type-toggle">
@@ -227,46 +274,127 @@ export default function UploadForm() {
               type="button"
               className={`toggle-btn ${printType === "bw" ? "active" : ""}`}
               onClick={() => setPrintType("bw")}
+              aria-pressed={printType === "bw"}
             >
               <span className="toggle-label">Black & White</span>
-              {pricing && <span className="toggle-price">₹{(pricing.bwPerPagePaise / 100).toFixed(0)}/page</span>}
+              {pricing && <span className="toggle-price">Rs {(pricing.bwPerPagePaise / 100).toFixed(0)}/page</span>}
             </button>
             <button
               type="button"
               className={`toggle-btn color-btn ${printType === "color" ? "active" : ""}`}
               onClick={() => setPrintType("color")}
+              aria-pressed={printType === "color"}
             >
               <span className="toggle-label">Color</span>
-              {pricing && <span className="toggle-price">₹{(pricing.colorPerPagePaise / 100).toFixed(0)}/page</span>}
+              {pricing && <span className="toggle-price">Rs {(pricing.colorPerPagePaise / 100).toFixed(0)}/page</span>}
             </button>
           </div>
 
-          {/* Copies and page range */}
-          <div className="form-row">
-            <div className="form-group">
-              <label>Copies</label>
-              <div className="number-input">
-                <button onClick={() => setCopies(Math.max(1, copies - 1))}>-</button>
-                <input type="number" min="1" max="99" value={copies} onChange={(e) => setCopies(Number(e.target.value))} />
-                <button onClick={() => setCopies(Math.min(99, copies + 1))}>+</button>
-              </div>
-            </div>
-            <div className="form-group">
-              <label>Page Range</label>
+          {/* Copies */}
+          <div className="form-group">
+            <label htmlFor="copies-input">Number of Copies</label>
+            <div className="number-input number-input-lg">
+              <button
+                type="button"
+                className="num-btn"
+                onClick={() => setCopies(Math.max(1, copies - 1))}
+                aria-label="Decrease copies"
+              >
+                <span>-</span>
+              </button>
               <input
-                type="text"
-                placeholder="All or 1-5"
-                value={pageRange}
-                onChange={(e) => setPageRange(e.target.value)}
+                id="copies-input"
+                type="number"
+                min="1"
+                max="99"
+                step="1"
+                value={copies}
+                onChange={(e) => {
+                  const val = Math.floor(Number(e.target.value));
+                  setCopies(isNaN(val) ? 1 : Math.min(99, Math.max(1, val)));
+                }}
+                aria-label="Number of copies"
+                className="num-display"
               />
+              <button
+                type="button"
+                className="num-btn"
+                onClick={() => setCopies(Math.min(99, copies + 1))}
+                aria-label="Increase copies"
+              >
+                <span>+</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Page Range */}
+          <div className="form-group">
+            <label>Select Pages</label>
+            <div className="page-range-selector">
+              <div className="page-mode-grid">
+                <button
+                  type="button"
+                  className={`page-mode-btn ${pageRangeMode === "all" ? "active" : ""}`}
+                  onClick={() => setPageRangeMode("all")}
+                  aria-pressed={pageRangeMode === "all"}
+                >
+                  <File size={20} className="page-mode-icon" aria-hidden="true" />
+                  <span className="page-mode-label">All Pages</span>
+                </button>
+                <button
+                  type="button"
+                  className={`page-mode-btn ${pageRangeMode === "even" ? "active" : ""}`}
+                  onClick={() => setPageRangeMode("even")}
+                  aria-pressed={pageRangeMode === "even"}
+                >
+                  <span className="page-mode-num">2</span>
+                  <span className="page-mode-label">Even Only</span>
+                </button>
+                <button
+                  type="button"
+                  className={`page-mode-btn ${pageRangeMode === "odd" ? "active" : ""}`}
+                  onClick={() => setPageRangeMode("odd")}
+                  aria-pressed={pageRangeMode === "odd"}
+                >
+                  <span className="page-mode-num">1</span>
+                  <span className="page-mode-label">Odd Only</span>
+                </button>
+                <button
+                  type="button"
+                  className={`page-mode-btn ${pageRangeMode === "custom" ? "active" : ""}`}
+                  onClick={() => setPageRangeMode("custom")}
+                  aria-pressed={pageRangeMode === "custom"}
+                >
+                  <span className="page-mode-num">C</span>
+                  <span className="page-mode-label">Custom</span>
+                </button>
+              </div>
+              {pageRangeMode === "custom" && (
+                <div className="custom-range-input">
+                  <input
+                    type="text"
+                    placeholder="e.g., 1-5 or 1,3,5"
+                    value={customPageRange}
+                    onChange={(e) => setCustomPageRange(e.target.value.replace(/[^0-9,\-]/g, ''))}
+                    aria-label="Enter custom page range"
+                    inputMode="numeric"
+                  />
+                  <span className="range-hint">Separate with commas or dash for range</span>
+                </div>
+              )}
             </div>
           </div>
 
           {/* Paper size */}
           <div className="form-group">
-            <label>Paper Size</label>
-            <select value={paperSize} onChange={(e) => setPaperSize(e.target.value)}>
-              <optgroup label="A Series (ISO)">
+            <label htmlFor="paper-size">Paper Size</label>
+            <select
+              id="paper-size"
+              value={paperSize}
+              onChange={(e) => setPaperSize(e.target.value)}
+              className="mobile-select"
+            >
+              <optgroup label="A Series">
                 {commonPaperSizes.map((size) => (
                   <option key={size} value={size}>{paperSizeLabels[size as keyof typeof paperSizeLabels]}</option>
                 ))}
@@ -281,35 +409,38 @@ export default function UploadForm() {
 
           {/* Advanced options */}
           <details className="advanced-section">
-            <summary>Advanced Options</summary>
+            <summary>
+              <Settings2 size={16} aria-hidden="true" />
+              <span>Advanced Options</span>
+            </summary>
             <div className="adv-options">
               <div className="form-row">
                 <div className="form-group">
-                  <label>Layout</label>
-                  <select value={layout} onChange={(e) => setLayout(e.target.value)}>
+                  <label htmlFor="layout-select">Layout</label>
+                  <select id="layout-select" value={layout} onChange={(e) => setLayout(e.target.value)} className="mobile-select">
                     <option value="portrait">Portrait</option>
                     <option value="landscape">Landscape</option>
                   </select>
                 </div>
                 <div className="form-group">
-                  <label>Pages/Sheet</label>
-                  <select value={pagesPerSheet} onChange={(e) => setPagesPerSheet(Number(e.target.value))}>
+                  <label htmlFor="pages-per-sheet">Pages per sheet</label>
+                  <select id="pages-per-sheet" value={pagesPerSheet} onChange={(e) => setPagesPerSheet(Number(e.target.value))} className="mobile-select">
                     {[1, 2, 4, 6, 9, 16].map((n) => <option key={n} value={n}>{n}</option>)}
                   </select>
                 </div>
               </div>
               <div className="form-row">
                 <div className="form-group">
-                  <label>Margins</label>
-                  <select value={margins} onChange={(e) => setMargins(e.target.value)}>
+                  <label htmlFor="margins-select">Margins</label>
+                  <select id="margins-select" value={margins} onChange={(e) => setMargins(e.target.value)} className="mobile-select">
                     <option value="default">Default</option>
                     <option value="minimum">Minimum</option>
                     <option value="none">None</option>
                   </select>
                 </div>
                 <div className="form-group">
-                  <label>Scale</label>
-                  <select value={scale} onChange={(e) => setScale(e.target.value)}>
+                  <label htmlFor="scale-select">Scale</label>
+                  <select id="scale-select" value={scale} onChange={(e) => setScale(e.target.value)} className="mobile-select">
                     <option value="default">Auto</option>
                     <option value="fit">Fit to Page</option>
                     <option value="shrink">Shrink if Oversized</option>
@@ -322,22 +453,45 @@ export default function UploadForm() {
 
           {/* Price box */}
           <div className="price-box">
-            <div className="price-row">
-              <span>Estimated Price</span>
-              <strong className="price">₹{estimate.toFixed(2)}</strong>
+            <div className="price-header">
+              <span className="price-label">Estimated Price</span>
+              <span className="price-value">₹{estimate.toFixed(2)}</span>
             </div>
-            <span className="price-note">{pageInfo} × {copies} copy{copies !== 1 ? "ies" : ""} × {paperSizeLabels[paperSize as keyof typeof paperSizeLabels] || paperSize}</span>
+            <div className="price-breakdown">
+              <span className="breakdown-item">{pageInfo}</span>
+              <span className="breakdown-sep">x</span>
+              <span className="breakdown-item">{copies} copy{copies !== 1 ? "ies" : ""}</span>
+              <span className="breakdown-sep">x</span>
+              <span className="breakdown-item">{paperSizeLabels[paperSize as keyof typeof paperSizeLabels] || paperSize}</span>
+            </div>
+            {filePageCount && filePageCount > 1 && (
+              <span className="page-count-hint">{filePageCount} pages detected</span>
+            )}
           </div>
 
-          {error && <p className="error-msg">{error}</p>}
+          {error && (
+            <div className="error-msg" role="alert">
+              {error}
+            </div>
+          )}
 
           {/* Actions */}
           <div className="form-actions">
-            <button type="button" className="btn-secondary" onClick={() => setStep("upload")}>
-              <ArrowLeft size={18} /> Back
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => setStep("upload")}
+              aria-label="Go back to upload step"
+            >
+              <ArrowLeft size={20} aria-hidden="true" /> Back
             </button>
-            <button type="button" className="btn-primary" onClick={goToPreview}>
-              Preview <Eye size={18} />
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={goToPreview}
+              aria-label="Preview print settings"
+            >
+              Preview <Eye size={20} aria-hidden="true" />
             </button>
           </div>
         </div>
@@ -358,7 +512,7 @@ export default function UploadForm() {
             )}
             {file && (file.name.endsWith(".doc") || file.name.endsWith(".docx")) && (
               <div className="doc-preview">
-                <FileText size={48} />
+                <File size={48} aria-hidden="true" />
                 <p>Word document preview not available</p>
                 <span className="muted">File will be reviewed at the shop</span>
               </div>
@@ -383,7 +537,7 @@ export default function UploadForm() {
               </div>
               <div className="summary-item">
                 <span className="summary-label">Pages</span>
-                <span className="summary-value">{pageRange || "All"}</span>
+                <span className="summary-value">{pageRangeMode === "all" ? "All" : pageRangeMode === "even" ? "Even" : pageRangeMode === "odd" ? "Odd" : customPageRange || "All"}</span>
               </div>
               <div className="summary-item">
                 <span className="summary-label">Paper</span>
@@ -395,7 +549,7 @@ export default function UploadForm() {
               </div>
               {pagesPerSheet > 1 && (
                 <div className="summary-item">
-                  <span className="summary-label">Pages/Sheet</span>
+                  <span className="summary-label">Pages per sheet</span>
                   <span className="summary-value">{pagesPerSheet}</span>
                 </div>
               )}
@@ -404,23 +558,38 @@ export default function UploadForm() {
 
           {/* Total price */}
           <div className="total-price">
-            <span>Total ({pageInfo} × {copies} copy{copies !== 1 ? "ies" : ""})</span>
+            <span>Total</span>
             <strong>₹{estimate.toFixed(2)}</strong>
           </div>
 
           {/* Actions */}
           <div className="form-actions">
-            <button type="button" className="btn-secondary" onClick={() => setStep("settings")}>
-              <ArrowLeft size={18} /> Edit
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => setStep("settings")}
+              aria-label="Go back to edit settings"
+            >
+              <ArrowLeft size={20} aria-hidden="true" /> Edit
             </button>
-            <button type="button" className="btn-primary" onClick={handleSubmit} disabled={busy}>
-              {busy ? <><Loader2 size={18} className="spin" /> Processing...</> : <><Check size={18} /> Confirm & Print</>}
+            <button
+              type="button"
+              className="btn-primary btn-submit"
+              onClick={handleSubmit}
+              disabled={busy}
+              aria-busy={busy}
+            >
+              {busy ? (
+                <><Loader2 size={20} className="spin" aria-hidden="true" /> Processing...</>
+              ) : (
+                <><Check size={20} aria-hidden="true" /> Confirm Print</>
+              )}
             </button>
           </div>
         </div>
       )}
 
-      {/* Mobile-friendly help text */}
+      {/* Help text */}
       {step !== "done" && (
         <p className="help-text">
           Need help? Ask the shop staff for assistance.
@@ -434,8 +603,8 @@ function estimateRange(value: string) {
   const pages = new Set<number>();
   for (const part of value.split(",")) {
     const [startRaw, endRaw] = part.trim().split("-");
-    const start = Number(startRaw);
-    const end = Number(endRaw ?? startRaw);
+    const start = Math.floor(Number(startRaw));
+    const end = Math.floor(Number(endRaw ?? startRaw));
     if (!Number.isFinite(start) || !Number.isFinite(end) || start < 1 || end < start) continue;
     for (let page = start; page <= end; page += 1) pages.add(page);
   }

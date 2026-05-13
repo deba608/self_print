@@ -136,7 +136,7 @@ export default function JobDetail({ id }: { id: string }) {
   }
 
   function formatRupees(paise: number) {
-    return `₹${(paise / 100).toFixed(2)}`;
+    return `₹ ${(paise / 100).toFixed(2)}`;
   }
 
   if (!detail) {
@@ -502,3 +502,4 @@ function scaleLabel(value: string) {
   };
   return map[value] ?? value;
 }
+

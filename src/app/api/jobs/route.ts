@@ -25,8 +25,23 @@ export async function POST(request: NextRequest) {
     }
 
     const printType = String(form.get("printType") ?? "bw") as PrintType;
-    const copies = Math.max(1, Number(form.get("copies") ?? 1));
-    const pageRange = String(form.get("pageRange") ?? "").trim() || null;
+    const copies = Math.max(1, Math.floor(Number(form.get("copies") ?? 1)));
+    if (isNaN(copies) || copies < 1 || copies > 99) {
+      return NextResponse.json({ error: "Copies must be between 1 and 99" }, { status: 400 });
+    }
+    const pageRangeRaw = form.get("pageRange");
+    let pageRange: string | null = null;
+    if (pageRangeRaw !== null && pageRangeRaw !== "") {
+      pageRange = String(pageRangeRaw).trim().toLowerCase();
+      // Allow "all", "even", "odd" or custom ranges like "1-5", "1,3,5"
+      const validSpecial = ["all", "even", "odd"];
+      const isValidCustom = /^[\d,\-]+$/.test(pageRange);
+      if (!validSpecial.includes(pageRange) && !isValidCustom) {
+        return NextResponse.json({ error: "Invalid page range format" }, { status: 400 });
+      }
+      // Normalize "all" to null for database
+      if (pageRange === "all") pageRange = null;
+    }
     const paperSize = String(form.get("paperSize") ?? "A4") as PaperSize;
     const layout = String(form.get("layout") ?? "portrait") as PrintLayout;
     const pagesPerSheet = Number(form.get("pagesPerSheet") ?? 1);
