@@ -21,3 +21,4 @@ cookies.txt
 
 
 .vercel
+*.tsbuildinfo
