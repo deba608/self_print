@@ -1,25 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDb } from "@/lib/db";
+import { getDb, getPricing } from "@/lib/db";
 import { requireAdminResponse } from "@/lib/security";
 
 export async function GET() {
   const unauthorized = await requireAdminResponse();
   if (unauthorized) return unauthorized;
-  const row = getDb().prepare("SELECT * FROM pricing_config WHERE id = 1").get() as Record<string, number>;
-  return NextResponse.json({
-    bwPerPagePaise: row.bw_per_page_paise,
-    colorPerPagePaise: row.color_per_page_paise,
-    photoPrintPaise: row.photo_print_paise,
-    copyMultiplier: row.copy_multiplier,
-    a3Multiplier: row.a3_multiplier ?? 2.5,
-    a4Multiplier: row.a4_multiplier ?? 1,
-    a5Multiplier: row.a5_multiplier ?? 0.7,
-    a6Multiplier: row.a6_multiplier ?? 0.5,
-    b5Multiplier: row.b5_multiplier ?? 0.9,
-    legalMultiplier: row.legal_multiplier ?? 1.25,
-    photoMultiplier: row.photo_multiplier ?? 1,
-    expiryMinutes: row.expiry_minutes ?? 1440
-  });
+  return NextResponse.json(getPricing());
 }
 
 export async function PUT(request: NextRequest) {
@@ -40,21 +26,25 @@ export async function PUT(request: NextRequest) {
     const now = new Date().toISOString();
 
     getDb().prepare(`
-      UPDATE pricing_config SET
-        bw_per_page_paise = ?,
-        color_per_page_paise = ?,
-        photo_print_paise = ?,
-        copy_multiplier = ?,
-        a3_multiplier = ?,
-        a4_multiplier = ?,
-        a5_multiplier = ?,
-        a6_multiplier = ?,
-        b5_multiplier = ?,
-        legal_multiplier = ?,
-        photo_multiplier = ?,
-        expiry_minutes = ?,
-        updated_at = ?
-      WHERE id = 1
+      INSERT INTO pricing_config (
+        id, bw_per_page_paise, color_per_page_paise, photo_print_paise, copy_multiplier,
+        a3_multiplier, a4_multiplier, a5_multiplier, a6_multiplier, b5_multiplier,
+        legal_multiplier, photo_multiplier, expiry_minutes, updated_at
+      ) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET
+        bw_per_page_paise = excluded.bw_per_page_paise,
+        color_per_page_paise = excluded.color_per_page_paise,
+        photo_print_paise = excluded.photo_print_paise,
+        copy_multiplier = excluded.copy_multiplier,
+        a3_multiplier = excluded.a3_multiplier,
+        a4_multiplier = excluded.a4_multiplier,
+        a5_multiplier = excluded.a5_multiplier,
+        a6_multiplier = excluded.a6_multiplier,
+        b5_multiplier = excluded.b5_multiplier,
+        legal_multiplier = excluded.legal_multiplier,
+        photo_multiplier = excluded.photo_multiplier,
+        expiry_minutes = excluded.expiry_minutes,
+        updated_at = excluded.updated_at
     `).run(
       body.bwPerPagePaise,
       body.colorPerPagePaise,
@@ -71,7 +61,7 @@ export async function PUT(request: NextRequest) {
       now
     );
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json(getPricing());
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Update failed" }, { status: 400 });
   }

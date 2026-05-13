@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useRef } from "react";
-import { UploadCloud, FileText, Image, ArrowLeft, Check, Eye, Loader2, File, Settings2 } from "lucide-react";
+import { UploadCloud, FileText, Image, ArrowLeft, ArrowRight, Check, Eye, Loader2, File, Settings2, ZoomIn, ZoomOut } from "lucide-react";
 import { paperSizeLabels, commonPaperSizes } from "@/lib/pricing";
 
 type Pricing = {
@@ -102,6 +102,35 @@ export default function UploadForm() {
     return totalPages > 1 ? `All ${totalPages} pages` : "All pages";
   }, [filePageCount, pageRangeMode, customPageRange]);
 
+  // Validate custom page range against file page count
+  const isValidPageRange = useMemo(() => {
+    if (pageRangeMode !== "custom" || !customPageRange.trim() || !filePageCount) return true;
+    const pages = new Set<number>();
+    for (const part of customPageRange.split(",")) {
+      const trimmed = part.trim();
+      if (!trimmed) continue;
+      const [startRaw, endRaw] = trimmed.split("-");
+      const start = parseInt(startRaw, 10);
+      const end = endRaw ? parseInt(endRaw, 10) : start;
+      if (isNaN(start) || start < 1) return false;
+      if (isNaN(end) || end < start) return false;
+      if (start > filePageCount || end > filePageCount) return false;
+      for (let p = start; p <= end; p++) pages.add(p);
+    }
+    return pages.size > 0;
+  }, [pageRangeMode, customPageRange, filePageCount]);
+
+  const pageRangeValidationMessage = useMemo(() => {
+    if (pageRangeMode !== "custom" || !customPageRange.trim() || !filePageCount) return null;
+    if (!isValidPageRange) {
+      if (!customPageRange.match(/^[\d,\-\s]+$/)) {
+        return "Invalid format. Use numbers, commas, or dashes (e.g., 1-5 or 1,3,5)";
+      }
+      return `Page numbers must be between 1 and ${filePageCount}`;
+    }
+    return null;
+  }, [pageRangeMode, customPageRange, filePageCount, isValidPageRange]);
+
   const fileTypeLabel = useMemo(() => {
     if (!file) return null;
     const name = file.name.toLowerCase();
@@ -135,6 +164,11 @@ export default function UploadForm() {
 
   async function handleSubmit() {
     if (!file) return;
+    // Validate custom page range before submission
+    if (pageRangeMode === "custom" && customPageRange.trim() && !isValidPageRange) {
+      setError("Please enter valid page numbers within the PDF range.");
+      return;
+    }
     setBusy(true);
     setError("");
     const form = new FormData();
@@ -277,7 +311,7 @@ export default function UploadForm() {
               aria-pressed={printType === "bw"}
             >
               <span className="toggle-label">Black & White</span>
-              {pricing && <span className="toggle-price">Rs {(pricing.bwPerPagePaise / 100).toFixed(0)}/page</span>}
+              {pricing && <span className="toggle-price">₹ {(pricing.bwPerPagePaise / 100).toFixed(0)}/page</span>}
             </button>
             <button
               type="button"
@@ -286,7 +320,7 @@ export default function UploadForm() {
               aria-pressed={printType === "color"}
             >
               <span className="toggle-label">Color</span>
-              {pricing && <span className="toggle-price">Rs {(pricing.colorPerPagePaise / 100).toFixed(0)}/page</span>}
+              {pricing && <span className="toggle-price">₹ {(pricing.colorPerPagePaise / 100).toFixed(0)}/page</span>}
             </button>
           </div>
 
@@ -378,8 +412,14 @@ export default function UploadForm() {
                     onChange={(e) => setCustomPageRange(e.target.value.replace(/[^0-9,\-]/g, ''))}
                     aria-label="Enter custom page range"
                     inputMode="numeric"
+                    aria-invalid={!isValidPageRange && !!customPageRange.trim()}
                   />
                   <span className="range-hint">Separate with commas or dash for range</span>
+                  {pageRangeValidationMessage && (
+                    <span className="range-error" role="alert">
+                      {pageRangeValidationMessage}
+                    </span>
+                  )}
                 </div>
               )}
             </div>
@@ -489,6 +529,7 @@ export default function UploadForm() {
               type="button"
               className="btn-primary"
               onClick={goToPreview}
+              disabled={pageRangeMode === "custom" && !!customPageRange.trim() && !isValidPageRange}
               aria-label="Preview print settings"
             >
               Preview <Eye size={20} aria-hidden="true" />
@@ -504,8 +545,8 @@ export default function UploadForm() {
 
           {/* Preview area */}
           <div className="preview-area">
-            {file && file.type === "application/pdf" && previewUrl && (
-              <iframe src={previewUrl} className="preview-iframe" title="PDF Preview" />
+            {file && file.type === "application/pdf" && (
+              <PdfCanvasPreview file={file} fallbackPageCount={filePageCount ?? 1} />
             )}
             {file && file.type.startsWith("image/") && previewUrl && (
               <img src={previewUrl} alt="Image Preview" className="preview-image" />
@@ -595,6 +636,148 @@ export default function UploadForm() {
           Need help? Ask the shop staff for assistance.
         </p>
       )}
+    </div>
+  );
+}
+
+function PdfCanvasPreview({ file, fallbackPageCount }: { file: File; fallbackPageCount: number }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const renderTaskRef = useRef<{ cancel: () => void } | null>(null);
+  const pdfRef = useRef<{ destroy: () => Promise<void> | void; numPages: number; getPage: (page: number) => Promise<any> } | null>(null);
+  const [pageNumber, setPageNumber] = useState(1);
+  const [pageCount, setPageCount] = useState(fallbackPageCount);
+  const [zoom, setZoom] = useState(1);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let disposed = false;
+
+    async function loadPdf() {
+      setLoading(true);
+      setError("");
+      setPageNumber(1);
+      try {
+        renderTaskRef.current?.cancel();
+        await pdfRef.current?.destroy?.();
+        const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+        const data = await file.arrayBuffer();
+        pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
+        const documentParams = {
+          data: new Uint8Array(data),
+          disableFontFace: true,
+          isEvalSupported: false,
+          useWorkerFetch: false,
+        } as unknown as Parameters<typeof pdfjs.getDocument>[0];
+        const pdf = await pdfjs.getDocument(documentParams).promise;
+        if (disposed) {
+          await pdf.destroy();
+          return;
+        }
+        pdfRef.current = pdf;
+        setPageCount(pdf.numPages);
+      } catch {
+        if (!disposed) setError("Unable to render PDF preview on this device.");
+      } finally {
+        if (!disposed) setLoading(false);
+      }
+    }
+
+    loadPdf();
+
+    return () => {
+      disposed = true;
+      renderTaskRef.current?.cancel();
+      pdfRef.current?.destroy?.();
+      renderTaskRef.current = null;
+      pdfRef.current = null;
+    };
+  }, [file]);
+
+  useEffect(() => {
+    let disposed = false;
+
+    async function renderPage() {
+      if (!pdfRef.current || !canvasRef.current) return;
+      setLoading(true);
+      try {
+        renderTaskRef.current?.cancel();
+        const page = await pdfRef.current.getPage(pageNumber);
+        if (disposed || !canvasRef.current) return;
+
+        const baseViewport = page.getViewport({ scale: 1 });
+        const containerWidth = Math.max((containerRef.current?.clientWidth ?? 320) - 24, 240);
+        const fitScale = Math.min(containerWidth / baseViewport.width, 1.75);
+        const viewport = page.getViewport({ scale: Math.max(0.4, fitScale * zoom) });
+        const canvas = canvasRef.current;
+        const context = canvas.getContext("2d");
+        if (!context) return;
+
+        const pixelRatio = window.devicePixelRatio || 1;
+        canvas.width = Math.floor(viewport.width * pixelRatio);
+        canvas.height = Math.floor(viewport.height * pixelRatio);
+        canvas.style.width = `${Math.floor(viewport.width)}px`;
+        canvas.style.height = `${Math.floor(viewport.height)}px`;
+        context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+
+        const renderTask = page.render({ canvasContext: context, viewport });
+        renderTaskRef.current = renderTask;
+        await renderTask.promise;
+      } catch (err) {
+        if (!disposed && !(err instanceof Error && err.name === "RenderingCancelledException")) {
+          setError("Unable to render this PDF page.");
+        }
+      } finally {
+        if (!disposed) setLoading(false);
+      }
+    }
+
+    renderPage();
+
+    return () => {
+      disposed = true;
+      renderTaskRef.current?.cancel();
+    };
+  }, [pageNumber, pageCount, zoom]);
+
+  if (error) {
+    return (
+      <div className="pdf-preview-fallback">
+        <div className="fallback-icon"><FileText size={28} aria-hidden="true" /></div>
+        <p>{error}</p>
+        <span className="file-info">{file.name}</span>
+        <span className="mobile-hint">The file will still be uploaded for printing.</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="pdfjs-preview">
+      <div className="pdfjs-toolbar">
+        <button type="button" onClick={() => setPageNumber((page) => Math.max(1, page - 1))} disabled={pageNumber <= 1} aria-label="Previous PDF page">
+          <ArrowLeft size={16} />
+        </button>
+        <span>Page {pageNumber} of {pageCount}</span>
+        <button type="button" onClick={() => setPageNumber((page) => Math.min(pageCount, page + 1))} disabled={pageNumber >= pageCount} aria-label="Next PDF page">
+          <ArrowRight size={16} />
+        </button>
+        <button type="button" onClick={() => setZoom((value) => Math.max(0.75, value - 0.15))} aria-label="Zoom out">
+          <ZoomOut size={16} />
+        </button>
+        <button type="button" onClick={() => setZoom((value) => Math.min(2, value + 0.15))} aria-label="Zoom in">
+          <ZoomIn size={16} />
+        </button>
+      </div>
+      <div className="pdfjs-canvas-wrap" ref={containerRef}>
+        {loading ? (
+          <div className="pdfjs-loading">
+            <Loader2 size={20} className="spin" />
+            Rendering preview...
+          </div>
+        ) : null}
+        <canvas ref={canvasRef} className="pdfjs-canvas" />
+      </div>
     </div>
   );
 }

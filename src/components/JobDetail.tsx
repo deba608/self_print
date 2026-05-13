@@ -155,23 +155,24 @@ export default function JobDetail({ id }: { id: string }) {
   const settingsLocked = job.status === "approved" || job.status === "printing";
   const badge = statusBadge(job.status);
   const expiry = expiryLabel(job.expiresAt);
-  const showMobileTabs = typeof window !== "undefined" && window.innerWidth < 760;
 
   return (
-    <main className="shell">
+    <main className="admin-shell job-detail-shell">
       {/* Back navigation */}
       <Link href="/admin" className="back-link">
         <ChevronLeft size={18} />
         <span>Back to Queue</span>
       </Link>
 
-      {/* Header card */}
       <div className="job-detail-header">
         <div className="job-detail-left">
-          <div className="token">{job.token}</div>
+          <div className="job-detail-token">
+            <span>Token</span>
+            <strong>{job.token}</strong>
+          </div>
           <span className={`status-badge ${badge.cls}`}>{badge.label}</span>
           {job.needsConversion === 1 && (
-            <span className="conversion-note">⚠ Needs conversion</span>
+            <span className="conversion-note">Needs conversion</span>
           )}
         </div>
         <div className="job-detail-right">
@@ -191,7 +192,6 @@ export default function JobDetail({ id }: { id: string }) {
         </div>
       )}
 
-      {/* Mobile tabs */}
       <div className="mobile-tabs">
         {(["details", "preview", "settings", "log"] as const).map((tab) => (
           <button
@@ -204,282 +204,267 @@ export default function JobDetail({ id }: { id: string }) {
         ))}
       </div>
 
-      {/* Details tab */}
-      {(activeTab === "details" || typeof window !== "undefined" && window.innerWidth >= 760) && (
-        <div className="detail-section" data-show-desktop>
-          <div className="job-detail-grid">
-            <div className="job-detail-col">
-              {/* File card */}
-              <div className="detail-card">
-                <h3 className="card-title">
-                  {file.fileKind === "pdf" ? <FileText size={16} /> :
-                   file.fileKind === "image" ? <Image size={16} /> :
-                   <FileText size={16} />}
-                  File
-                </h3>
-                <div className="file-info-row">
-                  <span className="file-name-display">{file.originalName}</span>
-                </div>
-                <div className="file-meta">
-                  <span>{(file.sizeBytes / 1024).toFixed(1)} KB</span>
-                  <span>·</span>
-                  <span>{file.fileKind.toUpperCase()}</span>
-                </div>
-              </div>
+      <div className="job-detail-grid">
+        <section className={`detail-pane detail-pane-details ${activeTab === "details" ? "active" : ""}`}>
+          <FileCard file={file} />
+          <SummaryCard job={job} />
+          <ActionsCard job={job} setStatus={setStatus} reprint={reprint} />
+        </section>
 
-              {/* Summary card */}
-              <div className="detail-card">
-                <h3 className="card-title"><Printer size={16} /> Print Summary</h3>
-                <div className="summary-list">
-                  <div className="summary-row">
-                    <span>Type</span>
-                    <strong>{job.printType === "bw" ? "Black & White" : "Color"}</strong>
-                  </div>
-                  <div className="summary-row">
-                    <span>Copies</span>
-                    <strong>{job.copies}</strong>
-                  </div>
-                  <div className="summary-row">
-                    <span>Pages</span>
-                    <strong>{job.pageRange || "All"}</strong>
-                  </div>
-                  <div className="summary-row">
-                    <span>Paper</span>
-                    <strong>{paperSizeLabels[job.paperSize as keyof typeof paperSizeLabels] || job.paperSize}</strong>
-                  </div>
-                  <div className="summary-row">
-                    <span>Layout</span>
-                    <strong>{job.layout.charAt(0).toUpperCase() + job.layout.slice(1)}</strong>
-                  </div>
-                  <div className="summary-row">
-                    <span>Pages/Sheet</span>
-                    <strong>{job.pagesPerSheet}</strong>
-                  </div>
-                  <div className="summary-row">
-                    <span>Margins</span>
-                    <strong>{job.margins.charAt(0).toUpperCase() + job.margins.slice(1)}</strong>
-                  </div>
-                  <div className="summary-row">
-                    <span>Scale</span>
-                    <strong>{scaleLabel(job.scale)}</strong>
-                  </div>
-                  <div className="summary-row">
-                    <span>Uploaded</span>
-                    <strong>{new Date(job.createdAt).toLocaleString()}</strong>
-                  </div>
-                </div>
-              </div>
+        <section className={`detail-pane detail-pane-preview ${activeTab === "preview" ? "active" : ""}`}>
+          <PreviewCard file={file} previewUrl={previewUrl} />
+        </section>
 
-              {/* Actions card */}
-              <div className="detail-card">
-                <h3 className="card-title">Actions</h3>
-                <div className="action-grid">
-                  {job.status === "pending_payment" && (
-                    <button className="action-btn action-paid" onClick={() => setStatus("paid")}>
-                      <CreditCard size={16} /> Mark Paid
-                    </button>
-                  )}
-                  {(job.status === "paid") && (
-                    <button className="action-btn action-release" onClick={() => setStatus("approved")}>
-                      <Printer size={16} /> Release Print
-                    </button>
-                  )}
-                  {job.status === "printing" && (
-                    <>
-                      <button className="action-btn action-secondary" onClick={() => setStatus("printed")}>
-                        <CheckCircle2 size={16} /> Mark Done
-                      </button>
-                      <button className="action-btn action-secondary" onClick={reprint}>
-                        <RotateCcw size={16} /> Reprint
-                      </button>
-                    </>
-                  )}
-                  {job.status === "approved" && (
-                    <>
-                      <button className="action-btn action-secondary" onClick={() => setStatus("printed")}>
-                        <CheckCircle2 size={16} /> Mark Done
-                      </button>
-                      <button className="action-btn action-secondary" onClick={reprint}>
-                        <RotateCcw size={16} /> Reprint
-                      </button>
-                    </>
-                  )}
-                  {job.status === "printed" && (
-                    <button className="action-btn action-secondary" onClick={reprint}>
-                      <RotateCcw size={16} /> Reprint
-                    </button>
-                  )}
-                  {!["printed", "cancelled", "failed"].includes(job.status) && (
-                    <button className="action-btn action-danger" onClick={() => setStatus("cancelled")}>
-                      <X size={16} /> Cancel
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
+        <section className={`detail-pane detail-pane-settings ${activeTab === "settings" ? "active" : ""}`}>
+          <SettingsCard
+            settings={settings}
+            settingsLocked={settingsLocked}
+            savingSettings={savingSettings}
+            settingsSaved={settingsSaved}
+            setSettings={setSettings}
+            saveSettings={saveSettings}
+          />
+        </section>
 
-            <div className="job-detail-col">
-              {/* Preview card */}
-              <div className="detail-card">
-                <h3 className="card-title">
-                  {file.fileKind === "pdf" ? <FileText size={16} /> : <Image size={16} />}
-                  Preview
-                </h3>
-                <div className="preview-area">
-                  {file.fileKind === "pdf" ? (
-                    <iframe src={previewUrl} className="preview-iframe" title="File Preview" />
-                  ) : file.fileKind === "image" ? (
-                    <img src={previewUrl} alt={file.originalName} className="preview-image" />
-                  ) : (
-                    <div className="doc-preview-note">
-                      <FileText size={40} />
-                      <p>DOC/DOCX preview not available</p>
-                      <span>File will be reviewed at the shop</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Edit settings card */}
-              <div className="detail-card settings-card">
-                <h3 className="card-title"><Save size={16} /> Edit Settings</h3>
-                {settingsLocked && (
-                  <div className="settings-locked-note">
-                    <AlertCircle size={14} />
-                    Settings are locked while job is being processed
-                  </div>
-                )}
-                <form className="settings-form" onSubmit={saveSettings}>
-                  <div className="settings-grid">
-                    <div className="settings-field">
-                      <label>Print Type</label>
-                      <select
-                        value={settings!.printType}
-                        disabled={settingsLocked}
-                        onChange={(e) => setSettings!({ ...settings!, printType: e.target.value })}
-                      >
-                        <option value="bw">Black & White</option>
-                        <option value="color">Color</option>
-                      </select>
-                    </div>
-                    <div className="settings-field">
-                      <label>Copies</label>
-                      <input
-                        type="number"
-                        min="1"
-                        max="99"
-                        value={settings!.copies}
-                        disabled={settingsLocked}
-                        onChange={(e) => setSettings!({ ...settings!, copies: Number(e.target.value) })}
-                      />
-                    </div>
-                    <div className="settings-field">
-                      <label>Page Range</label>
-                      <input
-                        placeholder="All or 1-5"
-                        value={settings!.pageRange}
-                        disabled={settingsLocked}
-                        onChange={(e) => setSettings!({ ...settings!, pageRange: e.target.value })}
-                      />
-                    </div>
-                    <div className="settings-field">
-                      <label>Paper Size</label>
-                      <select
-                        value={settings!.paperSize}
-                        disabled={settingsLocked}
-                        onChange={(e) => setSettings!({ ...settings!, paperSize: e.target.value })}
-                      >
-                        {paperSizeOptions.map((size) => (
-                          <option key={size} value={size}>
-                            {paperSizeLabels[size as keyof typeof paperSizeLabels] || size}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="settings-field">
-                      <label>Layout</label>
-                      <select
-                        value={settings!.layout}
-                        disabled={settingsLocked}
-                        onChange={(e) => setSettings!({ ...settings!, layout: e.target.value })}
-                      >
-                        <option value="portrait">Portrait</option>
-                        <option value="landscape">Landscape</option>
-                      </select>
-                    </div>
-                    <div className="settings-field">
-                      <label>Pages/Sheet</label>
-                      <select
-                        value={settings!.pagesPerSheet}
-                        disabled={settingsLocked}
-                        onChange={(e) => setSettings!({ ...settings!, pagesPerSheet: Number(e.target.value) })}
-                      >
-                        {[1, 2, 4, 6, 9, 16].map((n) => <option key={n} value={n}>{n}</option>)}
-                      </select>
-                    </div>
-                    <div className="settings-field">
-                      <label>Margins</label>
-                      <select
-                        value={settings!.margins}
-                        disabled={settingsLocked}
-                        onChange={(e) => setSettings!({ ...settings!, margins: e.target.value })}
-                      >
-                        <option value="default">Default</option>
-                        <option value="minimum">Minimum</option>
-                        <option value="none">None</option>
-                      </select>
-                    </div>
-                    <div className="settings-field">
-                      <label>Scale</label>
-                      <select
-                        value={settings!.scale}
-                        disabled={settingsLocked}
-                        onChange={(e) => setSettings!({ ...settings!, scale: e.target.value })}
-                      >
-                        <option value="default">Auto</option>
-                        <option value="fit">Fit to Page</option>
-                        <option value="shrink">Shrink if Oversized</option>
-                        <option value="noscale">Actual Size</option>
-                      </select>
-                    </div>
-                  </div>
-                  <div className="settings-actions">
-                    <button type="submit" className="action-btn action-save" disabled={savingSettings || settingsLocked}>
-                      {savingSettings ? <><Loader2 size={15} className="spin" /> Saving...</> : <><Save size={15} /> Save Settings</>}
-                    </button>
-                    {settingsSaved && (
-                      <span className="saved-msg"><CheckCircle2 size={14} /> Saved</span>
-                    )}
-                  </div>
-                </form>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Log tab (mobile only) */}
-      {activeTab === "log" && (
-        <div className="detail-section">
-          <div className="detail-card">
-            <h3 className="card-title">Event Log</h3>
-            <div className="event-log">
-              {detail.events.length === 0 ? (
-                <p className="muted" style={{ fontSize: 13, padding: "8px 0" }}>No events yet.</p>
-              ) : (
-                detail.events.map((event) => (
-                  <div key={event.id} className="event-item">
-                    <span className="event-time">{new Date(event.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
-                    <span className="event-type">{event.event_type}</span>
-                    <span className="event-msg">{event.message}</span>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+        <section className={`detail-pane detail-pane-log ${activeTab === "log" ? "active" : ""}`}>
+          <EventLogCard events={detail.events} />
+        </section>
+      </div>
     </main>
+  );
+}
+
+function FileCard({ file }: { file: Detail["file"] }) {
+  return (
+    <div className="detail-card">
+      <h3 className="card-title">
+        {file.fileKind === "image" ? <Image size={16} /> : <FileText size={16} />}
+        File
+      </h3>
+      <div className="file-info-row">
+        <span className="file-name-display">{file.originalName}</span>
+      </div>
+      <div className="file-meta">
+        <span>{(file.sizeBytes / 1024).toFixed(1)} KB</span>
+        <span className="dot">·</span>
+        <span>{file.fileKind.toUpperCase()}</span>
+      </div>
+    </div>
+  );
+}
+
+function SummaryCard({ job }: { job: Detail["job"] }) {
+  const rows = [
+    ["Type", job.printType === "bw" ? "Black & White" : "Color"],
+    ["Copies", String(job.copies)],
+    ["Pages", job.pageRange || "All"],
+    ["Paper", paperSizeLabels[job.paperSize as keyof typeof paperSizeLabels] || job.paperSize],
+    ["Layout", titleCase(job.layout)],
+    ["Pages/Sheet", String(job.pagesPerSheet)],
+    ["Margins", titleCase(job.margins)],
+    ["Scale", scaleLabel(job.scale)],
+    ["Uploaded", new Date(job.createdAt).toLocaleString()]
+  ];
+
+  return (
+    <div className="detail-card">
+      <h3 className="card-title"><Printer size={16} /> Print Summary</h3>
+      <div className="summary-list">
+        {rows.map(([label, value]) => (
+          <div className="summary-row" key={label}>
+            <span>{label}</span>
+            <strong>{value}</strong>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ActionsCard({
+  job,
+  setStatus,
+  reprint
+}: {
+  job: Detail["job"];
+  setStatus: (status: string) => void;
+  reprint: () => void;
+}) {
+  return (
+    <div className="detail-card">
+      <h3 className="card-title">Actions</h3>
+      <div className="detail-action-grid">
+        {job.status === "pending_payment" && (
+          <button className="job-btn paid" onClick={() => setStatus("paid")}>
+            <CreditCard size={16} /> Mark Paid
+          </button>
+        )}
+        {job.status === "paid" && (
+          <button className="job-btn release" onClick={() => setStatus("approved")}>
+            <Printer size={16} /> Release Print
+          </button>
+        )}
+        {(job.status === "approved" || job.status === "printing") && (
+          <>
+            <button className="job-btn done" onClick={() => setStatus("printed")}>
+              <CheckCircle2 size={16} /> Mark Done
+            </button>
+            <button className="job-btn reprint" onClick={reprint}>
+              <RotateCcw size={16} /> Reprint
+            </button>
+          </>
+        )}
+        {job.status === "printed" && (
+          <button className="job-btn reprint" onClick={reprint}>
+            <RotateCcw size={16} /> Reprint
+          </button>
+        )}
+        {!["printed", "cancelled", "failed"].includes(job.status) && (
+          <button className="job-btn cancel-text" onClick={() => setStatus("cancelled")}>
+            <X size={16} /> Cancel
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function PreviewCard({ file, previewUrl }: { file: Detail["file"]; previewUrl: string }) {
+  return (
+    <div className="detail-card">
+      <h3 className="card-title">
+        {file.fileKind === "pdf" ? <FileText size={16} /> : <Image size={16} />}
+        Preview
+      </h3>
+      <div className="admin-preview-area">
+        {file.fileKind === "pdf" ? (
+          <iframe src={previewUrl} className="preview-iframe" title="File Preview" />
+        ) : file.fileKind === "image" ? (
+          <img src={previewUrl} alt={file.originalName} className="preview-image" />
+        ) : (
+          <div className="doc-preview-note">
+            <FileText size={40} />
+            <p>DOC/DOCX preview not available</p>
+            <span>File will be reviewed at the shop</span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function SettingsCard({
+  settings,
+  settingsLocked,
+  savingSettings,
+  settingsSaved,
+  setSettings,
+  saveSettings
+}: {
+  settings: PrintSettingsForm | null;
+  settingsLocked: boolean;
+  savingSettings: boolean;
+  settingsSaved: boolean;
+  setSettings: React.Dispatch<React.SetStateAction<PrintSettingsForm | null>>;
+  saveSettings: (event: React.FormEvent) => void;
+}) {
+  if (!settings) return null;
+
+  return (
+    <div className="detail-card settings-card">
+      <h3 className="card-title"><Save size={16} /> Edit Settings</h3>
+      {settingsLocked && (
+        <div className="settings-locked-note">
+          <AlertCircle size={14} />
+          Settings are locked while job is being processed
+        </div>
+      )}
+      <form className="settings-form" onSubmit={saveSettings}>
+        <div className="settings-grid">
+          <SettingsField label="Print Type">
+            <select value={settings.printType} disabled={settingsLocked} onChange={(e) => setSettings({ ...settings, printType: e.target.value })}>
+              <option value="bw">Black & White</option>
+              <option value="color">Color</option>
+            </select>
+          </SettingsField>
+          <SettingsField label="Copies">
+            <input type="number" min="1" max="99" value={settings.copies} disabled={settingsLocked} onChange={(e) => setSettings({ ...settings, copies: Number(e.target.value) })} />
+          </SettingsField>
+          <SettingsField label="Page Range">
+            <input placeholder="All or 1-5" value={settings.pageRange} disabled={settingsLocked} onChange={(e) => setSettings({ ...settings, pageRange: e.target.value })} />
+          </SettingsField>
+          <SettingsField label="Paper Size">
+            <select value={settings.paperSize} disabled={settingsLocked} onChange={(e) => setSettings({ ...settings, paperSize: e.target.value })}>
+              {paperSizeOptions.map((size) => (
+                <option key={size} value={size}>{paperSizeLabels[size as keyof typeof paperSizeLabels] || size}</option>
+              ))}
+            </select>
+          </SettingsField>
+          <SettingsField label="Layout">
+            <select value={settings.layout} disabled={settingsLocked} onChange={(e) => setSettings({ ...settings, layout: e.target.value })}>
+              <option value="portrait">Portrait</option>
+              <option value="landscape">Landscape</option>
+            </select>
+          </SettingsField>
+          <SettingsField label="Pages/Sheet">
+            <select value={settings.pagesPerSheet} disabled={settingsLocked} onChange={(e) => setSettings({ ...settings, pagesPerSheet: Number(e.target.value) })}>
+              {[1, 2, 4, 6, 9, 16].map((n) => <option key={n} value={n}>{n}</option>)}
+            </select>
+          </SettingsField>
+          <SettingsField label="Margins">
+            <select value={settings.margins} disabled={settingsLocked} onChange={(e) => setSettings({ ...settings, margins: e.target.value })}>
+              <option value="default">Default</option>
+              <option value="minimum">Minimum</option>
+              <option value="none">None</option>
+            </select>
+          </SettingsField>
+          <SettingsField label="Scale">
+            <select value={settings.scale} disabled={settingsLocked} onChange={(e) => setSettings({ ...settings, scale: e.target.value })}>
+              <option value="default">Auto</option>
+              <option value="fit">Fit to Page</option>
+              <option value="shrink">Shrink if Oversized</option>
+              <option value="noscale">Actual Size</option>
+            </select>
+          </SettingsField>
+        </div>
+        <div className="settings-actions">
+          <button type="submit" className="job-btn release settings-save-btn" disabled={savingSettings || settingsLocked}>
+            {savingSettings ? <><Loader2 size={15} className="spin" /> Saving...</> : <><Save size={15} /> Save Settings</>}
+          </button>
+          {settingsSaved && <span className="saved-msg"><CheckCircle2 size={14} /> Saved</span>}
+        </div>
+      </form>
+    </div>
+  );
+}
+
+function SettingsField({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="settings-field">
+      <label>{label}</label>
+      {children}
+    </div>
+  );
+}
+
+function EventLogCard({ events }: { events: Detail["events"] }) {
+  return (
+    <div className="detail-card">
+      <h3 className="card-title">Event Log</h3>
+      <div className="event-log">
+        {events.length === 0 ? (
+          <p className="empty-log">No events yet.</p>
+        ) : (
+          events.map((event) => (
+            <div key={event.id} className="event-item">
+              <span className="event-time">{new Date(event.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+              <span className="event-type">{event.event_type}</span>
+              <span className="event-msg">{event.message}</span>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -501,5 +486,9 @@ function scaleLabel(value: string) {
     default: "Auto", fit: "Fit to Page", shrink: "Shrink if Oversized", noscale: "Actual Size"
   };
   return map[value] ?? value;
+}
+
+function titleCase(value: string) {
+  return value ? value.charAt(0).toUpperCase() + value.slice(1) : value;
 }
 
