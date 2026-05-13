@@ -91,7 +91,8 @@ npm run start      # Start production server
 npm run typecheck  # Type check only
 npm run db:seed    # Initialize/seed SQLite database
 npm run cleanup    # Delete old printed/cancelled/expired uploads
-npm run agent      # Run Windows print agent
+
+npm run agent      # Run Windows print agent — open a new terminal on the shop PC and run this command. Keep the terminal open so the agent can detect and use the connected printers.
 ```
 
 ---
