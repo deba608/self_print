@@ -16,10 +16,6 @@ cookies.txt
 !uploads/converted/.gitkeep
 !agent-temp/.gitkeep
 
-
-
-
-
 .vercel
 *.tsbuildinfo
 *.tsbuildinfo
