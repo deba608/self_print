@@ -647,6 +647,7 @@ function PdfCanvasPreview({ file, fallbackPageCount }: { file: File; fallbackPag
   const pdfRef = useRef<{ destroy: () => Promise<void> | void; numPages: number; getPage: (page: number) => Promise<any> } | null>(null);
   const [pageNumber, setPageNumber] = useState(1);
   const [pageCount, setPageCount] = useState(fallbackPageCount);
+  const [pdfVersion, setPdfVersion] = useState(0);
   const [zoom, setZoom] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -677,10 +678,11 @@ function PdfCanvasPreview({ file, fallbackPageCount }: { file: File; fallbackPag
         }
         pdfRef.current = pdf;
         setPageCount(pdf.numPages);
+        setPdfVersion((version) => version + 1);
       } catch {
         if (!disposed) setError("Unable to render PDF preview on this device.");
       } finally {
-        if (!disposed) setLoading(false);
+        if (!disposed && !pdfRef.current) setLoading(false);
       }
     }
 
@@ -739,7 +741,7 @@ function PdfCanvasPreview({ file, fallbackPageCount }: { file: File; fallbackPag
       disposed = true;
       renderTaskRef.current?.cancel();
     };
-  }, [pageNumber, pageCount, zoom]);
+  }, [pageNumber, pdfVersion, zoom]);
 
   if (error) {
     return (
