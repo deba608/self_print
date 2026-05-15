@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, useRef } from "react";
 import { UploadCloud, FileText, Image, ArrowLeft, ArrowRight, Check, Eye, Loader2, File, Settings2, ZoomIn, ZoomOut } from "lucide-react";
-import { formatRupees, paperSizeLabels, commonPaperSizes } from "@/lib/pricing";
+import { formatRupees, paperSizeLabels, allPaperSizes } from "@/lib/pricing";
 
 type Pricing = {
   bwPerPagePaise: number;
@@ -434,16 +434,9 @@ export default function UploadForm() {
               onChange={(e) => setPaperSize(e.target.value)}
               className="mobile-select"
             >
-              <optgroup label="A Series">
-                {commonPaperSizes.map((size) => (
-                  <option key={size} value={size}>{paperSizeLabels[size as keyof typeof paperSizeLabels]}</option>
-                ))}
-              </optgroup>
-              <optgroup label="Other Sizes">
-                <option value="A6">{paperSizeLabels.A6}</option>
-                <option value="B5">{paperSizeLabels.B5}</option>
-                <option value="Legal">{paperSizeLabels.Legal}</option>
-              </optgroup>
+              {allPaperSizes.map((size) => (
+                <option key={size} value={size}>{paperSizeLabels[size as keyof typeof paperSizeLabels]}</option>
+              ))}
             </select>
           </div>
 

@@ -58,4 +58,4 @@ export const paperSizeLabels: Record<PaperSize, string> = {
   Photo: "Photo (4 × 6 in)"
 };
 
-export const commonPaperSizes: PaperSize[] = ["A4", "A5", "A3", "Letter", "Photo"];
+export const allPaperSizes: PaperSize[] = ["A3", "A4", "A5", "A6", "B5", "Legal", "Letter", "Photo"];
