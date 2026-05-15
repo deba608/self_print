@@ -414,12 +414,8 @@ input, select, button {
   width: 3px; background: var(--accent);
   transform: scaleY(0); transition: transform 150ms ease;
 }
-.animated-select-item:hover {
-  background: linear-gradient(90deg, var(--accent-light) 0%, rgba(228,244,241,0.5) 100%);
-  color: var(--accent-strong);
-  padding-left: 20px;
-}
-.animated-select-item:hover::before { transform: scaleY(1); }
+.animated-select-item:hover { background: transparent; color: var(--ink); }
+.animated-select-item:hover::before { transform: scaleY(0); }
 .animated-select-item.highlighted { background: var(--accent-light); color: var(--accent-strong); }
 .animated-select-item.selected {
   background: linear-gradient(90deg, rgba(13,122,116,0.08), rgba(13,122,116,0.03));
@@ -675,7 +671,7 @@ input, select, button {
 .advanced-section[open] summary::after { transform: rotate(45deg) translateY(2px); }
 
 .advanced-section summary:hover {
-  background: linear-gradient(180deg, #f0f2f4 0%, #e8eaec 100%);
+  background: none;
 }
 
 .advanced-section summary::-webkit-details-marker {
