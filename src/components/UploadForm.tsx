@@ -68,7 +68,7 @@ export default function UploadForm() {
       selectedPages = estimateRange(customPageRange);
     }
 
-    if (paperSize === "Photo") return Math.round((pricing.photoPrintPaise / 100) * copies);
+    if (paperSize === "Photo") return (pricing.photoPrintPaise / 100) * copies;
     const base = printType === "bw" ? pricing.bwPerPagePaise : pricing.colorPerPagePaise;
     let paperMultiplier = 1;
     switch (paperSize) {
@@ -79,7 +79,7 @@ export default function UploadForm() {
       case "B5": paperMultiplier = pricing.b5Multiplier; break;
       case "Legal": paperMultiplier = pricing.legalMultiplier; break;
     }
-    return Math.round((base / 100) * selectedPages * copies * paperMultiplier * pricing.copyMultiplier);
+    return (base / 100) * selectedPages * copies * paperMultiplier * pricing.copyMultiplier;
   }, [copies, filePageCount, customPageRange, pageRangeMode, paperSize, printType, pricing]);
 
   const pageInfo = useMemo(() => {
@@ -500,7 +500,7 @@ export default function UploadForm() {
             <div className="price-breakdown">
               <span className="breakdown-item">{pageInfo}</span>
               <span className="breakdown-sep">x</span>
-              <span className="breakdown-item">{copies} copy{copies !== 1 ? "ies" : ""}</span>
+              <span className="breakdown-item">{copies} {copies === 1 ? "copy" : "copies"}</span>
               <span className="breakdown-sep">x</span>
               <span className="breakdown-item">{paperSizeLabels[paperSize as keyof typeof paperSizeLabels] || paperSize}</span>
             </div>
