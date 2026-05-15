@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, useRef } from "react";
 import { UploadCloud, FileText, Image, ArrowLeft, ArrowRight, Check, Eye, Loader2, File, Settings2, ZoomIn, ZoomOut } from "lucide-react";
-import { paperSizeLabels, commonPaperSizes } from "@/lib/pricing";
+import { formatRupees, paperSizeLabels, commonPaperSizes } from "@/lib/pricing";
 
 type Pricing = {
   bwPerPagePaise: number;
@@ -311,7 +311,7 @@ export default function UploadForm() {
               aria-pressed={printType === "bw"}
             >
               <span className="toggle-label">Black & White</span>
-              {pricing && <span className="toggle-price">₹ {(pricing.bwPerPagePaise / 100).toFixed(0)}/page</span>}
+              {pricing && <span className="toggle-price">{formatRupees(pricing.bwPerPagePaise)}/page</span>}
             </button>
             <button
               type="button"
@@ -320,7 +320,7 @@ export default function UploadForm() {
               aria-pressed={printType === "color"}
             >
               <span className="toggle-label">Color</span>
-              {pricing && <span className="toggle-price">₹ {(pricing.colorPerPagePaise / 100).toFixed(0)}/page</span>}
+              {pricing && <span className="toggle-price">{formatRupees(pricing.colorPerPagePaise)}/page</span>}
             </button>
           </div>
 
