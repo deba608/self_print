@@ -578,7 +578,7 @@ export default function UploadForm() {
               </div>
               <div className="summary-item">
                 <span className="summary-label">Pages</span>
-                <span className="summary-value">{pageRangeMode === "all" ? "All" : pageRangeMode === "even" ? "Even" : pageRangeMode === "odd" ? "Odd" : customPageRange || "All"}</span>
+                <span className="summary-value">{pageInfo}</span>
               </div>
               <div className="summary-item">
                 <span className="summary-label">Paper</span>
