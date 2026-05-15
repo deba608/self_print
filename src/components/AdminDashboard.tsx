@@ -873,6 +873,7 @@ export default function AdminDashboard() {
   const [selectedJobs, setSelectedJobs] = useState<Set<string>>(new Set());
   const [filterStatus, setFilterStatus] = useState("all");
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [actionError, setActionError] = useState("");
   const esRef = useRef<EventSource | null>(null);
 
   const load = useCallback(async () => {
@@ -965,12 +966,26 @@ export default function AdminDashboard() {
 
   async function jobAction(jobId: string, action: string) {
     setActionLoading(jobId);
+    setActionError("");
     try {
-      await fetch(`/api/admin/jobs/${jobId}/status`, {
+      const endpoint = action === "reprint"
+        ? `/api/admin/jobs/${jobId}/reprint`
+        : `/api/admin/jobs/${jobId}/status`;
+      const response = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: action })
+        body: action === "reprint" ? undefined : JSON.stringify({ status: action })
       });
+      const body = await response.json().catch(() => ({}));
+      if (response.status === 401) {
+        setLoggedIn(false);
+        return;
+      }
+      if (!response.ok) {
+        throw new Error(body.error ?? "Unable to update this order.");
+      }
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "Unable to update this order.");
     } finally {
       setActionLoading(null);
       await load();
@@ -979,15 +994,32 @@ export default function AdminDashboard() {
 
   async function batchAction() {
     const ids = Array.from(selectedJobs);
-    await Promise.all(ids.map((id) =>
-      fetch(`/api/admin/jobs/${id}/status`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "paid" })
-      })
-    ));
-    setSelectedJobs(new Set());
-    await load();
+    setActionError("");
+    try {
+      const responses = await Promise.all(ids.map(async (id) => {
+        const response = await fetch(`/api/admin/jobs/${id}/status`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: "paid" })
+        });
+        const body = await response.json().catch(() => ({}));
+        return { response, body };
+      }));
+      const unauthorized = responses.some(({ response }) => response.status === 401);
+      if (unauthorized) {
+        setLoggedIn(false);
+        return;
+      }
+      const failed = responses.find(({ response }) => !response.ok);
+      if (failed) {
+        throw new Error(failed.body.error ?? "Unable to update selected orders.");
+      }
+      setSelectedJobs(new Set());
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "Unable to update selected orders.");
+    } finally {
+      await load();
+    }
   }
 
   function toggleSelect(id: string) {
@@ -1082,6 +1114,15 @@ export default function AdminDashboard() {
           onBatchPaid={batchAction}
           onClear={() => setSelectedJobs(new Set())}
         />
+      )}
+
+      {actionError && (
+        <div className="admin-action-error" role="alert">
+          {actionError}
+          <button type="button" onClick={() => setActionError("")} aria-label="Dismiss error">
+            <X size={16} />
+          </button>
+        </div>
       )}
 
       {filteredJobs.length === 0 ? (
