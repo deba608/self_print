@@ -2281,287 +2281,12 @@ input[type="number"] {
 .manage-orders-filters::-webkit-scrollbar {
   display: none;
 }
-.manage-filter-tab {
-  padding: 8px 16px;
-  min-height: 40px;
-  border: 1.5px solid rgba(13, 122, 116, 0.08);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  color: var(--ink);
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  white-space: nowrap;
-  flex-shrink: 0;
-  transition: all var(--duration-base) var(--ease-out);
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
-}
-
-.manage-filter-tab:hover {
-  border-color: rgba(13, 122, 116, 0.2);
-  color: var(--accent);
-  background: rgba(255, 255, 255, 0.95);
-  transform: translateY(-1px);
-}
-
-.manage-filter-tab.active {
-  background: rgba(13, 122, 116, 0.08);
-  border-color: rgba(13, 122, 116, 0.2);
-  color: var(--accent-strong);
-  box-shadow: 0 1px 4px rgba(13, 122, 116, 0.06);
-}
-
-.manage-filter-count {
-  background: rgba(13, 122, 116, 0.1);
-  color: var(--accent-strong);
-  padding: 2px 8px;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 700;
-  min-width: 20px;
-  text-align: center;
-  flex-shrink: 0;
-}
-
-.manage-filter-tab.active .manage-filter-count {
-  background: rgba(13, 122, 116, 0.18);
-}
-
-.manage-orders-filters::-webkit-scrollbar {
-  display: none;
-}
 
 .manage-filter-tab {
   padding: 8px 16px;
-  min-height: 40px;
-  border: 1.5px solid rgba(13, 122, 116, 0.08);
+  border: 1px solid rgba(13, 122, 116, 0.15);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  color: var(--ink);
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  white-space: nowrap;
-  flex-shrink: 0;
-  transition: all var(--duration-base) var(--ease-out);
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
-}
-
-.manage-filter-tab:hover {
-  border-color: rgba(13, 122, 116, 0.2);
-  color: var(--accent);
-  background: rgba(255, 255, 255, 0.95);
-  transform: translateY(-1px);
-}
-
-.manage-filter-tab.active {
-  background: rgba(13, 122, 116, 0.08);
-  border-color: rgba(13, 122, 116, 0.2);
-  color: var(--accent-strong);
-  box-shadow: 0 1px 4px rgba(13, 122, 116, 0.06);
-}
-
-.manage-filter-count {
-  background: rgba(13, 122, 116, 0.1);
-  color: var(--accent-strong);
-  padding: 2px 8px;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 700;
-  min-width: 20px;
-  text-align: center;
-  flex-shrink: 0;
-}
-
-.manage-filter-tab.active .manage-filter-count {
-  background: rgba(13, 122, 116, 0.18);
-}
-
-.manage-orders-filters::-webkit-scrollbar {
-  display: none;
-}
-
-.manage-filter-tab {
-  padding: 8px 16px;
-  min-height: 40px;
-  border: 1.5px solid rgba(13, 122, 116, 0.08);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  color: var(--ink);
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  white-space: nowrap;
-  flex-shrink: 0;
-  transition: all var(--duration-base) var(--ease-out);
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
-}
-
-.manage-filter-tab:hover {
-  border-color: rgba(13, 122, 116, 0.2);
-  color: var(--accent);
-  background: rgba(255, 255, 255, 0.95);
-  transform: translateY(-1px);
-}
-
-.manage-filter-tab.active {
-  background: rgba(13, 122, 116, 0.08);
-  border-color: rgba(13, 122, 116, 0.2);
-  color: var(--accent-strong);
-  box-shadow: 0 1px 4px rgba(13, 122, 116, 0.06);
-}
-
-.manage-filter-count {
-  background: rgba(13, 122, 116, 0.1);
-  color: var(--accent-strong);
-  padding: 2px 8px;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 700;
-  min-width: 20px;
-  text-align: center;
-  flex-shrink: 0;
-}
-
-.manage-filter-tab.active .manage-filter-count {
-  background: rgba(13, 122, 116, 0.18);
-}
-
-.manage-orders-filters::-webkit-scrollbar {
-  display: none;
-}
-
-.manage-filter-tab {
-  padding: 8px 16px;
-  min-height: 40px;
-  border: 1.5px solid rgba(13, 122, 116, 0.08);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  color: var(--ink);
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  white-space: nowrap;
-  flex-shrink: 0;
-  transition: all var(--duration-base) var(--ease-out);
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
-}
-
-.manage-filter-tab:hover {
-  border-color: rgba(13, 122, 116, 0.2);
-  color: var(--accent);
-  background: rgba(255, 255, 255, 0.95);
-  transform: translateY(-1px);
-}
-
-.manage-filter-tab.active {
-  background: rgba(13, 122, 116, 0.08);
-  border-color: rgba(13, 122, 116, 0.2);
-  color: var(--accent-strong);
-  box-shadow: 0 1px 4px rgba(13, 122, 116, 0.06);
-}
-
-.manage-filter-count {
-  background: rgba(13, 122, 116, 0.1);
-  color: var(--accent-strong);
-  padding: 2px 8px;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 700;
-  min-width: 20px;
-  text-align: center;
-  flex-shrink: 0;
-}
-
-.manage-filter-tab.active .manage-filter-count {
-  background: rgba(13, 122, 116, 0.18);
-}
-
-.manage-orders-filters::-webkit-scrollbar {
-  display: none;
-}
-
-.manage-filter-tab {
-  padding: 8px 16px;
-  min-height: 40px;
-  border: 1.5px solid rgba(13, 122, 116, 0.08);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  color: var(--ink);
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  white-space: nowrap;
-  flex-shrink: 0;
-  transition: all var(--duration-base) var(--ease-out);
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
-}
-
-.manage-filter-tab:hover {
-  border-color: rgba(13, 122, 116, 0.2);
-  color: var(--accent);
-  background: rgba(255, 255, 255, 0.95);
-  transform: translateY(-1px);
-}
-
-.manage-filter-tab.active {
-  background: rgba(13, 122, 116, 0.08);
-  border-color: rgba(13, 122, 116, 0.2);
-  color: var(--accent-strong);
-  box-shadow: 0 1px 4px rgba(13, 122, 116, 0.06);
-}
-
-.manage-filter-count {
-  background: rgba(13, 122, 116, 0.1);
-  color: var(--accent-strong);
-  padding: 2px 8px;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 700;
-  min-width: 20px;
-  text-align: center;
-  flex-shrink: 0;
-}
-
-.manage-filter-tab.active .manage-filter-count {
-  background: rgba(13, 122, 116, 0.18);
-}
-.manage-orders-filters::-webkit-scrollbar {
-  display: none;
-}
-
-.manage-filter-tab {
-  padding: 8px 16px;
-  border: 1px solid rgba(13, 122, 116, 0.12);
-  border-radius: var(--radius-full);
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  background: #ffffff;
   color: var(--muted);
   font-size: 13px;
   font-weight: 600;
@@ -2570,38 +2295,41 @@ input[type="number"] {
   transition: all var(--duration-base) var(--ease-out);
   display: flex;
   align-items: center;
-  gap: 8px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  gap: px;
+  flex-shrink: 0;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
 }
 
 .manage-filter-tab:hover {
-  border-color: rgba(13, 122, 116, 0.2);
+  border-color: rgba(13, 122, 116, 0.3);
   color: var(--accent);
-  background: rgba(255, 255, 255, 0.9);
+  background: #ffffff;
   transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(13, 122, 116, 0.05);
 }
 
 .manage-filter-tab.active {
-  background: rgba(13, 122, 116, 0.1);
-  border-color: rgba(13, 122, 116, 0.2);
+  background: var(--accent-light);
+  border-color: var(--accent);
   color: var(--accent-strong);
-  box-shadow: 0 1px 4px rgba(13, 122, 116, 0.08);
+  box-shadow: inset 0 0 0 1px var(--accent), 0 2px 4px rgba(13, 122, 116, 0.1);
 }
 
 .manage-filter-count {
-  background: rgba(0,0,0,0.1);
+  background: rgba(0, 0, 0, 0.06);
   padding: 2px 8px;
   border-radius: 999px;
   font-size: 11px;
   font-weight: 800;
   color: var(--ink);
+  min-width: 20px;
+  text-align: center;
 }
 
 .manage-filter-tab.active .manage-filter-count {
-  background: rgba(13, 122, 116, 0.2);
+  background: #ffffff;
   color: var(--accent-strong);
 }
-
 .manage-bulk-bar {
   display: flex;
   align-items: center;
