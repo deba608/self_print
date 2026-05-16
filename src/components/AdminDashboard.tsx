@@ -4,8 +4,8 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import {
   RefreshCw, Settings, LogOut, Printer, Bell,
   CheckSquare, Square, CreditCard, Eye, X, Check, Monitor, Loader2,
-  Lock, Eye as EyeIcon, ChevronDown, Zap, TrendingUp, Clock, Layers,
-  Trash2, ListTodo, Calendar, ClipboardList
+  Lock, Eye as EyeIcon, ChevronDown, Zap, TrendingUp,
+  Trash2, ListTodo
 } from "lucide-react";
 
 type Job = {
@@ -203,7 +203,7 @@ function StatsBar({ activeJobs, todayRevenue }: { activeJobs: number; todayReven
     <div className="stats-bar">
       <div className="stat-card">
         <div className="stat-icon active">
-          <ClipboardList size={20} />
+          <Printer size={20} />
         </div>
         <div className="stat-content">
           <span className="stat-label">Active Jobs</span>

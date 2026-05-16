@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useRef } from "react";
-import { UploadCloud, FileText, Image, ArrowLeft, ArrowRight, Check, Eye, Loader2, File, Settings2, ZoomIn, ZoomOut } from "lucide-react";
+import { UploadCloud, FileText, Image, ArrowLeft, ArrowRight, Check, Eye, Loader2, File, Settings2, Maximize2, Minimize2 } from "lucide-react";
 import { formatRupees, paperSizeLabels, allPaperSizes } from "@/lib/pricing";
 
 type Pricing = {
