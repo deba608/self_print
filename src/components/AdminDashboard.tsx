@@ -5,7 +5,7 @@ import {
   RefreshCw, Settings, LogOut, Printer, Bell,
   CheckSquare, Square, CreditCard, Eye, X, Check, Monitor, Loader2,
   Lock, Eye as EyeIcon, ChevronDown, Zap, TrendingUp, Clock,
-  Trash2, ListTodo
+  Trash2, ListTodo, Inbox
 } from "lucide-react";
 
 type Job = {
@@ -203,14 +203,14 @@ function StatsBar({ activeJobs, todayRevenue }: { activeJobs: number; todayReven
     <div className="stats-bar">
       <div className="stat-card">
         <div className="stat-icon active">
-          <Printer size={20} />
+          <Inbox size={20} />
         </div>
         <div className="stat-content">
           <span className="stat-label">Active Jobs</span>
           <span className="stat-value">{activeJobs}</span>
         </div>
       </div>
-      <div className="stat-card highlight">
+      <div className="stat-card">
         <div className="stat-icon revenue">
           <TrendingUp size={20} />
         </div>

@@ -771,46 +771,52 @@ function PdfCanvasPreview({ file, fallbackPageCount }: { file: File; fallbackPag
   return (
     <div className="pdfjs-preview">
       <div className="pdfjs-toolbar">
-        <button type="button" onClick={() => setPageNumber((page) => Math.max(1, page - 1))} disabled={pageNumber <= 1} aria-label="Previous PDF page">
-          <ArrowLeft size={16} />
-        </button>
-        <div className="pdfjs-page-jump">
-          <input
-            type="number"
-            min="1"
-            max={pageCount}
-            value={pageInput}
-            onChange={(e) => setPageInput(e.target.value.replace(/[^0-9]/g, ""))}
-            onKeyDown={handlePageInputKey}
-            onBlur={handlePageJump}
-            placeholder={String(pageNumber)}
-            aria-label="Jump to page"
-            className="pdfjs-page-input"
-          />
-          <span className="pdfjs-page-total">/ {pageCount}</span>
+        <div className="pdfjs-pagination">
+          <button type="button" onClick={() => setPageNumber((page) => Math.max(1, page - 1))} disabled={pageNumber <= 1} aria-label="Previous PDF page" className="pdfjs-nav-btn">
+            <ArrowLeft size={18} />
+          </button>
+          <div className="pdfjs-page-jump">
+            <span className="pdfjs-page-label">Page</span>
+            <input
+              type="number"
+              min="1"
+              max={pageCount}
+              value={pageInput}
+              onChange={(e) => setPageInput(e.target.value.replace(/[^0-9]/g, ""))}
+              onKeyDown={handlePageInputKey}
+              onBlur={handlePageJump}
+              placeholder={String(pageNumber)}
+              aria-label="Jump to page"
+              className="pdfjs-page-input"
+            />
+            <span className="pdfjs-page-of">of</span>
+            <span className="pdfjs-page-total">{pageCount}</span>
+          </div>
+          <button type="button" onClick={() => setPageNumber((page) => Math.min(pageCount, page + 1))} disabled={pageNumber >= pageCount} aria-label="Next PDF page" className="pdfjs-nav-btn">
+            <ArrowRight size={18} />
+          </button>
         </div>
-        <button type="button" onClick={() => setPageNumber((page) => Math.min(pageCount, page + 1))} disabled={pageNumber >= pageCount} aria-label="Next PDF page">
-          <ArrowRight size={16} />
-        </button>
-        <div className="pdfjs-divider" />
-        <button
-          type="button"
-          className={`pdfjs-fit-btn ${fitMode === "width" ? "active" : ""}`}
-          onClick={() => setFitMode("width")}
-          aria-label="Fit to width"
-          title="Fit to width"
-        >
-          <Maximize2 size={14} />
-        </button>
-        <button
-          type="button"
-          className={`pdfjs-fit-btn ${fitMode === "page" ? "active" : ""}`}
-          onClick={() => setFitMode("page")}
-          aria-label="Fit to page"
-          title="Fit to page"
-        >
-          <Minimize2 size={14} />
-        </button>
+        
+        <div className="pdfjs-zoom-controls">
+          <button
+            type="button"
+            className={`pdfjs-fit-btn ${fitMode === "width" ? "active" : ""}`}
+            onClick={() => setFitMode("width")}
+            aria-label="Fit to width"
+            title="Fit to width"
+          >
+            <Maximize2 size={16} />
+          </button>
+          <button
+            type="button"
+            className={`pdfjs-fit-btn ${fitMode === "page" ? "active" : ""}`}
+            onClick={() => setFitMode("page")}
+            aria-label="Fit to page"
+            title="Fit to page"
+          >
+            <Minimize2 size={16} />
+          </button>
+        </div>
       </div>
       <div className="pdfjs-canvas-wrap" ref={containerRef}>
         {loading ? (
