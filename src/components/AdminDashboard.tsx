@@ -4,7 +4,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import {
   RefreshCw, Settings, LogOut, Printer, Bell,
   CheckSquare, Square, CreditCard, Eye, X, Check, Monitor, Loader2,
-  Lock, Eye as EyeIcon, ChevronDown, Zap, TrendingUp,
+  Lock, Eye as EyeIcon, ChevronDown, Zap, TrendingUp, Clock,
   Trash2, ListTodo
 } from "lucide-react";
 

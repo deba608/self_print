@@ -639,9 +639,10 @@ function PdfCanvasPreview({ file, fallbackPageCount }: { file: File; fallbackPag
   const renderTaskRef = useRef<{ cancel: () => void } | null>(null);
   const pdfRef = useRef<{ destroy: () => Promise<void> | void; numPages: number; getPage: (page: number) => Promise<any> } | null>(null);
   const [pageNumber, setPageNumber] = useState(1);
+  const [pageInput, setPageInput] = useState("");
   const [pageCount, setPageCount] = useState(fallbackPageCount);
   const [pdfVersion, setPdfVersion] = useState(0);
-  const [zoom, setZoom] = useState(1);
+  const [fitMode, setFitMode] = useState<"page" | "width">("width");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -652,6 +653,7 @@ function PdfCanvasPreview({ file, fallbackPageCount }: { file: File; fallbackPag
       setLoading(true);
       setError("");
       setPageNumber(1);
+      setPageInput("");
       try {
         renderTaskRef.current?.cancel();
         await pdfRef.current?.destroy?.();
@@ -703,8 +705,15 @@ function PdfCanvasPreview({ file, fallbackPageCount }: { file: File; fallbackPag
 
         const baseViewport = page.getViewport({ scale: 1 });
         const containerWidth = Math.max((containerRef.current?.clientWidth ?? 320) - 24, 240);
-        const fitScale = Math.min(containerWidth / baseViewport.width, 1.75);
-        const viewport = page.getViewport({ scale: Math.max(0.4, fitScale * zoom) });
+        const containerHeight = Math.max((containerRef.current?.clientHeight ?? 400) - 24, 300);
+
+        let fitScale: number;
+        if (fitMode === "width") {
+          fitScale = containerWidth / baseViewport.width;
+        } else {
+          fitScale = Math.min(containerWidth / baseViewport.width, containerHeight / baseViewport.height);
+        }
+        const viewport = page.getViewport({ scale: Math.max(0.4, fitScale) });
         const canvas = canvasRef.current;
         const context = canvas.getContext("2d");
         if (!context) return;
@@ -734,7 +743,19 @@ function PdfCanvasPreview({ file, fallbackPageCount }: { file: File; fallbackPag
       disposed = true;
       renderTaskRef.current?.cancel();
     };
-  }, [pageNumber, pdfVersion, zoom]);
+  }, [pageNumber, pdfVersion, fitMode]);
+
+  function handlePageJump() {
+    const num = parseInt(pageInput, 10);
+    if (Number.isFinite(num) && num >= 1 && num <= pageCount) {
+      setPageNumber(num);
+      setPageInput("");
+    }
+  }
+
+  function handlePageInputKey(e: React.KeyboardEvent) {
+    if (e.key === "Enter") handlePageJump();
+  }
 
   if (error) {
     return (
@@ -753,15 +774,42 @@ function PdfCanvasPreview({ file, fallbackPageCount }: { file: File; fallbackPag
         <button type="button" onClick={() => setPageNumber((page) => Math.max(1, page - 1))} disabled={pageNumber <= 1} aria-label="Previous PDF page">
           <ArrowLeft size={16} />
         </button>
-        <span>Page {pageNumber} of {pageCount}</span>
+        <div className="pdfjs-page-jump">
+          <input
+            type="number"
+            min="1"
+            max={pageCount}
+            value={pageInput}
+            onChange={(e) => setPageInput(e.target.value.replace(/[^0-9]/g, ""))}
+            onKeyDown={handlePageInputKey}
+            onBlur={handlePageJump}
+            placeholder={String(pageNumber)}
+            aria-label="Jump to page"
+            className="pdfjs-page-input"
+          />
+          <span className="pdfjs-page-total">/ {pageCount}</span>
+        </div>
         <button type="button" onClick={() => setPageNumber((page) => Math.min(pageCount, page + 1))} disabled={pageNumber >= pageCount} aria-label="Next PDF page">
           <ArrowRight size={16} />
         </button>
-        <button type="button" onClick={() => setZoom((value) => Math.max(0.75, value - 0.15))} aria-label="Zoom out">
-          <ZoomOut size={16} />
+        <div className="pdfjs-divider" />
+        <button
+          type="button"
+          className={`pdfjs-fit-btn ${fitMode === "width" ? "active" : ""}`}
+          onClick={() => setFitMode("width")}
+          aria-label="Fit to width"
+          title="Fit to width"
+        >
+          <Maximize2 size={14} />
         </button>
-        <button type="button" onClick={() => setZoom((value) => Math.min(2, value + 0.15))} aria-label="Zoom in">
-          <ZoomIn size={16} />
+        <button
+          type="button"
+          className={`pdfjs-fit-btn ${fitMode === "page" ? "active" : ""}`}
+          onClick={() => setFitMode("page")}
+          aria-label="Fit to page"
+          title="Fit to page"
+        >
+          <Minimize2 size={14} />
         </button>
       </div>
       <div className="pdfjs-canvas-wrap" ref={containerRef}>
