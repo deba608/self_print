@@ -4,7 +4,8 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import {
   RefreshCw, Settings, LogOut, Printer, Bell,
   CheckSquare, Square, CreditCard, Eye, X, Check, Monitor, Loader2,
-  Lock, Eye as EyeIcon, ChevronDown, Zap, TrendingUp, Clock, Flame
+  Lock, Eye as EyeIcon, ChevronDown, Zap, TrendingUp, Clock, Layers,
+  Trash2, ListTodo, Calendar, ClipboardList
 } from "lucide-react";
 
 type Job = {
@@ -15,7 +16,6 @@ type Job = {
   createdAt: string;
   needsConversion: 0 | 1;
   queuePosition: number;
-  expiresAt: string;
   printType: string;
   paperSize: string;
   copies: number;
@@ -203,7 +203,7 @@ function StatsBar({ activeJobs, todayRevenue }: { activeJobs: number; todayReven
     <div className="stats-bar">
       <div className="stat-card">
         <div className="stat-icon active">
-          <Flame size={20} />
+          <ClipboardList size={20} />
         </div>
         <div className="stat-content">
           <span className="stat-label">Active Jobs</span>
@@ -231,6 +231,7 @@ function AdminTopbar({
   onRefresh,
   onOpenPricing,
   onOpenPrinter,
+  onOpenManageOrders,
   onLogout,
   showPricing
 }: {
@@ -240,6 +241,7 @@ function AdminTopbar({
   onRefresh: () => void;
   onOpenPricing: () => void;
   onOpenPrinter: () => void;
+  onOpenManageOrders: () => void;
   onLogout: () => void;
   showPricing: boolean;
 }) {
@@ -277,6 +279,15 @@ function AdminTopbar({
 
         <button className="action-btn" onClick={onRefresh} title="Refresh" aria-label="Refresh jobs">
           <RefreshCw size={18} />
+        </button>
+
+        <button
+          className="action-btn"
+          onClick={onOpenManageOrders}
+          title="Manage Orders"
+          aria-label="Manage orders"
+        >
+          <ListTodo size={18} />
         </button>
 
         <button
@@ -660,6 +671,249 @@ function PrinterPanel({
   );
 }
 
+// Manage Orders Panel Component
+type ManageJob = {
+  id: string;
+  token: string;
+  status: string;
+  pricePaise: number;
+  createdAt: string;
+  file: { originalName: string };
+};
+
+function ManageOrdersPanel({
+  jobs,
+  onClose,
+  onRefresh
+}: {
+  jobs: ManageJob[];
+  onClose: () => void;
+  onRefresh: () => void;
+}) {
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [deleteLoading, setDeleteLoading] = useState<string | null>(null);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
+  const [filterStatus, setFilterStatus] = useState("all");
+
+  const filteredJobs = filterStatus === "all" ? jobs : jobs.filter((j) => j.status === filterStatus);
+
+  const statusCounts = jobs.reduce((acc, j) => {
+    acc[j.status] = (acc[j.status] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
+  const formatRupees = (paise: number) => `₹${(paise / 100).toFixed(2)}`;
+
+  const statusLabels: Record<string, string> = {
+    pending_payment: "Unpaid",
+    paid: "Paid",
+    approved: "Ready",
+    printing: "Printing",
+    printed: "Done",
+    failed: "Failed",
+    cancelled: "Cancelled",
+  };
+
+  async function deleteJob(jobId: string) {
+    setDeleteLoading(jobId);
+    try {
+      const response = await fetch(`/api/admin/jobs/${jobId}/delete`, { method: "DELETE" });
+      if (response.status === 401) {
+        window.location.reload();
+        return;
+      }
+      if (response.ok) {
+        setConfirmDelete(null);
+        onRefresh();
+      }
+    } finally {
+      setDeleteLoading(null);
+    }
+  }
+
+  async function bulkDelete() {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    setBulkDeleting(true);
+    try {
+      const response = await fetch("/api/admin/jobs/bulk-delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids })
+      });
+      if (response.status === 401) {
+        window.location.reload();
+        return;
+      }
+      if (response.ok) {
+        setSelectedIds(new Set());
+        setConfirmBulkDelete(false);
+        onRefresh();
+      }
+    } finally {
+      setBulkDeleting(false);
+    }
+  }
+
+  function toggleSelect(id: string) {
+    const next = new Set(selectedIds);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    setSelectedIds(next);
+  }
+
+  function selectAll() {
+    const allIds = filteredJobs.map((j) => j.id);
+    const allSelected = selectedIds.size === allIds.length && allIds.length > 0;
+    setSelectedIds(allSelected ? new Set() : new Set(allIds));
+  }
+
+  return (
+    <div className="panel-overlay" onClick={onClose}>
+      <div className="manage-orders-panel" onClick={(e) => e.stopPropagation()}>
+        <div className="panel-header">
+          <div className="panel-title">
+            <ListTodo size={20} className="panel-icon" />
+            <h2>Manage Orders</h2>
+          </div>
+          <button className="panel-close" onClick={onClose} aria-label="Close">
+            <X size={20} />
+          </button>
+        </div>
+
+        <div className="manage-orders-filters">
+          <button
+            className={`manage-filter-tab ${filterStatus === "all" ? "active" : ""}`}
+            onClick={() => setFilterStatus("all")}
+          >
+            All <span className="manage-filter-count">{jobs.length}</span>
+          </button>
+          {Object.entries(statusLabels).map(([status, label]) => (
+            statusCounts[status] > 0 && (
+              <button
+                key={status}
+                className={`manage-filter-tab ${filterStatus === status ? "active" : ""}`}
+                onClick={() => setFilterStatus(status)}
+              >
+                {label} <span className="manage-filter-count">{statusCounts[status]}</span>
+              </button>
+            )
+          ))}
+        </div>
+
+        {selectedIds.size > 0 && (
+          <div className="manage-bulk-bar">
+            <span>{selectedIds.size} selected</span>
+            <div className="manage-bulk-actions">
+              <button
+                className="bulk-delete-btn"
+                onClick={() => setConfirmBulkDelete(true)}
+                disabled={bulkDeleting}
+              >
+                {bulkDeleting ? <Loader2 size={14} className="spin" /> : <Trash2 size={14} />}
+                Delete Selected
+              </button>
+              <button className="bulk-clear-btn" onClick={() => setSelectedIds(new Set())}>
+                <X size={14} />
+              </button>
+            </div>
+          </div>
+        )}
+
+        <div className="manage-orders-list">
+          <button className="manage-select-all" onClick={selectAll}>
+            {selectedIds.size === filteredJobs.length && filteredJobs.length > 0 ? (
+              <CheckSquare size={16} />
+            ) : (
+              <Square size={16} />
+            )}
+            <span>Select all ({filteredJobs.length})</span>
+          </button>
+
+          {filteredJobs.length === 0 ? (
+            <div className="manage-empty">
+              <Printer size={32} strokeWidth={1} />
+              <p>No orders found</p>
+            </div>
+          ) : (
+            filteredJobs.map((job) => (
+              <div key={job.id} className="manage-order-item">
+                <button
+                  className={`manage-order-checkbox ${selectedIds.has(job.id) ? "selected" : ""}`}
+                  onClick={() => toggleSelect(job.id)}
+                  type="button"
+                >
+                  {selectedIds.has(job.id) ? <CheckSquare size={16} /> : <Square size={16} />}
+                </button>
+                <div className="manage-order-info">
+                  <div className="manage-order-header">
+                    <span className="manage-order-token">Token {job.token}</span>
+                    <span className="manage-order-status">{statusLabels[job.status] || job.status}</span>
+                  </div>
+                  <div className="manage-order-details">
+                    <span className="manage-order-file">{job.file.originalName}</span>
+                    <span className="manage-order-price">{formatRupees(job.pricePaise)}</span>
+                  </div>
+                  <div className="manage-order-time">
+                    {new Date(job.createdAt).toLocaleString()}
+                  </div>
+                </div>
+                <button
+                  className="manage-order-delete"
+                  onClick={() => setConfirmDelete(job.id)}
+                  disabled={deleteLoading === job.id}
+                  aria-label="Delete order"
+                >
+                  {deleteLoading === job.id ? <Loader2 size={14} className="spin" /> : <Trash2 size={14} />}
+                </button>
+
+                {confirmDelete === job.id && (
+                  <div className="manage-delete-confirm">
+                    <p>Delete this order permanently?</p>
+                    <div className="manage-confirm-actions">
+                      <button onClick={() => setConfirmDelete(null)}>Cancel</button>
+                      <button className="confirm-delete" onClick={() => deleteJob(job.id)}>
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+
+        {confirmBulkDelete && (
+          <div className="manage-bulk-confirm-overlay" onClick={() => setConfirmBulkDelete(false)}>
+            <div className="manage-bulk-confirm" onClick={(e) => e.stopPropagation()}>
+              <Trash2 size={32} className="confirm-icon" />
+              <h3>Delete {selectedIds.size} orders?</h3>
+              <p>This action cannot be undone. All files and records will be permanently removed.</p>
+              <div className="confirm-actions">
+                <button onClick={() => setConfirmBulkDelete(false)}>Cancel</button>
+                <button className="confirm-delete" onClick={bulkDelete} disabled={bulkDeleting}>
+                  {bulkDeleting ? (
+                    <>
+                      <Loader2 size={16} className="spin" />
+                      Deleting...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 size={16} />
+                      Delete All
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // Filter Tabs Component
 function FilterTabs({
   filters,
@@ -784,14 +1038,8 @@ function JobCard({
 
         <div className="job-details">
           <span className="file-name">{job.file.originalName}</span>
-          <div className="job-info">
-            <span>{job.printType === "bw" ? "B&W" : "Color"}</span>
-            <span className="dot">·</span>
-            <span>{job.copies} copy</span>
-            <span className="dot">·</span>
-            <span>{job.paperSize}</span>
-            <span className="dot">·</span>
-            <span>{new Date(job.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+          <div className="job-time">
+            <span>{new Date(job.createdAt).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "2-digit" })} at {new Date(job.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
           </div>
         </div>
 
@@ -865,6 +1113,7 @@ export default function AdminDashboard() {
   const [summary, setSummary] = useState({ jobs: 0, totalPaise: 0 });
   const [showSettings, setShowSettings] = useState(false);
   const [showPrinter, setShowPrinter] = useState(false);
+  const [showManageOrders, setShowManageOrders] = useState(false);
   const [pricing, setPricing] = useState<Pricing | null>(null);
   const [printers, setPrinters] = useState<PrinterOption[]>([]);
   const [printerName, setPrinterName] = useState("");
@@ -880,11 +1129,7 @@ export default function AdminDashboard() {
     const response = await fetch("/api/admin/jobs");
     if (response.status === 401) { setLoggedIn(false); return; }
     const body = await response.json();
-    const jobsWithExpiry = (body.jobs ?? []).map((j: Job) => ({
-      ...j,
-      expiresAt: j.expiresAt || new Date(new Date(j.createdAt).getTime() + (body.expiryMinutes || 1440) * 60000).toISOString()
-    }));
-    setJobs(jobsWithExpiry);
+    setJobs(body.jobs ?? []);
     setNewJobCount(0);
     setLoggedIn(true);
     const summaryResponse = await fetch("/api/admin/summary");
@@ -1067,8 +1312,9 @@ export default function AdminDashboard() {
         newJobCount={newJobCount}
         sseConnected={sseConnected}
         onRefresh={load}
-        onOpenPricing={() => { setShowSettings(true); setShowPrinter(false); }}
-        onOpenPrinter={() => { setShowPrinter(true); setShowSettings(false); }}
+        onOpenPricing={() => { setShowSettings(true); setShowPrinter(false); setShowManageOrders(false); }}
+        onOpenPrinter={() => { setShowPrinter(true); setShowSettings(false); setShowManageOrders(false); }}
+        onOpenManageOrders={() => { setShowManageOrders(true); setShowSettings(false); setShowPrinter(false); }}
         onLogout={logout}
         showPricing={showSettings}
       />
@@ -1094,6 +1340,21 @@ export default function AdminDashboard() {
             setPrinterName(name);
           }}
           onClose={() => setShowPrinter(false)}
+        />
+      )}
+
+      {showManageOrders && (
+        <ManageOrdersPanel
+          jobs={jobs.map((j) => ({
+            id: j.id,
+            token: j.token,
+            status: j.status,
+            pricePaise: j.pricePaise,
+            createdAt: j.createdAt,
+            file: j.file
+          }))}
+          onClose={() => setShowManageOrders(false)}
+          onRefresh={load}
         />
       )}
 

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState, useRef } from "react";
 import {
   ChevronLeft, CreditCard, Printer, RotateCcw, Save, X,
-  FileText, Image, Clock, CheckCircle2, AlertCircle, Loader2
+  FileText, Image, CheckCircle2, AlertCircle, Loader2
 } from "lucide-react";
 import { paperSizeLabels } from "@/lib/pricing";
 
@@ -25,7 +25,6 @@ type Detail = {
     pricePaise: number;
     needsConversion: 0 | 1;
     createdAt: string;
-    expiresAt: string;
   };
   file: { id: string; originalName: string; mimeType: string; fileKind: string; sizeBytes: number };
   events: Array<{ id: string; event_type: string; message: string; created_at: string }>;
@@ -112,16 +111,6 @@ export default function JobDetail({ id }: { id: string }) {
     await load();
   }
 
-  function expiryLabel(expiresAt: string) {
-    const ms = new Date(expiresAt).getTime() - now;
-    if (ms <= 0) return { text: "Expired", urgent: true, expired: true };
-    const mins = Math.floor(ms / 60000);
-    if (mins < 60) return { text: `${mins}m left`, urgent: mins < 10, expired: false };
-    const hrs = Math.floor(mins / 60);
-    if (hrs < 24) return { text: `${hrs}h ${mins % 60}m`, urgent: false, expired: false };
-    return { text: `${Math.floor(hrs / 24)}d left`, urgent: false, expired: false };
-  }
-
   function statusBadge(status: string) {
     const map: Record<string, { label: string; cls: string }> = {
       pending_payment: { label: "Unpaid", cls: "warn" },
@@ -154,7 +143,6 @@ export default function JobDetail({ id }: { id: string }) {
   const previewUrl = `/api/uploads/${file.id}`;
   const settingsLocked = job.status === "approved" || job.status === "printing";
   const badge = statusBadge(job.status);
-  const expiry = expiryLabel(job.expiresAt);
 
   return (
     <main className="admin-shell job-detail-shell">
@@ -177,10 +165,6 @@ export default function JobDetail({ id }: { id: string }) {
         </div>
         <div className="job-detail-right">
           <strong className="job-detail-price">{formatRupees(job.pricePaise)}</strong>
-          <span className={`expiry-chip ${expiry.expired ? "expired" : expiry.urgent ? "urgent" : ""}`}>
-            <Clock size={12} />
-            {expiry.text}
-          </span>
         </div>
       </div>
 

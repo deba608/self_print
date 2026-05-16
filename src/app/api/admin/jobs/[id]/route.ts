@@ -82,6 +82,39 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   return NextResponse.json({ job: mapJob(updated) });
 }
 
+import fs from "node:fs/promises";
+import path from "node:path";
+import { ORIGINALS_DIR, CONVERTED_DIR } from "@/lib/config";
+
+export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const unauthorized = await requireAdminResponse();
+  if (unauthorized) return unauthorized;
+  const { id } = await params;
+
+  const job = getDb().prepare("SELECT * FROM jobs WHERE id = ?").get(id) as Record<string, unknown> | undefined;
+  if (!job) return NextResponse.json({ error: "Job not found" }, { status: 404 });
+
+  const file = getDb().prepare("SELECT * FROM job_files WHERE job_id = ?").get(id) as Record<string, unknown> | undefined;
+
+  try {
+    if (file) {
+      const originalPath = path.join(ORIGINALS_DIR, file.stored_name as string);
+      await fs.unlink(originalPath).catch(() => {});
+      if (file.converted_name) {
+        await fs.unlink(path.join(CONVERTED_DIR, file.converted_name as string)).catch(() => {});
+      }
+    }
+  } catch {
+    // Ignore file deletion errors - continue with database deletion
+  }
+
+  getDb().prepare("DELETE FROM print_events WHERE job_id = ?").run(id);
+  getDb().prepare("DELETE FROM job_files WHERE job_id = ?").run(id);
+  getDb().prepare("DELETE FROM jobs WHERE id = ?").run(id);
+
+  return NextResponse.json({ success: true });
+}
+
 function describeSettings(input: {
   printType: PrintType;
   copies: number;
