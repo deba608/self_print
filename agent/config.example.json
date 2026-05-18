@@ -1,7 +1,7 @@
 {
   "serverUrl": "http://localhost:3000",
   "agentToken": "dev-agent",
-  "sumatraPath": "C:\\Program Files\\SumatraPDF\\SumatraPDF.exe",
+  "sumatraPath": "",
   "pollIntervalMs": 5000,
   "tempDir": "./agent-temp",
   "maxRetries": 3,

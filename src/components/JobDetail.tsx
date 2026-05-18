@@ -18,8 +18,6 @@ type Detail = {
     pageRange: string | null;
     paperSize: string;
     layout: string;
-    pagesPerSheet: number;
-    margins: string;
     scale: string;
     pageCount: number;
     pricePaise: number;
@@ -36,8 +34,6 @@ type PrintSettingsForm = {
   pageRange: string;
   paperSize: string;
   layout: string;
-  pagesPerSheet: number;
-  margins: string;
   scale: string;
 };
 
@@ -244,8 +240,6 @@ function SummaryCard({ job }: { job: Detail["job"] }) {
     ["Pages", job.pageRange || "All"],
     ["Paper", paperSizeLabels[job.paperSize as keyof typeof paperSizeLabels] || job.paperSize],
     ["Layout", titleCase(job.layout)],
-    ["Pages/Sheet", String(job.pagesPerSheet)],
-    ["Margins", titleCase(job.margins)],
     ["Scale", scaleLabel(job.scale)],
     ["Uploaded", new Date(job.createdAt).toLocaleString()]
   ];
@@ -390,18 +384,6 @@ function SettingsCard({
               <option value="landscape">Landscape</option>
             </select>
           </SettingsField>
-          <SettingsField label="Pages/Sheet">
-            <select value={settings.pagesPerSheet} disabled={settingsLocked} onChange={(e) => setSettings({ ...settings, pagesPerSheet: Number(e.target.value) })}>
-              {[1, 2, 4, 6, 9, 16].map((n) => <option key={n} value={n}>{n}</option>)}
-            </select>
-          </SettingsField>
-          <SettingsField label="Margins">
-            <select value={settings.margins} disabled={settingsLocked} onChange={(e) => setSettings({ ...settings, margins: e.target.value })}>
-              <option value="default">Default</option>
-              <option value="minimum">Minimum</option>
-              <option value="none">None</option>
-            </select>
-          </SettingsField>
           <SettingsField label="Scale">
             <select value={settings.scale} disabled={settingsLocked} onChange={(e) => setSettings({ ...settings, scale: e.target.value })}>
               <option value="default">Auto</option>
@@ -459,8 +441,6 @@ function settingsFromJob(job: Detail["job"]): PrintSettingsForm {
     pageRange: job.pageRange ?? "",
     paperSize: job.paperSize,
     layout: job.layout ?? "portrait",
-    pagesPerSheet: job.pagesPerSheet ?? 1,
-    margins: job.margins ?? "default",
     scale: job.scale ?? "default"
   };
 }

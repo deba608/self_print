@@ -6,7 +6,7 @@ import { execFile, spawn } from "node:child_process";
 type AgentConfig = {
   serverUrl: string;
   agentToken: string;
-  sumatraPath: string;
+  sumatraPath?: string;
   pollIntervalMs: number;
   tempDir: string;
   maxRetries: number;
@@ -22,8 +22,6 @@ type AgentJob = {
     pageRange: string | null;
     paperSize: "A3" | "A4" | "A5" | "A6" | "B5" | "Letter" | "Legal" | "Photo";
     layout: "portrait" | "landscape";
-    pagesPerSheet: number;
-    margins: "default" | "none" | "minimum";
     scale: "default" | "fit" | "shrink" | "noscale";
   } | null;
   file?: {
@@ -152,12 +150,13 @@ async function reportPrintersIfNeeded() {
 }
 
 async function printWithSumatra(filePath: string, job: NonNullable<AgentJob["job"]>, printer: string) {
-  if (!existsSync(config.sumatraPath)) {
-    throw new Error(`SumatraPDF not found at ${config.sumatraPath}. Please check sumatraPath in config.json`);
-  }
-
   if (!existsSync(filePath)) {
     throw new Error(`File not found: ${filePath}`);
+  }
+
+  const sumatraPath = resolveSumatraPath();
+  if (!sumatraPath) {
+    throw new Error("Print engine not found. Put SumatraPDF.exe in electron-agent/vendor or set sumatraPath in agent/config.json.");
   }
 
   const printSettings = buildPrintSettings(job);
@@ -165,35 +164,53 @@ async function printWithSumatra(filePath: string, job: NonNullable<AgentJob["job
   if (printSettings) args.push("-print-settings", printSettings);
   args.push(filePath);
 
-  log(`Running: ${config.sumatraPath} ${args.join(" ")}`);
+  log(`Running bundled print engine: ${sumatraPath} ${args.join(" ")}`);
 
   return new Promise<void>((resolve, reject) => {
-    const child = spawn(config.sumatraPath, args, { windowsHide: true });
+    const child = spawn(sumatraPath, args, { windowsHide: true });
     let stderr = "";
     let stdout = "";
+    let settled = false;
 
     child.stdout?.on("data", (chunk) => { stdout += chunk.toString(); });
-    child.stderr.on("data", (chunk) => { stderr += chunk.toString(); });
+    child.stderr?.on("data", (chunk) => { stderr += chunk.toString(); });
 
-    child.on("error", (err) => reject(new Error(`Failed to spawn SumatraPDF: ${err.message}`)));
+    child.on("error", (err) => {
+      if (settled) return;
+      settled = true;
+      reject(new Error(`Print engine failed to start: ${err.message}`));
+    });
 
     child.on("exit", (code) => {
+      if (settled) return;
+      settled = true;
       if (code === 0) {
-        log(`SumatraPDF completed successfully`);
         resolve();
       } else {
         const errorDetail = stderr.trim() || stdout.trim() || `exit code ${code}`;
-        reject(new Error(`SumatraPDF failed: ${errorDetail}`));
+        reject(new Error(`Print engine failed: ${errorDetail}`));
       }
     });
 
     setTimeout(() => {
-      if (!child.killed) {
-        child.kill();
-        reject(new Error("Print timeout after 120 seconds"));
-      }
+      if (settled) return;
+      settled = true;
+      child.kill();
+      reject(new Error("Print timeout after 120 seconds"));
     }, 120000);
   });
+}
+
+function resolveSumatraPath() {
+  const candidates = [
+    config.sumatraPath,
+    path.resolve("electron-agent/vendor/SumatraPDF.exe"),
+    path.resolve("agent/vendor/SumatraPDF.exe"),
+    "C:\\Program Files\\SumatraPDF\\SumatraPDF.exe",
+    "C:\\Program Files (x86)\\SumatraPDF\\SumatraPDF.exe"
+  ].filter(Boolean) as string[];
+
+  return candidates.find((candidate) => existsSync(candidate)) || "";
 }
 
 function buildPrintSettings(job: NonNullable<AgentJob["job"]>) {
@@ -291,8 +308,8 @@ async function loadConfig() {
     throw new Error("Missing agent/config.json. Copy agent/config.example.json and edit it.");
   }
   const parsed = JSON.parse(await fs.readFile(configPath, "utf8")) as AgentConfig;
-  if (!parsed.serverUrl || !parsed.agentToken || !parsed.sumatraPath) {
-    throw new Error("Agent config must include serverUrl, agentToken, and sumatraPath.");
+  if (!parsed.serverUrl || !parsed.agentToken) {
+    throw new Error("Agent config must include serverUrl and agentToken.");
   }
   parsed.pollIntervalMs = parsed.pollIntervalMs || 5000;
   parsed.tempDir = parsed.tempDir || "./agent-temp";

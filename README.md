@@ -1,6 +1,6 @@
 # Self_Print
 
-A QR-friendly self-service print queue for Xerox shops. Customers scan a QR code, upload files using their own mobile data, select print settings, receive a token, pay at the counter, and staff release the job from the admin dashboard. A Windows Node.js agent on the shop PC polls approved jobs and prints through SumatraPDF.
+A QR-friendly self-service print queue for Xerox shops. Customers scan a QR code, upload files using their own mobile data, select print settings, receive a token, pay at the counter, and staff release the job from the admin dashboard. A Windows agent on the shop PC polls approved jobs and sends them to the selected printer.
 
 ## Quick Start
 
@@ -21,7 +21,7 @@ Admin URL: `http://localhost:3000/admin`
 npm run agent
 ```
 
-The agent polls for approved jobs every 5 seconds, downloads files, and prints via SumatraPDF.
+For shop use, prefer the Electron installer in `electron-agent/build-output`. It includes the portable print engine, so the shop owner does not need to install a PDF reader separately.
 
 ---
 
@@ -39,22 +39,27 @@ Everything else uses safe defaults. Admin login: `admin` / `1234`
 
 ### Print Agent
 
-1. Install [SumatraPDF](https://www.sumatrapdfreader.org/free-pdf-reader) on the shop PC
-2. Copy `agent/config.example.json` → `agent/config.json`
-3. Edit these values in `agent/config.json`:
+1. Build or open the installer from `electron-agent/build-output`.
+2. Install/run `SelfPrint Agent`.
+3. Enter the server URL and agent token once.
+4. Select the printer from the admin dashboard.
+
+The Electron agent bundles portable SumatraPDF as the print engine. This keeps setup simple for the shop owner while still allowing silent printing with page range, copies, paper size, orientation, color mode, and scale where the printer driver supports them.
+
+For developer CLI testing, copy `agent/config.example.json` to `agent/config.json` and edit:
 
 ```json
 {
   "serverUrl": "http://localhost:3000",
   "agentToken": "dev-agent",
-  "sumatraPath": "C:\\Program Files\\SumatraPDF\\SumatraPDF.exe",
+  "sumatraPath": "",
   "fallbackPrinter": "Your Printer Name"
 }
 ```
 
 - `serverUrl`: Use `localhost:3000` for local testing. Use your PC's local IP (e.g. `192.168.1.100:3000`) when the agent runs on a different PC
 - `agentToken`: Must be `dev-agent` — must match `.env` AGENT_TOKEN
-- `sumatraPath`: Path to SumatraPDF.exe on your PC
+- `sumatraPath`: Optional. Leave empty to auto-detect the bundled print engine or a system install
 - `fallbackPrinter`: Default printer name shown when no printer is selected in admin
 
 ---
@@ -62,7 +67,7 @@ Everything else uses safe defaults. Admin login: `admin` / `1234`
 ## Features
 
 - **Customer upload** — PDF, JPG, PNG, DOC/DOCX support via mobile
-- **Print settings** — B/W or color, copies, page range, paper size (A4/A5/A3/B5/Letter/Legal/Photo), layout, pages per sheet, margins, scale
+- **Print settings** — B/W or color, copies, page range, paper size (A4/A5/A3/B5/Letter/Legal/Photo), layout, scale
 - **Live admin dashboard** — SSE updates, expiry countdown, queue position, status badges
 - **Printer selection** — choose active printer from admin dashboard, agent fetches it automatically
 - **Batch actions** — select multiple jobs and mark paid in one click
@@ -77,7 +82,7 @@ Everything else uses safe defaults. Admin login: `admin` / `1234`
 1. Customer uploads file → receives token + queue position
 2. Admin marks job "paid" → customer pays at counter
 3. Admin clicks "Release Print" → job status becomes `approved`
-4. Agent picks up the job → downloads file → prints via SumatraPDF
+4. Agent picks up the job → downloads file → sends it to the bundled print engine
 5. Agent marks job "printed" → done
 
 ---
@@ -92,7 +97,7 @@ npm run typecheck  # Type check only
 npm run db:seed    # Initialize/seed SQLite database
 npm run cleanup    # Delete old printed/cancelled/expired uploads
 
-npm run agent      # Run Windows print agent — open a new terminal on the shop PC and run this command. Keep the terminal open so the agent can detect and use the connected printers.
+npm run agent      # Developer CLI agent. For shop use, prefer the Electron installer.
 ```
 
 ---

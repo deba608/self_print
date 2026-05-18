@@ -34,7 +34,6 @@ type Pricing = {
   b5Multiplier: number;
   legalMultiplier: number;
   photoMultiplier: number;
-  expiryMinutes: number;
 };
 
 type PricingDraft = {
@@ -60,7 +59,6 @@ const defaultPricing: Pricing = {
   b5Multiplier: 0.9,
   legalMultiplier: 1.25,
   photoMultiplier: 1.5,
-  expiryMinutes: 1440,
 };
 
 function normalizePricingDraft(draft: PricingDraft): Pricing | null {
@@ -527,26 +525,6 @@ function PricingPanel({
                   value={formData.photoMultiplier}
                   onChange={(e) => updateField("photoMultiplier", e.target.value)}
                 />
-              </div>
-            </div>
-          </section>
-
-          <section className="pricing-section">
-            <h3>System Settings</h3>
-            <div className="pricing-grid single">
-              <div className="pricing-field">
-                <label>Job expiry time (minutes)</label>
-                <div className="time-input">
-                  <Clock size={18} className="time-icon" />
-                  <input
-                    type="number"
-                    min="30"
-                    step="10"
-                    value={formData.expiryMinutes}
-                    onChange={(e) => updateField("expiryMinutes", e.target.value)}
-                  />
-                  <span className="time-hint">min</span>
-                </div>
               </div>
             </div>
           </section>
@@ -1075,7 +1053,7 @@ function JobCard({
           </button>
         )}
         {job.status === "printed" && (
-          <button className="job-btn reprint" onClick={() => onAction("approved")} disabled={actionLoading}>
+          <button className="job-btn reprint" onClick={() => onAction("reprint")} disabled={actionLoading}>
             {actionLoading ? <Loader2 size={14} className="spin" /> : <RefreshCw size={14} />}
             <span>Reprint</span>
           </button>

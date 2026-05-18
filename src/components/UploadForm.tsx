@@ -31,8 +31,6 @@ export default function UploadForm() {
   const [customPageRange, setCustomPageRange] = useState("");
   const [paperSize, setPaperSize] = useState("A4");
   const [layout, setLayout] = useState("portrait");
-  const [pagesPerSheet, setPagesPerSheet] = useState(1);
-  const [margins, setMargins] = useState("default");
   const [scale, setScale] = useState("default");
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<{ token: string; pricePaise: number; needsConversion: boolean; queuePosition: number } | null>(null);
@@ -178,8 +176,6 @@ export default function UploadForm() {
     form.set("pageRange", effectivePageRange);
     form.set("paperSize", paperSize);
     form.set("layout", layout);
-    form.set("pagesPerSheet", String(pagesPerSheet));
-    form.set("margins", margins);
     form.set("scale", scale);
     const response = await fetch("/api/jobs", { method: "POST", body: form });
     const body = await response.json();
@@ -205,8 +201,6 @@ export default function UploadForm() {
     setCustomPageRange("");
     setPaperSize("A4");
     setLayout("portrait");
-    setPagesPerSheet(1);
-    setMargins("default");
     setScale("default");
     setFilePageCount(null);
     setResult(null);
@@ -298,7 +292,12 @@ export default function UploadForm() {
             <span className="file-icon">
               {fileTypeLabel === "PDF" ? <FileText size={24} aria-hidden="true" /> : fileTypeLabel === "Image" ? <Image size={24} aria-hidden="true" /> : <File size={24} aria-hidden="true" />}
             </span>
-            <span className="file-name">{file?.name}</span>
+            <span className="file-name">
+              {file?.name}
+              {file?.type === "application/pdf" && filePageCount && (
+                <span className="file-pages"> ({filePageCount} pages)</span>
+              )}
+            </span>
             <span className="change-link">Change</span>
           </button>
 
@@ -456,22 +455,6 @@ export default function UploadForm() {
                   </select>
                 </div>
                 <div className="form-group">
-                  <label htmlFor="pages-per-sheet">Pages per sheet</label>
-                  <select id="pages-per-sheet" value={pagesPerSheet} onChange={(e) => setPagesPerSheet(Number(e.target.value))} className="mobile-select">
-                    {[1, 2, 4, 6, 9, 16].map((n) => <option key={n} value={n}>{n}</option>)}
-                  </select>
-                </div>
-              </div>
-              <div className="form-row">
-                <div className="form-group">
-                  <label htmlFor="margins-select">Margins</label>
-                  <select id="margins-select" value={margins} onChange={(e) => setMargins(e.target.value)} className="mobile-select">
-                    <option value="default">Default</option>
-                    <option value="minimum">Minimum</option>
-                    <option value="none">None</option>
-                  </select>
-                </div>
-                <div className="form-group">
                   <label htmlFor="scale-select">Scale</label>
                   <select id="scale-select" value={scale} onChange={(e) => setScale(e.target.value)} className="mobile-select">
                     <option value="default">Auto</option>
@@ -581,12 +564,6 @@ export default function UploadForm() {
                 <span className="summary-label">Layout</span>
                 <span className="summary-value">{layout}</span>
               </div>
-              {pagesPerSheet > 1 && (
-                <div className="summary-item">
-                  <span className="summary-label">Pages per sheet</span>
-                  <span className="summary-value">{pagesPerSheet}</span>
-                </div>
-              )}
             </div>
           </div>
 

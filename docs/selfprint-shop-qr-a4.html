@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Self_Print Shop QR</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 0;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 210mm;
+      min-height: 297mm;
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      color: #101827;
+      background: #f4f7f8;
+    }
+
+    body {
+      display: grid;
+      place-items: center;
+    }
+
+    .poster {
+      position: relative;
+      width: 210mm;
+      height: 297mm;
+      overflow: hidden;
+      background:
+        linear-gradient(180deg, #ffffff 0%, #f3fbf9 100%);
+      border-top: 14mm solid #0b766f;
+      padding: 20mm 18mm 16mm;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: #087f78;
+      font-size: 25pt;
+      font-weight: 800;
+      letter-spacing: 0;
+      margin-bottom: 8mm;
+    }
+
+    .brand-icon {
+      width: 34px;
+      height: 34px;
+      color: #087f78;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 34pt;
+      line-height: 1.08;
+      letter-spacing: 0;
+    }
+
+    .subtitle {
+      max-width: 150mm;
+      margin: 7mm 0 11mm;
+      color: #44536a;
+      font-size: 16pt;
+      line-height: 1.42;
+    }
+
+    .qr-shell {
+      width: 118mm;
+      height: 118mm;
+      padding: 10mm;
+      border: 2px solid #b9e2dc;
+      border-radius: 10mm;
+      background: #ffffff;
+      box-shadow: 0 16px 40px rgba(8, 127, 120, 0.16);
+      display: grid;
+      place-items: center;
+      margin-bottom: 11mm;
+    }
+
+    .qr-shell img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      image-rendering: pixelated;
+    }
+
+    .steps {
+      width: 100%;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 7mm;
+      margin: 0 0 9mm;
+    }
+
+    .step {
+      min-height: 31mm;
+      padding: 6mm 5mm;
+      border: 1px solid #cfe3e1;
+      border-radius: 5mm;
+      background: rgba(255, 255, 255, 0.78);
+    }
+
+    .step-number {
+      width: 11mm;
+      height: 11mm;
+      display: inline-grid;
+      place-items: center;
+      margin-bottom: 3mm;
+      border-radius: 999px;
+      background: #087f78;
+      color: #ffffff;
+      font-size: 13pt;
+      font-weight: 800;
+    }
+
+    .step-title {
+      display: block;
+      font-size: 13pt;
+      font-weight: 800;
+      color: #101827;
+      margin-bottom: 1.5mm;
+    }
+
+    .step-text {
+      display: block;
+      color: #526174;
+      font-size: 10.5pt;
+      line-height: 1.32;
+    }
+
+    .url {
+      width: 100%;
+      padding: 5mm 7mm;
+      border: 1px solid #b9e2dc;
+      border-radius: 4mm;
+      background: #e9f8f5;
+      color: #076b66;
+      font-size: 15pt;
+      font-weight: 800;
+      word-break: break-all;
+    }
+
+    .footer {
+      margin-top: auto;
+      color: #647184;
+      font-size: 10.5pt;
+    }
+
+    @media print {
+      html,
+      body {
+        background: #ffffff;
+      }
+
+      .poster {
+        box-shadow: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="poster">
+    <div class="brand" aria-label="Self Print">
+      <svg class="brand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+        <path d="M6 9V2h12v7"></path>
+        <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+        <path d="M6 14h12v8H6z"></path>
+      </svg>
+      <span>Self_Print</span>
+    </div>
+
+    <h1>Scan to Print Your Files</h1>
+    <p class="subtitle">Upload from your phone, get your token number, pay at the counter, and collect your print.</p>
+
+    <div class="qr-shell">
+      <img src="./selfprint-six-qr.png" alt="QR code for https://selfprint-six.vercel.app/">
+    </div>
+
+    <section class="steps" aria-label="How it works">
+      <div class="step">
+        <span class="step-number">1</span>
+        <span class="step-title">Scan</span>
+        <span class="step-text">Open the upload page on your phone.</span>
+      </div>
+      <div class="step">
+        <span class="step-number">2</span>
+        <span class="step-title">Upload</span>
+        <span class="step-text">Choose file, copies, color, and pages.</span>
+      </div>
+      <div class="step">
+        <span class="step-number">3</span>
+        <span class="step-title">Collect</span>
+        <span class="step-text">Show token at counter and collect print.</span>
+      </div>
+    </section>
+
+    <div class="url">https://selfprint-six.vercel.app/</div>
+    <p class="footer">For best service, keep your token number ready at the counter.</p>
+  </main>
+</body>
+</html>

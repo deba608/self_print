@@ -249,6 +249,12 @@ input, select, button {
   text-overflow: ellipsis;
 }
 
+.file-summary .file-pages {
+  font-weight: 500;
+  color: var(--ink-secondary);
+  font-size: 13px;
+}
+
 .file-summary .change-link {
   color: var(--accent);
   font-size: 13px;

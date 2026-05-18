@@ -3,7 +3,7 @@ import crypto from "node:crypto";
 import { getDb, getPricing, mapJob, mapJobFile } from "@/lib/db";
 import { calculatePrice } from "@/lib/pricing";
 import { requireAdminResponse } from "@/lib/security";
-import type { JobStatus, PaperSize, PrintLayout, PrintMargins, PrintScale, PrintType } from "@/lib/types";
+import type { JobStatus, PaperSize, PrintLayout, PrintScale, PrintType } from "@/lib/types";
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const unauthorized = await requireAdminResponse();
@@ -19,8 +19,6 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
 const printTypes: PrintType[] = ["bw", "color"];
 const paperSizes: PaperSize[] = ["A4", "Letter", "Legal", "Photo"];
 const layouts: PrintLayout[] = ["portrait", "landscape"];
-const pagesPerSheetOptions = [1, 2, 4, 6, 9, 16];
-const marginsOptions: PrintMargins[] = ["default", "none", "minimum"];
 const scaleOptions: PrintScale[] = ["default", "fit", "shrink", "noscale"];
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -42,8 +40,8 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   const pageRange = String(body.pageRange ?? "").trim() || null;
   const paperSize = String(body.paperSize ?? existing.paper_size) as PaperSize;
   const layout = String(body.layout ?? existing.layout ?? "portrait") as PrintLayout;
-  const pagesPerSheet = Number(body.pagesPerSheet ?? existing.pages_per_sheet ?? 1);
-  const margins = String(body.margins ?? existing.margins ?? "default") as PrintMargins;
+  const pagesPerSheet = 1;
+  const margins = "default";
   const scale = String(body.scale ?? existing.scale ?? "default") as PrintScale;
 
   if (
@@ -51,8 +49,6 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     !Number.isInteger(copies) ||
     !paperSizes.includes(paperSize) ||
     !layouts.includes(layout) ||
-    !pagesPerSheetOptions.includes(pagesPerSheet) ||
-    !marginsOptions.includes(margins) ||
     !scaleOptions.includes(scale)
   ) {
     return NextResponse.json({ error: "Invalid print settings" }, { status: 400 });
@@ -73,7 +69,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       .run(
         crypto.randomUUID(),
         id,
-        `Admin updated print settings: ${describeSettings({ printType, copies, pageRange, paperSize, layout, pagesPerSheet, margins, scale })}.`,
+        `Admin updated print settings: ${describeSettings({ printType, copies, pageRange, paperSize, layout, scale })}.`,
         now
       );
   })();
@@ -121,8 +117,6 @@ function describeSettings(input: {
   pageRange: string | null;
   paperSize: PaperSize;
   layout: PrintLayout;
-  pagesPerSheet: number;
-  margins: PrintMargins;
   scale: PrintScale;
 }) {
   return [
@@ -130,8 +124,6 @@ function describeSettings(input: {
     input.layout,
     input.printType === "bw" ? "black & white" : "color",
     input.paperSize,
-    `${input.pagesPerSheet} per sheet`,
-    `${input.margins} margins`,
     `${input.scale} scale`,
     `${input.copies} copy(s)`
   ].join(", ");

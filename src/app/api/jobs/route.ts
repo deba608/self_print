@@ -4,13 +4,11 @@ import { MAX_UPLOAD_BYTES } from "@/lib/config";
 import { getDb, getPricing, nextQueuePosition, sseClients } from "@/lib/db";
 import { estimatePageCount, saveUpload, validateUpload } from "@/lib/files";
 import { calculatePrice } from "@/lib/pricing";
-import type { PaperSize, PrintLayout, PrintMargins, PrintScale, PrintType } from "@/lib/types";
+import type { PaperSize, PrintLayout, PrintScale, PrintType } from "@/lib/types";
 
 const printTypes: PrintType[] = ["bw", "color"];
 const paperSizes: PaperSize[] = ["A3", "A4", "A5", "A6", "B5", "Letter", "Legal", "Photo"];
 const layouts: PrintLayout[] = ["portrait", "landscape"];
-const pagesPerSheetOptions = [1, 2, 4, 6, 9, 16];
-const marginsOptions: PrintMargins[] = ["default", "none", "minimum"];
 const scaleOptions: PrintScale[] = ["default", "fit", "shrink", "noscale"];
 
 export async function POST(request: NextRequest) {
@@ -44,15 +42,13 @@ export async function POST(request: NextRequest) {
     }
     const paperSize = String(form.get("paperSize") ?? "A4") as PaperSize;
     const layout = String(form.get("layout") ?? "portrait") as PrintLayout;
-    const pagesPerSheet = Number(form.get("pagesPerSheet") ?? 1);
-    const margins = String(form.get("margins") ?? "default") as PrintMargins;
+    const pagesPerSheet = 1;
+    const margins = "default";
     const scale = String(form.get("scale") ?? "default") as PrintScale;
     if (
       !printTypes.includes(printType) ||
       !paperSizes.includes(paperSize) ||
       !layouts.includes(layout) ||
-      !pagesPerSheetOptions.includes(pagesPerSheet) ||
-      !marginsOptions.includes(margins) ||
       !scaleOptions.includes(scale)
     ) {
       return NextResponse.json({ error: "Invalid print settings" }, { status: 400 });
