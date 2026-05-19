@@ -23,8 +23,12 @@ GRAPHIFY_GUIDE.md
 
 # Build artifacts and executables
 *.exe
+electron-agent/
 electron-agent/build-output-sumatra-v3/
+electron-agent/build-output-small/
+electron-agent-recovered/
 dist/
+
 build/
 
 # IDE and editor files
