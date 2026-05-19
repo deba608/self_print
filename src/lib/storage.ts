@@ -1,8 +1,18 @@
-import { put, del, list } from '@vercel/blob';
 import path from 'node:path';
 import { ORIGINALS_DIR, CONVERTED_DIR } from './config';
+import { createClient } from '@supabase/supabase-js';
 
-const isSupabase = Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
+const supabaseUrl = process.env.SUPABASE_URL?.trim();
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+const isSupabase = Boolean(supabaseUrl && supabaseKey);
+
+let supabase: ReturnType<typeof createClient> | null = null;
+function getSupabase() {
+  if (!supabase && supabaseUrl && supabaseKey) {
+    supabase = createClient(supabaseUrl, supabaseKey);
+  }
+  return supabase;
+}
 
 export interface SavedFile {
   storedName: string;
@@ -41,15 +51,21 @@ async function saveToSupabase(file: File, ext: string, kind: string): Promise<Sa
   
   const bytes = Buffer.from(await file.arrayBuffer());
   
-  // Upload to Vercel Blob (or Supabase Storage)
-  const blob = await put(bucketPath, bytes, {
-    access: 'public',
-    addRandomSuffix: false
+  const supabase = getSupabase();
+  if (!supabase) throw new Error('Supabase client not initialized');
+  
+  const { error } = await supabase.storage.from('selfprint').upload(bucketPath, bytes, {
+    contentType: file.type || 'application/octet-stream',
+    upsert: true
   });
+  
+  if (error) throw error;
+  
+  const { data: { publicUrl } } = supabase.storage.from('selfprint').getPublicUrl(bucketPath);
   
   return {
     storedName,
-    storagePath: blob.url,
+    storagePath: publicUrl,
     sizeBytes: bytes.length,
     bytes
   };
@@ -64,16 +80,16 @@ export async function saveUpload(file: File, ext: string, kind: string = 'pdf'):
 
 export async function deleteFile(storagePath: string): Promise<void> {
   if (isSupabase) {
-    // Delete from Vercel Blob / Supabase Storage
     try {
       const url = new URL(storagePath);
-      const pathname = url.pathname.replace('/storage/v1/object/public/', '');
-      await del(pathname);
+      const pathname = url.pathname.split('/object/public/')[1] || url.pathname.split('/storage/v1/object/public/')[1];
+      const supabase = getSupabase();
+      if (!supabase) return;
+      await supabase.storage.from('selfprint').remove([pathname]);
     } catch {
       // Ignore errors if file doesn't exist
     }
   } else {
-    // Delete from local filesystem
     const fs = await import('node:fs/promises');
     try {
       await fs.unlink(storagePath);
@@ -85,8 +101,12 @@ export async function deleteFile(storagePath: string): Promise<void> {
 
 export async function listFiles(prefix: string): Promise<string[]> {
   if (isSupabase) {
-    const { blobs } = await list({ prefix });
-    return blobs.map(b => b.url);
+    const supabase = getSupabase();
+    if (!supabase) return [];
+    const { data } = await supabase.storage.from('selfprint').list(prefix);
+    if (!data) return [];
+    const { data: { publicUrl } } = supabase.storage.from('selfprint').getPublicUrl('');
+    return data.map(f => `${publicUrl}${prefix}/${f.name}`);
   } else {
     const fs = await import('node:fs/promises');
     const dir = prefix.includes('converted') ? CONVERTED_DIR : ORIGINALS_DIR;

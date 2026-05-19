@@ -1,8 +1,7 @@
 {
-  "serverUrl": "http://localhost:3000",
-  "agentToken": "dev-agent",
+  "supabaseUrl": "https://your-project.supabase.co",
+  "supabaseKey": "your-service-role-key",
   "sumatraPath": "",
-  "pollIntervalMs": 5000,
   "tempDir": "./agent-temp",
   "maxRetries": 3,
   "fallbackPrinter": ""
