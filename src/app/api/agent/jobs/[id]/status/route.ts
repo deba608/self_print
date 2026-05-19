@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
-import { getDb } from "@/lib/db";
+import { getDb, sseClients } from "@/lib/db";
 import { verifyAgentToken } from "@/lib/security";
 import type { JobStatus } from "@/lib/types";
 
@@ -23,5 +23,20 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   `).run(status, now, status, now, id);
   getDb().prepare("INSERT INTO print_events (id, job_id, event_type, message, created_at) VALUES (?, ?, ?, ?, ?)")
     .run(crypto.randomUUID(), id, status, String(message ?? ""), now);
+  
+  // Broadcast to admin dashboard
+  broadcast({ type: "job_update", jobId: id, status });
+  
   return NextResponse.json({ ok: true });
+}
+
+function broadcast(data: object) {
+  const payload = `data: ${JSON.stringify(data)}\n\n`;
+  for (const client of sseClients) {
+    try {
+      client.controller.enqueue(new TextEncoder().encode(payload));
+    } catch {
+      sseClients.delete(client);
+    }
+  }
 }

@@ -50,7 +50,7 @@ export default function JobDetail({ id }: { id: string }) {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   async function load() {
-    const response = await fetch(`/api/admin/jobs/${id}`);
+    const response = await fetch(`/api/admin/jobs/${id}`, { credentials: "include" });
     if (!response.ok) {
       setError("Unable to load job");
       return;
@@ -70,18 +70,25 @@ export default function JobDetail({ id }: { id: string }) {
     setError("");
     const response = await fetch(`/api/admin/jobs/${id}/status`, {
       method: "POST",
+      credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status })
     });
     const body = await response.json();
-    if (!response.ok) setError(body.error ?? "Action failed");
+    if (!response.ok) {
+      setError(body.error ?? "Action failed");
+      return;
+    }
     await load();
   }
 
   async function reprint() {
-    const response = await fetch(`/api/admin/jobs/${id}/reprint`, { method: "POST" });
+    const response = await fetch(`/api/admin/jobs/${id}/reprint`, { method: "POST", credentials: "include" });
     const body = await response.json();
-    if (!response.ok) setError(body.error ?? "Reprint failed");
+    if (!response.ok) {
+      setError(body.error ?? "Reprint failed");
+      return;
+    }
     await load();
   }
 
@@ -93,6 +100,7 @@ export default function JobDetail({ id }: { id: string }) {
     setSettingsSaved(false);
     const response = await fetch(`/api/admin/jobs/${id}`, {
       method: "PUT",
+      credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(settings)
     });
@@ -168,13 +176,14 @@ export default function JobDetail({ id }: { id: string }) {
         <div className="error-banner">
           <AlertCircle size={16} />
           <span>{error}</span>
-          <button onClick={() => setError("")}><X size={14} /></button>
+          <button type="button" onClick={() => setError("")}><X size={14} /></button>
         </div>
       )}
 
       <div className="mobile-tabs">
         {(["details", "preview", "settings", "log"] as const).map((tab) => (
           <button
+            type="button"
             key={tab}
             className={`mobile-tab ${activeTab === tab ? "active" : ""}`}
             onClick={() => setActiveTab(tab)}
@@ -273,32 +282,27 @@ function ActionsCard({
       <h3 className="card-title">Actions</h3>
       <div className="detail-action-grid">
         {job.status === "pending_payment" && (
-          <button className="job-btn paid" onClick={() => setStatus("paid")}>
+          <button type="button" className="job-btn paid" onClick={() => setStatus("paid")}>
             <CreditCard size={16} /> Mark Paid
           </button>
         )}
         {job.status === "paid" && (
-          <button className="job-btn release" onClick={() => setStatus("approved")}>
+          <button type="button" className="job-btn release" onClick={() => setStatus("approved")}>
             <Printer size={16} /> Release Print
           </button>
         )}
         {(job.status === "approved" || job.status === "printing") && (
-          <>
-            <button className="job-btn done" onClick={() => setStatus("printed")}>
-              <CheckCircle2 size={16} /> Mark Done
-            </button>
-            <button className="job-btn reprint" onClick={reprint}>
-              <RotateCcw size={16} /> Reprint
-            </button>
-          </>
+          <button type="button" className="job-btn done" onClick={() => setStatus("printed")}>
+            <CheckCircle2 size={16} /> Mark Done
+          </button>
         )}
         {job.status === "printed" && (
-          <button className="job-btn reprint" onClick={reprint}>
+          <button type="button" className="job-btn reprint" onClick={reprint}>
             <RotateCcw size={16} /> Reprint
           </button>
         )}
         {!["printed", "cancelled", "failed"].includes(job.status) && (
-          <button className="job-btn cancel-text" onClick={() => setStatus("cancelled")}>
+          <button type="button" className="job-btn cancel-text" onClick={() => setStatus("cancelled")}>
             <X size={16} /> Cancel
           </button>
         )}

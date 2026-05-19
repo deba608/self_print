@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
-import { getDb, sseClients } from "@/lib/db";
+import { getDb, mapJob, sseClients } from "@/lib/db";
 import { requireAdminResponse } from "@/lib/security";
 import type { JobStatus } from "@/lib/types";
 
@@ -18,9 +18,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     | { status: JobStatus; needs_conversion: number; token: string }
     | undefined;
   if (!job) return NextResponse.json({ error: "Job not found" }, { status: 404 });
-  if (status === "approved" && job.status !== "paid") {
-    return NextResponse.json({ error: "Mark the job paid before release" }, { status: 400 });
-  }
+  const invalid = invalidTransition(job.status, status);
+  if (invalid) return NextResponse.json({ error: invalid }, { status: 400 });
   if (status === "approved" && job.needs_conversion) {
     return NextResponse.json({ error: "DOC/DOCX jobs need conversion before release" }, { status: 400 });
   }
@@ -36,7 +35,24 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   broadcast({ type: "job_update", jobId: id, status, token: job.token });
 
-  return NextResponse.json({ ok: true });
+  const updated = getDb().prepare("SELECT * FROM jobs WHERE id = ?").get(id) as Record<string, unknown>;
+  return NextResponse.json({ ok: true, job: mapJob(updated) });
+}
+
+function invalidTransition(current: JobStatus, next: JobStatus) {
+  if (next === "cancelled") {
+    return ["printed", "cancelled"].includes(current) ? "This job can no longer be cancelled." : "";
+  }
+  if (next === "paid" && current !== "pending_payment") {
+    return "Only unpaid jobs can be marked paid.";
+  }
+  if (next === "approved" && current !== "paid") {
+    return "Mark the job paid before release.";
+  }
+  if (next === "printed" && current !== "approved" && current !== "printing") {
+    return "Only released or printing jobs can be marked done.";
+  }
+  return "";
 }
 
 function broadcast(data: object) {
