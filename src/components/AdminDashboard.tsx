@@ -661,7 +661,7 @@ type ManageJob = {
   status: string;
   pricePaise: number;
   createdAt: string;
-  file: { originalName: string };
+  file: { originalName: string } | null;
 };
 
 function ManageOrdersPanel({
@@ -839,7 +839,7 @@ function ManageOrdersPanel({
                     <span className="manage-order-status">{statusLabels[job.status] || job.status}</span>
                   </div>
                   <div className="manage-order-details">
-                    <span className="manage-order-file">{job.file.originalName}</span>
+                    <span className="manage-order-file">{job.file?.originalName || "No file"}</span>
                     <span className="manage-order-price">{formatRupees(job.pricePaise)}</span>
                   </div>
                   <div className="manage-order-time">
@@ -1031,7 +1031,7 @@ function JobCard({
         </div>
 
         <div className="job-details">
-          <span className="file-name">{job.file.originalName}</span>
+          <span className="file-name">{job.file?.originalName || "No file"}</span>
           <div className="job-time">
             <span>{new Date(job.createdAt).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "2-digit" })} at {new Date(job.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
           </div>

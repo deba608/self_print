@@ -24,7 +24,7 @@ type Detail = {
     needsConversion: 0 | 1;
     createdAt: string;
   };
-  file: { id: string; originalName: string; mimeType: string; fileKind: string; sizeBytes: number };
+  file: { id: string; originalName: string; mimeType: string; fileKind: string; sizeBytes: number } | null;
   events: Array<{ id: string; event_type: string; message: string; created_at: string }>;
 };
 
@@ -144,7 +144,7 @@ export default function JobDetail({ id }: { id: string }) {
   }
 
   const { job, file } = detail;
-  const previewUrl = `/api/uploads/${file.id}`;
+  const previewUrl = file ? `/api/uploads/${file.id}` : "";
   const settingsLocked = job.status === "approved" || job.status === "printing";
   const badge = statusBadge(job.status);
 
@@ -224,6 +224,7 @@ export default function JobDetail({ id }: { id: string }) {
 }
 
 function FileCard({ file }: { file: Detail["file"] }) {
+  if (!file) return null;
   return (
     <div className="detail-card">
       <h3 className="card-title">
@@ -312,6 +313,7 @@ function ActionsCard({
 }
 
 function PreviewCard({ file, previewUrl }: { file: Detail["file"]; previewUrl: string }) {
+  if (!file) return null;
   return (
     <div className="detail-card">
       <h3 className="card-title">
