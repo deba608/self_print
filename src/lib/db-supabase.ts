@@ -2,8 +2,8 @@ import { createClient } from '@supabase/supabase-js';
 import crypto from 'node:crypto';
 import type { Job, JobFile, PricingConfig, PrinterOption, SseClient } from './types';
 
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const supabaseUrl = process.env.SUPABASE_URL?.trim();
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
 
 if (!supabaseUrl || !supabaseKey) {
   throw new Error('Missing Supabase environment variables');
@@ -149,13 +149,37 @@ export async function createJob(jobData: any, fileData: any) {
   const now = new Date().toISOString();
   const jobId = crypto.randomUUID();
   const fileId = crypto.randomUUID();
+  const normalizedJobData = {
+    token: jobData.token,
+    status: jobData.status ?? 'pending_payment',
+    print_type: jobData.print_type ?? jobData.printType,
+    copies: jobData.copies,
+    page_range: jobData.page_range ?? jobData.pageRange,
+    paper_size: jobData.paper_size ?? jobData.paperSize,
+    layout: jobData.layout,
+    pages_per_sheet: jobData.pages_per_sheet ?? jobData.pagesPerSheet,
+    margins: jobData.margins,
+    scale: jobData.scale,
+    page_count: jobData.page_count ?? jobData.pageCount,
+    price_paise: jobData.price_paise ?? jobData.pricePaise,
+    needs_conversion: jobData.needs_conversion ?? jobData.needsConversion,
+    queue_position: jobData.queue_position ?? jobData.queuePosition
+  };
+  const normalizedFileData = {
+    original_name: fileData.original_name ?? fileData.originalName,
+    stored_name: fileData.stored_name ?? fileData.storedName,
+    mime_type: fileData.mime_type ?? fileData.mimeType,
+    size_bytes: fileData.size_bytes ?? fileData.sizeBytes,
+    file_kind: fileData.file_kind ?? fileData.fileKind,
+    storage_path: fileData.storage_path ?? fileData.storagePath
+  };
   
   // Insert job
   const { error: jobError } = await supabase
     .from('jobs')
     .insert([{
       id: jobId,
-      ...jobData,
+      ...normalizedJobData,
       created_at: now,
       updated_at: now
     }]);
@@ -168,7 +192,7 @@ export async function createJob(jobData: any, fileData: any) {
     .insert([{
       id: fileId,
       job_id: jobId,
-      ...fileData,
+      ...normalizedFileData,
       created_at: now
     }]);
   
@@ -181,7 +205,7 @@ export async function createJob(jobData: any, fileData: any) {
       id: crypto.randomUUID(),
       job_id: jobId,
       event_type: 'created',
-      message: fileData.file_kind === 'document' 
+      message: normalizedFileData.file_kind === 'document' 
         ? 'Document upload needs conversion before printing.'
         : 'Customer submitted job.',
       created_at: now

@@ -999,9 +999,7 @@ function JobCard({
 
   const status = statusMap[job.status] || { label: job.status, class: "" };
   const formatRupees = (paise: number) => `₹${(paise / 100).toFixed(2)}`;
-  const handleActionClick = (event: React.MouseEvent<HTMLButtonElement>, action: string) => {
-    event.preventDefault();
-    event.stopPropagation();
+  const handleActionClick = (action: string) => {
     onAction(action);
   };
 
@@ -1051,31 +1049,31 @@ function JobCard({
 
       <div className="job-actions">
         {job.status === "pending_payment" && (
-          <button type="button" className="job-btn paid" onClick={(event) => handleActionClick(event, "paid")} disabled={actionLoading}>
+          <button type="button" className="job-btn paid" onClick={() => handleActionClick("paid")} disabled={actionLoading}>
             {actionLoading ? <Loader2 size={14} className="spin" /> : <CreditCard size={14} />}
             <span>Paid</span>
           </button>
         )}
         {job.status === "paid" && (
-          <button type="button" className="job-btn release" onClick={(event) => handleActionClick(event, "approved")} disabled={actionLoading}>
+          <button type="button" className="job-btn release" onClick={() => handleActionClick("approved")} disabled={actionLoading}>
             {actionLoading ? <Loader2 size={14} className="spin" /> : <Printer size={14} />}
             <span>Release</span>
           </button>
         )}
         {(job.status === "approved" || job.status === "printing") && (
-          <button type="button" className="job-btn done" onClick={(event) => handleActionClick(event, "printed")} disabled={actionLoading}>
+          <button type="button" className="job-btn done" onClick={() => handleActionClick("printed")} disabled={actionLoading}>
             {actionLoading ? <Loader2 size={14} className="spin" /> : <Check size={14} />}
             <span>Done</span>
           </button>
         )}
         {job.status === "printed" && (
-          <button type="button" className="job-btn reprint" onClick={(event) => handleActionClick(event, "reprint")} disabled={actionLoading}>
+          <button type="button" className="job-btn reprint" onClick={() => handleActionClick("reprint")} disabled={actionLoading}>
             {actionLoading ? <Loader2 size={14} className="spin" /> : <RefreshCw size={14} />}
             <span>Reprint</span>
           </button>
         )}
-        {!["printed", "cancelled", "failed"].includes(job.status) && (
-          <button type="button" className="job-btn cancel" onClick={(event) => handleActionClick(event, "cancelled")} disabled={actionLoading} aria-label="Cancel job">
+        {job.status !== "printed" && job.status !== "cancelled" && (
+          <button type="button" className="job-btn cancel" onClick={() => handleActionClick("cancelled")} disabled={actionLoading} aria-label="Cancel job">
             <X size={14} />
           </button>
         )}

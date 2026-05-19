@@ -311,20 +311,43 @@ export async function createJob(jobData: any, fileData: any): Promise<{ jobId: s
   const now = new Date().toISOString();
   const jobId = crypto.randomUUID();
   const fileId = crypto.randomUUID();
+  const normalizedJobData = {
+    token: jobData.token,
+    printType: jobData.printType ?? jobData.print_type,
+    copies: jobData.copies,
+    pageRange: jobData.pageRange ?? jobData.page_range,
+    paperSize: jobData.paperSize ?? jobData.paper_size,
+    layout: jobData.layout,
+    pagesPerSheet: jobData.pagesPerSheet ?? jobData.pages_per_sheet,
+    margins: jobData.margins,
+    scale: jobData.scale,
+    pageCount: jobData.pageCount ?? jobData.page_count,
+    pricePaise: jobData.pricePaise ?? jobData.price_paise,
+    needsConversion: jobData.needsConversion ?? jobData.needs_conversion,
+    queuePosition: jobData.queuePosition ?? jobData.queue_position
+  };
+  const normalizedFileData = {
+    originalName: fileData.originalName ?? fileData.original_name,
+    storedName: fileData.storedName ?? fileData.stored_name,
+    mimeType: fileData.mimeType ?? fileData.mime_type,
+    sizeBytes: fileData.sizeBytes ?? fileData.size_bytes,
+    fileKind: fileData.fileKind ?? fileData.file_kind,
+    storagePath: fileData.storagePath ?? fileData.storage_path
+  };
   
   sqlite.transaction(() => {
     sqlite.prepare(`
       INSERT INTO jobs (id, token, status, print_type, copies, page_range, paper_size, layout, pages_per_sheet, margins, scale, page_count, price_paise, needs_conversion, queue_position, created_at, updated_at)
       VALUES (?, ?, 'pending_payment', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(jobId, jobData.token, jobData.printType, jobData.copies, jobData.pageRange, jobData.paperSize, jobData.layout, jobData.pagesPerSheet, jobData.margins, jobData.scale, jobData.pageCount, jobData.pricePaise, jobData.needsConversion, jobData.queuePosition, now, now);
+    `).run(jobId, normalizedJobData.token, normalizedJobData.printType, normalizedJobData.copies, normalizedJobData.pageRange, normalizedJobData.paperSize, normalizedJobData.layout, normalizedJobData.pagesPerSheet, normalizedJobData.margins, normalizedJobData.scale, normalizedJobData.pageCount, normalizedJobData.pricePaise, normalizedJobData.needsConversion, normalizedJobData.queuePosition, now, now);
     
     sqlite.prepare(`
       INSERT INTO job_files (id, job_id, original_name, stored_name, mime_type, size_bytes, file_kind, storage_path, created_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(fileId, jobId, fileData.originalName, fileData.storedName, fileData.mimeType, fileData.sizeBytes, fileData.fileKind, fileData.storagePath, now);
+    `).run(fileId, jobId, normalizedFileData.originalName, normalizedFileData.storedName, normalizedFileData.mimeType, normalizedFileData.sizeBytes, normalizedFileData.fileKind, normalizedFileData.storagePath, now);
     
     sqlite.prepare("INSERT INTO print_events (id, job_id, event_type, message, created_at) VALUES (?, ?, 'created', ?, ?)")
-      .run(crypto.randomUUID(), jobId, fileData.fileKind === 'document' ? 'Document upload needs conversion before printing.' : 'Customer submitted job.', now);
+      .run(crypto.randomUUID(), jobId, normalizedFileData.fileKind === 'document' ? 'Document upload needs conversion before printing.' : 'Customer submitted job.', now);
   })();
   
   return { jobId, fileId };

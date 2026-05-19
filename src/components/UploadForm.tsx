@@ -177,15 +177,25 @@ export default function UploadForm() {
     form.set("paperSize", paperSize);
     form.set("layout", layout);
     form.set("scale", scale);
-    const response = await fetch("/api/jobs", { method: "POST", body: form });
-    const body = await response.json();
-    setBusy(false);
-    if (!response.ok) {
-      setError(body.error ?? "Upload failed");
-      return;
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), 45000);
+    try {
+      const response = await fetch("/api/jobs", { method: "POST", body: form, signal: controller.signal });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setError(body.error ?? "Upload failed. Please try again.");
+        return;
+      }
+      setResult(body);
+      setStep("done");
+    } catch (err) {
+      setError(err instanceof DOMException && err.name === "AbortError"
+        ? "Upload is taking too long. Please try again."
+        : "Unable to submit print job. Please check your connection and try again.");
+    } finally {
+      window.clearTimeout(timeoutId);
+      setBusy(false);
     }
-    setResult(body);
-    setStep("done");
   }
 
   function goToPreview() {
