@@ -1,6 +1,5 @@
-import crypto from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
-import { getDb, sseClients } from "@/lib/db";
+import { updateJobStatusByAgent, sseClients } from "@/lib/db";
 import { verifyAgentToken } from "@/lib/security";
 import type { JobStatus } from "@/lib/types";
 
@@ -15,14 +14,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return NextResponse.json({ error: "Unsupported agent status" }, { status: 400 });
   }
   const { id } = await params;
-  const now = new Date().toISOString();
-  getDb().prepare(`
-    UPDATE jobs
-    SET status = ?, updated_at = ?, printed_at = CASE WHEN ? = 'printed' THEN ? ELSE printed_at END
-    WHERE id = ?
-  `).run(status, now, status, now, id);
-  getDb().prepare("INSERT INTO print_events (id, job_id, event_type, message, created_at) VALUES (?, ?, ?, ?, ?)")
-    .run(crypto.randomUUID(), id, status, String(message ?? ""), now);
+  
+  await updateJobStatusByAgent(id, status, message);
   
   // Broadcast to admin dashboard
   broadcast({ type: "job_update", jobId: id, status });

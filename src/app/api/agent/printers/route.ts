@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
     .filter((printer): printer is Omit<PrinterOption, "seenAt"> => Boolean(printer))
     .slice(0, 100);
 
-  replaceAgentPrinters(normalized);
+  await replaceAgentPrinters(normalized);
   return NextResponse.json({ ok: true, count: normalized.length });
 }
 

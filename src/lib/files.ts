@@ -1,8 +1,8 @@
 import crypto from "node:crypto";
-import fs from "node:fs/promises";
 import path from "node:path";
-import { ORIGINALS_DIR } from "./config";
+import { ORIGINALS_DIR, CONVERTED_DIR } from "./config";
 import type { FileKind } from "./types";
+import { saveUpload as saveToStorage } from "./storage";
 
 const allowed = new Map<string, { extensions: string[]; kind: FileKind }>([
   ["application/pdf", { extensions: [".pdf"], kind: "pdf" }],
@@ -21,13 +21,8 @@ export function validateUpload(file: File) {
   return { ext, kind: rule.kind };
 }
 
-export async function saveUpload(file: File, ext: string) {
-  await fs.mkdir(ORIGINALS_DIR, { recursive: true });
-  const storedName = `${crypto.randomUUID()}${ext}`;
-  const storagePath = path.join(ORIGINALS_DIR, storedName);
-  const bytes = Buffer.from(await file.arrayBuffer());
-  await fs.writeFile(storagePath, bytes);
-  return { storedName, storagePath, sizeBytes: bytes.length, bytes };
+export async function saveUpload(file: File, ext: string, kind: FileKind = "pdf") {
+  return saveToStorage(file, ext, kind);
 }
 
 export function estimatePageCount(kind: FileKind, bytes: Buffer) {

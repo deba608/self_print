@@ -1,13 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { SESSION_COOKIE } from "@/lib/config";
-import { getDb } from "@/lib/db";
+import { getAdminUser } from "@/lib/db";
 import { makeSession, verifySecret } from "@/lib/security";
 
 export async function POST(request: NextRequest) {
   const { username, password } = await request.json();
-  const user = getDb().prepare("SELECT username, password_hash FROM admin_users WHERE username = ?").get(username) as
-    | { username: string; password_hash: string }
-    | undefined;
+  const user = await getAdminUser(username);
   if (!user || !verifySecret(String(password ?? ""), user.password_hash)) {
     return NextResponse.json({ error: "Invalid username or password" }, { status: 401 });
   }

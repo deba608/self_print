@@ -1,0 +1,496 @@
+import { createClient } from '@supabase/supabase-js';
+import crypto from 'node:crypto';
+import type { Job, JobFile, PricingConfig, PrinterOption, SseClient } from './types';
+
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+if (!supabaseUrl || !supabaseKey) {
+  throw new Error('Missing Supabase environment variables');
+}
+
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+export const sseClients = new Set<SseClient>();
+
+// Helper to convert Supabase row to Job type
+function mapJob(row: any): Job {
+  const createdAt = String(row.created_at);
+  const expiryMinutes = 1440; // Default
+  const expiresAt = new Date(new Date(createdAt).getTime() + expiryMinutes * 60000).toISOString();
+  
+  return {
+    id: String(row.id),
+    token: String(row.token),
+    status: row.status,
+    printType: row.print_type,
+    copies: Number(row.copies),
+    pageRange: row.page_range ? String(row.page_range) : null,
+    paperSize: row.paper_size,
+    layout: (row.layout ?? 'portrait') as Job['layout'],
+    pagesPerSheet: Number(row.pages_per_sheet ?? 1),
+    margins: (row.margins ?? 'default') as Job['margins'],
+    scale: (row.scale ?? 'default') as Job['scale'],
+    pageCount: Number(row.page_count),
+    pricePaise: Number(row.price_paise),
+    needsConversion: Number(row.needs_conversion) as 0 | 1,
+    queuePosition: Number(row.queue_position),
+    createdAt,
+    updatedAt: String(row.updated_at),
+    paidAt: row.paid_at ? String(row.paid_at) : null,
+    printedAt: row.printed_at ? String(row.printed_at) : null,
+    expiresAt
+  };
+}
+
+// Helper to convert Supabase row to JobFile type
+function mapJobFile(row: any): JobFile {
+  return {
+    id: String(row.id),
+    jobId: String(row.job_id),
+    originalName: String(row.original_name),
+    storedName: String(row.stored_name),
+    mimeType: String(row.mime_type),
+    sizeBytes: Number(row.size_bytes),
+    fileKind: row.file_kind,
+    storagePath: String(row.storage_path),
+    createdAt: String(row.created_at)
+  };
+}
+
+export async function getDb() {
+  // Return a mock object that matches the SQLite interface
+  return {
+    prepare: (sql: string) => ({
+      get: async (...args: any[]) => {
+        // This is a simplified version - full implementation would parse SQL
+        throw new Error('Use Supabase-specific methods instead');
+      },
+      run: async (...args: any[]) => {
+        throw new Error('Use Supabase-specific methods instead');
+      },
+      all: async (...args: any[]) => {
+        throw new Error('Use Supabase-specific methods instead');
+      }
+    }),
+    exec: async (sql: string) => {
+      throw new Error('Use Supabase-specific methods instead');
+    },
+    transaction: (fn: Function) => {
+      return async () => {
+        await fn();
+      };
+    },
+    pragma: (query: string) => {
+      return null;
+    }
+  };
+}
+
+// Supabase-specific methods
+export async function getJobs() {
+  const { data, error } = await supabase
+    .from('jobs')
+    .select('*')
+    .order('created_at', { ascending: false });
+  
+  if (error) throw error;
+  return (data || []).map(mapJob);
+}
+
+export async function getJobById(id: string) {
+  const { data, error } = await supabase
+    .from('jobs')
+    .select('*')
+    .eq('id', id)
+    .single();
+  
+  if (error) throw error;
+  return mapJob(data);
+}
+
+export async function getJobByToken(token: string) {
+  const { data, error } = await supabase
+    .from('jobs')
+    .select('*')
+    .eq('token', token)
+    .single();
+  
+  if (error) throw error;
+  return mapJob(data);
+}
+
+export async function getNextApprovedJob() {
+  const { data, error } = await supabase
+    .from('jobs')
+    .select('*')
+    .eq('status', 'approved')
+    .eq('needs_conversion', 0)
+    .order('updated_at', { ascending: true })
+    .limit(1)
+    .single();
+  
+  if (error && error.code !== 'PGRST116') throw error; // PGRST116 = not found
+  return data ? mapJob(data) : null;
+}
+
+export async function getJobFile(jobId: string) {
+  const { data, error } = await supabase
+    .from('job_files')
+    .select('*')
+    .eq('job_id', jobId)
+    .single();
+  
+  if (error) throw error;
+  return mapJobFile(data);
+}
+
+export async function createJob(jobData: any, fileData: any) {
+  const now = new Date().toISOString();
+  const jobId = crypto.randomUUID();
+  const fileId = crypto.randomUUID();
+  
+  // Insert job
+  const { error: jobError } = await supabase
+    .from('jobs')
+    .insert([{
+      id: jobId,
+      ...jobData,
+      created_at: now,
+      updated_at: now
+    }]);
+  
+  if (jobError) throw jobError;
+  
+  // Insert job file
+  const { error: fileError } = await supabase
+    .from('job_files')
+    .insert([{
+      id: fileId,
+      job_id: jobId,
+      ...fileData,
+      created_at: now
+    }]);
+  
+  if (fileError) throw fileError;
+  
+  // Insert print event
+  await supabase
+    .from('print_events')
+    .insert([{
+      id: crypto.randomUUID(),
+      job_id: jobId,
+      event_type: 'created',
+      message: fileData.file_kind === 'document' 
+        ? 'Document upload needs conversion before printing.'
+        : 'Customer submitted job.',
+      created_at: now
+    }]);
+  
+  return { jobId, fileId };
+}
+
+export async function updateJobStatus(id: string, status: string) {
+  const now = new Date().toISOString();
+  const updates: any = { status, updated_at: now };
+  
+  if (status === 'paid') updates.paid_at = now;
+  if (status === 'printed') updates.printed_at = now;
+  
+  const { error } = await supabase
+    .from('jobs')
+    .update(updates)
+    .eq('id', id);
+  
+  if (error) throw error;
+  
+  // Insert print event
+  await supabase
+    .from('print_events')
+    .insert([{
+      id: crypto.randomUUID(),
+      job_id: id,
+      event_type: status,
+      message: `Admin set status to ${status}.`,
+      created_at: now
+    }]);
+}
+
+export async function updateJobSettings(id: string, settings: {
+  printType: string;
+  copies: number;
+  pageRange: string | null;
+  paperSize: string;
+  layout: string;
+  pagesPerSheet: number;
+  margins: string;
+  scale: string;
+  pricePaise: number;
+  updatedAt: string;
+}) {
+  const { error } = await supabase
+    .from('jobs')
+    .update({
+      print_type: settings.printType,
+      copies: settings.copies,
+      page_range: settings.pageRange,
+      paper_size: settings.paperSize,
+      layout: settings.layout,
+      pages_per_sheet: settings.pagesPerSheet,
+      margins: settings.margins,
+      scale: settings.scale,
+      price_paise: settings.pricePaise,
+      updated_at: settings.updatedAt
+    })
+    .eq('id', id);
+  
+  if (error) throw error;
+  
+  // Insert print event
+  await supabase
+    .from('print_events')
+    .insert([{
+      id: crypto.randomUUID(),
+      job_id: id,
+      event_type: 'settings',
+      message: `Admin updated print settings.`,
+      created_at: settings.updatedAt
+    }]);
+}
+
+export async function getPricing(): Promise<PricingConfig> {
+  const { data, error } = await supabase
+    .from('pricing_config')
+    .select('*')
+    .eq('id', 1)
+    .single();
+  
+  if (error) throw error;
+  
+  return {
+    bwPerPagePaise: data.bw_per_page_paise,
+    colorPerPagePaise: data.color_per_page_paise,
+    photoPrintPaise: data.photo_print_paise,
+    copyMultiplier: data.copy_multiplier,
+    a3Multiplier: data.a3_multiplier ?? 2.5,
+    a4Multiplier: data.a4_multiplier ?? 1,
+    a5Multiplier: data.a5_multiplier ?? 0.7,
+    a6Multiplier: data.a6_multiplier ?? 0.5,
+    b5Multiplier: data.b5_multiplier ?? 0.9,
+    legalMultiplier: data.legal_multiplier ?? 1.25,
+    photoMultiplier: data.photo_multiplier ?? 1,
+    expiryMinutes: data.expiry_minutes ?? 1440
+  };
+}
+
+export async function updatePricing(pricing: PricingConfig) {
+  const now = new Date().toISOString();
+  const { error } = await supabase
+    .from('pricing_config')
+    .update({
+      bw_per_page_paise: pricing.bwPerPagePaise,
+      color_per_page_paise: pricing.colorPerPagePaise,
+      photo_print_paise: pricing.photoPrintPaise,
+      copy_multiplier: pricing.copyMultiplier,
+      a3_multiplier: pricing.a3Multiplier,
+      a4_multiplier: pricing.a4Multiplier,
+      a5_multiplier: pricing.a5Multiplier,
+      a6_multiplier: pricing.a6Multiplier,
+      b5_multiplier: pricing.b5Multiplier,
+      legal_multiplier: pricing.legalMultiplier,
+      photo_multiplier: pricing.photoMultiplier,
+      expiry_minutes: pricing.expiryMinutes,
+      updated_at: now
+    })
+    .eq('id', 1);
+  
+  if (error) throw error;
+}
+
+export async function getAgentConfig() {
+  const { data, error } = await supabase
+    .from('agent_config')
+    .select('printer_name, config_version')
+    .eq('id', 1)
+    .single();
+  
+  if (error) return { printerName: 'Microsoft Print to PDF', configVersion: 0 };
+  return { printerName: data.printer_name, configVersion: data.config_version };
+}
+
+export async function updateAgentConfig(printerName: string) {
+  const now = new Date().toISOString();
+  const { error } = await supabase
+    .from('agent_config')
+    .update({
+      printer_name: printerName,
+      config_version: supabase.rpc('increment_config_version'),
+      updated_at: now
+    })
+    .eq('id', 1);
+  
+  if (error) throw error;
+}
+
+export async function replaceAgentPrinters(printers: Array<Omit<PrinterOption, 'seenAt'>>) {
+  const now = new Date().toISOString();
+  
+  // Delete existing
+  await supabase.from('agent_printers').delete().neq('name', '');
+  
+  // Insert new
+  if (printers.length > 0) {
+    const { error } = await supabase
+      .from('agent_printers')
+      .insert(printers.map(p => ({
+        name: p.name,
+        driver_name: p.driverName,
+        port_name: p.portName,
+        is_default: p.isDefault ? 1 : 0,
+        seen_at: now
+      })));
+    
+    if (error) throw error;
+  }
+}
+
+export async function getAgentPrinters(): Promise<PrinterOption[]> {
+  const { data, error } = await supabase
+    .from('agent_printers')
+    .select('*')
+    .order('is_default', { ascending: false })
+    .order('name');
+  
+  if (error) throw error;
+  
+  return (data || []).map(row => ({
+    name: String(row.name),
+    driverName: String(row.driver_name),
+    portName: String(row.port_name),
+    isDefault: Boolean(row.is_default),
+    seenAt: String(row.seen_at)
+  }));
+}
+
+export async function getAdminUser(username: string) {
+  const { data, error } = await supabase
+    .from('admin_users')
+    .select('*')
+    .eq('username', username)
+    .single();
+  
+  if (error && error.code !== 'PGRST116') throw error;
+  return data || null;
+}
+
+export async function getAgentToken(tokenHash: string) {
+  const { data, error } = await supabase
+    .from('agent_tokens')
+    .select('token_hash')
+    .eq('token_hash', tokenHash)
+    .single();
+  
+  if (error && error.code !== 'PGRST116') throw error;
+  return data || null;
+}
+
+export async function nextQueuePosition(): Promise<number> {
+  const { data, error } = await supabase
+    .from('jobs')
+    .select('queue_position')
+    .order('queue_position', { ascending: false })
+    .limit(1)
+    .single();
+  
+  if (error && error.code !== 'PGRST116') throw error;
+  return data ? Number(data.queue_position) + 1 : 1;
+}
+
+export async function getJobSummary() {
+  const { data: jobs, error: jobsError } = await supabase
+    .from('jobs')
+    .select('price_paise, status');
+  
+  if (jobsError) throw jobsError;
+  
+  const totalPaise = jobs?.reduce((sum, j) => sum + Number(j.price_paise), 0) || 0;
+  const activeJobs = jobs?.filter(j => !['printed', 'cancelled', 'failed'].includes(j.status)).length || 0;
+  
+  return { jobs: activeJobs, totalPaise };
+}
+
+export async function deleteJob(id: string) {
+  const { error } = await supabase
+    .from('jobs')
+    .delete()
+    .eq('id', id);
+  
+  if (error) throw error;
+}
+
+export async function bulkDeleteJobs(ids: string[]) {
+  const { error } = await supabase
+    .from('jobs')
+    .delete()
+    .in('id', ids);
+  
+  if (error) throw error;
+}
+
+export async function cleanupOldJobs() {
+  const { error } = await supabase
+    .from('jobs')
+    .delete()
+    .in('status', ['printed', 'cancelled', 'failed']);
+  
+  if (error) throw error;
+}
+
+export async function queueReprint(id: string) {
+  const now = new Date().toISOString();
+  
+  const { error: jobError } = await supabase
+    .from('jobs')
+    .update({ status: 'approved', updated_at: now })
+    .eq('id', id);
+  
+  if (jobError) throw jobError;
+  
+  const { error: eventError } = await supabase
+    .from('print_events')
+    .insert([{
+      id: crypto.randomUUID(),
+      job_id: id,
+      event_type: 'reprint',
+      message: 'Admin queued reprint.',
+      created_at: now
+    }]);
+  
+  if (eventError) throw eventError;
+}
+
+export async function updateJobStatusByAgent(id: string, status: string, message?: string) {
+  const now = new Date().toISOString();
+  const updates: any = { status, updated_at: now };
+  
+  if (status === 'printed') updates.printed_at = now;
+  
+  const { error: jobError } = await supabase
+    .from('jobs')
+    .update(updates)
+    .eq('id', id);
+  
+  if (jobError) throw jobError;
+  
+  const { error: eventError } = await supabase
+    .from('print_events')
+    .insert([{
+      id: crypto.randomUUID(),
+      job_id: id,
+      event_type: status,
+      message: message ?? '',
+      created_at: now
+    }]);
+  
+  if (eventError) throw eventError;
+}

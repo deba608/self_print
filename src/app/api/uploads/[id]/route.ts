@@ -1,16 +1,28 @@
 import fs from "node:fs";
 import { NextRequest, NextResponse } from "next/server";
-import { getDb, mapJobFile } from "@/lib/db";
+import { getJobFile } from "@/lib/db";
 import { requireAdminResponse } from "@/lib/security";
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const unauthorized = await requireAdminResponse();
   if (unauthorized) return unauthorized;
   const { id } = await params;
-  const row = getDb().prepare("SELECT * FROM job_files WHERE id = ?").get(id) as Record<string, unknown> | undefined;
-  if (!row) return NextResponse.json({ error: "File not found" }, { status: 404 });
-  const file = mapJobFile(row);
+  
+  let file;
+  try {
+    file = await getJobFile(id);
+  } catch {
+    return NextResponse.json({ error: "File not found" }, { status: 404 });
+  }
+  
+  // For cloud storage, redirect to the URL
+  if (file.storagePath.startsWith("http")) {
+    return NextResponse.redirect(file.storagePath);
+  }
+  
+  // For local filesystem, serve the file directly
   if (!fs.existsSync(file.storagePath)) return NextResponse.json({ error: "Stored file missing" }, { status: 404 });
+  
   return new NextResponse(fs.readFileSync(file.storagePath), {
     headers: {
       "Content-Type": file.mimeType,

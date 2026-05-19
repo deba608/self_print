@@ -1,6 +1,5 @@
-import fs from "node:fs";
 import { NextRequest, NextResponse } from "next/server";
-import { getDb, mapJobFile } from "@/lib/db";
+import { getJobFile } from "@/lib/db";
 import { verifyAgentToken } from "@/lib/security";
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -8,11 +7,30 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     return NextResponse.json({ error: "Invalid agent token" }, { status: 401 });
   }
   const { id } = await params;
-  const row = getDb().prepare("SELECT * FROM job_files WHERE job_id = ?").get(id) as Record<string, unknown> | undefined;
-  if (!row) return NextResponse.json({ error: "File not found" }, { status: 404 });
-  const file = mapJobFile(row);
+  
+  let file;
+  try {
+    file = await getJobFile(id);
+  } catch {
+    return NextResponse.json({ error: "File not found" }, { status: 404 });
+  }
+  
   if (file.fileKind === "document") return NextResponse.json({ error: "Document needs conversion" }, { status: 400 });
+  
+  // For Supabase/Vercel Blob, return the URL for the agent to download
+  if (file.storagePath.startsWith("http")) {
+    return NextResponse.json({ 
+      url: file.storagePath,
+      mimeType: file.mimeType,
+      sizeBytes: file.sizeBytes,
+      originalName: file.originalName
+    });
+  }
+  
+  // For local filesystem, return the file directly
+  const fs = await import("node:fs");
   if (!fs.existsSync(file.storagePath)) return NextResponse.json({ error: "Stored file missing" }, { status: 404 });
+  
   return new NextResponse(fs.readFileSync(file.storagePath), {
     headers: {
       "Content-Type": file.mimeType,

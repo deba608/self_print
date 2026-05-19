@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
-import { getDb, mapJob, sseClients } from "@/lib/db";
+import { getJobById, updateJobStatus, sseClients } from "@/lib/db";
 import { requireAdminResponse } from "@/lib/security";
 import type { JobStatus } from "@/lib/types";
 
@@ -14,29 +14,26 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return NextResponse.json({ error: "Unsupported status action" }, { status: 400 });
   }
   const { id } = await params;
-  const job = getDb().prepare("SELECT status, needs_conversion, token FROM jobs WHERE id = ?").get(id) as
-    | { status: JobStatus; needs_conversion: number; token: string }
-    | undefined;
-  if (!job) return NextResponse.json({ error: "Job not found" }, { status: 404 });
+  
+  let job;
+  try {
+    job = await getJobById(id);
+  } catch {
+    return NextResponse.json({ error: "Job not found" }, { status: 404 });
+  }
+  
   const invalid = invalidTransition(job.status, status);
   if (invalid) return NextResponse.json({ error: invalid }, { status: 400 });
-  if (status === "approved" && job.needs_conversion) {
+  if (status === "approved" && job.needsConversion) {
     return NextResponse.json({ error: "DOC/DOCX jobs need conversion before release" }, { status: 400 });
   }
-  const now = new Date().toISOString();
-  getDb().prepare(`
-    UPDATE jobs
-    SET status = ?, updated_at = ?, paid_at = CASE WHEN ? = 'paid' THEN ? ELSE paid_at END,
-        printed_at = CASE WHEN ? = 'printed' THEN ? ELSE printed_at END
-    WHERE id = ?
-  `).run(status, now, status, now, status, now, id);
-  getDb().prepare("INSERT INTO print_events (id, job_id, event_type, message, created_at) VALUES (?, ?, ?, ?, ?)")
-    .run(crypto.randomUUID(), id, status, `Admin set status to ${status}.`, now);
-
+  
+  await updateJobStatus(id, status);
+  
   broadcast({ type: "job_update", jobId: id, status, token: job.token });
-
-  const updated = getDb().prepare("SELECT * FROM jobs WHERE id = ?").get(id) as Record<string, unknown>;
-  return NextResponse.json({ ok: true, job: mapJob(updated) });
+  
+  const updated = await getJobById(id);
+  return NextResponse.json({ ok: true, job: updated });
 }
 
 function invalidTransition(current: JobStatus, next: JobStatus) {

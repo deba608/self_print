@@ -6,6 +6,6 @@ export async function GET(request: NextRequest) {
   if (!verifyAgentToken(request.headers.get("authorization"))) {
     return NextResponse.json({ error: "Invalid agent token" }, { status: 401 });
   }
-  const config = getAgentConfig();
+  const config = await getAgentConfig();
   return NextResponse.json({ printerName: config.printerName, configVersion: config.configVersion });
 }

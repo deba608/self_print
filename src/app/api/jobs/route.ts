@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { MAX_UPLOAD_BYTES } from "@/lib/config";
-import { getDb, getPricing, nextQueuePosition, sseClients } from "@/lib/db";
+import { createJob, getPricing, nextQueuePosition, sseClients } from "@/lib/db";
 import { estimatePageCount, saveUpload, validateUpload } from "@/lib/files";
 import { calculatePrice } from "@/lib/pricing";
 import type { PaperSize, PrintLayout, PrintScale, PrintType } from "@/lib/types";
@@ -31,13 +31,11 @@ export async function POST(request: NextRequest) {
     let pageRange: string | null = null;
     if (pageRangeRaw !== null && pageRangeRaw !== "") {
       pageRange = String(pageRangeRaw).trim().toLowerCase();
-      // Allow "all", "even", "odd" or custom ranges like "1-5", "1,3,5"
       const validSpecial = ["all", "even", "odd"];
       const isValidCustom = /^[\d,\-]+$/.test(pageRange);
       if (!validSpecial.includes(pageRange) && !isValidCustom) {
         return NextResponse.json({ error: "Invalid page range format" }, { status: 400 });
       }
-      // Normalize "all" to null for database
       if (pageRange === "all") pageRange = null;
     }
     const paperSize = String(form.get("paperSize") ?? "A4") as PaperSize;
@@ -55,28 +53,40 @@ export async function POST(request: NextRequest) {
     }
 
     const { ext, kind } = validateUpload(file);
-    const saved = await saveUpload(file, ext);
+    const saved = await saveUpload(file, ext, kind);
     const pageCount = estimatePageCount(kind, saved.bytes);
     const needsConversion = kind === "document" ? 1 : 0;
-    const pricePaise = calculatePrice({ printType, copies, pageRange, paperSize, pageCount: Math.max(pageCount, 1), pricing: getPricing() });
-    const now = new Date().toISOString();
-    const jobId = crypto.randomUUID();
-    const fileId = crypto.randomUUID();
+    const pricing = await getPricing();
+    const pricePaise = calculatePrice({ printType, copies, pageRange, paperSize, pageCount: Math.max(pageCount, 1), pricing });
     const token = randomToken();
-    const queuePos = nextQueuePosition();
+    const queuePos = await nextQueuePosition();
 
-    getDb().transaction(() => {
-      getDb().prepare(`
-        INSERT INTO jobs (id, token, status, print_type, copies, page_range, paper_size, layout, pages_per_sheet, margins, scale, page_count, price_paise, needs_conversion, queue_position, created_at, updated_at)
-        VALUES (?, ?, 'pending_payment', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(jobId, token, printType, copies, pageRange, paperSize, layout, pagesPerSheet, margins, scale, pageCount, pricePaise, needsConversion, queuePos, now, now);
-      getDb().prepare(`
-        INSERT INTO job_files (id, job_id, original_name, stored_name, mime_type, size_bytes, file_kind, storage_path, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(fileId, jobId, file.name, saved.storedName, file.type, saved.sizeBytes, kind, saved.storagePath, now);
-      getDb().prepare("INSERT INTO print_events (id, job_id, event_type, message, created_at) VALUES (?, ?, 'created', ?, ?)")
-        .run(crypto.randomUUID(), jobId, needsConversion ? "Document upload needs conversion before printing." : "Customer submitted job.", now);
-    })();
+    const jobData = {
+      token,
+      print_type: printType,
+      copies,
+      page_range: pageRange,
+      paper_size: paperSize,
+      layout,
+      pages_per_sheet: pagesPerSheet,
+      margins,
+      scale,
+      page_count: pageCount,
+      price_paise: pricePaise,
+      needs_conversion: needsConversion,
+      queue_position: queuePos
+    };
+
+    const fileData = {
+      original_name: file.name,
+      stored_name: saved.storedName,
+      mime_type: file.type,
+      size_bytes: saved.sizeBytes,
+      file_kind: kind,
+      storage_path: saved.storagePath
+    };
+
+    const { jobId } = await createJob(jobData, fileData);
 
     broadcast({ type: "new_job", jobId, token, queuePosition: queuePos });
 

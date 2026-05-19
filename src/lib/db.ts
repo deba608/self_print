@@ -1,27 +1,42 @@
-import fs from "node:fs";
-import path from "node:path";
-import Database from "better-sqlite3";
-import { DB_PATH, DEFAULT_ADMIN_PASSWORD, DEFAULT_ADMIN_USERNAME, DEFAULT_AGENT_TOKEN } from "./config";
-import { hashSecret } from "./security";
-import type { Job, JobFile, PricingConfig, PrinterOption, SseClient } from "./types";
+import type { Job, JobFile, PricingConfig, PrinterOption, SseClient } from './types';
 
-let db: Database.Database | null = null;
+// Check if Supabase is configured
+const isSupabase = Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
 
 export const sseClients = new Set<SseClient>();
 
-export function getDb() {
-  if (!db) {
-    fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
-    db = new Database(DB_PATH);
-    db.pragma("journal_mode = WAL");
-    db.pragma("foreign_keys = ON");
-    initSchema(db);
-    seedDefaults(db);
+// Lazy load SQLite only when needed (not on Vercel/Supabase)
+let dbModule: any = null;
+let dbInstance: any = null;
+
+async function getDbModule() {
+  if (!dbModule) {
+    dbModule = await import('better-sqlite3');
   }
-  return db;
+  return dbModule.default;
 }
 
-function initSchema(database: Database.Database) {
+async function getDbInstance() {
+  if (!dbInstance) {
+    const { DB_PATH, DEFAULT_ADMIN_PASSWORD, DEFAULT_ADMIN_USERNAME, DEFAULT_AGENT_TOKEN } = await import('./config');
+    const { hashSecret } = await import('./security');
+    const fs = await import('node:fs');
+    const path = await import('node:path');
+    
+    const Database = await getDbModule();
+    
+    fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
+    dbInstance = new Database(DB_PATH);
+    dbInstance.pragma('journal_mode = WAL');
+    dbInstance.pragma('foreign_keys = ON');
+    
+    await initSchema(dbInstance);
+    await seedDefaults(dbInstance, DEFAULT_ADMIN_USERNAME, DEFAULT_ADMIN_PASSWORD, DEFAULT_AGENT_TOKEN, hashSecret);
+  }
+  return dbInstance;
+}
+
+async function initSchema(database: any) {
   database.exec(`
     CREATE TABLE IF NOT EXISTS jobs (
       id TEXT PRIMARY KEY,
@@ -108,24 +123,24 @@ function initSchema(database: Database.Database) {
     );
   `);
 
-  ensureJobColumns(database);
-  ensurePricingColumns(database);
+  await ensureJobColumns(database);
+  await ensurePricingColumns(database);
   database.exec(`CREATE INDEX IF NOT EXISTS idx_jobs_status ON jobs(status)`);
   database.exec(`CREATE INDEX IF NOT EXISTS idx_jobs_created ON jobs(created_at)`);
   database.exec(`CREATE INDEX IF NOT EXISTS idx_jobs_queue ON jobs(queue_position)`);
   database.exec(`CREATE INDEX IF NOT EXISTS idx_agent_printers_seen ON agent_printers(seen_at)`);
 }
 
-function ensureJobColumns(database: Database.Database) {
+async function ensureJobColumns(database: any) {
   const columns = new Set(
-    (database.prepare("PRAGMA table_info(jobs)").all() as Array<{ name: string }>).map((column) => column.name)
+    (database.prepare('PRAGMA table_info(jobs)').all() as Array<{ name: string }>).map((column) => column.name)
   );
   const additions = [
-    ["layout", "TEXT NOT NULL DEFAULT 'portrait'"],
-    ["pages_per_sheet", "INTEGER NOT NULL DEFAULT 1"],
-    ["margins", "TEXT NOT NULL DEFAULT 'default'"],
-    ["scale", "TEXT NOT NULL DEFAULT 'default'"],
-    ["queue_position", "INTEGER NOT NULL DEFAULT 0"]
+    ['layout', "TEXT NOT NULL DEFAULT 'portrait'"],
+    ['pages_per_sheet', 'INTEGER NOT NULL DEFAULT 1'],
+    ['margins', "TEXT NOT NULL DEFAULT 'default'"],
+    ['scale', "TEXT NOT NULL DEFAULT 'default'"],
+    ['queue_position', 'INTEGER NOT NULL DEFAULT 0']
   ];
   for (const [name, definition] of additions) {
     if (!columns.has(name)) {
@@ -134,18 +149,18 @@ function ensureJobColumns(database: Database.Database) {
   }
 }
 
-function ensurePricingColumns(database: Database.Database) {
+async function ensurePricingColumns(database: any) {
   const columns = new Set(
-    (database.prepare("PRAGMA table_info(pricing_config)").all() as Array<{ name: string }>).map(
+    (database.prepare('PRAGMA table_info(pricing_config)').all() as Array<{ name: string }>).map(
       (column) => column.name
     )
   );
   const additions = [
-    ["expiry_minutes", "INTEGER NOT NULL DEFAULT 1440"],
-    ["a3_multiplier", "REAL NOT NULL DEFAULT 2.5"],
-    ["a5_multiplier", "REAL NOT NULL DEFAULT 0.7"],
-    ["a6_multiplier", "REAL NOT NULL DEFAULT 0.5"],
-    ["b5_multiplier", "REAL NOT NULL DEFAULT 0.9"]
+    ['expiry_minutes', 'INTEGER NOT NULL DEFAULT 1440'],
+    ['a3_multiplier', 'REAL NOT NULL DEFAULT 2.5'],
+    ['a5_multiplier', 'REAL NOT NULL DEFAULT 0.7'],
+    ['a6_multiplier', 'REAL NOT NULL DEFAULT 0.5'],
+    ['b5_multiplier', 'REAL NOT NULL DEFAULT 0.9']
   ];
   for (const [name, definition] of additions) {
     if (!columns.has(name)) {
@@ -154,7 +169,7 @@ function ensurePricingColumns(database: Database.Database) {
   }
 }
 
-function seedDefaults(database: Database.Database) {
+async function seedDefaults(database: any, username: string, password: string, agentToken: string, hashSecret: (s: string) => string) {
   const now = new Date().toISOString();
   database.prepare(`
     INSERT OR IGNORE INTO pricing_config (
@@ -172,16 +187,210 @@ function seedDefaults(database: Database.Database) {
   database.prepare(`
     INSERT OR IGNORE INTO admin_users (id, username, password_hash, created_at)
     VALUES ('default-admin', ?, ?, ?)
-  `).run(DEFAULT_ADMIN_USERNAME, hashSecret(DEFAULT_ADMIN_PASSWORD), now);
+  `).run(username, hashSecret(password), now);
 
   database.prepare(`
     INSERT OR IGNORE INTO agent_tokens (id, name, token_hash, created_at)
     VALUES ('default-agent', 'Shop PC Agent', ?, ?)
-  `).run(hashSecret(DEFAULT_AGENT_TOKEN), now);
+  `).run(hashSecret(agentToken), now);
 }
 
-export function getPricing(): PricingConfig {
-  const row = getDb().prepare("SELECT * FROM pricing_config WHERE id = 1").get() as Record<string, number>;
+// Helper to convert SQLite row to Job type
+function mapJob(row: Record<string, unknown>): Job {
+  const createdAt = String(row.created_at);
+  const expiryMinutes = 1440;
+  const expiresAt = new Date(new Date(createdAt).getTime() + expiryMinutes * 60000).toISOString();
+  return {
+    id: String(row.id),
+    token: String(row.token),
+    status: row.status as Job['status'],
+    printType: row.print_type as Job['printType'],
+    copies: Number(row.copies),
+    pageRange: row.page_range ? String(row.page_range) : null,
+    paperSize: row.paper_size as Job['paperSize'],
+    layout: (row.layout ?? 'portrait') as Job['layout'],
+    pagesPerSheet: Number(row.pages_per_sheet ?? 1),
+    margins: (row.margins ?? 'default') as Job['margins'],
+    scale: (row.scale ?? 'default') as Job['scale'],
+    pageCount: Number(row.page_count),
+    pricePaise: Number(row.price_paise),
+    needsConversion: Number(row.needs_conversion) as 0 | 1,
+    queuePosition: Number(row.queue_position),
+    createdAt,
+    updatedAt: String(row.updated_at),
+    paidAt: row.paid_at ? String(row.paid_at) : null,
+    printedAt: row.printed_at ? String(row.printed_at) : null,
+    expiresAt
+  };
+}
+
+// Helper to convert SQLite row to JobFile type
+export function mapJobFile(row: Record<string, unknown>): JobFile {
+  return {
+    id: String(row.id),
+    jobId: String(row.job_id),
+    originalName: String(row.original_name),
+    storedName: String(row.stored_name),
+    mimeType: String(row.mime_type),
+    sizeBytes: Number(row.size_bytes),
+    fileKind: row.file_kind as JobFile['fileKind'],
+    storagePath: String(row.storage_path),
+    createdAt: String(row.created_at)
+  };
+}
+
+// ============================================================================
+// SMART ROUTER: Automatically chooses SQLite or Supabase based on environment
+// ============================================================================
+
+export async function getJobs(): Promise<Job[]> {
+  if (isSupabase) {
+    const mod = await import('./db-supabase');
+    return mod.getJobs();
+  }
+  const sqlite = await getDbInstance();
+  const rows = sqlite.prepare('SELECT * FROM jobs ORDER BY created_at DESC').all() as Record<string, unknown>[];
+  return rows.map(mapJob);
+}
+
+export async function getJobById(id: string): Promise<Job> {
+  if (isSupabase) {
+    const mod = await import('./db-supabase');
+    return mod.getJobById(id);
+  }
+  const sqlite = await getDbInstance();
+  const row = sqlite.prepare('SELECT * FROM jobs WHERE id = ?').get(id) as Record<string, unknown> | undefined;
+  if (!row) throw new Error('Job not found');
+  return mapJob(row);
+}
+
+export async function getJobByToken(token: string): Promise<Job> {
+  if (isSupabase) {
+    const mod = await import('./db-supabase');
+    return mod.getJobByToken(token);
+  }
+  const sqlite = await getDbInstance();
+  const row = sqlite.prepare('SELECT * FROM jobs WHERE token = ?').get(token) as Record<string, unknown> | undefined;
+  if (!row) throw new Error('Job not found');
+  return mapJob(row);
+}
+
+export async function getNextApprovedJob(): Promise<Job | null> {
+  if (isSupabase) {
+    const mod = await import('./db-supabase');
+    return mod.getNextApprovedJob();
+  }
+  const sqlite = await getDbInstance();
+  const row = sqlite.prepare(`
+    SELECT * FROM jobs
+    WHERE status = 'approved' AND needs_conversion = 0
+    ORDER BY updated_at ASC
+    LIMIT 1
+  `).get() as Record<string, unknown> | undefined;
+  return row ? mapJob(row) : null;
+}
+
+export async function getJobFile(jobId: string): Promise<JobFile> {
+  if (isSupabase) {
+    const mod = await import('./db-supabase');
+    return mod.getJobFile(jobId);
+  }
+  const sqlite = await getDbInstance();
+  const row = sqlite.prepare('SELECT * FROM job_files WHERE job_id = ?').get(jobId) as Record<string, unknown>;
+  return mapJobFile(row);
+}
+
+export async function createJob(jobData: any, fileData: any): Promise<{ jobId: string; fileId: string }> {
+  if (isSupabase) {
+    const mod = await import('./db-supabase');
+    return mod.createJob(jobData, fileData);
+  }
+  
+  const crypto = await import('node:crypto');
+  const sqlite = await getDbInstance();
+  const now = new Date().toISOString();
+  const jobId = crypto.randomUUID();
+  const fileId = crypto.randomUUID();
+  
+  sqlite.transaction(() => {
+    sqlite.prepare(`
+      INSERT INTO jobs (id, token, status, print_type, copies, page_range, paper_size, layout, pages_per_sheet, margins, scale, page_count, price_paise, needs_conversion, queue_position, created_at, updated_at)
+      VALUES (?, ?, 'pending_payment', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(jobId, jobData.token, jobData.printType, jobData.copies, jobData.pageRange, jobData.paperSize, jobData.layout, jobData.pagesPerSheet, jobData.margins, jobData.scale, jobData.pageCount, jobData.pricePaise, jobData.needsConversion, jobData.queuePosition, now, now);
+    
+    sqlite.prepare(`
+      INSERT INTO job_files (id, job_id, original_name, stored_name, mime_type, size_bytes, file_kind, storage_path, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(fileId, jobId, fileData.originalName, fileData.storedName, fileData.mimeType, fileData.sizeBytes, fileData.fileKind, fileData.storagePath, now);
+    
+    sqlite.prepare("INSERT INTO print_events (id, job_id, event_type, message, created_at) VALUES (?, ?, 'created', ?, ?)")
+      .run(crypto.randomUUID(), jobId, fileData.fileKind === 'document' ? 'Document upload needs conversion before printing.' : 'Customer submitted job.', now);
+  })();
+  
+  return { jobId, fileId };
+}
+
+export async function updateJobStatus(id: string, status: string): Promise<void> {
+  if (isSupabase) {
+    const mod = await import('./db-supabase');
+    return mod.updateJobStatus(id, status);
+  }
+  
+  const crypto = await import('node:crypto');
+  const sqlite = await getDbInstance();
+  const now = new Date().toISOString();
+  sqlite.prepare(`
+    UPDATE jobs
+    SET status = ?, updated_at = ?, paid_at = CASE WHEN ? = 'paid' THEN ? ELSE paid_at END,
+        printed_at = CASE WHEN ? = 'printed' THEN ? ELSE printed_at END
+    WHERE id = ?
+  `).run(status, now, status, now, status, now, id);
+  
+  sqlite.prepare("INSERT INTO print_events (id, job_id, event_type, message, created_at) VALUES (?, ?, ?, ?, ?)")
+    .run(crypto.randomUUID(), id, status, `Admin set status to ${status}.`, now);
+}
+
+export async function updateJobSettings(id: string, settings: {
+  printType: string;
+  copies: number;
+  pageRange: string | null;
+  paperSize: string;
+  layout: string;
+  pagesPerSheet: number;
+  margins: string;
+  scale: string;
+  pricePaise: number;
+  updatedAt: string;
+}): Promise<void> {
+  if (isSupabase) {
+    const mod = await import('./db-supabase');
+    return mod.updateJobSettings(id, settings);
+  }
+  
+  const crypto = await import('node:crypto');
+  const sqlite = await getDbInstance();
+  sqlite.prepare(`
+    UPDATE jobs
+    SET print_type = ?, copies = ?, page_range = ?, paper_size = ?, layout = ?,
+        pages_per_sheet = ?, margins = ?, scale = ?, price_paise = ?, updated_at = ?
+    WHERE id = ?
+  `).run(
+    settings.printType, settings.copies, settings.pageRange, settings.paperSize, settings.layout,
+    settings.pagesPerSheet, settings.margins, settings.scale, settings.pricePaise, settings.updatedAt, id
+  );
+  
+  sqlite.prepare("INSERT INTO print_events (id, job_id, event_type, message, created_at) VALUES (?, ?, 'settings', ?, ?)")
+    .run(crypto.randomUUID(), id, 'Admin updated print settings.', settings.updatedAt);
+}
+
+export async function getPricing(): Promise<PricingConfig> {
+  if (isSupabase) {
+    const mod = await import('./db-supabase');
+    return mod.getPricing();
+  }
+  
+  const sqlite = await getDbInstance();
+  const row = sqlite.prepare('SELECT * FROM pricing_config WHERE id = 1').get() as Record<string, number>;
   return {
     bwPerPagePaise: row.bw_per_page_paise,
     colorPerPagePaise: row.color_per_page_paise,
@@ -198,25 +407,66 @@ export function getPricing(): PricingConfig {
   };
 }
 
-export function getAgentConfig() {
-  const row = getDb().prepare("SELECT printer_name, config_version FROM agent_config WHERE id = 1")
+export async function updatePricing(pricing: PricingConfig): Promise<void> {
+  if (isSupabase) {
+    const mod = await import('./db-supabase');
+    return mod.updatePricing(pricing);
+  }
+  
+  const sqlite = await getDbInstance();
+  const now = new Date().toISOString();
+  sqlite.prepare(`
+    UPDATE pricing_config SET
+      bw_per_page_paise = ?, color_per_page_paise = ?, photo_print_paise = ?,
+      copy_multiplier = ?, a3_multiplier = ?, a4_multiplier = ?, a5_multiplier = ?,
+      a6_multiplier = ?, b5_multiplier = ?, legal_multiplier = ?, photo_multiplier = ?,
+      expiry_minutes = ?, updated_at = ?
+    WHERE id = 1
+  `).run(
+    pricing.bwPerPagePaise, pricing.colorPerPagePaise, pricing.photoPrintPaise,
+    pricing.copyMultiplier, pricing.a3Multiplier, pricing.a4Multiplier, pricing.a5Multiplier,
+    pricing.a6Multiplier, pricing.b5Multiplier, pricing.legalMultiplier, pricing.photoMultiplier,
+    pricing.expiryMinutes, now
+  );
+}
+
+export async function getAgentConfig() {
+  if (isSupabase) {
+    const mod = await import('./db-supabase');
+    return mod.getAgentConfig();
+  }
+  
+  const sqlite = await getDbInstance();
+  const row = sqlite.prepare('SELECT printer_name, config_version FROM agent_config WHERE id = 1')
     .get() as { printer_name: string; config_version: number } | undefined;
-  if (!row) return { printerName: "Microsoft Print to PDF", configVersion: 0 };
+  if (!row) return { printerName: 'Microsoft Print to PDF', configVersion: 0 };
   return { printerName: row.printer_name, configVersion: row.config_version };
 }
 
-export function updateAgentConfig(printerName: string) {
+export async function updateAgentConfig(printerName: string): Promise<void> {
+  if (isSupabase) {
+    const mod = await import('./db-supabase');
+    return mod.updateAgentConfig(printerName);
+  }
+  
+  const sqlite = await getDbInstance();
   const now = new Date().toISOString();
-  getDb().prepare(`
+  sqlite.prepare(`
     UPDATE agent_config SET printer_name = ?, config_version = config_version + 1, updated_at = ? WHERE id = 1
   `).run(printerName, now);
 }
 
-export function replaceAgentPrinters(printers: Array<Omit<PrinterOption, "seenAt">>) {
+export async function replaceAgentPrinters(printers: Array<Omit<PrinterOption, 'seenAt'>>): Promise<void> {
+  if (isSupabase) {
+    const mod = await import('./db-supabase');
+    return mod.replaceAgentPrinters(printers);
+  }
+  
+  const sqlite = await getDbInstance();
   const now = new Date().toISOString();
-  getDb().transaction(() => {
-    getDb().prepare("DELETE FROM agent_printers").run();
-    const insert = getDb().prepare(`
+  sqlite.transaction(() => {
+    sqlite.prepare('DELETE FROM agent_printers').run();
+    const insert = sqlite.prepare(`
       INSERT INTO agent_printers (name, driver_name, port_name, is_default, seen_at)
       VALUES (?, ?, ?, ?, ?)
     `);
@@ -226,8 +476,14 @@ export function replaceAgentPrinters(printers: Array<Omit<PrinterOption, "seenAt
   })();
 }
 
-export function getAgentPrinters(): PrinterOption[] {
-  const rows = getDb().prepare(`
+export async function getAgentPrinters(): Promise<PrinterOption[]> {
+  if (isSupabase) {
+    const mod = await import('./db-supabase');
+    return mod.getAgentPrinters();
+  }
+  
+  const sqlite = await getDbInstance();
+  const rows = sqlite.prepare(`
     SELECT name, driver_name, port_name, is_default, seen_at
     FROM agent_printers
     ORDER BY is_default DESC, name COLLATE NOCASE ASC
@@ -241,49 +497,110 @@ export function getAgentPrinters(): PrinterOption[] {
   }));
 }
 
-export function mapJob(row: Record<string, unknown>): Job {
-  const createdAt = String(row.created_at);
-  const expiryMinutes = getPricing().expiryMinutes ?? 1440;
-  const expiresAt = new Date(new Date(createdAt).getTime() + expiryMinutes * 60000).toISOString();
-  return {
-    id: String(row.id),
-    token: String(row.token),
-    status: row.status as Job["status"],
-    printType: row.print_type as Job["printType"],
-    copies: Number(row.copies),
-    pageRange: row.page_range ? String(row.page_range) : null,
-    paperSize: row.paper_size as Job["paperSize"],
-    layout: (row.layout ?? "portrait") as Job["layout"],
-    pagesPerSheet: Number(row.pages_per_sheet ?? 1),
-    margins: (row.margins ?? "default") as Job["margins"],
-    scale: (row.scale ?? "default") as Job["scale"],
-    pageCount: Number(row.page_count),
-    pricePaise: Number(row.price_paise),
-    needsConversion: Number(row.needs_conversion) as 0 | 1,
-    queuePosition: Number(row.queue_position),
-    createdAt,
-    updatedAt: String(row.updated_at),
-    paidAt: row.paid_at ? String(row.paid_at) : null,
-    printedAt: row.printed_at ? String(row.printed_at) : null,
-    expiresAt
-  };
+export async function getAdminUser(username: string) {
+  if (isSupabase) {
+    const mod = await import('./db-supabase');
+    return mod.getAdminUser(username);
+  }
+  
+  const sqlite = await getDbInstance();
+  return sqlite.prepare('SELECT username FROM admin_users WHERE username = ?').get(username);
 }
 
-export function mapJobFile(row: Record<string, unknown>): JobFile {
-  return {
-    id: String(row.id),
-    jobId: String(row.job_id),
-    originalName: String(row.original_name),
-    storedName: String(row.stored_name),
-    mimeType: String(row.mime_type),
-    sizeBytes: Number(row.size_bytes),
-    fileKind: row.file_kind as JobFile["fileKind"],
-    storagePath: String(row.storage_path),
-    createdAt: String(row.created_at)
-  };
+export async function getAgentToken(tokenHash: string) {
+  if (isSupabase) {
+    const mod = await import('./db-supabase');
+    return mod.getAgentToken(tokenHash);
+  }
+  
+  const sqlite = await getDbInstance();
+  const rows = sqlite.prepare('SELECT token_hash FROM agent_tokens').all() as Array<{ token_hash: string }>;
+  return rows.find((row) => row.token_hash === tokenHash);
 }
 
-export function nextQueuePosition(): number {
-  const row = getDb().prepare("SELECT COALESCE(MAX(queue_position), 0) + 1 as pos FROM jobs").get() as { pos: number };
+export async function nextQueuePosition(): Promise<number> {
+  if (isSupabase) {
+    const mod = await import('./db-supabase');
+    return mod.nextQueuePosition();
+  }
+  
+  const sqlite = await getDbInstance();
+  const row = sqlite.prepare('SELECT COALESCE(MAX(queue_position), 0) + 1 as pos FROM jobs').get() as { pos: number };
   return row.pos;
+}
+
+export async function getJobSummary() {
+  if (isSupabase) {
+    const mod = await import('./db-supabase');
+    return mod.getJobSummary();
+  }
+  
+  const sqlite = await getDbInstance();
+  const jobs = sqlite.prepare('SELECT price_paise, status FROM jobs').all() as Array<{ price_paise: number; status: string }>;
+  const totalPaise = jobs.reduce((sum, j) => sum + j.price_paise, 0);
+  const activeJobs = jobs.filter(j => !['printed', 'cancelled', 'failed'].includes(j.status)).length;
+  return { jobs: activeJobs, totalPaise };
+}
+
+export async function deleteJob(id: string): Promise<void> {
+  if (isSupabase) {
+    const mod = await import('./db-supabase');
+    return mod.deleteJob(id);
+  }
+  
+  const sqlite = await getDbInstance();
+  sqlite.prepare('DELETE FROM jobs WHERE id = ?').run(id);
+}
+
+export async function bulkDeleteJobs(ids: string[]): Promise<void> {
+  if (isSupabase) {
+    const mod = await import('./db-supabase');
+    return mod.bulkDeleteJobs(ids);
+  }
+  
+  const sqlite = await getDbInstance();
+  sqlite.prepare(`DELETE FROM jobs WHERE id IN (${ids.map(() => '?').join(',')})`).run(...ids);
+}
+
+export async function cleanupOldJobs(): Promise<void> {
+  if (isSupabase) {
+    const mod = await import('./db-supabase');
+    return mod.cleanupOldJobs();
+  }
+  
+  const sqlite = await getDbInstance();
+  sqlite.prepare("DELETE FROM jobs WHERE status IN ('printed', 'cancelled', 'failed')").run();
+}
+
+export async function queueReprint(id: string): Promise<void> {
+  if (isSupabase) {
+    const mod = await import('./db-supabase');
+    return mod.queueReprint(id);
+  }
+  
+  const crypto = await import('node:crypto');
+  const sqlite = await getDbInstance();
+  const now = new Date().toISOString();
+  sqlite.prepare("UPDATE jobs SET status = 'approved', updated_at = ? WHERE id = ?").run(now, id);
+  sqlite.prepare("INSERT INTO print_events (id, job_id, event_type, message, created_at) VALUES (?, ?, 'reprint', 'Admin queued reprint.', ?)")
+    .run(crypto.randomUUID(), id, now);
+}
+
+export async function updateJobStatusByAgent(id: string, status: string, message?: string): Promise<void> {
+  if (isSupabase) {
+    const mod = await import('./db-supabase');
+    return mod.updateJobStatusByAgent(id, status, message);
+  }
+  
+  const crypto = await import('node:crypto');
+  const sqlite = await getDbInstance();
+  const now = new Date().toISOString();
+  sqlite.prepare(`
+    UPDATE jobs
+    SET status = ?, updated_at = ?, printed_at = CASE WHEN ? = 'printed' THEN ? ELSE printed_at END
+    WHERE id = ?
+  `).run(status, now, status, now, id);
+  
+  sqlite.prepare("INSERT INTO print_events (id, job_id, event_type, message, created_at) VALUES (?, ?, ?, ?, ?)")
+    .run(crypto.randomUUID(), id, status, message ?? '', now);
 }

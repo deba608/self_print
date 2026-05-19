@@ -1,8 +1,8 @@
 import crypto from "node:crypto";
-import fs from "node:fs";
 import { NextRequest, NextResponse } from "next/server";
-import { getDb, sseClients } from "@/lib/db";
+import { getJobs, deleteJob, sseClients } from "@/lib/db";
 import { requireAdminResponse } from "@/lib/security";
+import { deleteFile } from "@/lib/storage";
 
 export async function POST(request: NextRequest) {
   const unauthorized = await requireAdminResponse();
@@ -15,45 +15,24 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "No job IDs provided" }, { status: 400 });
   }
 
-  const db = getDb();
+  const allJobs = await getJobs();
+  const jobsToDelete = allJobs.filter(j => ids.includes(j.id));
 
-  const jobs = db.prepare(
-    `SELECT id, token FROM jobs WHERE id IN (${ids.map(() => "?").join(",")})`
-  ).all(...ids) as Array<{ id: string; token: string }>;
-
-  const jobIds = jobs.map((j) => j.id);
-
-  const files = db.prepare(
-    `SELECT storage_path FROM job_files WHERE job_id IN (${jobIds.map(() => "?").join(",")})`
-  ).all(...jobIds) as Array<{ storage_path: string }>;
-
-  db.transaction(() => {
-    const deleteStmt = db.prepare("DELETE FROM print_events WHERE job_id = ?");
-    const deleteFilesStmt = db.prepare("DELETE FROM job_files WHERE job_id = ?");
-    const deleteJobsStmt = db.prepare("DELETE FROM jobs WHERE id = ?");
-
-    for (const jobId of jobIds) {
-      deleteStmt.run(jobId);
-      deleteFilesStmt.run(jobId);
-      deleteJobsStmt.run(jobId);
-    }
-  })();
-
-  for (const file of files) {
+  for (const job of jobsToDelete) {
     try {
-      if (fs.existsSync(file.storage_path)) {
-        fs.unlinkSync(file.storage_path);
+      const file = await import("@/lib/db").then(m => m.getJobFile(job.id)).catch(() => null);
+      if (file?.storagePath) {
+        await deleteFile(file.storagePath);
       }
     } catch {
       // Ignore file deletion errors
     }
-  }
-
-  for (const job of jobs) {
+    
+    await deleteJob(job.id);
     broadcast({ type: "job_deleted", jobId: job.id, token: job.token });
   }
 
-  return NextResponse.json({ ok: true, deleted: jobIds.length });
+  return NextResponse.json({ ok: true, deleted: jobsToDelete.length });
 }
 
 function broadcast(data: object) {
