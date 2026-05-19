@@ -19,7 +19,7 @@ type Job = {
   printType: string;
   paperSize: string;
   copies: number;
-  file: { originalName: string };
+  file: { originalName: string } | null;
 };
 
 type Pricing = {

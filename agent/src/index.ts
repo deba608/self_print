@@ -117,30 +117,17 @@ async function connectRealtime() {
       .on(
         "postgres_changes",
         {
-          event: "UPDATE",
+          event: "*",
           schema: "public",
-          table: "jobs",
-          filter: "status=eq.approved"
+          table: "jobs"
         },
         async (payload) => {
-          log(`Realtime event: job ${payload.new.id} status changed to ${payload.new.status}`);
-          if (!isProcessing && !isShuttingDown) {
-            await processJob(payload.new.id);
-          }
-        }
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "jobs",
-          filter: "status=eq.approved"
-        },
-        async (payload) => {
-          log(`Realtime event: new approved job ${payload.new.id}`);
-          if (!isProcessing && !isShuttingDown) {
-            await processJob(payload.new.id);
+          const newStatus = (payload.new as any)?.status;
+          const jobId = (payload.new as any)?.id;
+          log(`Realtime event: ${payload.eventType} job ${jobId} status=${newStatus}`);
+          
+          if (newStatus === "approved" && !isProcessing && !isShuttingDown) {
+            await processJob(jobId);
           }
         }
       )
