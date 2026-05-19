@@ -34,6 +34,7 @@ type Pricing = {
   b5Multiplier: number;
   legalMultiplier: number;
   photoMultiplier: number;
+  expiryMinutes: number;
 };
 
 type PricingDraft = {
@@ -59,6 +60,7 @@ const defaultPricing: Pricing = {
   b5Multiplier: 0.9,
   legalMultiplier: 1.25,
   photoMultiplier: 1.5,
+  expiryMinutes: 1440,
 };
 
 function normalizePricingDraft(draft: PricingDraft): Pricing | null {
@@ -269,17 +271,18 @@ function AdminTopbar({
 
       <div className="topbar-actions">
         {newJobCount > 0 && (
-          <button className="action-btn notification" onClick={onRefresh}>
+          <button type="button" className="action-btn notification" onClick={onRefresh}>
             <Bell size={18} />
             <span className="notif-badge">{newJobCount}</span>
           </button>
         )}
 
-        <button className="action-btn" onClick={onRefresh} title="Refresh" aria-label="Refresh jobs">
+        <button type="button" className="action-btn" onClick={onRefresh} title="Refresh" aria-label="Refresh jobs">
           <RefreshCw size={18} />
         </button>
 
         <button
+          type="button"
           className="action-btn"
           onClick={onOpenManageOrders}
           title="Manage Orders"
@@ -289,6 +292,7 @@ function AdminTopbar({
         </button>
 
         <button
+          type="button"
           className={`action-btn ${showPricing ? "active" : ""}`}
           onClick={onOpenPricing}
           title="Pricing Settings"
@@ -301,7 +305,7 @@ function AdminTopbar({
           <span className={`sse-dot ${sseConnected ? "connected" : ""}`}></span>
         </div>
 
-        <button className="action-btn danger" onClick={onLogout} title="Logout" aria-label="Logout">
+        <button type="button" className="action-btn danger" onClick={onLogout} title="Logout" aria-label="Logout">
           <LogOut size={18} />
         </button>
       </div>
@@ -392,7 +396,7 @@ function PricingPanel({
             <Zap size={20} className="panel-icon" />
             <h2>Pricing Settings</h2>
           </div>
-          <button className="panel-close" onClick={onClose} aria-label="Close">
+          <button type="button" className="panel-close" onClick={onClose} aria-label="Close">
             <X size={20} />
           </button>
         </div>
@@ -533,8 +537,8 @@ function PricingPanel({
         {error && <p className="panel-error" role="alert">{error}</p>}
 
         <div className="panel-footer">
-          <button className="btn-secondary" onClick={onClose}>Cancel</button>
-          <button className="btn-primary" onClick={handleSave} disabled={saved || saving}>
+          <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>
+          <button type="button" className="btn-primary" onClick={handleSave} disabled={saved || saving}>
             {saving ? (
               <>
                 <Loader2 size={18} className="spin" />
@@ -589,7 +593,7 @@ function PrinterPanel({
             <Monitor size={20} className="panel-icon" />
             <h2>Select Printer</h2>
           </div>
-          <button className="panel-close" onClick={onClose} aria-label="Close">
+          <button type="button" className="panel-close" onClick={onClose} aria-label="Close">
             <X size={20} />
           </button>
         </div>
@@ -620,6 +624,7 @@ function PrinterPanel({
           ) : (
             printers.map((printer) => (
               <button
+                type="button"
                 key={printer.name}
                 className={`printer-item ${selectedPrinter === printer.name ? "selected" : ""}`}
                 onClick={() => {
@@ -697,7 +702,7 @@ function ManageOrdersPanel({
   async function deleteJob(jobId: string) {
     setDeleteLoading(jobId);
     try {
-      const response = await fetch(`/api/admin/jobs/${jobId}/delete`, { method: "DELETE" });
+      const response = await fetch(`/api/admin/jobs/${jobId}/delete`, { method: "DELETE", credentials: "include" });
       if (response.status === 401) {
         window.location.reload();
         return;
@@ -718,6 +723,7 @@ function ManageOrdersPanel({
     try {
       const response = await fetch("/api/admin/jobs/bulk-delete", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ids })
       });
@@ -755,13 +761,14 @@ function ManageOrdersPanel({
             <ListTodo size={20} className="panel-icon" />
             <h2>Manage Orders</h2>
           </div>
-          <button className="panel-close" onClick={onClose} aria-label="Close">
+          <button type="button" className="panel-close" onClick={onClose} aria-label="Close">
             <X size={20} />
           </button>
         </div>
 
         <div className="manage-orders-filters">
           <button
+            type="button"
             className={`manage-filter-tab ${filterStatus === "all" ? "active" : ""}`}
             onClick={() => setFilterStatus("all")}
           >
@@ -770,6 +777,7 @@ function ManageOrdersPanel({
           {Object.entries(statusLabels).map(([status, label]) => (
             statusCounts[status] > 0 && (
               <button
+                type="button"
                 key={status}
                 className={`manage-filter-tab ${filterStatus === status ? "active" : ""}`}
                 onClick={() => setFilterStatus(status)}
@@ -785,6 +793,7 @@ function ManageOrdersPanel({
             <span>{selectedIds.size} selected</span>
             <div className="manage-bulk-actions">
               <button
+                type="button"
                 className="bulk-delete-btn"
                 onClick={() => setConfirmBulkDelete(true)}
                 disabled={bulkDeleting}
@@ -792,7 +801,7 @@ function ManageOrdersPanel({
                 {bulkDeleting ? <Loader2 size={14} className="spin" /> : <Trash2 size={14} />}
                 Delete Selected
               </button>
-              <button className="bulk-clear-btn" onClick={() => setSelectedIds(new Set())}>
+              <button type="button" className="bulk-clear-btn" onClick={() => setSelectedIds(new Set())}>
                 <X size={14} />
               </button>
             </div>
@@ -800,7 +809,7 @@ function ManageOrdersPanel({
         )}
 
         <div className="manage-orders-list">
-          <button className="manage-select-all" onClick={selectAll}>
+          <button type="button" className="manage-select-all" onClick={selectAll}>
             {selectedIds.size === filteredJobs.length && filteredJobs.length > 0 ? (
               <CheckSquare size={16} />
             ) : (
@@ -838,6 +847,7 @@ function ManageOrdersPanel({
                   </div>
                 </div>
                 <button
+                  type="button"
                   className="manage-order-delete"
                   onClick={() => setConfirmDelete(job.id)}
                   disabled={deleteLoading === job.id}
@@ -850,8 +860,8 @@ function ManageOrdersPanel({
                   <div className="manage-delete-confirm">
                     <p>Delete this order permanently?</p>
                     <div className="manage-confirm-actions">
-                      <button onClick={() => setConfirmDelete(null)}>Cancel</button>
-                      <button className="confirm-delete" onClick={() => deleteJob(job.id)}>
+                      <button type="button" onClick={() => setConfirmDelete(null)}>Cancel</button>
+                      <button type="button" className="confirm-delete" onClick={() => deleteJob(job.id)}>
                         Delete
                       </button>
                     </div>
@@ -869,8 +879,8 @@ function ManageOrdersPanel({
               <h3>Delete {selectedIds.size} orders?</h3>
               <p>This action cannot be undone. All files and records will be permanently removed.</p>
               <div className="confirm-actions">
-                <button onClick={() => setConfirmBulkDelete(false)}>Cancel</button>
-                <button className="confirm-delete" onClick={bulkDelete} disabled={bulkDeleting}>
+                <button type="button" onClick={() => setConfirmBulkDelete(false)}>Cancel</button>
+                <button type="button" className="confirm-delete" onClick={bulkDelete} disabled={bulkDeleting}>
                   {bulkDeleting ? (
                     <>
                       <Loader2 size={16} className="spin" />
@@ -908,6 +918,7 @@ function FilterTabs({
     <div className="filter-bar">
       {filters.map((filter) => (
         <button
+          type="button"
           key={filter.value}
           className={`filter-tab ${activeFilter === filter.value ? "active" : ""}`}
           onClick={() => onFilterChange(filter.value)}
@@ -938,18 +949,18 @@ function BatchBar({
 
   return (
     <div className="batch-bar">
-      <button className="select-btn" onClick={onSelectAll}>
+      <button type="button" className="select-btn" onClick={onSelectAll}>
         {allSelected ? <CheckSquare size={18} /> : <Square size={18} />}
         <span>{allSelected ? "Deselect all" : `Select all unpaid (${totalUnpaid})`}</span>
       </button>
 
       {selectedCount > 0 && (
         <div className="batch-actions">
-          <button className="batch-btn paid" onClick={onBatchPaid}>
+          <button type="button" className="batch-btn paid" onClick={onBatchPaid}>
             <CreditCard size={16} />
             Mark {selectedCount} paid
           </button>
-          <button className="batch-btn clear" onClick={onClear}>
+          <button type="button" className="batch-btn clear" onClick={onClear}>
             <X size={16} />
           </button>
         </div>
@@ -988,6 +999,11 @@ function JobCard({
 
   const status = statusMap[job.status] || { label: job.status, class: "" };
   const formatRupees = (paise: number) => `₹${(paise / 100).toFixed(2)}`;
+  const handleActionClick = (event: React.MouseEvent<HTMLButtonElement>, action: string) => {
+    event.preventDefault();
+    event.stopPropagation();
+    onAction(action);
+  };
 
   return (
     <div className={`job-card ${job.status}`} style={{ animationDelay: `${Math.min(index, 8) * 35}ms` }}>
@@ -1035,35 +1051,35 @@ function JobCard({
 
       <div className="job-actions">
         {job.status === "pending_payment" && (
-          <button className="job-btn paid" onClick={() => onAction("paid")} disabled={actionLoading}>
+          <button type="button" className="job-btn paid" onClick={(event) => handleActionClick(event, "paid")} disabled={actionLoading}>
             {actionLoading ? <Loader2 size={14} className="spin" /> : <CreditCard size={14} />}
             <span>Paid</span>
           </button>
         )}
         {job.status === "paid" && (
-          <button className="job-btn release" onClick={() => onAction("approved")} disabled={actionLoading}>
+          <button type="button" className="job-btn release" onClick={(event) => handleActionClick(event, "approved")} disabled={actionLoading}>
             {actionLoading ? <Loader2 size={14} className="spin" /> : <Printer size={14} />}
             <span>Release</span>
           </button>
         )}
         {(job.status === "approved" || job.status === "printing") && (
-          <button className="job-btn done" onClick={() => onAction("printed")} disabled={actionLoading}>
+          <button type="button" className="job-btn done" onClick={(event) => handleActionClick(event, "printed")} disabled={actionLoading}>
             {actionLoading ? <Loader2 size={14} className="spin" /> : <Check size={14} />}
             <span>Done</span>
           </button>
         )}
         {job.status === "printed" && (
-          <button className="job-btn reprint" onClick={() => onAction("reprint")} disabled={actionLoading}>
+          <button type="button" className="job-btn reprint" onClick={(event) => handleActionClick(event, "reprint")} disabled={actionLoading}>
             {actionLoading ? <Loader2 size={14} className="spin" /> : <RefreshCw size={14} />}
             <span>Reprint</span>
           </button>
         )}
         {!["printed", "cancelled", "failed"].includes(job.status) && (
-          <button className="job-btn cancel" onClick={() => onAction("cancelled")} disabled={actionLoading} aria-label="Cancel job">
+          <button type="button" className="job-btn cancel" onClick={(event) => handleActionClick(event, "cancelled")} disabled={actionLoading} aria-label="Cancel job">
             <X size={14} />
           </button>
         )}
-        <button className="job-btn view" onClick={onView} aria-label="Open job details">
+        <button type="button" className="job-btn view" onClick={(event) => { event.preventDefault(); event.stopPropagation(); onView(); }} aria-label="Open job details">
           <Eye size={14} />
         </button>
       </div>
@@ -1104,29 +1120,29 @@ export default function AdminDashboard() {
   const esRef = useRef<EventSource | null>(null);
 
   const load = useCallback(async () => {
-    const response = await fetch("/api/admin/jobs");
+    const response = await fetch("/api/admin/jobs", { credentials: "include" });
     if (response.status === 401) { setLoggedIn(false); return; }
     const body = await response.json();
     setJobs(body.jobs ?? []);
     setNewJobCount(0);
     setLoggedIn(true);
-    const summaryResponse = await fetch("/api/admin/summary");
+    const summaryResponse = await fetch("/api/admin/summary", { credentials: "include" });
     setSummary(await summaryResponse.json());
     loadPricing();
     loadPrinter();
   }, []);
 
   async function loadPricing() {
-    const res = await fetch("/api/admin/pricing");
+    const res = await fetch("/api/admin/pricing", { credentials: "include" });
     const data = await res.json();
     setPricing(data);
   }
 
   async function loadPrinter() {
-    const res = await fetch("/api/admin/printer");
+    const res = await fetch("/api/admin/printer", { credentials: "include" });
     const data = await res.json();
     setPrinterName(data.printerName || "");
-    const printersRes = await fetch("/api/admin/printers");
+    const printersRes = await fetch("/api/admin/printers", { credentials: "include" });
     if (printersRes.ok) {
       const printersData = await printersRes.json();
       setPrinters(printersData.printers ?? []);
@@ -1136,7 +1152,21 @@ export default function AdminDashboard() {
   async function connectSSE() {
     if (esRef.current) esRef.current.close();
     const es = new EventSource("/api/admin/notifications");
-    es.onmessage = () => { setNewJobCount((n) => n + 1); load(); };
+    es.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === "job_update") {
+          // Update only the changed job status in place
+          setJobs((prev) => prev.map((j) => j.id === data.jobId ? { ...j, status: data.status } : j));
+        } else if (data.type === "new_job") {
+          // Reload to get the new job with full details
+          load();
+        }
+      } catch {
+        // If SSE message is malformed, do a full reload
+        load();
+      }
+    };
     es.onopen = () => setSseConnected(true);
     es.onerror = () => { setSseConnected(false); setTimeout(connectSSE, 5000); };
     esRef.current = es;
@@ -1155,6 +1185,7 @@ export default function AdminDashboard() {
     try {
       const response = await fetch("/api/admin/login", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password })
       });
@@ -1169,13 +1200,14 @@ export default function AdminDashboard() {
   }
 
   async function logout() {
-    await fetch("/api/admin/logout", { method: "POST" });
+    await fetch("/api/admin/logout", { method: "POST", credentials: "include" });
     setLoggedIn(false);
   }
 
   async function savePricing(data: Pricing) {
     const response = await fetch("/api/admin/pricing", {
       method: "PUT",
+      credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data)
     });
@@ -1196,6 +1228,7 @@ export default function AdminDashboard() {
         : `/api/admin/jobs/${jobId}/status`;
       const response = await fetch(endpoint, {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: action === "reprint" ? undefined : JSON.stringify({ status: action })
       });
@@ -1207,11 +1240,17 @@ export default function AdminDashboard() {
       if (!response.ok) {
         throw new Error(body.error ?? "Unable to update this order.");
       }
+      if (body.job) {
+        setJobs((prev) => prev.map((job) => job.id === jobId ? { ...job, ...body.job } : job));
+      } else {
+        await load();
+      }
+      const summaryResponse = await fetch("/api/admin/summary", { credentials: "include" });
+      if (summaryResponse.ok) setSummary(await summaryResponse.json());
     } catch (error) {
       setActionError(error instanceof Error ? error.message : "Unable to update this order.");
     } finally {
       setActionLoading(null);
-      await load();
     }
   }
 
@@ -1222,6 +1261,7 @@ export default function AdminDashboard() {
       const responses = await Promise.all(ids.map(async (id) => {
         const response = await fetch(`/api/admin/jobs/${id}/status`, {
           method: "POST",
+          credentials: "include",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ status: "paid" })
         });
@@ -1237,6 +1277,10 @@ export default function AdminDashboard() {
       if (failed) {
         throw new Error(failed.body.error ?? "Unable to update selected orders.");
       }
+      setJobs((prev) => prev.map((job) => {
+        const updated = responses.find(({ body }) => body.job?.id === job.id)?.body.job;
+        return updated ? { ...job, ...updated } : job;
+      }));
       setSelectedJobs(new Set());
     } catch (error) {
       setActionError(error instanceof Error ? error.message : "Unable to update selected orders.");
@@ -1312,6 +1356,7 @@ export default function AdminDashboard() {
           onSelect={async (name) => {
             await fetch("/api/admin/printer", {
               method: "PUT",
+              credentials: "include",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ printerName: name })
             });
