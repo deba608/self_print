@@ -1,36 +1,66 @@
-.next/
+# Dependencies
 node_modules/
+
+# Next.js
+.next/
+out/
+
+# Production
+build/
+dist/
+
+# Environment
+.env
+.env*.local
+
+# Database
 data/*.sqlite*
+
+# Uploads (keep directories, ignore contents)
 uploads/originals/*
+!uploads/originals/.gitkeep
 uploads/converted/*
+!uploads/converted/.gitkeep
+
+# Agent temp
 agent-temp/*
+!agent-temp/.gitkeep
+
+# Agent runtime
 agent/*.log
 agent/config.json
-.env
+
+# IDE and editor files
+.vscode/settings.json
+.vscode/*.json
+!.vscode/extensions.json
+.DS_Store
+*.swp
+*.swo
+*~
+
+# OS files
+Thumbs.db
+.DS_Store
+
+# Build artifacts
+*.tsbuildinfo
+*.exe
+.vercel
+
+# Debug and test output
+graphify-out/
+GRAPHIFY_GUIDE.md
+
+# Agent skills cache
+.agents/
+skills-lock.json
+
+# Claude session files
 .claude/
 CLAUDE.md
 capsules/
 cookies.txt
 
-!uploads/originals/.gitkeep
-!uploads/converted/.gitkeep
-!agent-temp/.gitkeep
-
-.vercel
-*.tsbuildinfo
-graphify-out/
-GRAPHIFY_GUIDE.md
-
-# Build artifacts and executables
-*.exe
+# Old abandoned projects
 electron-agent/
-electron-agent/build-output-sumatra-v3/
-electron-agent/build-output-small/
-electron-agent-recovered/
-dist/
-
-build/
-
-# IDE and editor files
-.DS_Store
-.vscode/settings.json
