@@ -17,7 +17,7 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
 }
 
 const printTypes: PrintType[] = ["bw", "color"];
-const paperSizes: PaperSize[] = ["A4", "Letter", "Legal", "Photo"];
+const paperSizes: PaperSize[] = ["A3", "A4", "A5", "A6", "B5", "Letter", "Legal", "Photo"];
 const layouts: PrintLayout[] = ["portrait", "landscape"];
 const scaleOptions: PrintScale[] = ["default", "fit", "shrink", "noscale"];
 
