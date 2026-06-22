@@ -259,6 +259,37 @@ export async function getJobs(): Promise<Job[]> {
   return rows.map(mapJob);
 }
 
+// Paginated jobs. Avoids loading the entire table into memory.
+export async function getJobsPage(limit: number, offset: number): Promise<{ jobs: Job[]; total: number }> {
+  if (isSupabase) {
+    const mod = await import('./db-supabase');
+    return mod.getJobsPage(limit, offset);
+  }
+  const sqlite = await getDbInstance();
+  const total = (sqlite.prepare('SELECT COUNT(*) AS c FROM jobs').get() as { c: number }).c;
+  const rows = sqlite
+    .prepare('SELECT * FROM jobs ORDER BY created_at DESC LIMIT ? OFFSET ?')
+    .all(limit, offset) as Record<string, unknown>[];
+  return { jobs: rows.map(mapJob), total };
+}
+
+// Batch-fetch files for many jobs in one query (replaces per-job N+1 lookups).
+export async function getJobFilesForJobs(jobIds: string[]): Promise<Record<string, JobFile>> {
+  if (jobIds.length === 0) return {};
+  if (isSupabase) {
+    const mod = await import('./db-supabase');
+    return mod.getJobFilesForJobs(jobIds);
+  }
+  const sqlite = await getDbInstance();
+  const placeholders = jobIds.map(() => '?').join(',');
+  const rows = sqlite
+    .prepare(`SELECT * FROM job_files WHERE job_id IN (${placeholders})`)
+    .all(...jobIds) as Record<string, unknown>[];
+  const map: Record<string, JobFile> = {};
+  for (const row of rows) map[String(row.job_id)] = mapJobFile(row);
+  return map;
+}
+
 export async function getJobById(id: string): Promise<Job> {
   if (isSupabase) {
     const mod = await import('./db-supabase');

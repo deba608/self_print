@@ -39,21 +39,22 @@ AGENT_TOKEN=dev-agent
 **Supabase mode (cloud/production):**
 ```env
 AGENT_TOKEN=dev-agent
-USE_SUPABASE=true
-NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 ```
 
-> **Security:** Never expose `SUPABASE_SERVICE_ROLE_KEY` in the browser. It bypasses RLS and has full DB access. Only use it server-side (API routes).
+Supabase mode activates automatically when both `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are set; otherwise the app falls back to local SQLite. There is no separate toggle flag.
+
+> **Security:** `SUPABASE_SERVICE_ROLE_KEY` bypasses RLS and has full DB access. Use it server-side only — never expose it to the browser or commit it. The print agent (`agent/config.json`) also uses a service-role key; keep that file out of version control.
 
 Everything else uses safe defaults. Admin login: `admin` / `1234`
 
 ### Supabase Setup
 
 1. Create a project at [supabase.com](https://supabase.com)
-2. Run migrations from `supabase/migrations/` or use `npm run db:seed` with `USE_SUPABASE=true`
-3. Seed initial data (pricing, admin user, agent token) via the seed script
-4. Enable RLS on all 8 tables and add appropriate policies before going to production:
+2. Create the 8 tables matching the SQLite schema in `src/lib/db.ts` (`jobs`, `job_files`, `pricing_config`, `agent_config`, `agent_printers`, `admin_users`, `agent_tokens`, `print_events`)
+3. Seed the config rows (pricing, agent config, admin user, agent token). The admin password and agent token are stored as PBKDF2 hashes — see `hashSecret` in `src/lib/security.ts`.
+4. **Enable RLS** on all 8 tables. The web app and print agent both connect with the service-role key, which bypasses RLS, so a deny-all (RLS on, no policies) state is safe and blocks all anon-key access:
 
 ```sql
 ALTER TABLE public.jobs ENABLE ROW LEVEL SECURITY;
@@ -66,12 +67,12 @@ ALTER TABLE public.agent_tokens ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.print_events ENABLE ROW LEVEL SECURITY;
 ```
 
-5. Add indexes for FK columns (performance):
+5. Add covering indexes for the foreign keys and agent-poll query (performance). `jobs.token` is already indexed by its `UNIQUE` constraint:
 
 ```sql
 CREATE INDEX idx_job_files_job_id ON public.job_files(job_id);
 CREATE INDEX idx_print_events_job_id ON public.print_events(job_id);
-CREATE INDEX idx_jobs_token ON public.jobs(token);
+CREATE INDEX idx_jobs_approved ON public.jobs(status, needs_conversion, updated_at);
 ```
 
 ### Print Agent

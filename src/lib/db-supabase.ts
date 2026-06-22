@@ -98,6 +98,30 @@ export async function getJobs() {
   return (data || []).map(mapJob);
 }
 
+export async function getJobsPage(limit: number, offset: number): Promise<{ jobs: Job[]; total: number }> {
+  const { data, error, count } = await supabase
+    .from('jobs')
+    .select('*', { count: 'exact' })
+    .order('created_at', { ascending: false })
+    .range(offset, offset + limit - 1);
+
+  if (error) throw error;
+  return { jobs: (data || []).map(mapJob), total: count ?? 0 };
+}
+
+export async function getJobFilesForJobs(jobIds: string[]): Promise<Record<string, JobFile>> {
+  if (jobIds.length === 0) return {};
+  const { data, error } = await supabase
+    .from('job_files')
+    .select('*')
+    .in('job_id', jobIds);
+
+  if (error) throw error;
+  const map: Record<string, JobFile> = {};
+  for (const row of data || []) map[String(row.job_id)] = mapJobFile(row);
+  return map;
+}
+
 export async function getJobById(id: string) {
   const { data, error } = await supabase
     .from('jobs')
