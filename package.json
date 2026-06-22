@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit",
     "db:seed": "tsx scripts/seed.ts",
     "cleanup": "tsx scripts/cleanup.ts",
+    "convert": "tsx scripts/convert.ts",
     "agent": "tsx agent/src/index.ts"
   },
   "dependencies": {
