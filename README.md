@@ -41,11 +41,18 @@ AGENT_TOKEN=dev-agent
 AGENT_TOKEN=dev-agent
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+
+# (Optional, highly recommended for production performance)
+# Direct Client-to-Supabase uploads (bypasses Vercel upload double-hop)
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 ```
 
 Supabase mode activates automatically when both `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are set; otherwise the app falls back to local SQLite. There is no separate toggle flag.
 
-> **Security:** `SUPABASE_SERVICE_ROLE_KEY` bypasses RLS and has full DB access. Use it server-side only — never expose it to the browser or commit it. The print agent (`agent/config.json`) also uses a service-role key; keep that file out of version control.
+When `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` are provided, the browser client will perform direct uploads to your Supabase Storage bucket, bypassing the Vercel server proxy. This requires a storage policy in your Supabase bucket to allow anonymous/public inserts (see Supabase Setup below).
+
+> **Security:** `SUPABASE_SERVICE_ROLE_KEY` bypasses RLS and has full DB access. Use it server-side only — never expose it to the browser or commit it. The print agent (`agent/config.json`) also uses a service-role key; keep that file out of version control. The client-side direct upload uses the safe `anon` public key.
 
 Everything else uses safe defaults. Admin login: `admin` / `1234`
 
@@ -74,6 +81,15 @@ CREATE INDEX idx_job_files_job_id ON public.job_files(job_id);
 CREATE INDEX idx_print_events_job_id ON public.print_events(job_id);
 CREATE INDEX idx_jobs_approved ON public.jobs(status, needs_conversion, updated_at);
 ```
+
+6. **Configure Storage Policy for Direct Client Uploads:**
+   To allow clients to upload files directly to your `selfprint` storage bucket, configure an `INSERT` policy for the anonymous (`anon`) role. Under **Storage** ➔ **selfprint** ➔ **Policies**:
+   - Create a new policy for **INSERT** operations.
+   - Set target role to `public` or `anon`.
+   - Set the policy expression to allow uploads under `originals/` or `converted/` paths:
+     ```sql
+     (bucket_id = 'selfprint'::text) AND ((storage.foldername(name))[1] = ANY (ARRAY['originals'::text, 'converted'::text]))
+     ```
 
 ### Print Agent
 
