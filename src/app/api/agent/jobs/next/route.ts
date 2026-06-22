@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getNextApprovedJob, getJobFile, mapJobFile } from "@/lib/db";
+import { getNextApprovedJob, getJobFile } from "@/lib/db";
 import { verifyAgentToken } from "@/lib/security";
 
 export async function GET(request: NextRequest) {

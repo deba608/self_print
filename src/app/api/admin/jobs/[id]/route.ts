@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getJobById, getJobFile, getJobEvents, updateJobSettings, deleteJob, getPricing } from "@/lib/db";
 import { calculatePrice } from "@/lib/pricing";
 import { requireAdminResponse } from "@/lib/security";
-import type { JobStatus, PaperSize, PrintLayout, PrintScale, PrintType } from "@/lib/types";
+import type { JobStatus, PaperSize, PrintLayout, PrintMargins, PrintScale, PrintType } from "@/lib/types";
 import { deleteFile } from "@/lib/storage";
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -24,6 +24,8 @@ const printTypes: PrintType[] = ["bw", "color"];
 const paperSizes: PaperSize[] = ["A3", "A4", "A5", "A6", "B5", "Letter", "Legal", "Photo"];
 const layouts: PrintLayout[] = ["portrait", "landscape"];
 const scaleOptions: PrintScale[] = ["default", "fit", "shrink", "noscale"];
+const marginOptions: PrintMargins[] = ["default", "none", "minimum"];
+const pagesPerSheetOptions = [1, 2, 4, 6, 9, 16];
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const unauthorized = await requireAdminResponse();
@@ -49,8 +51,8 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   const pageRange = String(body.pageRange ?? "").trim() || null;
   const paperSize = String(body.paperSize ?? existing.paperSize) as PaperSize;
   const layout = String(body.layout ?? existing.layout ?? "portrait") as PrintLayout;
-  const pagesPerSheet = 1;
-  const margins = "default";
+  const pagesPerSheet = Math.floor(Number(body.pagesPerSheet ?? existing.pagesPerSheet ?? 1));
+  const margins = String(body.margins ?? existing.margins ?? "default") as PrintMargins;
   const scale = String(body.scale ?? existing.scale ?? "default") as PrintScale;
 
   if (
@@ -58,7 +60,9 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     !Number.isInteger(copies) ||
     !paperSizes.includes(paperSize) ||
     !layouts.includes(layout) ||
-    !scaleOptions.includes(scale)
+    !scaleOptions.includes(scale) ||
+    !marginOptions.includes(margins) ||
+    !pagesPerSheetOptions.includes(pagesPerSheet)
   ) {
     return NextResponse.json({ error: "Invalid print settings" }, { status: 400 });
   }

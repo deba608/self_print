@@ -5,6 +5,9 @@ const isSupabase = Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERV
 
 export const sseClients = new Set<SseClient>();
 
+// In-memory pricing cache. Pricing rarely changes; cleared on updatePricing.
+let pricingCache: PricingConfig | null = null;
+
 // Lazy load SQLite only when needed (not on Vercel/Supabase)
 let dbModule: any = null;
 let dbInstance: any = null;
@@ -128,6 +131,9 @@ async function initSchema(database: any) {
   database.exec(`CREATE INDEX IF NOT EXISTS idx_jobs_status ON jobs(status)`);
   database.exec(`CREATE INDEX IF NOT EXISTS idx_jobs_created ON jobs(created_at)`);
   database.exec(`CREATE INDEX IF NOT EXISTS idx_jobs_queue ON jobs(queue_position)`);
+  database.exec(`CREATE INDEX IF NOT EXISTS idx_jobs_approved ON jobs(status, needs_conversion, updated_at)`);
+  database.exec(`CREATE INDEX IF NOT EXISTS idx_job_files_job_id ON job_files(job_id)`);
+  database.exec(`CREATE INDEX IF NOT EXISTS idx_print_events_job_id ON print_events(job_id)`);
   database.exec(`CREATE INDEX IF NOT EXISTS idx_agent_printers_seen ON agent_printers(seen_at)`);
 }
 
@@ -296,7 +302,8 @@ export async function getJobFile(jobId: string): Promise<JobFile> {
     return mod.getJobFile(jobId);
   }
   const sqlite = await getDbInstance();
-  const row = sqlite.prepare('SELECT * FROM job_files WHERE job_id = ?').get(jobId) as Record<string, unknown>;
+  const row = sqlite.prepare('SELECT * FROM job_files WHERE job_id = ?').get(jobId) as Record<string, unknown> | undefined;
+  if (!row) throw new Error('Job file not found');
   return mapJobFile(row);
 }
 
@@ -306,7 +313,8 @@ export async function getJobFileById(fileId: string): Promise<JobFile> {
     return mod.getJobFileById(fileId);
   }
   const sqlite = await getDbInstance();
-  const row = sqlite.prepare('SELECT * FROM job_files WHERE id = ?').get(fileId) as Record<string, unknown>;
+  const row = sqlite.prepare('SELECT * FROM job_files WHERE id = ?').get(fileId) as Record<string, unknown> | undefined;
+  if (!row) throw new Error('Job file not found');
   return mapJobFile(row);
 }
 
@@ -431,14 +439,18 @@ export async function updateJobSettings(id: string, settings: {
 }
 
 export async function getPricing(): Promise<PricingConfig> {
+  if (pricingCache) return pricingCache;
+
   if (isSupabase) {
     const mod = await import('./db-supabase');
-    return mod.getPricing();
+    pricingCache = await mod.getPricing();
+    return pricingCache;
   }
-  
+
   const sqlite = await getDbInstance();
-  const row = sqlite.prepare('SELECT * FROM pricing_config WHERE id = 1').get() as Record<string, number>;
-  return {
+  const row = sqlite.prepare('SELECT * FROM pricing_config WHERE id = 1').get() as Record<string, number> | undefined;
+  if (!row) throw new Error('Pricing config not found. Run "npm run db:seed".');
+  pricingCache = {
     bwPerPagePaise: row.bw_per_page_paise,
     colorPerPagePaise: row.color_per_page_paise,
     photoPrintPaise: row.photo_print_paise,
@@ -452,14 +464,17 @@ export async function getPricing(): Promise<PricingConfig> {
     photoMultiplier: row.photo_multiplier ?? 1,
     expiryMinutes: row.expiry_minutes ?? 1440
   };
+  return pricingCache;
 }
 
 export async function updatePricing(pricing: PricingConfig): Promise<void> {
+  pricingCache = null; // invalidate cache
+
   if (isSupabase) {
     const mod = await import('./db-supabase');
     return mod.updatePricing(pricing);
   }
-  
+
   const sqlite = await getDbInstance();
   const now = new Date().toISOString();
   sqlite.prepare(`
