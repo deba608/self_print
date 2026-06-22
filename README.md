@@ -140,8 +140,9 @@ Print Agent (Windows PC)
 - **Printer selection** — choose active printer from admin dashboard, agent fetches it automatically
 - **Batch actions** — select multiple jobs and mark paid in one click
 - **Pricing config** — B/W/color rates, paper size multipliers, job expiry time
-- **Job editing** — change copies, pages, paper size before release (locked when printing)
-- **DOC/DOCX handling** — stored but needs manual conversion before release
+- **Job editing** — change copies, pages, paper size, layout, margins, pages-per-sheet before release (locked when printing)
+- **DOC/DOCX conversion** — auto-converted to PDF via LibreOffice (`npm run convert` or the admin convert endpoint); page count and price recomputed
+- **Auto cleanup** — finished and expired-unpaid jobs (plus their files) removed on a schedule
 
 ---
 
@@ -162,8 +163,9 @@ npm run dev        # Start development server
 npm run build      # Build for production
 npm run start      # Start production server
 npm run typecheck  # Type check only
-npm run db:seed    # Initialize/seed database (SQLite or Supabase)
-npm run cleanup    # Delete old printed/cancelled/expired uploads
+npm run db:seed    # Initialize/seed local SQLite database
+npm run cleanup    # Delete finished + expired jobs and their files
+npm run convert    # Convert pending DOC/DOCX uploads to PDF (needs LibreOffice)
 
 npm run agent      # Developer CLI agent. For shop use, prefer the Electron installer.
 ```
@@ -184,9 +186,36 @@ Pricing is configurable from the admin dashboard Settings panel.
 
 ---
 
+## DOC/DOCX Conversion
+
+DOC/DOCX uploads are stored with `needs_conversion = 1` and cannot be released until converted to PDF. Conversion uses **LibreOffice headless**.
+
+1. Install LibreOffice on the machine running the web app (or set `LIBREOFFICE_PATH` to `soffice(.exe)`).
+2. Convert pending documents:
+   - **Batch script:** `npm run convert` — processes every pending DOC/DOCX.
+   - **On demand:** `POST /api/admin/jobs/<id>/convert` (admin session) — converts one job.
+
+Conversion replaces the stored file with the PDF, deletes the original, and recomputes page count and price. The print agent still applies the job's paper size/scale at print time.
+
+## Maintenance / Cleanup
+
+`cleanupOldJobs` removes finished jobs (`printed`/`cancelled`/`failed`) and unpaid jobs older than the configured expiry, along with their stored files.
+
+- **Manual:** `npm run cleanup`
+- **HTTP:** `GET`/`POST /api/cleanup` — protected by `CRON_SECRET` (falls back to `AGENT_TOKEN`). Send `Authorization: Bearer <secret>` or `?key=<secret>`.
+- **Vercel Cron:** `vercel.json` schedules `/api/cleanup` daily at 03:00. Set `CRON_SECRET` in the project env so Vercel's cron requests authenticate.
+- **Self-hosted/shop PC:** schedule `npm run cleanup` (and `npm run convert`) via Windows Task Scheduler / cron.
+
+## Optional Environment Variables
+
+| Var | Purpose |
+|---|---|
+| `LIBREOFFICE_PATH` | Path to `soffice(.exe)` if not auto-detected |
+| `CRON_SECRET` | Bearer secret for `/api/cleanup` |
+| `MAX_UPLOAD_MB` | Upload size limit (default 25) |
+| `SESSION_SECRET` | Admin session signing secret (set in production) |
+
 ## Known Limitations
 
-- **DOC/DOCX conversion**: Files are accepted and stored but cannot be released until manually converted to PDF. No automatic conversion pipeline exists yet.
-- **Job expiry**: Expired jobs are only cleaned up when `npm run cleanup` is run manually or via the `/api/cleanup` endpoint. No automated cron job.
-- **No pagination**: Admin job list loads all jobs. Performance degrades beyond ~500 jobs.
-- **File serve**: No rate limiting on `/uploads/[id]`. Do not expose to public internet without a reverse proxy.
+- **No admin pagination UI**: the API supports `?page=` / `?limit=` (default 100 newest, batched file fetch — no longer loads the whole table), but the dashboard currently renders the first page only.
+- **File serve**: no rate limiting on `/uploads/[id]`. Do not expose directly to the public internet without a reverse proxy.

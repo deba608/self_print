@@ -5,9 +5,9 @@ cleanupOldJobs()
   .then(async ({ deleted, storagePaths }) => {
     await Promise.all(storagePaths.map((p) => deleteFile(p)));
     console.log(`Cleanup done. Removed ${deleted} job(s) and ${storagePaths.length} file(s).`);
-    process.exit(0);
+    process.exitCode = 0;
   })
   .catch((error) => {
     console.error("Cleanup failed:", error);
-    process.exit(1);
+    process.exitCode = 1;
   });

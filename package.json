@@ -7,9 +7,9 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "db:seed": "tsx scripts/seed.ts",
-    "cleanup": "tsx scripts/cleanup.ts",
-    "convert": "tsx scripts/convert.ts",
+    "db:seed": "tsx --env-file-if-exists=.env scripts/seed.ts",
+    "cleanup": "tsx --env-file-if-exists=.env scripts/cleanup.ts",
+    "convert": "tsx --env-file-if-exists=.env scripts/convert.ts",
     "agent": "tsx agent/src/index.ts"
   },
   "dependencies": {
