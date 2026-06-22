@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, useRef } from "react";
 import { UploadCloud, FileText, Image, ArrowLeft, ArrowRight, Check, Eye, Loader2, File, Settings2, Maximize2, Minimize2 } from "lucide-react";
 import { formatRupees, paperSizeLabels, allPaperSizes } from "@/lib/pricing";
+import { supabaseClient } from "@/lib/supabaseClient";
 
 type Pricing = {
   bwPerPagePaise: number;
@@ -170,16 +171,57 @@ export default function UploadForm() {
     setBusy(true);
     setError("");
     const form = new FormData();
-    form.set("file", file);
     form.set("printType", printType);
     form.set("copies", String(copies));
     form.set("pageRange", effectivePageRange);
     form.set("paperSize", paperSize);
     form.set("layout", layout);
     form.set("scale", scale);
+
     const controller = new AbortController();
-    const timeoutId = window.setTimeout(() => controller.abort(), 45000);
+    const timeoutId = window.setTimeout(() => controller.abort(), 60000);
+
     try {
+      if (supabaseClient) {
+        const fileExt = file.name.substring(file.name.lastIndexOf(".")).toLowerCase();
+        let kind = "pdf";
+        const nameLower = file.name.toLowerCase();
+        if (/\.(jpg|jpeg|png)$/.test(nameLower)) kind = "image";
+        else if (/\.(doc|docx)$/.test(nameLower)) kind = "document";
+
+        const randomUUID = typeof self.crypto?.randomUUID === "function"
+          ? self.crypto.randomUUID()
+          : Math.random().toString(36).substring(2) + Date.now().toString(36);
+        const storedName = `${randomUUID}${fileExt}`;
+        const bucketPath = `${kind === "document" ? "converted" : "originals"}/${storedName}`;
+
+        const { error: uploadError } = await supabaseClient.storage
+          .from("selfprint")
+          .upload(bucketPath, file, {
+            contentType: file.type || "application/octet-stream",
+            upsert: true,
+          });
+
+        if (uploadError) {
+          throw new Error(`Direct upload failed: ${uploadError.message}`);
+        }
+
+        const { data: { publicUrl } } = supabaseClient.storage
+          .from("selfprint")
+          .getPublicUrl(bucketPath);
+
+        form.set("isDirectUpload", "true");
+        form.set("storedName", storedName);
+        form.set("storagePath", publicUrl);
+        form.set("sizeBytes", String(file.size));
+        form.set("pageCount", String(filePageCount ?? 1));
+        form.set("originalName", file.name);
+        form.set("mimeType", file.type);
+      } else {
+        form.set("isDirectUpload", "false");
+        form.set("file", file);
+      }
+
       const response = await fetch("/api/jobs", { method: "POST", body: form, signal: controller.signal });
       const body = await response.json().catch(() => ({}));
       if (!response.ok) {
@@ -189,9 +231,7 @@ export default function UploadForm() {
       setResult(body);
       setStep("done");
     } catch (err) {
-      setError(err instanceof DOMException && err.name === "AbortError"
-        ? "Upload is taking too long. Please try again."
-        : "Unable to submit print job. Please check your connection and try again.");
+      setError(err instanceof Error ? err.message : "Unable to submit print job. Please check your connection and try again.");
     } finally {
       window.clearTimeout(timeoutId);
       setBusy(false);

@@ -14,13 +14,6 @@ const scaleOptions: PrintScale[] = ["default", "fit", "shrink", "noscale"];
 export async function POST(request: NextRequest) {
   try {
     const form = await request.formData();
-    const file = form.get("file");
-    if (!(file instanceof File)) {
-      return NextResponse.json({ error: "File is required" }, { status: 400 });
-    }
-    if (file.size > MAX_UPLOAD_BYTES) {
-      return NextResponse.json({ error: "File is too large" }, { status: 400 });
-    }
 
     const printType = String(form.get("printType") ?? "bw") as PrintType;
     const copies = Math.max(1, Math.floor(Number(form.get("copies") ?? 1)));
@@ -52,10 +45,53 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid print settings" }, { status: 400 });
     }
 
-    const { ext, kind } = validateUpload(file);
-    const saved = await saveUpload(file, ext, kind);
-    const pageCount = estimatePageCount(kind, saved.bytes);
-    const needsConversion = kind === "document" ? 1 : 0;
+    const isDirectUpload = form.get("isDirectUpload") === "true";
+    let storedName = "";
+    let storagePath = "";
+    let sizeBytes = 0;
+    let pageCount = 0;
+    let kind: any = "pdf";
+    let needsConversion = 0;
+    let originalName = "";
+    let mimeType = "";
+
+    if (isDirectUpload) {
+      storedName = String(form.get("storedName") ?? "");
+      storagePath = String(form.get("storagePath") ?? "");
+      sizeBytes = Number(form.get("sizeBytes") ?? 0);
+      pageCount = Number(form.get("pageCount") ?? 1);
+      originalName = String(form.get("originalName") ?? "");
+      mimeType = String(form.get("mimeType") ?? "");
+
+      if (!storedName || !storagePath || isNaN(sizeBytes) || isNaN(pageCount)) {
+        return NextResponse.json({ error: "Invalid upload metadata" }, { status: 400 });
+      }
+
+      const { ext, kind: k } = validateUpload(originalName, mimeType);
+      kind = k;
+      needsConversion = kind === "document" ? 1 : 0;
+    } else {
+      const file = form.get("file");
+      if (!(file instanceof File)) {
+        return NextResponse.json({ error: "File is required" }, { status: 400 });
+      }
+      if (file.size > MAX_UPLOAD_BYTES) {
+        return NextResponse.json({ error: "File is too large" }, { status: 400 });
+      }
+
+      originalName = file.name;
+      mimeType = file.type;
+
+      const { ext, kind: k } = validateUpload(originalName, mimeType);
+      kind = k;
+      const saved = await saveUpload(file, ext, kind);
+      storedName = saved.storedName;
+      storagePath = saved.storagePath;
+      sizeBytes = saved.sizeBytes;
+      pageCount = estimatePageCount(kind, saved.bytes);
+      needsConversion = kind === "document" ? 1 : 0;
+    }
+
     const pricing = await getPricing();
     const pricePaise = calculatePrice({ printType, copies, pageRange, paperSize, pageCount: Math.max(pageCount, 1), pricing });
     const token = randomToken();
@@ -78,12 +114,12 @@ export async function POST(request: NextRequest) {
     };
 
     const fileData = {
-      original_name: file.name,
-      stored_name: saved.storedName,
-      mime_type: file.type,
-      size_bytes: saved.sizeBytes,
+      original_name: originalName,
+      stored_name: storedName,
+      mime_type: mimeType,
+      size_bytes: sizeBytes,
       file_kind: kind,
-      storage_path: saved.storagePath
+      storage_path: storagePath
     };
 
     const { jobId } = await createJob(jobData, fileData);

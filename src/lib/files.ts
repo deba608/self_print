@@ -12,9 +12,9 @@ const allowed = new Map<string, { extensions: string[]; kind: FileKind }>([
   ["application/vnd.openxmlformats-officedocument.wordprocessingml.document", { extensions: [".docx"], kind: "document" }]
 ]);
 
-export function validateUpload(file: File) {
-  const ext = path.extname(file.name).toLowerCase();
-  const rule = allowed.get(file.type);
+export function validateUpload(fileName: string, mimeType: string) {
+  const ext = path.extname(fileName).toLowerCase();
+  const rule = allowed.get(mimeType);
   if (!rule || !rule.extensions.includes(ext)) {
     throw new Error("Only PDF, JPG, PNG, DOC, and DOCX files are allowed.");
   }
