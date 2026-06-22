@@ -50,9 +50,9 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 
 Supabase mode activates automatically when both `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are set; otherwise the app falls back to local SQLite. There is no separate toggle flag.
 
-When `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` are provided, the browser client will perform direct uploads to your Supabase Storage bucket, bypassing the Vercel server proxy. This requires a storage policy in your Supabase bucket to allow anonymous/public inserts (see Supabase Setup below).
+When `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` are provided, the browser uploads files **directly to Supabase Storage**, bypassing the Vercel server proxy (faster, and avoids Vercel's request body limit). It uses **signed upload URLs**: the browser first calls `POST /api/uploads/sign`, the server validates the file and returns a short-lived upload token bound to a server-chosen path, then the browser uploads with that token. The Storage bucket stays **private** — no anonymous insert policy is required.
 
-> **Security:** `SUPABASE_SERVICE_ROLE_KEY` bypasses RLS and has full DB access. Use it server-side only — never expose it to the browser or commit it. The print agent (`agent/config.json`) also uses a service-role key; keep that file out of version control. The client-side direct upload uses the safe `anon` public key.
+> **Security:** `SUPABASE_SERVICE_ROLE_KEY` bypasses RLS and has full DB access. Use it server-side only — never expose it to the browser or commit it. The print agent (`agent/config.json`) also uses a service-role key; keep that file out of version control. The browser only ever holds the `anon` public key, and uploads are authorized per-file by a server-issued signed token.
 
 Everything else uses safe defaults. Admin login: `admin` / `1234`
 
@@ -82,14 +82,21 @@ CREATE INDEX idx_print_events_job_id ON public.print_events(job_id);
 CREATE INDEX idx_jobs_approved ON public.jobs(status, needs_conversion, updated_at);
 ```
 
-6. **Configure Storage Policy for Direct Client Uploads:**
-   To allow clients to upload files directly to your `selfprint` storage bucket, configure an `INSERT` policy for the anonymous (`anon`) role. Under **Storage** ➔ **selfprint** ➔ **Policies**:
-   - Create a new policy for **INSERT** operations.
-   - Set target role to `public` or `anon`.
-   - Set the policy expression to allow uploads under `originals/` or `converted/` paths:
-     ```sql
-     (bucket_id = 'selfprint'::text) AND ((storage.foldername(name))[1] = ANY (ARRAY['originals'::text, 'converted'::text]))
-     ```
+6. **Storage bucket (`selfprint`) — keep it private.** Direct uploads use server-issued signed upload URLs, so **no anonymous insert policy is needed**. Lock the bucket down instead:
+
+   ```sql
+   UPDATE storage.buckets
+   SET public = false,
+       file_size_limit = 26214400,  -- 25 MB
+       allowed_mime_types = ARRAY[
+         'application/pdf','image/jpeg','image/png',
+         'application/msword',
+         'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+       ]
+   WHERE id = 'selfprint';
+   ```
+
+   Reads (admin preview, agent download) are served via short-lived signed URLs minted server-side with the service-role key. No `storage.objects` policies are required because all access goes through the service role.
 
 ### Print Agent
 
@@ -122,17 +129,22 @@ For developer CLI testing, copy `agent/config.example.json` to `agent/config.jso
 
 ```
 Customer (mobile)
-  └── uploads file → POST /api/uploads → gets token
+  ├── (cloud) POST /api/uploads/sign → signed URL → upload bytes direct to Supabase Storage
+  ├── (local) POST /api/jobs with file → server stores it
+  └── POST /api/jobs (metadata) → server verifies file, prices, returns token
 Admin (browser)
   └── GET /admin → dashboard (SSE live updates)
   └── POST /api/admin/jobs/[id] → mark paid / release
+  └── GET /api/uploads/[id] → preview (redirects to signed URL on cloud)
 Print Agent (Windows PC)
   └── GET /api/agent/jobs/next → polls approved jobs
-  └── GET /api/agent/jobs/[id]/file → downloads file
+  └── GET /api/agent/jobs/[id]/file → signed download URL
   └── POST /api/agent/jobs/[id]/status → marks printed
 ```
 
-**Database:** Dual-mode — SQLite (`better-sqlite3`) for local/dev, Supabase (PostgreSQL) for production. Controlled by `USE_SUPABASE` env var. Both share the same schema and query interface via `src/lib/db.ts` / `src/lib/db-supabase.ts`.
+**Database:** Dual-mode — SQLite (`better-sqlite3`) for local/dev, Supabase (PostgreSQL) for production. Auto-selected by presence of `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` (no toggle flag). Both share the same schema and query interface via `src/lib/db.ts` / `src/lib/db-supabase.ts`.
+
+**Storage:** Local filesystem for dev; private Supabase Storage bucket for production. Uploads go direct from the browser via signed upload URLs; reads use short-lived signed download URLs. Object paths are server-controlled.
 
 **Auth:**
 - Admin: session-based (cookie), `admin_users` table
