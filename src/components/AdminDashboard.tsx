@@ -1048,12 +1048,7 @@ function JobCard({
       </div>
 
       <div className="job-actions">
-        {job.needsConversion === 1 && !["approved", "printing", "printed", "cancelled", "failed"].includes(job.status) && (
-          <button type="button" className="job-btn convert" onClick={() => handleActionClick("convert")} disabled={actionLoading}>
-            {actionLoading ? <Loader2 size={14} className="spin" /> : <FileText size={14} />}
-            <span>Convert</span>
-          </button>
-        )}
+
         {job.status === "pending_payment" && (
           <button type="button" className="job-btn paid" onClick={() => handleActionClick("paid")} disabled={actionLoading}>
             {actionLoading ? <Loader2 size={14} className="spin" /> : <CreditCard size={14} />}

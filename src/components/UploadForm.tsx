@@ -19,7 +19,7 @@ type Pricing = {
   photoMultiplier: number;
 };
 
-type Step = "upload" | "settings" | "preview" | "done";
+type Step = "upload" | "settings" | "preview" | "converting" | "done" | "docx-warning";
 type PageRangeMode = "all" | "even" | "odd" | "custom";
 
 export default function UploadForm() {
@@ -183,6 +183,18 @@ export default function UploadForm() {
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const selectedFile = e.target.files?.[0] ?? null;
+    
+    if (selectedFile) {
+      const name = selectedFile.name.toLowerCase();
+      if (name.endsWith(".doc") || name.endsWith(".docx")) {
+        setFile(null);
+        setFilePageCount(null);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+        setStep("docx-warning");
+        return;
+      }
+    }
+
     setFile(selectedFile);
     setFilePageCount(null);
     if (selectedFile) {
@@ -261,8 +273,14 @@ export default function UploadForm() {
         setError(body.error ?? "Upload failed. Please try again.");
         return;
       }
-      setResult(body);
-      setStep("done");
+      
+      if (body.needsConversion) {
+        setError("Document conversion is required. Please convert to PDF and try again.");
+        setStep("upload");
+      } else {
+        setResult(body);
+        setStep("done");
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to submit print job. Please check your connection and try again.");
     } finally {
@@ -326,6 +344,8 @@ export default function UploadForm() {
     );
   }
 
+
+
   return (
     <div className="upload-form">
       {/* Step indicator */}
@@ -367,7 +387,37 @@ export default function UploadForm() {
             <span className="format-badge">PDF</span>
             <span className="format-badge">JPG</span>
             <span className="format-badge">PNG</span>
-            <span className="format-badge">DOC</span>
+          </div>
+        </div>
+      )}
+
+      {/* Step 1.5: DOCX Warning */}
+      {step === "docx-warning" && (
+        <div className="step-content fade-in">
+          <div className="warning-card" style={{ padding: "2rem", textAlign: "center", border: "2px solid var(--border-color)", borderRadius: "var(--radius-lg)", background: "var(--bg-card)" }}>
+            <FileText size={48} style={{ color: "var(--primary-color)", margin: "0 auto 1rem" }} />
+            <h3 style={{ marginBottom: "1rem", fontSize: "1.25rem" }}>For Perfect Printing, Please Convert to PDF</h3>
+            <p className="muted" style={{ marginBottom: "2rem", lineHeight: "1.6", fontSize: "0.95rem" }}>
+              Word documents (.docx) can lose their exact formatting, fonts, and margins when printed from different computers. To ensure your document prints <strong>exactly</strong> as you see it, please convert it to a PDF first.
+            </p>
+            <div style={{ display: "flex", gap: "1rem", justifyContent: "center", flexWrap: "wrap" }}>
+              <button 
+                type="button" 
+                className="btn-secondary" 
+                onClick={() => setStep("upload")}
+              >
+                Go Back
+              </button>
+              <a 
+                href="https://www.ilovepdf.com/word_to_pdf" 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="btn-primary"
+                style={{ textDecoration: "none", display: "inline-flex", alignItems: "center" }}
+              >
+                Convert for Free via ILovePDF
+              </a>
+            </div>
           </div>
         </div>
       )}

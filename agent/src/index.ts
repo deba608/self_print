@@ -180,7 +180,7 @@ async function processJob(jobId: string) {
     }
 
     if (job.needs_conversion) {
-      await updateStatus(jobId, "failed", "Document needs conversion before printing.");
+      await updateStatus(jobId, "failed", "Document needs conversion before printing. Please upload as PDF.");
       log(`Job ${job.token} needs conversion, skipping.`);
       return;
     }
@@ -219,9 +219,15 @@ async function processJob(jobId: string) {
           if (!response.ok) throw new Error(`Download failed: ${response.status}`);
           fileBytes = Buffer.from(await response.arrayBuffer());
         } else {
+          let objectPath = storagePath;
+          try {
+            const url = new URL(storagePath);
+            const marker = url.pathname.match(/\/object\/(?:public|sign)\/[^/]+\/(.+)$/);
+            if (marker?.[1]) objectPath = decodeURIComponent(marker[1]);
+          } catch {}
           const { data: blob, error: downloadError } = await supabase.storage
-            .from("uploads")
-            .download(storagePath);
+            .from("selfprint")
+            .download(objectPath);
 
           if (downloadError) throw new Error(`Storage download failed: ${downloadError.message}`);
           fileBytes = Buffer.from(await blob.arrayBuffer());

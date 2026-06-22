@@ -7,16 +7,14 @@ import { saveUpload as saveToStorage } from "./storage";
 const allowed = new Map<string, { extensions: string[]; kind: FileKind }>([
   ["application/pdf", { extensions: [".pdf"], kind: "pdf" }],
   ["image/jpeg", { extensions: [".jpg", ".jpeg"], kind: "image" }],
-  ["image/png", { extensions: [".png"], kind: "image" }],
-  ["application/msword", { extensions: [".doc"], kind: "document" }],
-  ["application/vnd.openxmlformats-officedocument.wordprocessingml.document", { extensions: [".docx"], kind: "document" }]
+  ["image/png", { extensions: [".png"], kind: "image" }]
 ]);
 
 export function validateUpload(fileName: string, mimeType: string) {
   const ext = path.extname(fileName).toLowerCase();
   const rule = allowed.get(mimeType);
   if (!rule || !rule.extensions.includes(ext)) {
-    throw new Error("Only PDF, JPG, PNG, DOC, and DOCX files are allowed.");
+    throw new Error("Only PDF, JPG, and PNG files are allowed. Please convert Word documents to PDF before uploading.");
   }
   return { ext, kind: rule.kind };
 }
