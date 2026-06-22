@@ -702,7 +702,7 @@ function ManageOrdersPanel({
   async function deleteJob(jobId: string) {
     setDeleteLoading(jobId);
     try {
-      const response = await fetch(`/api/admin/jobs/${jobId}/delete`, { method: "DELETE", credentials: "include" });
+      const response = await fetch(`/api/admin/jobs/${jobId}`, { method: "DELETE", credentials: "include" });
       if (response.status === 401) {
         window.location.reload();
         return;

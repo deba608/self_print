@@ -468,15 +468,19 @@ export async function getAdminUser(username: string) {
   return data || null;
 }
 
-export async function getAgentToken(tokenHash: string) {
+export async function getAgentToken(rawToken: string) {
   const { data, error } = await supabase
     .from('agent_tokens')
-    .select('token_hash')
-    .eq('token_hash', tokenHash)
-    .single();
-  
-  if (error && error.code !== 'PGRST116') throw error;
-  return data || null;
+    .select('token_hash');
+
+  if (error) throw error;
+  if (!data || data.length === 0) return null;
+
+  const { verifySecret } = await import('./security');
+  for (const row of data) {
+    if (verifySecret(rawToken, row.token_hash)) return row;
+  }
+  return null;
 }
 
 export async function nextQueuePosition(): Promise<number> {

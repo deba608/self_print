@@ -652,15 +652,16 @@ export async function getAdminUser(username: string) {
   return sqlite.prepare('SELECT username, password_hash FROM admin_users WHERE username = ?').get(username);
 }
 
-export async function getAgentToken(tokenHash: string) {
+export async function getAgentToken(rawToken: string) {
   if (isSupabase) {
     const mod = await import('./db-supabase');
-    return mod.getAgentToken(tokenHash);
+    return mod.getAgentToken(rawToken);
   }
   
   const sqlite = await getDbInstance();
+  const { verifySecret } = await import('./security');
   const rows = sqlite.prepare('SELECT token_hash FROM agent_tokens').all() as Array<{ token_hash: string }>;
-  return rows.find((row) => row.token_hash === tokenHash);
+  return rows.find((row) => verifySecret(rawToken, row.token_hash)) || null;
 }
 
 export async function nextQueuePosition(): Promise<number> {
