@@ -508,13 +508,38 @@ export async function bulkDeleteJobs(ids: string[]) {
   if (error) throw error;
 }
 
-export async function cleanupOldJobs() {
-  const { error } = await supabase
+export async function cleanupOldJobs(): Promise<{ deleted: number; storagePaths: string[] }> {
+  const pricing = await getPricing();
+  const cutoff = new Date(Date.now() - pricing.expiryMinutes * 60000).toISOString();
+
+  // Find jobs to remove: finished, or unpaid past expiry.
+  const { data: finished, error: finErr } = await supabase
     .from('jobs')
-    .delete()
+    .select('id')
     .in('status', ['printed', 'cancelled', 'failed']);
-  
-  if (error) throw error;
+  if (finErr) throw finErr;
+
+  const { data: expired, error: expErr } = await supabase
+    .from('jobs')
+    .select('id')
+    .eq('status', 'pending_payment')
+    .lt('created_at', cutoff);
+  if (expErr) throw expErr;
+
+  const ids = Array.from(new Set([...(finished || []), ...(expired || [])].map((r) => String(r.id))));
+  if (ids.length === 0) return { deleted: 0, storagePaths: [] };
+
+  const { data: files, error: fileErr } = await supabase
+    .from('job_files')
+    .select('storage_path')
+    .in('job_id', ids);
+  if (fileErr) throw fileErr;
+  const storagePaths = (files || []).map((f) => String(f.storage_path));
+
+  const { error: delErr } = await supabase.from('jobs').delete().in('id', ids);
+  if (delErr) throw delErr;
+
+  return { deleted: ids.length, storagePaths };
 }
 
 export async function queueReprint(id: string) {

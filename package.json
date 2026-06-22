@@ -7,6 +7,8 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
+    "db:seed": "tsx scripts/seed.ts",
+    "cleanup": "tsx scripts/cleanup.ts",
     "agent": "tsx agent/src/index.ts"
   },
   "dependencies": {

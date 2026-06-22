@@ -39,6 +39,13 @@ async function getDbInstance() {
   return dbInstance;
 }
 
+// Forces SQLite schema creation + default seeding. No-op in Supabase mode
+// (Supabase schema and seed data are managed in the dashboard / migrations).
+export async function ensureDatabase(): Promise<void> {
+  if (isSupabase) return;
+  await getDbInstance();
+}
+
 async function initSchema(database: any) {
   database.exec(`
     CREATE TABLE IF NOT EXISTS jobs (
@@ -655,14 +662,34 @@ export async function bulkDeleteJobs(ids: string[]): Promise<void> {
   sqlite.prepare(`DELETE FROM jobs WHERE id IN (${ids.map(() => '?').join(',')})`).run(...ids);
 }
 
-export async function cleanupOldJobs(): Promise<void> {
+// Deletes finished jobs (printed/cancelled/failed) and expired unpaid jobs.
+// Returns storage paths of removed files so the caller can purge them from disk/storage.
+export async function cleanupOldJobs(): Promise<{ deleted: number; storagePaths: string[] }> {
   if (isSupabase) {
     const mod = await import('./db-supabase');
     return mod.cleanupOldJobs();
   }
-  
+
   const sqlite = await getDbInstance();
-  sqlite.prepare("DELETE FROM jobs WHERE status IN ('printed', 'cancelled', 'failed')").run();
+  const pricing = await getPricing();
+  const cutoff = new Date(Date.now() - pricing.expiryMinutes * 60000).toISOString();
+
+  const targets = sqlite.prepare(`
+    SELECT id FROM jobs
+    WHERE status IN ('printed', 'cancelled', 'failed')
+       OR (status = 'pending_payment' AND created_at < ?)
+  `).all(cutoff) as Array<{ id: string }>;
+  const ids = targets.map((t) => t.id);
+  if (ids.length === 0) return { deleted: 0, storagePaths: [] };
+
+  const placeholders = ids.map(() => '?').join(',');
+  const files = sqlite
+    .prepare(`SELECT storage_path FROM job_files WHERE job_id IN (${placeholders})`)
+    .all(...ids) as Array<{ storage_path: string }>;
+  const storagePaths = files.map((f) => f.storage_path);
+
+  sqlite.prepare(`DELETE FROM jobs WHERE id IN (${placeholders})`).run(...ids);
+  return { deleted: ids.length, storagePaths };
 }
 
 export async function queueReprint(id: string): Promise<void> {
