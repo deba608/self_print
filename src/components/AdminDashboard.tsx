@@ -5,7 +5,7 @@ import {
   RefreshCw, Settings, LogOut, Printer, Bell,
   CheckSquare, Square, CreditCard, Eye, X, Check, Monitor, Loader2,
   Lock, Eye as EyeIcon, ChevronDown, Zap, TrendingUp, Clock,
-  Trash2, ListTodo, Inbox
+  Trash2, ListTodo, Inbox, FileText
 } from "lucide-react";
 
 type Job = {
@@ -1048,6 +1048,12 @@ function JobCard({
       </div>
 
       <div className="job-actions">
+        {job.needsConversion === 1 && !["approved", "printing", "printed", "cancelled", "failed"].includes(job.status) && (
+          <button type="button" className="job-btn convert" onClick={() => handleActionClick("convert")} disabled={actionLoading}>
+            {actionLoading ? <Loader2 size={14} className="spin" /> : <FileText size={14} />}
+            <span>Convert</span>
+          </button>
+        )}
         {job.status === "pending_payment" && (
           <button type="button" className="job-btn paid" onClick={() => handleActionClick("paid")} disabled={actionLoading}>
             {actionLoading ? <Loader2 size={14} className="spin" /> : <CreditCard size={14} />}
@@ -1102,6 +1108,10 @@ function EmptyState({ message }: { message: string }) {
 export default function AdminDashboard() {
   const [loggedIn, setLoggedIn] = useState(false);
   const [jobs, setJobs] = useState<Job[]>([]);
+  const [cursor, setCursor] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(false);
+  const [total, setTotal] = useState(0);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [summary, setSummary] = useState({ jobs: 0, totalPaise: 0 });
   const [showSettings, setShowSettings] = useState(false);
   const [showPrinter, setShowPrinter] = useState(false);
@@ -1122,6 +1132,9 @@ export default function AdminDashboard() {
     if (response.status === 401) { setLoggedIn(false); return; }
     const body = await response.json();
     setJobs(body.jobs ?? []);
+    setCursor(body.cursor ?? null);
+    setHasMore(!!body.cursor);
+    setTotal(body.total ?? 0);
     setNewJobCount(0);
     setLoggedIn(true);
     const summaryResponse = await fetch("/api/admin/summary", { credentials: "include" });
@@ -1144,6 +1157,22 @@ export default function AdminDashboard() {
     if (printersRes.ok) {
       const printersData = await printersRes.json();
       setPrinters(printersData.printers ?? []);
+    }
+  }
+
+  async function loadMore() {
+    if (!hasMore || loadingMore || !cursor) return;
+    setLoadingMore(true);
+    try {
+      const res = await fetch(`/api/admin/jobs?cursor=${encodeURIComponent(cursor)}`, { credentials: "include" });
+      if (!res.ok) return;
+      const body = await res.json();
+      setJobs(prev => [...prev, ...(body.jobs ?? [])]);
+      setCursor(body.cursor ?? null);
+      setHasMore(!!body.cursor);
+      setTotal(body.total ?? 0);
+    } finally {
+      setLoadingMore(false);
     }
   }
 
@@ -1221,14 +1250,16 @@ export default function AdminDashboard() {
     setActionLoading(jobId);
     setActionError("");
     try {
-      const endpoint = action === "reprint"
+      const endpoint = action === "convert"
+        ? `/api/admin/jobs/${jobId}/convert`
+        : action === "reprint"
         ? `/api/admin/jobs/${jobId}/reprint`
         : `/api/admin/jobs/${jobId}/status`;
       const response = await fetch(endpoint, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: action === "reprint" ? undefined : JSON.stringify({ status: action })
+        body: action === "reprint" || action === "convert" ? undefined : JSON.stringify({ status: action })
       });
       const body = await response.json().catch(() => ({}));
       if (response.status === 401) {
@@ -1425,6 +1456,17 @@ export default function AdminDashboard() {
               actionLoading={actionLoading === job.id}
             />
           ))}
+        </div>
+      )}
+
+      {total > 0 && (
+        <div className="jobs-count">
+          <span>{filterStatus === "all" ? jobs.length : filteredJobs.length} of {total} jobs</span>
+          {hasMore && filterStatus === "all" && (
+            <button type="button" className="load-more-btn" onClick={loadMore} disabled={loadingMore}>
+              {loadingMore ? <><Loader2 size={14} className="spin" /> Loading...</> : "Load more"}
+            </button>
+          )}
         </div>
       )}
     </main>

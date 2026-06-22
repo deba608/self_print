@@ -3336,6 +3336,16 @@ input[type="number"] {
   transform: translateY(-1px);
 }
 
+.job-btn.convert {
+  background: rgba(139, 92, 246, 0.1);
+  color: #7c3aed;
+  border-color: rgba(139, 92, 246, 0.2);
+}
+.job-btn.convert:hover:not(:disabled) {
+  background: rgba(139, 92, 246, 0.18);
+  transform: translateY(-1px);
+}
+
 .job-btn.cancel {
   width: 38px;
   height: 38px;
@@ -3367,6 +3377,33 @@ input[type="number"] {
 }
 
 /* === Empty State === */
+.jobs-count {
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--muted);
+  padding: 12px 16px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.load-more-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.load-more-btn:hover:not(:disabled) { background: var(--surface-hover, rgba(0,0,0,0.04)); }
+.load-more-btn:disabled { opacity: 0.5; cursor: default; }
+
 .empty-state {
   display: flex;
   flex-direction: column;
