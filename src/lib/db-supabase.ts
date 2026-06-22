@@ -98,15 +98,29 @@ export async function getJobs() {
   return (data || []).map(mapJob);
 }
 
-export async function getJobsPage(limit: number, offset: number): Promise<{ jobs: Job[]; total: number }> {
-  const { data, error, count } = await supabase
+export async function getJobsPage(limit: number, cursor?: string | null): Promise<{ jobs: Job[]; total: number }> {
+  let query = supabase
     .from('jobs')
-    .select('*', { count: 'exact' })
+    .select('*, job_files(*)', { count: 'estimated' })
     .order('created_at', { ascending: false })
-    .range(offset, offset + limit - 1);
+    .limit(limit);
 
+  if (cursor) {
+    query = query.lt('created_at', cursor);
+  }
+
+  const { data, error, count } = await query;
   if (error) throw error;
-  return { jobs: (data || []).map(mapJob), total: count ?? 0 };
+
+  const jobs = (data || []).map(row => {
+    const job = mapJob(row);
+    if (row.job_files && Array.isArray(row.job_files) && row.job_files.length > 0) {
+      job.file = mapJobFile(row.job_files[0]);
+    }
+    return job;
+  });
+
+  return { jobs, total: count ?? 0 };
 }
 
 export async function getJobFilesForJobs(jobIds: string[]): Promise<Record<string, JobFile>> {

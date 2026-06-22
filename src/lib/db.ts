@@ -267,17 +267,62 @@ export async function getJobs(): Promise<Job[]> {
 }
 
 // Paginated jobs. Avoids loading the entire table into memory.
-export async function getJobsPage(limit: number, offset: number): Promise<{ jobs: Job[]; total: number }> {
+export async function getJobsPage(limit: number, cursor?: string | null): Promise<{ jobs: Job[]; total: number }> {
   if (isSupabase) {
     const mod = await import('./db-supabase');
-    return mod.getJobsPage(limit, offset);
+    return mod.getJobsPage(limit, cursor);
   }
   const sqlite = await getDbInstance();
   const total = (sqlite.prepare('SELECT COUNT(*) AS c FROM jobs').get() as { c: number }).c;
-  const rows = sqlite
-    .prepare('SELECT * FROM jobs ORDER BY created_at DESC LIMIT ? OFFSET ?')
-    .all(limit, offset) as Record<string, unknown>[];
-  return { jobs: rows.map(mapJob), total };
+
+  let stmt;
+  let rows;
+  if (cursor) {
+    stmt = sqlite.prepare(`
+      SELECT jobs.*, 
+        job_files.id AS f_id, job_files.original_name AS f_original_name,
+        job_files.stored_name AS f_stored_name, job_files.mime_type AS f_mime_type,
+        job_files.size_bytes AS f_size_bytes, job_files.file_kind AS f_file_kind,
+        job_files.storage_path AS f_storage_path, job_files.created_at AS f_created_at
+      FROM jobs 
+      LEFT JOIN job_files ON jobs.id = job_files.job_id 
+      WHERE jobs.created_at < ? 
+      ORDER BY jobs.created_at DESC LIMIT ?
+    `);
+    rows = stmt.all(cursor, limit) as any[];
+  } else {
+    stmt = sqlite.prepare(`
+      SELECT jobs.*, 
+        job_files.id AS f_id, job_files.original_name AS f_original_name,
+        job_files.stored_name AS f_stored_name, job_files.mime_type AS f_mime_type,
+        job_files.size_bytes AS f_size_bytes, job_files.file_kind AS f_file_kind,
+        job_files.storage_path AS f_storage_path, job_files.created_at AS f_created_at
+      FROM jobs 
+      LEFT JOIN job_files ON jobs.id = job_files.job_id 
+      ORDER BY jobs.created_at DESC LIMIT ?
+    `);
+    rows = stmt.all(limit) as any[];
+  }
+
+  const jobs = rows.map(row => {
+    const job = mapJob(row);
+    if (row.f_id) {
+      job.file = {
+        id: String(row.f_id),
+        jobId: job.id,
+        originalName: String(row.f_original_name),
+        storedName: String(row.f_stored_name),
+        mimeType: String(row.f_mime_type),
+        sizeBytes: Number(row.f_size_bytes),
+        fileKind: row.f_file_kind as any,
+        storagePath: String(row.f_storage_path),
+        createdAt: String(row.f_created_at)
+      };
+    }
+    return job;
+  });
+
+  return { jobs, total };
 }
 
 // Batch-fetch files for many jobs in one query (replaces per-job N+1 lookups).

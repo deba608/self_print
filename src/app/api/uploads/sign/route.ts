@@ -6,9 +6,43 @@ import { cloudStorageEnabled, createSignedUpload } from "@/lib/storage";
 
 // Issues a short-lived signed upload URL for direct browser -> Supabase upload.
 // The server owns validation and the object path; the bucket stays private.
+
+// Basic in-memory rate limiter for serverless instances
+const rateLimitMap = new Map<string, { count: number; lastReset: number }>();
+const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
+const MAX_REQUESTS_PER_WINDOW = 5; // 5 uploads per minute per IP
+
+function isRateLimited(ip: string): boolean {
+  const now = Date.now();
+  let entry = rateLimitMap.get(ip);
+
+  if (!entry || now - entry.lastReset > RATE_LIMIT_WINDOW_MS) {
+    entry = { count: 1, lastReset: now };
+    rateLimitMap.set(ip, entry);
+    
+    // Periodically sweep old entries if map gets too large
+    if (rateLimitMap.size > 1000) {
+      for (const [key, val] of rateLimitMap.entries()) {
+        if (now - val.lastReset > RATE_LIMIT_WINDOW_MS) {
+          rateLimitMap.delete(key);
+        }
+      }
+    }
+    return false;
+  }
+
+  entry.count++;
+  return entry.count > MAX_REQUESTS_PER_WINDOW;
+}
+
 export async function POST(request: NextRequest) {
   if (!cloudStorageEnabled) {
     return NextResponse.json({ error: "Direct upload not available" }, { status: 400 });
+  }
+
+  const ip = request.headers.get("x-forwarded-for") ?? "unknown";
+  if (isRateLimited(ip)) {
+    return NextResponse.json({ error: "Too many requests. Please try again later." }, { status: 429 });
   }
 
   let body: { fileName?: string; mimeType?: string; sizeBytes?: number };
