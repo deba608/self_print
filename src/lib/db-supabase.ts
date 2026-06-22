@@ -556,6 +556,24 @@ export async function cleanupOldJobs(): Promise<{ deleted: number; storagePaths:
   return { deleted: ids.length, storagePaths };
 }
 
+export async function filterActiveStoragePaths(paths: string[]): Promise<Set<string>> {
+  if (paths.length === 0) return new Set();
+  const active = new Set<string>();
+  
+  for (let i = 0; i < paths.length; i += 100) {
+    const chunk = paths.slice(i, i + 100);
+    const { data, error } = await supabase
+      .from('job_files')
+      .select('storage_path')
+      .in('storage_path', chunk);
+    if (error) throw error;
+    for (const row of data || []) {
+      active.add(row.storage_path);
+    }
+  }
+  return active;
+}
+
 export async function queueReprint(id: string) {
   const now = new Date().toISOString();
   

@@ -733,8 +733,31 @@ export async function cleanupOldJobs(): Promise<{ deleted: number; storagePaths:
     .all(...ids) as Array<{ storage_path: string }>;
   const storagePaths = files.map((f) => f.storage_path);
 
-  sqlite.prepare(`DELETE FROM jobs WHERE id IN (${placeholders})`).run(...ids);
+  if (ids.length > 0) {
+    const placeholders = ids.map(() => '?').join(',');
+    sqlite.prepare(`DELETE FROM jobs WHERE id IN (${placeholders})`).run(...ids);
+  }
+
   return { deleted: ids.length, storagePaths };
+}
+
+export async function filterActiveStoragePaths(paths: string[]): Promise<Set<string>> {
+  if (isSupabase) {
+    const mod = await import('./db-supabase');
+    return mod.filterActiveStoragePaths(paths);
+  }
+  if (paths.length === 0) return new Set();
+  const sqlite = await getDbInstance();
+  const active = new Set<string>();
+  
+  for (let i = 0; i < paths.length; i += 100) {
+    const chunk = paths.slice(i, i + 100);
+    const placeholders = chunk.map(() => '?').join(',');
+    const stmt = sqlite.prepare(`SELECT storage_path FROM job_files WHERE storage_path IN (${placeholders})`);
+    const rows = stmt.all(...chunk) as { storage_path: string }[];
+    for (const row of rows) active.add(row.storage_path);
+  }
+  return active;
 }
 
 export async function queueReprint(id: string): Promise<void> {

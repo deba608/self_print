@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { cleanupOldJobs } from "@/lib/db";
-import { deleteFile } from "@/lib/storage";
+import { cleanupOldJobs, filterActiveStoragePaths } from "@/lib/db";
+import { deleteFile, listOldFiles } from "@/lib/storage";
 
 // Deletes finished and expired jobs plus their stored files.
 // Protect with CRON_SECRET (falls back to AGENT_TOKEN). Vercel Cron sends
@@ -15,7 +15,23 @@ function authorized(request: NextRequest): boolean {
 async function runCleanup() {
   const { deleted, storagePaths } = await cleanupOldJobs();
   await Promise.all(storagePaths.map((p) => deleteFile(p)));
-  return NextResponse.json({ deleted, filesRemoved: storagePaths.length });
+  
+  // Clean up stray files older than 2 hours
+  const twoHoursMs = 2 * 60 * 60 * 1000;
+  const oldOriginals = await listOldFiles('originals', twoHoursMs);
+  const oldConverted = await listOldFiles('converted', twoHoursMs);
+  const allOldPaths = [...oldOriginals, ...oldConverted];
+  
+  const activePaths = await filterActiveStoragePaths(allOldPaths);
+  const strayPaths = allOldPaths.filter((p) => !activePaths.has(p));
+  
+  await Promise.all(strayPaths.map((p) => deleteFile(p)));
+
+  return NextResponse.json({ 
+    deletedJobs: deleted, 
+    jobFilesRemoved: storagePaths.length,
+    strayFilesRemoved: strayPaths.length 
+  });
 }
 
 export async function POST(request: NextRequest) {

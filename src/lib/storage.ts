@@ -190,3 +190,48 @@ export async function listFiles(prefix: string): Promise<string[]> {
     return [];
   }
 }
+
+// Lists files in storage that are older than maxAgeMs.
+export async function listOldFiles(prefix: string, maxAgeMs: number): Promise<string[]> {
+  const now = Date.now();
+  if (cloudStorageEnabled) {
+    const supabase = getSupabase();
+    if (!supabase) return [];
+    const allOldPaths: string[] = [];
+    let offset = 0;
+    const limit = 1000;
+    
+    while (true) {
+      const { data } = await supabase.storage.from(BUCKET).list(prefix, { limit, offset });
+      if (!data || data.length === 0) break;
+      
+      for (const f of data) {
+        if (!f.created_at || f.name === '.emptyFolderPlaceholder') continue;
+        const createdMs = new Date(f.created_at).getTime();
+        if (now - createdMs > maxAgeMs) {
+          allOldPaths.push(`${prefix}/${f.name}`);
+        }
+      }
+      if (data.length < limit) break;
+      offset += limit;
+    }
+    return allOldPaths;
+  }
+  
+  const fs = await import('node:fs/promises');
+  const dir = prefix.includes('converted') ? CONVERTED_DIR : ORIGINALS_DIR;
+  try {
+    const files = await fs.readdir(dir);
+    const oldPaths: string[] = [];
+    for (const f of files) {
+      const p = path.join(dir, f);
+      const stat = await fs.stat(p);
+      if (now - stat.mtimeMs > maxAgeMs) {
+        oldPaths.push(p);
+      }
+    }
+    return oldPaths;
+  } catch {
+    return [];
+  }
+}
