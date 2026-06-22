@@ -183,38 +183,32 @@ export default function UploadForm() {
 
     try {
       if (supabaseClient) {
-        const fileExt = file.name.substring(file.name.lastIndexOf(".")).toLowerCase();
-        let kind = "pdf";
-        const nameLower = file.name.toLowerCase();
-        if (/\.(jpg|jpeg|png)$/.test(nameLower)) kind = "image";
-        else if (/\.(doc|docx)$/.test(nameLower)) kind = "document";
+        // 1) Ask the server for a short-lived signed upload URL. The server
+        //    validates the file and owns the storage path.
+        const signRes = await fetch("/api/uploads/sign", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ fileName: file.name, mimeType: file.type, sizeBytes: file.size }),
+          signal: controller.signal,
+        });
+        const signBody = await signRes.json().catch(() => ({}));
+        if (!signRes.ok) {
+          throw new Error(signBody.error ?? "Could not start upload.");
+        }
 
-        const randomUUID = typeof self.crypto?.randomUUID === "function"
-          ? self.crypto.randomUUID()
-          : Math.random().toString(36).substring(2) + Date.now().toString(36);
-        const storedName = `${randomUUID}${fileExt}`;
-        const bucketPath = `${kind === "document" ? "converted" : "originals"}/${storedName}`;
-
+        // 2) Upload the bytes straight to Supabase Storage with the signed token.
         const { error: uploadError } = await supabaseClient.storage
           .from("selfprint")
-          .upload(bucketPath, file, {
+          .uploadToSignedUrl(signBody.objectPath, signBody.token, file, {
             contentType: file.type || "application/octet-stream",
-            upsert: true,
           });
-
         if (uploadError) {
           throw new Error(`Direct upload failed: ${uploadError.message}`);
         }
 
-        const { data: { publicUrl } } = supabaseClient.storage
-          .from("selfprint")
-          .getPublicUrl(bucketPath);
-
+        // 3) Send only identifying metadata; server re-derives path/size/pages.
         form.set("isDirectUpload", "true");
-        form.set("storedName", storedName);
-        form.set("storagePath", publicUrl);
-        form.set("sizeBytes", String(file.size));
-        form.set("pageCount", String(filePageCount ?? 1));
+        form.set("storedName", signBody.storedName);
         form.set("originalName", file.name);
         form.set("mimeType", file.type);
       } else {

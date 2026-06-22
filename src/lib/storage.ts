@@ -4,7 +4,9 @@ import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.SUPABASE_URL?.trim();
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
-const isSupabase = Boolean(supabaseUrl && supabaseKey);
+export const cloudStorageEnabled = Boolean(supabaseUrl && supabaseKey);
+const BUCKET = 'selfprint';
+const SIGNED_URL_TTL_SECONDS = 600; // 10 minutes
 
 let supabase: ReturnType<typeof createClient> | null = null;
 function getSupabase() {
@@ -21,66 +23,99 @@ export interface SavedFile {
   bytes: Buffer;
 }
 
+// Object path inside the Supabase bucket for a given file kind + stored name.
+export function bucketPathFor(kind: string, storedName: string): string {
+  return `${kind === 'document' ? 'converted' : 'originals'}/${storedName}`;
+}
+
+// Extracts the bucket object path from either a stored object path or a
+// legacy public/signed URL (handles the few rows created before this change).
+function toObjectPath(storagePath: string): string {
+  if (!/^https?:\/\//i.test(storagePath)) return storagePath;
+  try {
+    const url = new URL(storagePath);
+    const marker = url.pathname.match(/\/object\/(?:public|sign)\/[^/]+\/(.+)$/);
+    if (marker?.[1]) return decodeURIComponent(marker[1]);
+  } catch {
+    // fall through
+  }
+  return storagePath;
+}
+
 // Local filesystem storage (for development)
 async function saveToLocal(file: File, ext: string, kind: string): Promise<SavedFile> {
   const crypto = await import('node:crypto');
   const storedName = `${crypto.randomUUID()}${ext}`;
   const dir = kind === 'document' ? CONVERTED_DIR : ORIGINALS_DIR;
   const storagePath = path.join(dir, storedName);
-  
-  // Ensure directory exists
+
   const fs = await import('node:fs/promises');
   await fs.mkdir(dir, { recursive: true });
-  
+
   const bytes = Buffer.from(await file.arrayBuffer());
   await fs.writeFile(storagePath, bytes);
-  
-  return {
-    storedName,
-    storagePath,
-    sizeBytes: bytes.length,
-    bytes
-  };
+
+  return { storedName, storagePath, sizeBytes: bytes.length, bytes };
 }
 
-// Supabase Storage (for production)
+// Supabase Storage (private bucket — stores the object path, not a public URL)
 async function saveToSupabase(file: File, ext: string, kind: string): Promise<SavedFile> {
   const crypto = await import('node:crypto');
   const storedName = `${crypto.randomUUID()}${ext}`;
-  const bucketPath = `${kind === 'document' ? 'converted' : 'originals'}/${storedName}`;
-  
+  const objectPath = bucketPathFor(kind, storedName);
   const bytes = Buffer.from(await file.arrayBuffer());
-  
+
   const supabase = getSupabase();
   if (!supabase) throw new Error('Supabase client not initialized');
-  
-  const { error } = await supabase.storage.from('selfprint').upload(bucketPath, bytes, {
+
+  const { error } = await supabase.storage.from(BUCKET).upload(objectPath, bytes, {
     contentType: file.type || 'application/octet-stream',
-    upsert: true
+    upsert: false
   });
-  
   if (error) throw error;
-  
-  const { data: { publicUrl } } = supabase.storage.from('selfprint').getPublicUrl(bucketPath);
-  
-  return {
-    storedName,
-    storagePath: publicUrl,
-    sizeBytes: bytes.length,
-    bytes
-  };
+
+  return { storedName, storagePath: objectPath, sizeBytes: bytes.length, bytes };
 }
 
 export async function saveUpload(file: File, ext: string, kind: string = 'pdf'): Promise<SavedFile> {
-  if (isSupabase) {
-    return saveToSupabase(file, ext, kind);
-  }
+  if (cloudStorageEnabled) return saveToSupabase(file, ext, kind);
   return saveToLocal(file, ext, kind);
 }
 
-// Reads raw bytes from a stored file (local path or Supabase public URL).
+// Creates a short-lived signed URL the browser can upload to directly. Keeps
+// the bucket private and the object path server-controlled.
+export async function createSignedUpload(kind: string, storedName: string) {
+  const supabase = getSupabase();
+  if (!supabase) throw new Error('Supabase client not initialized');
+  const objectPath = bucketPathFor(kind, storedName);
+  const { data, error } = await supabase.storage.from(BUCKET).createSignedUploadUrl(objectPath);
+  if (error) throw error;
+  return { objectPath, signedUrl: data.signedUrl, token: data.token };
+}
+
+// Returns a URL a client/agent can fetch the file from, or null for local FS.
+export async function createSignedDownloadUrl(storagePath: string): Promise<string | null> {
+  if (!cloudStorageEnabled) return null;
+  const supabase = getSupabase();
+  if (!supabase) return null;
+  const objectPath = toObjectPath(storagePath);
+  const { data, error } = await supabase.storage
+    .from(BUCKET)
+    .createSignedUrl(objectPath, SIGNED_URL_TTL_SECONDS);
+  if (error) throw error;
+  return data.signedUrl;
+}
+
+// Reads raw bytes from a stored file (Supabase object or local path).
 export async function readFileBytes(storagePath: string): Promise<Buffer> {
-  if (isSupabase || /^https?:\/\//i.test(storagePath)) {
+  if (cloudStorageEnabled) {
+    const supabase = getSupabase();
+    if (!supabase) throw new Error('Supabase client not initialized');
+    const { data, error } = await supabase.storage.from(BUCKET).download(toObjectPath(storagePath));
+    if (error) throw error;
+    return Buffer.from(await data.arrayBuffer());
+  }
+  if (/^https?:\/\//i.test(storagePath)) {
     const res = await fetch(storagePath);
     if (!res.ok) throw new Error(`Failed to fetch file: ${res.status}`);
     return Buffer.from(await res.arrayBuffer());
@@ -99,17 +134,16 @@ export async function saveBuffer(
   const crypto = await import('node:crypto');
   const storedName = `${crypto.randomUUID()}${ext}`;
 
-  if (isSupabase) {
-    const bucketPath = `${kind === 'document' ? 'converted' : 'originals'}/${storedName}`;
+  if (cloudStorageEnabled) {
+    const objectPath = bucketPathFor(kind, storedName);
     const supabase = getSupabase();
     if (!supabase) throw new Error('Supabase client not initialized');
-    const { error } = await supabase.storage.from('selfprint').upload(bucketPath, bytes, {
+    const { error } = await supabase.storage.from(BUCKET).upload(objectPath, bytes, {
       contentType,
-      upsert: true
+      upsert: false
     });
     if (error) throw error;
-    const { data: { publicUrl } } = supabase.storage.from('selfprint').getPublicUrl(bucketPath);
-    return { storedName, storagePath: publicUrl, sizeBytes: bytes.length, bytes };
+    return { storedName, storagePath: objectPath, sizeBytes: bytes.length, bytes };
   }
 
   const dir = kind === 'document' ? CONVERTED_DIR : ORIGINALS_DIR;
@@ -121,42 +155,38 @@ export async function saveBuffer(
 }
 
 export async function deleteFile(storagePath: string): Promise<void> {
-  if (isSupabase) {
+  if (cloudStorageEnabled) {
     try {
-      const url = new URL(storagePath);
-      const pathname = url.pathname.split('/object/public/')[1] || url.pathname.split('/storage/v1/object/public/')[1];
       const supabase = getSupabase();
       if (!supabase) return;
-      await supabase.storage.from('selfprint').remove([pathname]);
+      await supabase.storage.from(BUCKET).remove([toObjectPath(storagePath)]);
     } catch {
       // Ignore errors if file doesn't exist
     }
-  } else {
-    const fs = await import('node:fs/promises');
-    try {
-      await fs.unlink(storagePath);
-    } catch {
-      // Ignore errors if file doesn't exist
-    }
+    return;
+  }
+  const fs = await import('node:fs/promises');
+  try {
+    await fs.unlink(storagePath);
+  } catch {
+    // Ignore errors if file doesn't exist
   }
 }
 
 export async function listFiles(prefix: string): Promise<string[]> {
-  if (isSupabase) {
+  if (cloudStorageEnabled) {
     const supabase = getSupabase();
     if (!supabase) return [];
-    const { data } = await supabase.storage.from('selfprint').list(prefix);
+    const { data } = await supabase.storage.from(BUCKET).list(prefix);
     if (!data) return [];
-    const { data: { publicUrl } } = supabase.storage.from('selfprint').getPublicUrl('');
-    return data.map(f => `${publicUrl}${prefix}/${f.name}`);
-  } else {
-    const fs = await import('node:fs/promises');
-    const dir = prefix.includes('converted') ? CONVERTED_DIR : ORIGINALS_DIR;
-    try {
-      const files = await fs.readdir(dir);
-      return files.map(f => path.join(dir, f));
-    } catch {
-      return [];
-    }
+    return data.map((f) => `${prefix}/${f.name}`);
+  }
+  const fs = await import('node:fs/promises');
+  const dir = prefix.includes('converted') ? CONVERTED_DIR : ORIGINALS_DIR;
+  try {
+    const files = await fs.readdir(dir);
+    return files.map((f) => path.join(dir, f));
+  } catch {
+    return [];
   }
 }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getJobFile } from "@/lib/db";
+import { createSignedDownloadUrl } from "@/lib/storage";
 import { verifyAgentToken } from "@/lib/security";
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -16,17 +17,18 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   }
   
   if (file.fileKind === "document") return NextResponse.json({ error: "Document needs conversion" }, { status: 400 });
-  
-  // For Supabase/Vercel Blob, return the URL for the agent to download
-  if (file.storagePath.startsWith("http")) {
-    return NextResponse.json({ 
-      url: file.storagePath,
+
+  // For cloud storage, return a short-lived signed URL for the agent to download
+  const signedUrl = await createSignedDownloadUrl(file.storagePath);
+  if (signedUrl) {
+    return NextResponse.json({
+      url: signedUrl,
       mimeType: file.mimeType,
       sizeBytes: file.sizeBytes,
       originalName: file.originalName
     });
   }
-  
+
   // For local filesystem, return the file directly
   const fs = await import("node:fs");
   if (!fs.existsSync(file.storagePath)) return NextResponse.json({ error: "Stored file missing" }, { status: 404 });

@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { MAX_UPLOAD_BYTES } from "@/lib/config";
 import { createJob, getPricing, nextQueuePosition, sseClients } from "@/lib/db";
 import { estimatePageCount, saveUpload, validateUpload } from "@/lib/files";
+import { bucketPathFor, readFileBytes } from "@/lib/storage";
 import { calculatePrice } from "@/lib/pricing";
 import type { PaperSize, PrintLayout, PrintScale, PrintType } from "@/lib/types";
 
@@ -56,20 +57,35 @@ export async function POST(request: NextRequest) {
     let mimeType = "";
 
     if (isDirectUpload) {
+      // Only the stored name + original name/mime are taken from the client.
+      // The object path, real size, and page count are derived server-side so
+      // none of them can be forged (e.g. to manipulate price).
       storedName = String(form.get("storedName") ?? "");
-      storagePath = String(form.get("storagePath") ?? "");
-      sizeBytes = Number(form.get("sizeBytes") ?? 0);
-      pageCount = Number(form.get("pageCount") ?? 1);
       originalName = String(form.get("originalName") ?? "");
       mimeType = String(form.get("mimeType") ?? "");
 
-      if (!storedName || !storagePath || isNaN(sizeBytes) || isNaN(pageCount)) {
+      if (!storedName || !originalName) {
         return NextResponse.json({ error: "Invalid upload metadata" }, { status: 400 });
       }
 
-      const { ext, kind: k } = validateUpload(originalName, mimeType);
+      const { kind: k } = validateUpload(originalName, mimeType);
       kind = k;
       needsConversion = kind === "document" ? 1 : 0;
+      storagePath = bucketPathFor(kind, storedName);
+
+      // Verify the object was actually uploaded (via the signed URL) and read
+      // its true bytes for size + page count.
+      let bytes: Buffer;
+      try {
+        bytes = await readFileBytes(storagePath);
+      } catch {
+        return NextResponse.json({ error: "Uploaded file not found" }, { status: 400 });
+      }
+      sizeBytes = bytes.length;
+      if (sizeBytes > MAX_UPLOAD_BYTES) {
+        return NextResponse.json({ error: "File is too large" }, { status: 400 });
+      }
+      pageCount = estimatePageCount(kind, bytes);
     } else {
       const file = form.get("file");
       if (!(file instanceof File)) {
