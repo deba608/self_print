@@ -3,7 +3,7 @@ import { getJobFile } from "@/lib/db";
 import { verifyAgentToken } from "@/lib/security";
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  if (!verifyAgentToken(request.headers.get("authorization"))) {
+  if (!(await verifyAgentToken(request.headers.get("authorization")))) {
     return NextResponse.json({ error: "Invalid agent token" }, { status: 401 });
   }
   const { id } = await params;

@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import { NextRequest, NextResponse } from "next/server";
-import { getJobFile } from "@/lib/db";
+import { getJobFileById } from "@/lib/db";
 import { requireAdminResponse } from "@/lib/security";
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -10,7 +10,7 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
   
   let file;
   try {
-    file = await getJobFile(id);
+    file = await getJobFileById(id);
   } catch {
     return NextResponse.json({ error: "File not found" }, { status: 404 });
   }

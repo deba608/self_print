@@ -29,13 +29,50 @@ For shop use, prefer the Electron installer in `electron-agent/build-output`. It
 
 ### Environment
 
-Create a `.env` file with just one required setting:
+Create a `.env` file:
 
-```
+**SQLite mode (default, local):**
+```env
 AGENT_TOKEN=dev-agent
 ```
 
+**Supabase mode (cloud/production):**
+```env
+AGENT_TOKEN=dev-agent
+USE_SUPABASE=true
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+```
+
+> **Security:** Never expose `SUPABASE_SERVICE_ROLE_KEY` in the browser. It bypasses RLS and has full DB access. Only use it server-side (API routes).
+
 Everything else uses safe defaults. Admin login: `admin` / `1234`
+
+### Supabase Setup
+
+1. Create a project at [supabase.com](https://supabase.com)
+2. Run migrations from `supabase/migrations/` or use `npm run db:seed` with `USE_SUPABASE=true`
+3. Seed initial data (pricing, admin user, agent token) via the seed script
+4. Enable RLS on all 8 tables and add appropriate policies before going to production:
+
+```sql
+ALTER TABLE public.jobs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.job_files ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.pricing_config ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.agent_config ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.agent_printers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.admin_users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.agent_tokens ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.print_events ENABLE ROW LEVEL SECURITY;
+```
+
+5. Add indexes for FK columns (performance):
+
+```sql
+CREATE INDEX idx_job_files_job_id ON public.job_files(job_id);
+CREATE INDEX idx_print_events_job_id ON public.print_events(job_id);
+CREATE INDEX idx_jobs_token ON public.jobs(token);
+```
 
 ### Print Agent
 
@@ -61,6 +98,36 @@ For developer CLI testing, copy `agent/config.example.json` to `agent/config.jso
 - `agentToken`: Must be `dev-agent` — must match `.env` AGENT_TOKEN
 - `sumatraPath`: Optional. Leave empty to auto-detect the bundled print engine or a system install
 - `fallbackPrinter`: Default printer name shown when no printer is selected in admin
+
+---
+
+## Architecture
+
+```
+Customer (mobile)
+  └── uploads file → POST /api/uploads → gets token
+Admin (browser)
+  └── GET /admin → dashboard (SSE live updates)
+  └── POST /api/admin/jobs/[id] → mark paid / release
+Print Agent (Windows PC)
+  └── GET /api/agent/jobs/next → polls approved jobs
+  └── GET /api/agent/jobs/[id]/file → downloads file
+  └── POST /api/agent/jobs/[id]/status → marks printed
+```
+
+**Database:** Dual-mode — SQLite (`better-sqlite3`) for local/dev, Supabase (PostgreSQL) for production. Controlled by `USE_SUPABASE` env var. Both share the same schema and query interface via `src/lib/db.ts` / `src/lib/db-supabase.ts`.
+
+**Auth:**
+- Admin: session-based (cookie), `admin_users` table
+- Agent: bearer token, hashed in `agent_tokens` table
+- Customers: no auth required
+
+**File storage:**
+- Originals: `uploads/originals/`
+- Converted: `uploads/converted/`
+- Agent temp: `agent-temp/`
+
+**Tables:** `jobs`, `job_files`, `pricing_config`, `admin_users`, `agent_tokens`, `agent_config`, `agent_printers`, `print_events`
 
 ---
 
@@ -94,7 +161,7 @@ npm run dev        # Start development server
 npm run build      # Build for production
 npm run start      # Start production server
 npm run typecheck  # Type check only
-npm run db:seed    # Initialize/seed SQLite database
+npm run db:seed    # Initialize/seed database (SQLite or Supabase)
 npm run cleanup    # Delete old printed/cancelled/expired uploads
 
 npm run agent      # Developer CLI agent. For shop use, prefer the Electron installer.
@@ -113,3 +180,12 @@ npm run agent      # Developer CLI agent. For shop use, prefer the Electron inst
 | Job expiry | 24 hours |
 
 Pricing is configurable from the admin dashboard Settings panel.
+
+---
+
+## Known Limitations
+
+- **DOC/DOCX conversion**: Files are accepted and stored but cannot be released until manually converted to PDF. No automatic conversion pipeline exists yet.
+- **Job expiry**: Expired jobs are only cleaned up when `npm run cleanup` is run manually or via the `/api/cleanup` endpoint. No automated cron job.
+- **No pagination**: Admin job list loads all jobs. Performance degrades beyond ~500 jobs.
+- **File serve**: No rate limiting on `/uploads/[id]`. Do not expose to public internet without a reverse proxy.

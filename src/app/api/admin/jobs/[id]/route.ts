@@ -1,6 +1,5 @@
-import crypto from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
-import { getJobById, getJobFile, updateJobSettings, deleteJob, getPricing, sseClients } from "@/lib/db";
+import { getJobById, getJobFile, getJobEvents, updateJobSettings, deleteJob, getPricing } from "@/lib/db";
 import { calculatePrice } from "@/lib/pricing";
 import { requireAdminResponse } from "@/lib/security";
 import type { JobStatus, PaperSize, PrintLayout, PrintScale, PrintType } from "@/lib/types";
@@ -14,7 +13,8 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
   try {
     const job = await getJobById(id);
     const file = await getJobFile(id);
-    return NextResponse.json({ job, file, events: [] });
+    const events = await getJobEvents(id);
+    return NextResponse.json({ job, file, events });
   } catch {
     return NextResponse.json({ error: "Job not found" }, { status: 404 });
   }
@@ -109,22 +109,4 @@ export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id:
   await deleteJob(id);
 
   return NextResponse.json({ success: true });
-}
-
-function describeSettings(input: {
-  printType: PrintType;
-  copies: number;
-  pageRange: string | null;
-  paperSize: PaperSize;
-  layout: PrintLayout;
-  scale: PrintScale;
-}) {
-  return [
-    input.pageRange || "All pages",
-    input.layout,
-    input.printType === "bw" ? "black & white" : "color",
-    input.paperSize,
-    `${input.scale} scale`,
-    `${input.copies} copy(s)`
-  ].join(", ");
 }

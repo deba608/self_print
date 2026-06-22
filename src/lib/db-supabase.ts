@@ -145,6 +145,28 @@ export async function getJobFile(jobId: string) {
   return mapJobFile(data);
 }
 
+export async function getJobFileById(fileId: string) {
+  const { data, error } = await supabase
+    .from('job_files')
+    .select('*')
+    .eq('id', fileId)
+    .single();
+  
+  if (error) throw error;
+  return mapJobFile(data);
+}
+
+export async function getJobEvents(jobId: string) {
+  const { data, error } = await supabase
+    .from('print_events')
+    .select('*')
+    .eq('job_id', jobId)
+    .order('created_at', { ascending: true });
+  
+  if (error) throw error;
+  return data || [];
+}
+
 export async function createJob(jobData: any, fileData: any) {
   const now = new Date().toISOString();
   const jobId = crypto.randomUUID();
@@ -344,11 +366,12 @@ export async function getAgentConfig() {
 
 export async function updateAgentConfig(printerName: string) {
   const now = new Date().toISOString();
+  const current = await getAgentConfig();
   const { error } = await supabase
     .from('agent_config')
     .update({
       printer_name: printerName,
-      config_version: supabase.rpc('increment_config_version'),
+      config_version: Number(current.configVersion ?? 0) + 1,
       updated_at: now
     })
     .eq('id', 1);
@@ -359,8 +382,8 @@ export async function updateAgentConfig(printerName: string) {
 export async function replaceAgentPrinters(printers: Array<Omit<PrinterOption, 'seenAt'>>) {
   const now = new Date().toISOString();
   
-  // Delete existing
-  await supabase.from('agent_printers').delete().neq('name', '');
+  const { error: deleteError } = await supabase.from('agent_printers').delete().neq('name', '');
+  if (deleteError) throw deleteError;
   
   // Insert new
   if (printers.length > 0) {

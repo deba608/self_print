@@ -300,6 +300,30 @@ export async function getJobFile(jobId: string): Promise<JobFile> {
   return mapJobFile(row);
 }
 
+export async function getJobFileById(fileId: string): Promise<JobFile> {
+  if (isSupabase) {
+    const mod = await import('./db-supabase');
+    return mod.getJobFileById(fileId);
+  }
+  const sqlite = await getDbInstance();
+  const row = sqlite.prepare('SELECT * FROM job_files WHERE id = ?').get(fileId) as Record<string, unknown>;
+  return mapJobFile(row);
+}
+
+export async function getJobEvents(jobId: string) {
+  if (isSupabase) {
+    const mod = await import('./db-supabase');
+    return mod.getJobEvents(jobId);
+  }
+  const sqlite = await getDbInstance();
+  return sqlite.prepare(`
+    SELECT id, event_type, message, created_at
+    FROM print_events
+    WHERE job_id = ?
+    ORDER BY created_at ASC
+  `).all(jobId);
+}
+
 export async function createJob(jobData: any, fileData: any): Promise<{ jobId: string; fileId: string }> {
   if (isSupabase) {
     const mod = await import('./db-supabase');
@@ -527,7 +551,7 @@ export async function getAdminUser(username: string) {
   }
   
   const sqlite = await getDbInstance();
-  return sqlite.prepare('SELECT username FROM admin_users WHERE username = ?').get(username);
+  return sqlite.prepare('SELECT username, password_hash FROM admin_users WHERE username = ?').get(username);
 }
 
 export async function getAgentToken(tokenHash: string) {

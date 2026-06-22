@@ -6,7 +6,7 @@ import type { PrinterOption } from "@/lib/types";
 type IncomingPrinter = Partial<Omit<PrinterOption, "seenAt">>;
 
 export async function POST(request: NextRequest) {
-  if (!verifyAgentToken(request.headers.get("authorization"))) {
+  if (!(await verifyAgentToken(request.headers.get("authorization")))) {
     return NextResponse.json({ error: "Invalid agent token" }, { status: 401 });
   }
 

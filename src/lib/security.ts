@@ -11,6 +11,7 @@ export function hashSecret(secret: string) {
 
 export function verifySecret(secret: string, hash: string) {
   const actual = hashSecret(secret);
+  if (actual.length !== hash.length) return false;
   return crypto.timingSafeEqual(Buffer.from(actual), Buffer.from(hash));
 }
 
