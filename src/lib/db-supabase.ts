@@ -565,6 +565,51 @@ export async function queueReprint(id: string) {
   if (eventError) throw eventError;
 }
 
+export async function getJobsNeedingConversion(): Promise<Job[]> {
+  const { data, error } = await supabase
+    .from('jobs')
+    .select('*')
+    .eq('needs_conversion', 1)
+    .order('created_at', { ascending: true });
+
+  if (error) throw error;
+  return (data || []).map(mapJob);
+}
+
+export async function markJobConverted(
+  jobId: string,
+  fileId: string,
+  file: { storedName: string; storagePath: string; sizeBytes: number; pageCount: number; pricePaise: number }
+): Promise<void> {
+  const now = new Date().toISOString();
+
+  const { error: fileErr } = await supabase
+    .from('job_files')
+    .update({
+      stored_name: file.storedName,
+      storage_path: file.storagePath,
+      size_bytes: file.sizeBytes,
+      mime_type: 'application/pdf',
+      file_kind: 'pdf'
+    })
+    .eq('id', fileId);
+  if (fileErr) throw fileErr;
+
+  const { error: jobErr } = await supabase
+    .from('jobs')
+    .update({ needs_conversion: 0, page_count: file.pageCount, price_paise: file.pricePaise, updated_at: now })
+    .eq('id', jobId);
+  if (jobErr) throw jobErr;
+
+  await supabase.from('print_events').insert([{
+    id: crypto.randomUUID(),
+    job_id: jobId,
+    event_type: 'converted',
+    message: 'Document converted to PDF.',
+    created_at: now
+  }]);
+}
+
 export async function updateJobStatusByAgent(id: string, status: string, message?: string) {
   const now = new Date().toISOString();
   const updates: any = { status, updated_at: now };

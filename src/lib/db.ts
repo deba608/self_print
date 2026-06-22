@@ -706,6 +706,49 @@ export async function queueReprint(id: string): Promise<void> {
     .run(crypto.randomUUID(), id, now);
 }
 
+// Jobs whose uploaded file still needs DOC/DOCX -> PDF conversion.
+export async function getJobsNeedingConversion(): Promise<Job[]> {
+  if (isSupabase) {
+    const mod = await import('./db-supabase');
+    return mod.getJobsNeedingConversion();
+  }
+  const sqlite = await getDbInstance();
+  const rows = sqlite
+    .prepare("SELECT * FROM jobs WHERE needs_conversion = 1 ORDER BY created_at ASC")
+    .all() as Record<string, unknown>[];
+  return rows.map(mapJob);
+}
+
+// Replaces a job's file with the converted PDF and clears the conversion flag.
+export async function markJobConverted(
+  jobId: string,
+  fileId: string,
+  file: { storedName: string; storagePath: string; sizeBytes: number; pageCount: number; pricePaise: number }
+): Promise<void> {
+  if (isSupabase) {
+    const mod = await import('./db-supabase');
+    return mod.markJobConverted(jobId, fileId, file);
+  }
+
+  const crypto = await import('node:crypto');
+  const sqlite = await getDbInstance();
+  const now = new Date().toISOString();
+  sqlite.transaction(() => {
+    sqlite.prepare(`
+      UPDATE job_files
+      SET stored_name = ?, storage_path = ?, size_bytes = ?, mime_type = 'application/pdf', file_kind = 'pdf'
+      WHERE id = ?
+    `).run(file.storedName, file.storagePath, file.sizeBytes, fileId);
+
+    sqlite.prepare(`
+      UPDATE jobs SET needs_conversion = 0, page_count = ?, price_paise = ?, updated_at = ? WHERE id = ?
+    `).run(file.pageCount, file.pricePaise, now, jobId);
+
+    sqlite.prepare("INSERT INTO print_events (id, job_id, event_type, message, created_at) VALUES (?, ?, 'converted', 'Document converted to PDF.', ?)")
+      .run(crypto.randomUUID(), jobId, now);
+  })();
+}
+
 export async function updateJobStatusByAgent(id: string, status: string, message?: string): Promise<void> {
   if (isSupabase) {
     const mod = await import('./db-supabase');

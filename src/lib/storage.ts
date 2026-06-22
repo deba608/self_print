@@ -78,6 +78,48 @@ export async function saveUpload(file: File, ext: string, kind: string = 'pdf'):
   return saveToLocal(file, ext, kind);
 }
 
+// Reads raw bytes from a stored file (local path or Supabase public URL).
+export async function readFileBytes(storagePath: string): Promise<Buffer> {
+  if (isSupabase || /^https?:\/\//i.test(storagePath)) {
+    const res = await fetch(storagePath);
+    if (!res.ok) throw new Error(`Failed to fetch file: ${res.status}`);
+    return Buffer.from(await res.arrayBuffer());
+  }
+  const fs = await import('node:fs/promises');
+  return fs.readFile(storagePath);
+}
+
+// Saves a buffer (e.g. a converted PDF) using the active storage backend.
+export async function saveBuffer(
+  bytes: Buffer,
+  ext: string,
+  kind: string,
+  contentType: string
+): Promise<SavedFile> {
+  const crypto = await import('node:crypto');
+  const storedName = `${crypto.randomUUID()}${ext}`;
+
+  if (isSupabase) {
+    const bucketPath = `${kind === 'document' ? 'converted' : 'originals'}/${storedName}`;
+    const supabase = getSupabase();
+    if (!supabase) throw new Error('Supabase client not initialized');
+    const { error } = await supabase.storage.from('selfprint').upload(bucketPath, bytes, {
+      contentType,
+      upsert: true
+    });
+    if (error) throw error;
+    const { data: { publicUrl } } = supabase.storage.from('selfprint').getPublicUrl(bucketPath);
+    return { storedName, storagePath: publicUrl, sizeBytes: bytes.length, bytes };
+  }
+
+  const dir = kind === 'document' ? CONVERTED_DIR : ORIGINALS_DIR;
+  const fs = await import('node:fs/promises');
+  await fs.mkdir(dir, { recursive: true });
+  const storagePath = path.join(dir, storedName);
+  await fs.writeFile(storagePath, bytes);
+  return { storedName, storagePath, sizeBytes: bytes.length, bytes };
+}
+
 export async function deleteFile(storagePath: string): Promise<void> {
   if (isSupabase) {
     try {
