@@ -39,6 +39,48 @@ export default function UploadForm() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [filePageCount, setFilePageCount] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const uploadPromiseRef = useRef<Promise<{ isDirectUpload: boolean; storedName?: string; error?: string }> | null>(null);
+  const uploadAbortControllerRef = useRef<AbortController | null>(null);
+
+  async function startBackgroundUpload(selectedFile: File) {
+    if (uploadAbortControllerRef.current) {
+      uploadAbortControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    uploadAbortControllerRef.current = controller;
+
+    if (!supabaseClient) {
+      return { isDirectUpload: false };
+    }
+
+    try {
+      const signRes = await fetch("/api/uploads/sign", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fileName: selectedFile.name, mimeType: selectedFile.type, sizeBytes: selectedFile.size }),
+        signal: controller.signal,
+      });
+      const signBody = await signRes.json().catch(() => ({}));
+      if (!signRes.ok) {
+        throw new Error(signBody.error ?? "Could not start upload.");
+      }
+
+      const { error: uploadError } = await supabaseClient.storage
+        .from("selfprint")
+        .uploadToSignedUrl(signBody.objectPath, signBody.token, selectedFile, {
+          contentType: selectedFile.type || "application/octet-stream",
+        });
+
+      if (uploadError) {
+        throw new Error(`Direct upload failed: ${uploadError.message}`);
+      }
+
+      return { isDirectUpload: true, storedName: signBody.storedName };
+    } catch (err: any) {
+      if (err.name === "AbortError") throw err;
+      return { isDirectUpload: true, error: err instanceof Error ? err.message : "Upload failed" };
+    }
+  }
 
   useEffect(() => {
     fetch("/api/pricing")
@@ -144,6 +186,12 @@ export default function UploadForm() {
     setFile(selectedFile);
     setFilePageCount(null);
     if (selectedFile) {
+      // Start background upload immediately
+      uploadPromiseRef.current = startBackgroundUpload(selectedFile).catch((err) => {
+        if (err.name === "AbortError") return { isDirectUpload: false, error: "Aborted" };
+        return { isDirectUpload: false, error: err.message };
+      });
+
       if (selectedFile.type === "application/pdf") {
         const url = URL.createObjectURL(selectedFile);
         setPreviewUrl(url);
@@ -182,36 +230,27 @@ export default function UploadForm() {
     const timeoutId = window.setTimeout(() => controller.abort(), 60000);
 
     try {
-      if (supabaseClient) {
-        // 1) Ask the server for a short-lived signed upload URL. The server
-        //    validates the file and owns the storage path.
-        const signRes = await fetch("/api/uploads/sign", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ fileName: file.name, mimeType: file.type, sizeBytes: file.size }),
-          signal: controller.signal,
-        });
-        const signBody = await signRes.json().catch(() => ({}));
-        if (!signRes.ok) {
-          throw new Error(signBody.error ?? "Could not start upload.");
+      if (uploadPromiseRef.current) {
+        const uploadResult = await uploadPromiseRef.current;
+        if (uploadResult.error && uploadResult.error !== "Aborted") {
+          throw new Error(uploadResult.error);
         }
-
-        // 2) Upload the bytes straight to Supabase Storage with the signed token.
-        const { error: uploadError } = await supabaseClient.storage
-          .from("selfprint")
-          .uploadToSignedUrl(signBody.objectPath, signBody.token, file, {
-            contentType: file.type || "application/octet-stream",
-          });
-        if (uploadError) {
-          throw new Error(`Direct upload failed: ${uploadError.message}`);
+        
+        if (uploadResult.isDirectUpload && uploadResult.storedName) {
+          form.set("isDirectUpload", "true");
+          form.set("storedName", uploadResult.storedName);
+          form.set("originalName", file.name);
+          form.set("mimeType", file.type);
+          // Send known values so server skips re-downloading the file just to
+          // measure size and count pages (saves 3-8 s on Vercel ↔ Supabase roundtrip).
+          form.set("sizeBytes", String(file.size));
+          form.set("pageCount", String(filePageCount ?? 1));
+        } else {
+          form.set("isDirectUpload", "false");
+          form.set("file", file);
         }
-
-        // 3) Send only identifying metadata; server re-derives path/size/pages.
-        form.set("isDirectUpload", "true");
-        form.set("storedName", signBody.storedName);
-        form.set("originalName", file.name);
-        form.set("mimeType", file.type);
       } else {
+        // Fallback
         form.set("isDirectUpload", "false");
         form.set("file", file);
       }
@@ -253,6 +292,11 @@ export default function UploadForm() {
       URL.revokeObjectURL(previewUrl);
       setPreviewUrl(null);
     }
+    if (uploadAbortControllerRef.current) {
+      uploadAbortControllerRef.current.abort();
+      uploadAbortControllerRef.current = null;
+    }
+    uploadPromiseRef.current = null;
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 

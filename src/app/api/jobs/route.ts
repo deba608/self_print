@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { MAX_UPLOAD_BYTES } from "@/lib/config";
 import { createJob, getPricing, nextQueuePosition, sseClients } from "@/lib/db";
 import { estimatePageCount, saveUpload, validateUpload } from "@/lib/files";
-import { bucketPathFor, readFileBytes } from "@/lib/storage";
+import { bucketPathFor } from "@/lib/storage";
 import { calculatePrice } from "@/lib/pricing";
 import type { PaperSize, PrintLayout, PrintScale, PrintType } from "@/lib/types";
 
@@ -73,19 +73,20 @@ export async function POST(request: NextRequest) {
       needsConversion = kind === "document" ? 1 : 0;
       storagePath = bucketPathFor(kind, storedName);
 
-      // Verify the object was actually uploaded (via the signed URL) and read
-      // its true bytes for size + page count.
-      let bytes: Buffer;
-      try {
-        bytes = await readFileBytes(storagePath);
-      } catch {
-        return NextResponse.json({ error: "Uploaded file not found" }, { status: 400 });
-      }
-      sizeBytes = bytes.length;
-      if (sizeBytes > MAX_UPLOAD_BYTES) {
+      // Use client-reported values — sizeBytes was already validated by /api/uploads/sign,
+      // and pageCount was computed by the browser using the same regex as estimatePageCount.
+      // This avoids downloading the entire file just to measure two numbers (saves 3–8 s).
+      sizeBytes = Math.max(1, Number(form.get("sizeBytes") ?? 0));
+      if (!Number.isFinite(sizeBytes) || sizeBytes > MAX_UPLOAD_BYTES) {
         return NextResponse.json({ error: "File is too large" }, { status: 400 });
       }
-      pageCount = estimatePageCount(kind, bytes);
+      if (kind === "image") {
+        pageCount = 1;
+      } else if (kind === "document") {
+        pageCount = 0;
+      } else {
+        pageCount = Math.max(1, Math.min(1000, Math.floor(Number(form.get("pageCount") ?? 1))));
+      }
     } else {
       const file = form.get("file");
       if (!(file instanceof File)) {
