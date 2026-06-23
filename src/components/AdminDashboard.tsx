@@ -1067,10 +1067,10 @@ function JobCard({
             <span>Done</span>
           </button>
         )}
-        {job.status === "printed" && (
+        {(job.status === "printed" || job.status === "failed") && (
           <button type="button" className="job-btn reprint" onClick={() => handleActionClick("reprint")} disabled={actionLoading}>
             {actionLoading ? <Loader2 size={14} className="spin" /> : <RefreshCw size={14} />}
-            <span>Reprint</span>
+            <span>{job.status === "failed" ? "Retry" : "Reprint"}</span>
           </button>
         )}
         {job.status !== "printed" && job.status !== "cancelled" && (
