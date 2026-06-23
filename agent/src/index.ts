@@ -1,8 +1,10 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { existsSync } from "node:fs";
-import { execFile, spawn } from "node:child_process";
+import { execFile } from "node:child_process";
 import { createClient, RealtimeChannel } from "@supabase/supabase-js";
+import sharp from "sharp";
+import { PDFiumLibrary } from "@hyzyla/pdfium";
 
 type AgentConfig = {
   supabaseUrl: string;
@@ -308,7 +310,7 @@ async function processJob(jobId: string) {
         if (!printer) throw new Error("No printer selected. Set a printer in admin dashboard.");
 
         log(`Printing ${job.copies} copy(s), paper: ${job.paper_size}, type: ${job.print_type}, printer: ${printer}...`);
-        await printWithSumatra(tempPath, job, printer);
+        await printJob(tempPath, job, printer);
 
         await updateStatus(jobId, "printed", `Printed successfully on attempt ${attempt}.`);
         log(`Job ${job.token} completed successfully.`);
