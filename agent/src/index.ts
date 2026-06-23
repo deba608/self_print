@@ -404,103 +404,143 @@ async function reportPrintersIfNeeded() {
   }
 }
 
-async function printWithSumatra(
-  filePath: string,
-  job: SupabaseJob,
-  printer: string
-) {
+// Print via the Windows GDI spooler (System.Drawing.Printing) — the path that
+// actually reaches the printer on this hardware. SumatraPDF silently failed to
+// spool on the shop's Epson driver, so it was removed entirely.
+//   - Images print directly.
+//   - PDFs are rasterised to PNG (one per page) with PDFium (WASM, no install),
+//     then printed as images.
+async function printJob(filePath: string, job: SupabaseJob, printer: string) {
   if (!existsSync(filePath)) {
     throw new Error(`File not found: ${filePath}`);
   }
 
-  const sumatraPath = resolveSumatraPath();
-  if (!sumatraPath) {
-    throw new Error("Print engine not found. Put SumatraPDF.exe in agent/vendor/ or set sumatraPath in config.");
+  const ext = path.extname(filePath).toLowerCase();
+  const isImage = [".jpg", ".jpeg", ".png", ".bmp", ".gif"].includes(ext);
+
+  let images: string[];
+  const cleanup: string[] = [];
+
+  if (isImage) {
+    images = [filePath];
+  } else if (ext === ".pdf") {
+    images = await renderPdfToPngs(filePath, job);
+    cleanup.push(...images);
+  } else {
+    throw new Error(`Unsupported file type for printing: ${ext}`);
   }
 
-  const printSettings = buildPrintSettings(job);
-  const args: string[] = ["-silent", "-exit-when-done", "-print-to", printer];
-  if (printSettings) args.push("-print-settings", printSettings);
-  args.push(filePath);
+  // Apply page range if specified (1-based, e.g. "1-3,5").
+  if (job.page_range && images.length > 1) {
+    const wanted = parsePageRange(job.page_range, images.length);
+    if (wanted.length) images = wanted.map((n) => images[n - 1]).filter(Boolean);
+  }
 
-  log(`Running: ${sumatraPath} ${args.join(" ")}`);
+  try {
+    await printImagesGDI(images, job, printer);
+  } finally {
+    for (const f of cleanup) await fs.rm(f, { force: true }).catch(() => undefined);
+  }
+}
+
+async function renderPdfToPngs(pdfPath: string, job: SupabaseJob): Promise<string[]> {
+  const buff = await fs.readFile(pdfPath);
+  const library = await PDFiumLibrary.init();
+  const out: string[] = [];
+  try {
+    const doc = await library.loadDocument(new Uint8Array(buff));
+    try {
+      let i = 0;
+      for (const page of doc.pages()) {
+        const rendered = await page.render({
+          scale: 3, // ~216 DPI for A4 — sharp enough for text and images
+          render: async ({ data, width, height }) => {
+            // PDFium outputs BGRA; swap B<->R so colours are correct as RGBA.
+            const buf = Buffer.from(data);
+            for (let p = 0; p + 2 < buf.length; p += 4) {
+              const b = buf[p];
+              buf[p] = buf[p + 2];
+              buf[p + 2] = b;
+            }
+            return await sharp(buf, { raw: { width, height, channels: 4 } }).png().toBuffer();
+          }
+        });
+        const pngPath = path.resolve(config.tempDir, `${job.token}-p${i}.png`);
+        await fs.writeFile(pngPath, Buffer.from(rendered.data));
+        out.push(pngPath);
+        i++;
+      }
+    } finally {
+      doc.destroy();
+    }
+  } finally {
+    library.destroy();
+  }
+  if (!out.length) throw new Error("PDF produced no printable pages.");
+  log(`Rendered ${out.length} page(s) from PDF.`);
+  return out;
+}
+
+function parsePageRange(range: string, total: number): number[] {
+  const pages = new Set<number>();
+  for (const part of range.split(",")) {
+    const seg = part.trim();
+    if (!seg) continue;
+    const m = seg.match(/^(\d+)\s*-\s*(\d+)$/);
+    if (m) {
+      const a = Math.max(1, parseInt(m[1], 10));
+      const b = Math.min(total, parseInt(m[2], 10));
+      for (let n = a; n <= b; n++) pages.add(n);
+    } else {
+      const n = parseInt(seg, 10);
+      if (n >= 1 && n <= total) pages.add(n);
+    }
+  }
+  return [...pages].sort((a, b) => a - b);
+}
+
+function printImagesGDI(images: string[], job: SupabaseJob, printer: string) {
+  const scriptPath = path.resolve("agent/print-image.ps1");
+  if (!existsSync(scriptPath)) {
+    throw new Error("Print helper missing: agent/print-image.ps1");
+  }
+  const listPath = path.resolve(config.tempDir, `${job.token}-filelist.txt`);
 
   return new Promise<void>((resolve, reject) => {
-    const child = spawn(sumatraPath, args, { windowsHide: true });
-    let stderr = "";
-    let stdout = "";
-    let settled = false;
+    fs.writeFile(listPath, images.join("\r\n"), "utf8")
+      .then(() => {
+        const args = [
+          "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", scriptPath,
+          "-Printer", printer,
+          "-FileList", listPath,
+          "-Copies", String(job.copies || 1),
+          "-Color", job.print_type === "color" ? "true" : "false",
+          "-Landscape", job.layout === "landscape" ? "true" : "false",
+          "-PaperName", paperName(job.paper_size)
+        ];
+        log(`Printing ${images.length} page(s) via GDI to ${printer}...`);
 
-    child.stdout?.on("data", (chunk) => {
-      stdout += chunk.toString();
-    });
-    child.stderr?.on("data", (chunk) => {
-      stderr += chunk.toString();
-    });
-
-    child.on("error", (err) => {
-      if (settled) return;
-      settled = true;
-      reject(new Error(`Print engine failed to start: ${err.message}`));
-    });
-
-    child.on("exit", (code) => {
-      if (settled) return;
-      settled = true;
-      if (code === 0) {
-        resolve();
-      } else {
-        const errorDetail = stderr.trim() || stdout.trim() || `exit code ${code}`;
-        reject(new Error(`Print engine failed: ${errorDetail}`));
-      }
-    });
-
-    setTimeout(() => {
-      if (settled) return;
-      settled = true;
-      child.kill();
-      reject(new Error("Print timeout after 120 seconds"));
-    }, 120000);
+        execFile("powershell.exe", args, { windowsHide: true, timeout: 120000 },
+          (error, stdout, stderr) => {
+            fs.rm(listPath, { force: true }).catch(() => undefined);
+            if (error) {
+              reject(new Error(`GDI print failed: ${(stderr || stdout || error.message).trim()}`));
+              return;
+            }
+            log(`GDI print result: ${stdout.trim()}`);
+            resolve();
+          });
+      })
+      .catch(reject);
   });
 }
 
-function resolveSumatraPath() {
-  const candidates = [
-    config.sumatraPath,
-    path.resolve("agent/vendor/SumatraPDF.exe"),
-    "C:\\Program Files\\SumatraPDF\\SumatraPDF.exe",
-    "C:\\Program Files (x86)\\SumatraPDF\\SumatraPDF.exe",
-    path.resolve(process.env.LOCALAPPDATA || "", "SumatraPDF\\SumatraPDF.exe")
-  ].filter(Boolean) as string[];
-
-  return candidates.find((candidate) => existsSync(candidate)) || "";
-}
-
-function buildPrintSettings(job: SupabaseJob) {
-  const settings: string[] = [];
-  if (job.page_range) settings.push(job.page_range.replace(/\s+/g, ""));
-  if (job.copies > 1) settings.push(`copies=${job.copies}`);
-  if (job.pages_per_sheet > 1) settings.push(`${job.pages_per_sheet}x`);
-  settings.push(job.print_type === "color" ? "color" : "monochrome");
-  settings.push(job.layout === "landscape" ? "landscape" : "portrait");
-  const paper = paperSetting(job.paper_size);
-  if (paper) settings.push(`paper=${paper}`);
-  if (job.scale !== "default") settings.push(`scale=${job.scale}`);
-  return settings.join(",");
-}
-
-function paperSetting(paperSize: string) {
+function paperName(paperSize: string) {
   const map: Record<string, string> = {
-    A3: "A3",
-    A4: "A4",
-    A5: "A5",
-    A6: "A6",
-    B5: "B5",
-    Letter: "letter",
-    Legal: "legal",
-    Photo: "4x6"
+    A3: "A3", A4: "A4", A5: "A5", A6: "A6", B5: "B5",
+    Letter: "Letter", Legal: "Legal", Photo: "4x6"
   };
-  return map[paperSize] ?? null;
+  return map[paperSize] ?? "A4";
 }
 
 async function listWindowsPrinters(): Promise<WindowsPrinter[]> {
