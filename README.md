@@ -17,11 +17,16 @@ Admin URL: `http://localhost:3000/admin`
 
 ### 2. Start the print agent (on shop PC)
 
+Ensure SumatraPDF is installed or placed in `agent/vendor/SumatraPDF.exe`, and that `agent/config.json` is configured. Then run:
+
 ```powershell
 npm run agent
 ```
 
-For shop use, prefer the Electron installer in `electron-agent/build-output`. It includes the portable print engine, so the shop owner does not need to install a PDF reader separately.
+For production shop use, use the Windows batch file `agent/start-agent.bat` to run the agent with auto-restart on network disconnect or crash:
+```powershell
+.\agent\start-agent.bat
+```
 
 ---
 
@@ -100,28 +105,45 @@ CREATE INDEX idx_jobs_approved ON public.jobs(status, needs_conversion, updated_
 
 ### Print Agent
 
-1. Build or open the installer from `electron-agent/build-output`.
-2. Install/run `SelfPrint Agent`.
-3. Enter the server URL and agent token once.
-4. Select the printer from the admin dashboard.
+The Print Agent is a Node.js process that runs on the shop's Windows PC. It listens for print commands in real time via Supabase Realtime, downloads the PDF file, and prints it silently using SumatraPDF.
 
-The Electron agent bundles portable SumatraPDF as the print engine. This keeps setup simple for the shop owner while still allowing silent printing with page range, copies, paper size, orientation, color mode, and scale where the printer driver supports them.
+#### 1. Install SumatraPDF (Print Engine)
+The agent needs SumatraPDF to run. You can configure it in one of three ways:
+* **Recommended:** Download the portable version of SumatraPDF.exe and place it directly inside `agent/vendor/SumatraPDF.exe`.
+* Install SumatraPDF on the client's PC (the agent automatically checks standard locations like `C:\Program Files\SumatraPDF\SumatraPDF.exe`).
+* Install it anywhere and specify the custom path in `agent/config.json` via the `sumatraPath` property.
 
-For developer CLI testing, copy `agent/config.example.json` to `agent/config.json` and edit:
+#### 2. Create and Configure `agent/config.json`
+Copy `agent/config.example.json` to `agent/config.json` and fill in your Supabase project settings:
 
 ```json
 {
-  "serverUrl": "http://localhost:3000",
-  "agentToken": "dev-agent",
+  "supabaseUrl": "https://your-project.supabase.co",
+  "supabaseKey": "your-service-role-key",
   "sumatraPath": "",
+  "tempDir": "./agent-temp",
+  "maxRetries": 3,
   "fallbackPrinter": "Your Printer Name"
 }
 ```
 
-- `serverUrl`: Use `localhost:3000` for local testing. Use your PC's local IP (e.g. `192.168.1.100:3000`) when the agent runs on a different PC
-- `agentToken`: Must be `dev-agent` — must match `.env` AGENT_TOKEN
-- `sumatraPath`: Optional. Leave empty to auto-detect the bundled print engine or a system install
-- `fallbackPrinter`: Default printer name shown when no printer is selected in admin
+* **`supabaseUrl`**: Your project URL from the Supabase dashboard (Settings -> API).
+* **`supabaseKey`**: Your service role key (`service_role` / `secret` key) from Supabase API settings. *(Must be the service role key, not the anon key).*
+* **`sumatraPath`**: (Optional) Path to your `SumatraPDF.exe` if not placed in `agent/vendor` or standard Program Files directories.
+* **`fallbackPrinter`**: (Optional) The name of the printer to use if no printer is selected on the admin dashboard.
+
+#### 3. Run the Agent
+To start the print agent:
+```powershell
+npm run agent
+```
+
+For production/shop use, run the Windows batch file launcher which auto-restarts the agent if it crashes or loses network connection:
+```powershell
+.\agent\start-agent.bat
+```
+
+Once running, the agent automatically detects all installed Windows printers and reports them to the database so you can choose which printer to use in the Admin dashboard.
 
 ---
 
@@ -195,7 +217,7 @@ npm run db:seed    # Initialize/seed local SQLite database
 npm run cleanup    # Delete finished + expired jobs and their files
 npm run convert    # Convert pending DOC/DOCX uploads to PDF (needs LibreOffice)
 
-npm run agent      # Developer CLI agent. For shop use, prefer the Electron installer.
+npm run agent      # Start print agent (connects to Supabase)
 ```
 
 ---
