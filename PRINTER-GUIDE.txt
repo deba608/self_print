@@ -14,13 +14,13 @@ You do NOT need to know any coding. Just follow below.
 
 NOTHING. Just turn the computer ON.
 
-The printer service starts BY ITSELF. A small green
-window opens on its own and says "Connected".
-That means printing is LIVE.
+The printer service starts BY ITSELF and runs hidden
+in the background. There is NO window to see and
+NOTHING to click. Printing is live automatically.
 
-  -> Leave that green window alone. Do not close it.
-  -> If you accidentally close it, just double-click
-     the green icon named START-PRINTER to open again.
+To CHECK it is working any time:
+  -> Double-click  TEST-PRINTER  and send a test page.
+     Page comes out = everything is fine.
 
 That is all. No clicking, no setup, every day.
 
@@ -39,14 +39,15 @@ That is all. No clicking, no setup, every day.
 --------------------------------------------------
 
 PROBLEM: Nothing prints after I click Release.
-  - Is the green printer window open? If not, double-click START-PRINTER.
   - Is the printer turned on, has paper, no error light?
-  - Does the green window say "Connected"? If it says red text, see below.
+  - Run TEST-PRINTER (double-click). Does a test page come out?
+      Page comes out -> printer fine, problem is elsewhere, call developer.
+      No page -> printer off / no paper / wrong printer selected in admin.
+  - Try restarting the computer (this restarts the service too).
 
-PROBLEM: The green window shows RED text / closed by itself.
-  - Read the red message.
-  - Take a PHOTO of the whole window with your phone.
-  - Send it to the developer (see contact below).
+PROBLEM: I want to make sure the service is running.
+  - Just run TEST-PRINTER. If a page prints, the service is fine.
+  - The service has NO window - it runs hidden. That is normal.
 
 PROBLEM: Printer prints to a file / asks to save instead of paper.
   - Wrong printer is selected.

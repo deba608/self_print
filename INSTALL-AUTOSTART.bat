@@ -22,20 +22,20 @@ echo  Run this ONCE. Then you never touch it again.
 echo ------------------------------------------------
 echo.
 
-set "BAT=%~dp0START-PRINTER.bat"
+set "VBS=%~dp0START-PRINTER-BACKGROUND.vbs"
 
-if not exist "%BAT%" (
+if not exist "%VBS%" (
   color 0C
-  echo  [PROBLEM] Cannot find START-PRINTER.bat next to this file.
-  echo  Keep both files in the same folder and try again.
+  echo  [PROBLEM] Cannot find START-PRINTER-BACKGROUND.vbs next to this file.
+  echo  Keep all files in the same folder and try again.
   echo.
   pause
   exit /b
 )
 
-echo  Installing startup task...
+echo  Installing startup task (runs hidden in background)...
 powershell -NoProfile -ExecutionPolicy Bypass -Command ^
-  "$a = New-ScheduledTaskAction -Execute '%BAT%';" ^
+  "$a = New-ScheduledTaskAction -Execute 'wscript.exe' -Argument ('\"' + '%VBS%' + '\"');" ^
   "$t = New-ScheduledTaskTrigger -AtLogOn;" ^
   "$s = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -RestartCount 999 -RestartInterval (New-TimeSpan -Minutes 1) -ExecutionTimeLimit ([TimeSpan]::Zero);" ^
   "Register-ScheduledTask -TaskName 'SelfPrintAgent' -Action $a -Trigger $t -Settings $s -RunLevel Highest -Force | Out-Null"
