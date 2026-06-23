@@ -46,6 +46,8 @@ Thumbs.db
 # Build artifacts
 *.tsbuildinfo
 *.exe
+# Bundle portable print engine so client gets it via git clone
+!agent/vendor/SumatraPDF.exe
 .vercel
 
 # Debug and test output
