@@ -48,8 +48,8 @@ echo   Test page SENT.
 echo  ================================================
 echo.
 echo  Did a page come out of the printer?
-echo    YES -> Printer works. You are done.
-echo    NO  -> Printer may be OFF / out of paper / asleep.
+echo    YES -^> Printer works. You are done.
+echo    NO  -^> Printer may be OFF / out of paper / asleep.
 echo           The page is waiting in the queue. Turn the
 echo           printer on and it will print.
 echo.
