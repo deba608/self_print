@@ -54,6 +54,10 @@ PROBLEM: Printer prints to a file / asks to save instead of paper.
   - On the ADMIN website, open Settings/Printer and pick your real
     printer (the actual machine), NOT "Microsoft Print to PDF".
 
+PROBLEM: A page is "stuck" / printed late.
+  - Printer was probably off or asleep when the job was sent.
+  - Jobs WAIT in the queue. Turn the printer on and it prints.
+
 PROBLEM: "Node.js is not installed" message.
   - Go to  https://nodejs.org , click the big LTS button, install it.
   - Then double-click START-PRINTER again.
