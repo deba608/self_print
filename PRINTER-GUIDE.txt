@@ -1,0 +1,81 @@
+==================================================
+   SELFPRINT - SHOP PRINTER GUIDE (easy version)
+==================================================
+
+This computer runs the PRINTER SERVICE for your shop.
+Customers upload files from their phone. You take payment
+and release the print. This computer prints it.
+
+You do NOT need to know any coding. Just follow below.
+
+--------------------------------------------------
+ EVERY DAY - WHAT YOU DO
+--------------------------------------------------
+
+NOTHING. Just turn the computer ON.
+
+The printer service starts BY ITSELF. A small green
+window opens on its own and says "Connected".
+That means printing is LIVE.
+
+  -> Leave that green window alone. Do not close it.
+  -> If you accidentally close it, just double-click
+     the green icon named START-PRINTER to open again.
+
+That is all. No clicking, no setup, every day.
+
+--------------------------------------------------
+ HOW A PRINT JOB WORKS
+--------------------------------------------------
+
+1. Customer scans your QR code, uploads file, gets a TOKEN number.
+2. On your ADMIN screen (the website), find that token.
+3. Customer pays at counter -> you click  PAID.
+4. You click  RELEASE PRINT.
+5. The printer prints in a few seconds. Done.
+
+--------------------------------------------------
+ IF SOMETHING IS WRONG
+--------------------------------------------------
+
+PROBLEM: Nothing prints after I click Release.
+  - Is the green printer window open? If not, double-click START-PRINTER.
+  - Is the printer turned on, has paper, no error light?
+  - Does the green window say "Connected"? If it says red text, see below.
+
+PROBLEM: The green window shows RED text / closed by itself.
+  - Read the red message.
+  - Take a PHOTO of the whole window with your phone.
+  - Send it to the developer (see contact below).
+
+PROBLEM: Printer prints to a file / asks to save instead of paper.
+  - Wrong printer is selected.
+  - On the ADMIN website, open Settings/Printer and pick your real
+    printer (the actual machine), NOT "Microsoft Print to PDF".
+
+PROBLEM: "Node.js is not installed" message.
+  - Go to  https://nodejs.org , click the big LTS button, install it.
+  - Then double-click START-PRINTER again.
+
+PROBLEM: Internet is down.
+  - Printing needs internet. Restore wifi/connection, then it works again.
+
+--------------------------------------------------
+ HOW TO REPORT A PROBLEM (so it gets fixed fast)
+--------------------------------------------------
+
+Send the developer ALL of these:
+  1. What you were doing (e.g. "clicked Release Print, nothing happened").
+  2. The customer TOKEN number, if any.
+  3. A PHOTO of the green printer window (especially any red text).
+  4. Is the printer on, with paper? Yes / No.
+  5. Is internet working on this PC? Yes / No.
+
+--------------------------------------------------
+ CONTACT
+--------------------------------------------------
+
+  Developer: ____________________________
+  Phone / WhatsApp: _____________________
+
+==================================================
