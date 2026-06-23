@@ -297,9 +297,9 @@ function ActionsCard({
             <CheckCircle2 size={16} /> Mark Done
           </button>
         )}
-        {job.status === "printed" && (
+        {(job.status === "printed" || job.status === "failed") && (
           <button type="button" className="job-btn reprint" onClick={reprint}>
-            <RotateCcw size={16} /> Reprint
+            <RotateCcw size={16} /> {job.status === "failed" ? "Retry Print" : "Reprint"}
           </button>
         )}
         {!["printed", "cancelled", "failed"].includes(job.status) && (

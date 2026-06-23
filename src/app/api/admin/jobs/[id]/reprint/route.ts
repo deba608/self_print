@@ -15,7 +15,7 @@ export async function POST(_: NextRequest, { params }: { params: Promise<{ id: s
   }
   
   if (job.needsConversion) return NextResponse.json({ error: "Job needs conversion before reprint" }, { status: 400 });
-  if (job.status !== "printed") return NextResponse.json({ error: "Only printed jobs can be queued for reprint" }, { status: 400 });
+  if (job.status !== "printed" && job.status !== "failed") return NextResponse.json({ error: "Only printed or failed jobs can be queued for reprint" }, { status: 400 });
   
   await queueReprint(id);
   
