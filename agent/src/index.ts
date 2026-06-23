@@ -154,6 +154,10 @@ async function connectRealtime() {
           scheduleReconnect();
         }
       });
+  } catch (error) {
+    log(`Realtime connection failed: ${error instanceof Error ? error.message : String(error)}`);
+    scheduleReconnect();
+  }
 }
 
 // Start background timers exactly once (subscribe fires on every reconnect).
@@ -196,10 +200,6 @@ async function pollApprovedJobs() {
     }
   } catch (error) {
     log(`Poll error: ${error instanceof Error ? error.message : String(error)}`);
-  }
-  } catch (error) {
-    log(`Realtime connection failed: ${error instanceof Error ? error.message : String(error)}`);
-    scheduleReconnect();
   }
 }
 
