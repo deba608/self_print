@@ -153,7 +153,27 @@ To run the agent **completely in the background (hidden window)**, double-click:
 .\START-PRINTER-BACKGROUND.vbs
 ```
 
+#### 4. Configure Auto-Start (Hands-Free Shop Setup)
+To ensure the print service runs automatically whenever the shop PC turns on (without needing manual startup or leaving a command prompt open):
+1. Right-click **`INSTALL-AUTOSTART.bat`** and select **Run as Administrator**.
+2. This registers a Windows Scheduled Task (`SelfPrintAgent`) that executes `START-PRINTER-BACKGROUND.vbs` automatically at logon, running the print agent silently in the background with automatic crash recovery.
+3. *Recommendation:* Turn on Windows auto-login (bypass lock screen password) on the shop PC so the scheduled task starts up immediately upon boot.
+
 Once running, the agent automatically detects all installed Windows printers and reports them to the database so you can choose which printer to use in the Admin dashboard.
+
+---
+
+## Printing Flow & Retry Handling
+
+1. **Customer Upload**: Customer uploads a file and receives a token number and queue position.
+2. **Counter Payment**: Admin finds the token, collects payment, and clicks **Mark Paid**.
+3. **Release Print**: Admin clicks **Release Print** which updates the status to `approved`.
+4. **Agent Processing**: The Windows print agent polls the job, downloads the PDF file (via authenticated Supabase storage client), and silently sends it to the selected printer using SumatraPDF.
+5. **Mark Done**: Agent updates status to `printed` (done).
+
+### Retry / Error Handling
+* **Transient Failures**: If a job fails due to printer errors, network drops, or download issues, the agent marks the job status as `failed` and logs the error in the `print_events` table.
+* **One-Click Retry**: Admins can easily retry any failed job. Click **Retry** on the Admin Dashboard queue card or **Retry Print** in the Job Detail page. This queues it back into the queue with `approved` status so the agent prints it again immediately.
 
 ---
 
@@ -204,17 +224,7 @@ Print Agent (Windows PC)
 - **DOC/DOCX conversion** — auto-converted to PDF via LibreOffice (`npm run convert` or the admin convert endpoint); page count and price recomputed
 - **Auto cleanup** — finished and expired-unpaid jobs (plus their files) removed on a schedule
 
----
 
-## Printing Flow
-
-1. Customer uploads file → receives token + queue position
-2. Admin marks job "paid" → customer pays at counter
-3. Admin clicks "Release Print" → job status becomes `approved`
-4. Agent picks up the job → downloads file → sends it to the bundled print engine
-5. Agent marks job "printed" → done
-
----
 
 ## Commands
 
