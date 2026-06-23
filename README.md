@@ -23,9 +23,14 @@ Ensure SumatraPDF is installed or placed in `agent/vendor/SumatraPDF.exe`, and t
 npm run agent
 ```
 
-For production shop use, use the Windows batch file `agent/start-agent.bat` to run the agent with auto-restart on network disconnect or crash:
+For production shop use, use the Windows batch file `START-PRINTER.bat` to run the agent with auto-restart on network disconnect or crash:
 ```powershell
-.\agent\start-agent.bat
+.\START-PRINTER.bat
+```
+
+To run it completely hidden in the background:
+```powershell
+.\START-PRINTER-BACKGROUND.vbs
 ```
 
 ---
@@ -140,7 +145,12 @@ npm run agent
 
 For production/shop use, run the Windows batch file launcher which auto-restarts the agent if it crashes or loses network connection:
 ```powershell
-.\agent\start-agent.bat
+.\START-PRINTER.bat
+```
+
+To run the agent **completely in the background (hidden window)**, double-click:
+```powershell
+.\START-PRINTER-BACKGROUND.vbs
 ```
 
 Once running, the agent automatically detects all installed Windows printers and reports them to the database so you can choose which printer to use in the Admin dashboard.
