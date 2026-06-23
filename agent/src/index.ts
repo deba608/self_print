@@ -137,9 +137,10 @@ async function connectRealtime() {
         async (payload) => {
           const newStatus = (payload.new as any)?.status;
           const jobId = (payload.new as any)?.id;
+          const needsConversion = (payload.new as any)?.needs_conversion;
           log(`Realtime event: ${payload.eventType} job ${jobId} status=${newStatus}`);
           
-          if (newStatus === "approved" && !isProcessing && !isShuttingDown) {
+          if (newStatus === "approved" && !needsConversion && !isProcessing && !isShuttingDown) {
             await processJob(jobId);
           }
         }
@@ -233,8 +234,7 @@ async function processJob(jobId: string) {
     }
 
     if (job.needs_conversion) {
-      await updateStatus(jobId, "failed", "Document needs conversion before printing. Please upload as PDF.");
-      log(`Job ${job.token} needs conversion, skipping.`);
+      log(`Job ${job.token} needs conversion, skipping (will not fail — convert in admin dashboard).`);
       return;
     }
 
@@ -341,7 +341,7 @@ async function updateStatus(jobId: string, status: string, message: string) {
     const updates: Record<string, unknown> = { status, updated_at: now };
     if (status === "printed") updates.printed_at = now;
 
-    await (supabase.from("jobs") as any).update(updates).eq("id", jobId);
+    await (supabase.from("jobs") as any).update(updates).eq("id", jobId).in("status", ["approved", "printing"]);
 
     await (supabase.from("print_events") as any).insert([{
       id: crypto.randomUUID(),
@@ -477,12 +477,13 @@ function resolveSumatraPath() {
 function buildPrintSettings(job: SupabaseJob) {
   const settings: string[] = [];
   if (job.page_range) settings.push(job.page_range.replace(/\s+/g, ""));
-  if (job.copies > 1) settings.push(`${job.copies}x`);
+  if (job.copies > 1) settings.push(`copies=${job.copies}`);
+  if (job.pages_per_sheet > 1) settings.push(`${job.pages_per_sheet}x`);
   settings.push(job.print_type === "color" ? "color" : "monochrome");
   settings.push(job.layout === "landscape" ? "landscape" : "portrait");
   const paper = paperSetting(job.paper_size);
   if (paper) settings.push(`paper=${paper}`);
-  if (job.scale !== "default") settings.push(job.scale);
+  if (job.scale !== "default") settings.push(`scale=${job.scale}`);
   return settings.join(",");
 }
 

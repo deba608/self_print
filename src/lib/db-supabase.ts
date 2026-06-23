@@ -655,7 +655,8 @@ export async function updateJobStatusByAgent(id: string, status: string, message
   const { error: jobError } = await supabase
     .from('jobs')
     .update(updates)
-    .eq('id', id);
+    .eq('id', id)
+    .in('status', ['approved', 'printing']);
   
   if (jobError) throw jobError;
   

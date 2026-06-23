@@ -830,7 +830,7 @@ export async function updateJobStatusByAgent(id: string, status: string, message
   sqlite.prepare(`
     UPDATE jobs
     SET status = ?, updated_at = ?, printed_at = CASE WHEN ? = 'printed' THEN ? ELSE printed_at END
-    WHERE id = ?
+    WHERE id = ? AND status IN ('approved', 'printing')
   `).run(status, now, status, now, id);
   
   sqlite.prepare("INSERT INTO print_events (id, job_id, event_type, message, created_at) VALUES (?, ?, ?, ?, ?)")
