@@ -62,8 +62,10 @@ let isProcessing = false;
 let cachedPrinterName = "";
 let lastPrinterReportAt = 0;
 let reconnectAttempts = 0;
+let intervalsStarted = false;
 const MAX_RECONNECT_DELAY = 30000;
 const PRINTER_REPORT_INTERVAL = 60000;
+const POLL_INTERVAL = 5000;
 
 async function main() {
   config = await loadConfig();
@@ -72,9 +74,17 @@ async function main() {
   cachedPrinterName = config.fallbackPrinter;
   await fs.mkdir(config.tempDir, { recursive: true });
 
-  log("=== SelfPrint Agent (Supabase Realtime) ===");
+  log("=== SelfPrint Agent (Supabase Realtime + Polling) ===");
   log(`Supabase: ${config.supabaseUrl}`);
   log(`Fallback printer: ${config.fallbackPrinter || "(none)"}`);
+
+  // Crash-proofing: a transient Supabase/network error must NOT kill the agent.
+  process.on("uncaughtException", (err) => {
+    log(`Uncaught exception (continuing): ${err instanceof Error ? err.message : String(err)}`);
+  });
+  process.on("unhandledRejection", (reason) => {
+    log(`Unhandled rejection (continuing): ${reason instanceof Error ? reason.message : String(reason)}`);
+  });
 
   process.on("SIGINT", () => {
     log("Received shutdown signal, finishing current job...");
@@ -136,17 +146,57 @@ async function connectRealtime() {
           log("Connected to Supabase Realtime — waiting for print jobs...");
           reconnectAttempts = 0;
           reportPrintersIfNeeded();
-          setInterval(() => {
-            if (!isShuttingDown) reportPrintersIfNeeded();
-          }, PRINTER_REPORT_INTERVAL);
-          setInterval(() => {
-            if (!isShuttingDown) checkPrinterConfig();
-          }, 30000);
+          // Recovery: pick up any approved job missed while disconnected/crashed.
+          pollApprovedJobs();
+          startIntervals();
         } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
           log(`Realtime connection issue: ${status}`);
           scheduleReconnect();
         }
       });
+}
+
+// Start background timers exactly once (subscribe fires on every reconnect).
+function startIntervals() {
+  if (intervalsStarted) return;
+  intervalsStarted = true;
+
+  setInterval(() => {
+    if (!isShuttingDown) reportPrintersIfNeeded();
+  }, PRINTER_REPORT_INTERVAL);
+
+  setInterval(() => {
+    if (!isShuttingDown) checkPrinterConfig();
+  }, 30000);
+
+  // Polling fallback: do NOT rely on realtime delivery. Every few seconds
+  // scan for approved jobs and print them. Survives realtime CHANNEL_ERROR.
+  setInterval(() => {
+    if (!isShuttingDown) pollApprovedJobs();
+  }, POLL_INTERVAL);
+}
+
+async function pollApprovedJobs() {
+  if (isProcessing || isShuttingDown) return;
+  try {
+    const { data, error } = await supabase
+      .from("jobs")
+      .select("id")
+      .eq("status", "approved")
+      .order("created_at", { ascending: true })
+      .limit(1) as { data: { id: string }[] | null; error: { message: string } | null };
+
+    if (error) {
+      log(`Poll failed: ${error.message}`);
+      return;
+    }
+    if (data && data.length > 0) {
+      log(`Poll found approved job ${data[0].id}`);
+      await processJob(data[0].id);
+    }
+  } catch (error) {
+    log(`Poll error: ${error instanceof Error ? error.message : String(error)}`);
+  }
   } catch (error) {
     log(`Realtime connection failed: ${error instanceof Error ? error.message : String(error)}`);
     scheduleReconnect();
