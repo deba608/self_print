@@ -104,6 +104,9 @@ async function main() {
     process.exit(0);
   });
 
+  // Load initial printer config
+  await checkPrinterConfig();
+
   await connectRealtime();
 }
 
@@ -264,23 +267,34 @@ async function processJob(jobId: string) {
         let fileBytes: Buffer;
         const storagePath = file.storage_path;
 
+        // Resolve the object path inside the "selfprint" bucket. Uploads may store
+        // a relative path (originals/x.pdf) OR a full Supabase URL (public/sign/
+        // authenticated). In all those cases download via the service-role SDK so
+        // it works even though the bucket is PRIVATE (plain fetch on a private
+        // bucket's public URL returns 400).
+        let objectPath: string | null = null;
         if (storagePath.startsWith("http")) {
-          const response = await fetch(storagePath);
-          if (!response.ok) throw new Error(`Download failed: ${response.status}`);
-          fileBytes = Buffer.from(await response.arrayBuffer());
-        } else {
-          let objectPath = storagePath;
           try {
             const url = new URL(storagePath);
-            const marker = url.pathname.match(/\/object\/(?:public|sign)\/[^/]+\/(.+)$/);
+            const marker = url.pathname.match(/\/object\/(?:public|sign|authenticated)\/[^/]+\/(.+)$/);
             if (marker?.[1]) objectPath = decodeURIComponent(marker[1]);
           } catch {}
+        } else {
+          objectPath = storagePath.replace(/^selfprint\//, "");
+        }
+
+        if (objectPath) {
           const { data: blob, error: downloadError } = await supabase.storage
             .from("selfprint")
             .download(objectPath);
 
           if (downloadError) throw new Error(`Storage download failed: ${downloadError.message}`);
           fileBytes = Buffer.from(await blob.arrayBuffer());
+        } else {
+          // Truly external URL (not a Supabase storage object).
+          const response = await fetch(storagePath);
+          if (!response.ok) throw new Error(`Download failed: ${response.status}`);
+          fileBytes = Buffer.from(await response.arrayBuffer());
         }
 
         if (Number.isFinite(file.size_bytes) && file.size_bytes > 0 && fileBytes.length !== file.size_bytes) {
