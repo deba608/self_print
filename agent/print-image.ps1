@@ -36,7 +36,7 @@ $state = @{ idx = 0; files = $files }
 $doc.add_BeginPrint({ $state.idx = 0 }.GetNewClosure())
 
 $doc.add_PrintPage({
-  param($sender, $e)
+  param($printSender, $e)
   $img = [System.Drawing.Image]::FromFile($state.files[$state.idx])
   try {
     $area = $e.MarginBounds
