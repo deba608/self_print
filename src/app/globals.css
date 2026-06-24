@@ -3890,6 +3890,103 @@ input[type="number"] {
   border-bottom: 0;
 }
 
+/* Print progress tracker (always visible on job detail) */
+.progress-tracker {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: 18px;
+  margin-bottom: var(--space-4);
+  box-shadow: 0 2px 8px rgba(23, 32, 42, 0.03);
+  animation: fadeSlideIn 0.28s var(--ease-out) both;
+}
+
+.pt-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.pt-head .card-title { margin: 0; }
+
+.pt-steps {
+  display: grid;
+  gap: 0;
+}
+
+.pt-step {
+  position: relative;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 0;
+}
+
+/* connecting line between markers */
+.pt-step::before {
+  content: "";
+  position: absolute;
+  left: 13px;
+  top: -14px;
+  width: 2px;
+  height: 14px;
+  background: var(--line);
+}
+.pt-step:first-child::before { display: none; }
+.pt-step.done::before { background: var(--ok); }
+
+.pt-marker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--line);
+  color: var(--muted);
+  flex-shrink: 0;
+}
+.pt-step.done .pt-marker { background: var(--ok-light); color: var(--ok); }
+.pt-step.active .pt-marker {
+  background: var(--accent-light);
+  color: var(--accent);
+  box-shadow: 0 0 0 4px var(--accent-bg);
+  animation: stepPulse 2s infinite;
+}
+.pt-step.failed .pt-marker { background: var(--danger-light); color: var(--danger); }
+
+.pt-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.pt-step.done .pt-label { color: var(--ink); }
+.pt-step.active .pt-label { color: var(--accent); font-weight: 700; }
+.pt-step.failed .pt-label { color: var(--danger); font-weight: 700; }
+
+.pt-time {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.pt-error {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--danger-light);
+  color: var(--danger);
+  font-size: 12px;
+  line-height: 1.5;
+  word-break: break-word;
+  max-height: 120px;
+  overflow: auto;
+}
+
 .event-time {
   color: var(--muted);
   font-weight: 700;

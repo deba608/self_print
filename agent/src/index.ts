@@ -329,11 +329,13 @@ async function processJob(jobId: string) {
 
         await fs.writeFile(tempPath, fileBytes);
         log(`File downloaded: ${fileBytes.length} bytes`);
+        await logEvent(jobId, "downloaded", `File downloaded (${(fileBytes.length / 1024).toFixed(0)} KB).`);
 
         const printer = cachedPrinterName || config.fallbackPrinter;
         if (!printer) throw new Error("No printer selected. Set a printer in admin dashboard.");
 
         log(`Printing ${job.copies} copy(s), paper: ${job.paper_size}, type: ${job.print_type}, printer: ${printer}...`);
+        await logEvent(jobId, "spooling", `Sent to printer: ${printer}.`);
         await printJob(tempPath, job, printer);
 
         await updateStatus(jobId, "printed", `Printed successfully on attempt ${attempt}.`);
@@ -358,6 +360,22 @@ async function processJob(jobId: string) {
     log(`Job processing error: ${error instanceof Error ? error.message : String(error)}`);
   } finally {
     isProcessing = false;
+  }
+}
+
+// Insert a progress event without touching job.status (drives the admin UI's
+// live progress tracker: downloaded -> sent to printer -> printed).
+async function logEvent(jobId: string, eventType: string, message: string) {
+  try {
+    await (supabase.from("print_events") as any).insert([{
+      id: crypto.randomUUID(),
+      job_id: jobId,
+      event_type: eventType,
+      message,
+      created_at: new Date().toISOString()
+    }]);
+  } catch (error) {
+    log(`Failed to log event ${eventType}: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 

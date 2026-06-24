@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useEffect, useState, useRef } from "react";
 import {
   ChevronLeft, CreditCard, Printer, RotateCcw, Save, X,
-  FileText, Image, CheckCircle2, AlertCircle, Loader2
+  FileText, Image, CheckCircle2, AlertCircle, Loader2, Circle,
+  Upload, Send, FileCheck, IndianRupee
 } from "lucide-react";
 import { paperSizeLabels } from "@/lib/pricing";
 
@@ -63,7 +64,19 @@ export default function JobDetail({ id }: { id: string }) {
   useEffect(() => {
     load();
     intervalRef.current = setInterval(() => setNow(Date.now()), 1000);
-    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
+    // Live-refresh job + events so the progress tracker updates on its own while
+    // the agent works. Stop polling once the job reaches a terminal state.
+    const poll = setInterval(() => {
+      setDetail((current) => {
+        if (current && ["printed", "cancelled"].includes(current.job.status)) return current;
+        load();
+        return current;
+      });
+    }, 3000);
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      clearInterval(poll);
+    };
   }, [id]);
 
   async function setStatus(status: string) {
@@ -179,6 +192,8 @@ export default function JobDetail({ id }: { id: string }) {
           <button type="button" onClick={() => setError("")}><X size={14} /></button>
         </div>
       )}
+
+      <ProgressTracker job={job} events={detail.events} />
 
       <div className="mobile-tabs">
         {(["details", "preview", "settings", "log"] as const).map((tab) => (
@@ -415,6 +430,70 @@ function SettingsField({ label, children }: { label: string; children: React.Rea
     <div className="settings-field">
       <label>{label}</label>
       {children}
+    </div>
+  );
+}
+
+function ProgressTracker({ job, events }: { job: Detail["job"]; events: Detail["events"] }) {
+  const types = new Set(events.map((e) => e.event_type));
+  const fmt = (iso: string) => new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const eventTime = (type: string) => {
+    const found = events.find((e) => e.event_type === type);
+    return found ? fmt(found.created_at) : "";
+  };
+
+  const s = job.status;
+  const failed = s === "failed";
+  const cancelled = s === "cancelled";
+
+  const steps = [
+    { key: "created", label: "Submitted", icon: FileText, done: true, time: fmt(job.createdAt) },
+    { key: "paid", label: "Payment received", icon: IndianRupee,
+      done: ["paid", "approved", "printing", "printed"].includes(s) || types.has("paid"), time: eventTime("paid") },
+    { key: "approved", label: "Released to print", icon: Printer,
+      done: ["approved", "printing", "printed"].includes(s) || types.has("approved"), time: eventTime("approved") },
+    { key: "downloaded", label: "File downloaded", icon: Upload,
+      done: types.has("downloaded") || s === "printed", time: eventTime("downloaded") },
+    { key: "spooling", label: "Sent to printer", icon: Send,
+      done: types.has("spooling") || s === "printed", time: eventTime("spooling") },
+    { key: "printed", label: "Printed successfully", icon: FileCheck,
+      done: s === "printed" || types.has("printed"), time: eventTime("printed") },
+  ];
+
+  // The active step is the first not-yet-done one (unless terminal/failed).
+  const activeIdx = failed || cancelled ? -1 : steps.findIndex((st) => !st.done);
+  const failIdx = failed ? steps.findIndex((st) => !st.done) : -1;
+  const lastFail = failed ? [...events].reverse().find((e) => e.event_type === "failed") : null;
+
+  return (
+    <div className="progress-tracker">
+      <div className="pt-head">
+        <h3 className="card-title">Print Progress</h3>
+        {failed && <span className="status-badge danger">Failed</span>}
+        {cancelled && <span className="status-badge danger">Cancelled</span>}
+        {s === "printed" && <span className="status-badge ok">Completed</span>}
+      </div>
+      <div className="pt-steps">
+        {steps.map((st, i) => {
+          const isActive = i === activeIdx;
+          const isFail = i === failIdx;
+          const cls = st.done ? "done" : isFail ? "failed" : isActive ? "active" : "pending";
+          const Icon = st.icon;
+          return (
+            <div className={`pt-step ${cls}`} key={st.key}>
+              <span className="pt-marker">
+                {st.done ? <CheckCircle2 size={16} />
+                  : isFail ? <AlertCircle size={16} />
+                  : isActive ? <Loader2 size={16} className="spin" />
+                  : <Icon size={14} />}
+              </span>
+              <span className="pt-label">{st.label}</span>
+              {st.time && <span className="pt-time">{st.time}</span>}
+            </div>
+          );
+        })}
+      </div>
+      {lastFail && <div className="pt-error">{lastFail.message}</div>}
     </div>
   );
 }
