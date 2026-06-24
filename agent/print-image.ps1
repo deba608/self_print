@@ -10,7 +10,7 @@ param(
 $ErrorActionPreference = "Stop"
 Add-Type -AssemblyName System.Drawing
 
-$files = (Get-Content -LiteralPath $FileList) | Where-Object { $_ -and (Test-Path -LiteralPath $_) }
+$files = @( (Get-Content -LiteralPath $FileList) | Where-Object { $_ -and (Test-Path -LiteralPath $_) } )
 if (-not $files -or $files.Count -eq 0) { Write-Error "No image files to print."; exit 3 }
 
 $doc = New-Object System.Drawing.Printing.PrintDocument
