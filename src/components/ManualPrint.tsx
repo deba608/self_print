@@ -67,9 +67,12 @@ export default function ManualPrint({ id }: { id: string }) {
         return;
       }
       setFile(detail.file);
-      setFileUrl(`/api/uploads/${detail.file.id}`);
+      // Same-origin proxy URL: avoids the cross-origin signed-URL redirect that
+      // makes the browser fetch/iframe fail with CORS "Failed to fetch".
+      const proxyUrl = `/api/uploads/${detail.file.id}?proxy=1`;
+      setFileUrl(proxyUrl);
 
-      const fileRes = await fetch(`/api/uploads/${detail.file.id}`, { credentials: "include" });
+      const fileRes = await fetch(proxyUrl, { credentials: "include" });
       if (!fileRes.ok) throw new Error(`File download failed (${fileRes.status}).`);
       // Rebuild the blob with the KNOWN mime type. A blob from fetch inherits the
       // response Content-Type, which can be empty/octet-stream (e.g. after a cloud
