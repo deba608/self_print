@@ -50,7 +50,7 @@ export default function JobDetail({ id }: { id: string }) {
   const [activeTab, setActiveTab] = useState<"details" | "preview" | "settings" | "log">("details");
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  async function load() {
+  async function load(syncSettings = true) {
     const response = await fetch(`/api/admin/jobs/${id}`, { credentials: "include" });
     if (!response.ok) {
       setError("Unable to load job");
@@ -58,7 +58,9 @@ export default function JobDetail({ id }: { id: string }) {
     }
     const nextDetail = await response.json() as Detail;
     setDetail(nextDetail);
-    setSettings(settingsFromJob(nextDetail.job));
+    // Only refresh the settings form on explicit loads, never on background
+    // polls — otherwise a poll would wipe an admin's unsaved edits.
+    if (syncSettings) setSettings(settingsFromJob(nextDetail.job));
   }
 
   useEffect(() => {
@@ -69,7 +71,7 @@ export default function JobDetail({ id }: { id: string }) {
     const poll = setInterval(() => {
       setDetail((current) => {
         if (current && ["printed", "cancelled"].includes(current.job.status)) return current;
-        load();
+        load(false);
         return current;
       });
     }, 3000);
