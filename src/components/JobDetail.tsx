@@ -292,7 +292,7 @@ function ActionsCard({
             <Printer size={16} /> Release Print
           </button>
         )}
-        {(job.status === "approved" || job.status === "printing") && (
+        {(job.status === "approved" || job.status === "printing" || job.status === "failed") && (
           <button type="button" className="job-btn done" onClick={() => setStatus("printed")}>
             <CheckCircle2 size={16} /> Mark Done
           </button>

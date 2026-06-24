@@ -1061,7 +1061,7 @@ function JobCard({
             <span>Release</span>
           </button>
         )}
-        {(job.status === "approved" || job.status === "printing") && (
+        {(job.status === "approved" || job.status === "printing" || job.status === "failed") && (
           <button type="button" className="job-btn done" onClick={() => handleActionClick("printed")} disabled={actionLoading}>
             {actionLoading ? <Loader2 size={14} className="spin" /> : <Check size={14} />}
             <span>Done</span>

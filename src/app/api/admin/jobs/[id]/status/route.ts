@@ -46,8 +46,8 @@ function invalidTransition(current: JobStatus, next: JobStatus) {
   if (next === "approved" && current !== "paid") {
     return "Mark the job paid before release.";
   }
-  if (next === "printed" && current !== "approved" && current !== "printing") {
-    return "Only released or printing jobs can be marked done.";
+  if (next === "printed" && !["approved", "printing", "failed"].includes(current)) {
+    return "Only released, printing, or failed jobs can be marked done.";
   }
   return "";
 }
