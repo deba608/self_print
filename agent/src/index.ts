@@ -275,7 +275,14 @@ async function processJob(jobId: string) {
       `${job.token}-${safeFileName(file.original_name, extension)}`
     );
 
-    await updateStatus(jobId, "printing", "Agent downloading file...");
+    // Atomically claim the job: flip approved -> printing only if it's still
+    // approved. Postgres serializes this, so when several agents race for the
+    // same job exactly one wins. Losers get 0 rows back and bail — this is what
+    // stops the job being printed multiple times by parallel agents.
+    if (!(await claimJob(jobId, job.token))) {
+      log(`Job ${job.token} already claimed by another agent, skipping.`);
+      return;
+    }
 
     let attempt = 0;
     while (attempt < config.maxRetries) {
@@ -351,6 +358,36 @@ async function processJob(jobId: string) {
     log(`Job processing error: ${error instanceof Error ? error.message : String(error)}`);
   } finally {
     isProcessing = false;
+  }
+}
+
+// Atomic claim. Returns true only if THIS agent flipped the job approved->printing.
+async function claimJob(jobId: string, token: string): Promise<boolean> {
+  try {
+    const now = new Date().toISOString();
+    const { data, error } = await (supabase.from("jobs") as any)
+      .update({ status: "printing", updated_at: now })
+      .eq("id", jobId)
+      .eq("status", "approved")
+      .select("id") as { data: { id: string }[] | null; error: { message: string } | null };
+
+    if (error) {
+      log(`Claim failed for job ${token}: ${error.message}`);
+      return false;
+    }
+    if (!data || data.length === 0) return false;
+
+    await (supabase.from("print_events") as any).insert([{
+      id: crypto.randomUUID(),
+      job_id: jobId,
+      event_type: "printing",
+      message: "Agent claimed job, downloading file...",
+      created_at: now
+    }]);
+    return true;
+  } catch (error) {
+    log(`Claim error for job ${token}: ${error instanceof Error ? error.message : String(error)}`);
+    return false;
   }
 }
 
