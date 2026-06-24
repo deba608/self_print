@@ -252,6 +252,23 @@ async function processJob(jobId: string) {
       return;
     }
 
+    // Only claim this job if the selected printer is installed on THIS machine.
+    // Multiple agents may share one Supabase (e.g. a dev box + the shop PC). If
+    // this agent doesn't have the target printer, leave the job "approved" so the
+    // correct agent picks it up — never mark it "failed" for everyone.
+    const targetPrinter = cachedPrinterName || config.fallbackPrinter;
+    if (targetPrinter) {
+      try {
+        const installed = await listWindowsPrinters();
+        if (installed.length && !installed.some((p) => p.name === targetPrinter)) {
+          log(`Skipping job ${job.token}: printer "${targetPrinter}" not installed here (leaving for another agent).`);
+          return;
+        }
+      } catch (e) {
+        log(`Local printer check failed, proceeding anyway: ${e instanceof Error ? e.message : String(e)}`);
+      }
+    }
+
     const extension = extensionFor(file.mime_type, file.original_name);
     const tempPath = path.resolve(
       config.tempDir,
