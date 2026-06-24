@@ -3346,6 +3346,76 @@ input[type="number"] {
   transform: translateY(-1px);
 }
 
+.job-btn.manual {
+  background: rgba(146, 64, 14, 0.08);
+  color: var(--warn);
+  border-color: rgba(146, 64, 14, 0.18);
+}
+.job-btn.manual:hover:not(:disabled) {
+  background: rgba(146, 64, 14, 0.16);
+  transform: translateY(-1px);
+}
+
+/* Manual print (backup) page */
+.manual-print-shell { display: flex; flex-direction: column; gap: var(--space-4); }
+.manual-print-card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(23, 32, 42, 0.03);
+}
+.manual-print-title {
+  display: flex; align-items: center; gap: 8px;
+  margin: 0 0 16px; font-size: 17px; font-weight: 800; color: var(--ink);
+}
+.manual-print-token { color: var(--accent); font-weight: 800; }
+.manual-print-state {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 10px;
+  font-size: 14px; color: var(--ink);
+}
+.manual-print-state.error { color: var(--danger); }
+
+.manual-settings {
+  margin-bottom: 16px;
+  padding: 14px;
+  border: 1px solid rgba(146, 64, 14, 0.18);
+  background: var(--warn-light);
+  border-radius: var(--radius-md);
+}
+.manual-settings-hint {
+  margin: 0 0 10px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--warn);
+  line-height: 1.4;
+}
+.manual-settings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 8px;
+}
+.manual-setting {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+.manual-setting span { font-size: 11px; color: var(--muted); font-weight: 600; }
+.manual-setting strong { font-size: 14px; color: var(--ink); }
+.manual-print-file { font-size: 13px; color: var(--muted); font-weight: 600; }
+.manual-print-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 6px; }
+.manual-print-frame {
+  width: 100%;
+  height: 60vh;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: #fff;
+}
+
 .job-btn.cancel {
   width: 38px;
   height: 38px;

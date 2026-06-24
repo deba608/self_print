@@ -1073,6 +1073,17 @@ function JobCard({
             <span>{job.status === "failed" ? "Retry" : "Reprint"}</span>
           </button>
         )}
+        {job.status !== "pending_payment" && job.status !== "cancelled" && (
+          <button
+            type="button"
+            className="job-btn manual"
+            onClick={(event) => { event.preventDefault(); event.stopPropagation(); window.open(`/admin/jobs/${job.id}/print`, "_blank"); }}
+            aria-label="Manual print via browser dialog"
+            title="Backup: print via the browser/Windows print dialog"
+          >
+            <Printer size={14} />
+          </button>
+        )}
         {job.status !== "printed" && job.status !== "cancelled" && (
           <button type="button" className="job-btn cancel" onClick={() => handleActionClick("cancelled")} disabled={actionLoading} aria-label="Cancel job">
             <X size={14} />

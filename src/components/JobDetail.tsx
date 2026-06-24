@@ -319,6 +319,16 @@ function ActionsCard({
             <RotateCcw size={16} /> {job.status === "failed" ? "Retry Print" : "Reprint"}
           </button>
         )}
+        {job.status !== "pending_payment" && job.status !== "cancelled" && (
+          <button
+            type="button"
+            className="job-btn manual"
+            onClick={() => window.open(`/admin/jobs/${job.id}/print`, "_blank")}
+            title="Backup: print via the browser/Windows print dialog"
+          >
+            <Printer size={16} /> Manual Print
+          </button>
+        )}
         {!["printed", "cancelled", "failed"].includes(job.status) && (
           <button type="button" className="job-btn cancel-text" onClick={() => setStatus("cancelled")}>
             <X size={16} /> Cancel
