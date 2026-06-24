@@ -8,6 +8,7 @@ import {
   Upload, Send, FileCheck, IndianRupee
 } from "lucide-react";
 import { paperSizeLabels } from "@/lib/pricing";
+import { manualPrint } from "@/lib/manualPrint";
 
 type Detail = {
   job: {
@@ -295,6 +296,15 @@ function ActionsCard({
   setStatus: (status: string) => void;
   reprint: () => void;
 }) {
+  const [printing, setPrinting] = useState(false);
+
+  async function handleManualPrint() {
+    setPrinting(true);
+    const res = await manualPrint(job.id);
+    setPrinting(false);
+    if (!res.ok) alert(res.error);
+  }
+
   return (
     <div className="detail-card">
       <h3 className="card-title">Actions</h3>
@@ -323,10 +333,11 @@ function ActionsCard({
           <button
             type="button"
             className="job-btn manual"
-            onClick={() => window.open(`/admin/jobs/${job.id}/print`, "_blank")}
+            onClick={handleManualPrint}
+            disabled={printing}
             title="Backup: print via the browser/Windows print dialog"
           >
-            <Printer size={16} /> Manual Print
+            {printing ? <Loader2 size={16} className="spin" /> : <Printer size={16} />} Manual Print
           </button>
         )}
         {!["printed", "cancelled", "failed"].includes(job.status) && (
