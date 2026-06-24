@@ -505,6 +505,18 @@ async function renderPdfToPngs(pdfPath: string, job: SupabaseJob): Promise<strin
 }
 
 function parsePageRange(range: string, total: number): number[] {
+  const normalized = range.trim().toLowerCase();
+  if (normalized === "even") {
+    const out: number[] = [];
+    for (let n = 2; n <= total; n += 2) out.push(n);
+    return out;
+  }
+  if (normalized === "odd") {
+    const out: number[] = [];
+    for (let n = 1; n <= total; n += 2) out.push(n);
+    return out;
+  }
+
   const pages = new Set<number>();
   for (const part of range.split(",")) {
     const seg = part.trim();

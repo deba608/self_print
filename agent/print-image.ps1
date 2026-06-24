@@ -27,12 +27,17 @@ $doc.DefaultPageSettings.Margins = New-Object System.Drawing.Printing.Margins(0,
 $ps = $doc.PrinterSettings.PaperSizes | Where-Object { $_.PaperName -like "*$PaperName*" } | Select-Object -First 1
 if ($ps) { $doc.DefaultPageSettings.PaperSize = $ps }
 
-$script:idx = 0
-$doc.add_BeginPrint({ $script:idx = 0 })
+# State held in a hashtable captured by closure (.GetNewClosure). Hashtables are
+# reference types, so mutating $state.idx inside the event handler is reliable
+# across PowerShell versions — unlike $script:-scope writes inside a .NET event
+# delegate, which can silently fail to persist and reprint page 1 forever.
+$state = @{ idx = 0; files = $files }
+
+$doc.add_BeginPrint({ $state.idx = 0 }.GetNewClosure())
 
 $doc.add_PrintPage({
   param($sender, $e)
-  $img = [System.Drawing.Image]::FromFile($files[$script:idx])
+  $img = [System.Drawing.Image]::FromFile($state.files[$state.idx])
   try {
     $area = $e.MarginBounds
     $ratio = [Math]::Min($area.Width / $img.Width, $area.Height / $img.Height)
@@ -44,9 +49,9 @@ $doc.add_PrintPage({
   } finally {
     $img.Dispose()
   }
-  $script:idx++
-  $e.HasMorePages = ($script:idx -lt $files.Count)
-})
+  $state.idx++
+  $e.HasMorePages = ($state.idx -lt $state.files.Count)
+}.GetNewClosure())
 
 $doc.Print()
 $doc.Dispose()
