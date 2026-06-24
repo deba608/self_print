@@ -3364,6 +3364,12 @@ input[type="number"] {
   border-radius: var(--radius-md);
   padding: 20px;
   box-shadow: 0 2px 8px rgba(23, 32, 42, 0.03);
+  animation: fadeSlideIn 0.28s var(--ease-out) both;
+}
+@media (max-width: 600px) {
+  .manual-print-frame { height: 46vh; }
+  .manual-print-go { flex: 1; }
+  .manual-print-bar { gap: 8px; }
 }
 .manual-print-title {
   display: flex; align-items: center; gap: 8px;
@@ -3408,6 +3414,12 @@ input[type="number"] {
 .manual-setting strong { font-size: 14px; color: var(--ink); }
 .manual-print-file { font-size: 13px; color: var(--muted); font-weight: 600; }
 .manual-print-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 6px; }
+.manual-print-bar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+  margin-top: 4px;
+}
+.manual-print-go { min-width: 120px; justify-content: center; }
+.manual-print-msg { font-size: 12px; color: var(--muted); flex: 1; min-width: 160px; }
 .manual-print-frame {
   width: 100%;
   height: 60vh;
