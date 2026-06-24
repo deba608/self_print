@@ -609,15 +609,24 @@ export async function replaceAgentPrinters(printers: Array<Omit<PrinterOption, '
   
   const sqlite = await getDbInstance();
   const now = new Date().toISOString();
+  const cutoff = new Date(Date.now() - 5 * 60 * 1000).toISOString();
   sqlite.transaction(() => {
-    sqlite.prepare('DELETE FROM agent_printers').run();
-    const insert = sqlite.prepare(`
+    // Upsert (not delete-all) so multiple agents sharing this DB don't wipe each
+    // other's printers — the admin sees the union of all live machines.
+    const upsert = sqlite.prepare(`
       INSERT INTO agent_printers (name, driver_name, port_name, is_default, seen_at)
       VALUES (?, ?, ?, ?, ?)
+      ON CONFLICT(name) DO UPDATE SET
+        driver_name = excluded.driver_name,
+        port_name = excluded.port_name,
+        is_default = excluded.is_default,
+        seen_at = excluded.seen_at
     `);
     for (const printer of printers) {
-      insert.run(printer.name, printer.driverName, printer.portName, printer.isDefault ? 1 : 0, now);
+      upsert.run(printer.name, printer.driverName, printer.portName, printer.isDefault ? 1 : 0, now);
     }
+    // Drop printers no agent has reported for 5 min (machine offline / removed).
+    sqlite.prepare('DELETE FROM agent_printers WHERE seen_at < ?').run(cutoff);
   })();
 }
 
@@ -628,11 +637,14 @@ export async function getAgentPrinters(): Promise<PrinterOption[]> {
   }
   
   const sqlite = await getDbInstance();
+  // Hide printers no agent has reported recently (stale machine).
+  const cutoff = new Date(Date.now() - 5 * 60 * 1000).toISOString();
   const rows = sqlite.prepare(`
     SELECT name, driver_name, port_name, is_default, seen_at
     FROM agent_printers
+    WHERE seen_at >= ?
     ORDER BY is_default DESC, name COLLATE NOCASE ASC
-  `).all() as Array<Record<string, unknown>>;
+  `).all(cutoff) as Array<Record<string, unknown>>;
   return rows.map((row) => ({
     name: String(row.name),
     driverName: String(row.driver_name),

@@ -419,33 +419,41 @@ export async function updateAgentConfig(printerName: string) {
 
 export async function replaceAgentPrinters(printers: Array<Omit<PrinterOption, 'seenAt'>>) {
   const now = new Date().toISOString();
-  
-  const { error: deleteError } = await supabase.from('agent_printers').delete().neq('name', '');
-  if (deleteError) throw deleteError;
-  
-  // Insert new
+
+  // Upsert (not delete-all) so multiple agents sharing this DB don't wipe each
+  // other's printers — the admin sees the union of all live machines.
   if (printers.length > 0) {
     const { error } = await supabase
       .from('agent_printers')
-      .insert(printers.map(p => ({
-        name: p.name,
-        driver_name: p.driverName,
-        port_name: p.portName,
-        is_default: p.isDefault ? 1 : 0,
-        seen_at: now
-      })));
-    
+      .upsert(
+        printers.map(p => ({
+          name: p.name,
+          driver_name: p.driverName,
+          port_name: p.portName,
+          is_default: p.isDefault ? 1 : 0,
+          seen_at: now
+        })),
+        { onConflict: 'name' }
+      );
+
     if (error) throw error;
   }
+
+  // Drop printers no agent has reported for 5 min (machine offline / removed).
+  const cutoff = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+  await supabase.from('agent_printers').delete().lt('seen_at', cutoff);
 }
 
 export async function getAgentPrinters(): Promise<PrinterOption[]> {
+  // Hide printers no agent has reported recently (stale machine).
+  const cutoff = new Date(Date.now() - 5 * 60 * 1000).toISOString();
   const { data, error } = await supabase
     .from('agent_printers')
     .select('*')
+    .gte('seen_at', cutoff)
     .order('is_default', { ascending: false })
     .order('name');
-  
+
   if (error) throw error;
   
   return (data || []).map(row => ({

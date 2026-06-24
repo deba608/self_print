@@ -403,17 +403,23 @@ async function reportPrintersIfNeeded() {
       return;
     }
 
-    await (supabase.from("agent_printers") as any).delete().neq("name", "");
+    // Upsert (not delete-all) so multiple agents sharing this DB don't wipe each
+    // other's printers — the admin then sees the union of all live machines.
+    const now = new Date().toISOString();
+    const rows = printers.map((printer) => ({
+      name: printer.name,
+      driver_name: printer.driverName,
+      port_name: printer.portName,
+      is_default: printer.isDefault ? 1 : 0,
+      seen_at: now
+    }));
+    const { error: upsertError } = await (supabase.from("agent_printers") as any)
+      .upsert(rows, { onConflict: "name" });
+    if (upsertError) throw new Error(upsertError.message);
 
-    for (const printer of printers) {
-      await (supabase.from("agent_printers") as any).insert([{
-        name: printer.name,
-        driver_name: printer.driverName,
-        port_name: printer.portName,
-        is_default: printer.isDefault ? 1 : 0,
-        seen_at: new Date().toISOString()
-      }]);
-    }
+    // Drop printers no agent has reported for 5 min (machine offline / removed).
+    const cutoff = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+    await (supabase.from("agent_printers") as any).delete().lt("seen_at", cutoff);
 
     log(`Reported ${printers.length} printer(s) to Supabase.`);
   } catch (error) {
