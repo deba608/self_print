@@ -45,7 +45,8 @@ if not exist "node_modules" (
   echo  First-time setup... installing. This may take 2-5 minutes.
   echo  Do NOT close the window. Wait for it to finish.
   echo.
-  call npm install
+  REM --omit=optional skips better-sqlite3 (needs C++ build tools, not used by the agent)
+  call npm install --omit=optional
   if errorlevel 1 (
     color 0C
     echo.
