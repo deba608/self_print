@@ -45,8 +45,9 @@ if not exist "node_modules" (
   echo  First-time setup... installing. This may take 2-5 minutes.
   echo  Do NOT close the window. Wait for it to finish.
   echo.
-  REM --omit=optional skips better-sqlite3 (needs C++ build tools, not used by the agent)
-  call npm install --omit=optional
+  REM Plain install. better-sqlite3 is an optionalDependency: if it fails to
+  REM build (no C++ tools) npm continues anyway. sharp's binaries still install.
+  call npm install
   if errorlevel 1 (
     color 0C
     echo.
