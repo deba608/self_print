@@ -7,6 +7,7 @@ import {
   Lock, Eye as EyeIcon, ChevronDown, Zap, TrendingUp, Clock,
   Trash2, ListTodo, Inbox, FileText
 } from "lucide-react";
+import { manualPrint } from "@/lib/manualPrint";
 
 type Job = {
   id: string;
@@ -1003,6 +1004,16 @@ function JobCard({
     onAction(action);
   };
 
+  const [printing, setPrinting] = useState(false);
+  const handleManualPrint = async (event: React.MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setPrinting(true);
+    const res = await manualPrint(job.id);
+    setPrinting(false);
+    if (!res.ok) alert(res.error);
+  };
+
   return (
     <div className={`job-card ${job.status}`} style={{ animationDelay: `${Math.min(index, 8) * 35}ms` }}>
       {job.status === "pending_payment" && (
@@ -1077,11 +1088,12 @@ function JobCard({
           <button
             type="button"
             className="job-btn manual"
-            onClick={(event) => { event.preventDefault(); event.stopPropagation(); window.open(`/admin/jobs/${job.id}/print`, "_blank"); }}
+            onClick={handleManualPrint}
+            disabled={printing}
             aria-label="Manual print via browser dialog"
             title="Backup: print via the browser/Windows print dialog"
           >
-            <Printer size={14} />
+            {printing ? <Loader2 size={14} className="spin" /> : <Printer size={14} />}
           </button>
         )}
         {job.status !== "printed" && job.status !== "cancelled" && (
