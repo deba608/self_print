@@ -35,6 +35,7 @@ export default function ManualPrint({ id }: { id: string }) {
   const [fileUrl, setFileUrl] = useState("");
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const blobUrlRef = useRef<string | null>(null);
+  const loadedRef = useRef(false);
 
   async function prepare() {
     setStatus("loading");
@@ -70,7 +71,13 @@ export default function ManualPrint({ id }: { id: string }) {
 
       const fileRes = await fetch(`/api/uploads/${detail.file.id}`, { credentials: "include" });
       if (!fileRes.ok) throw new Error(`File download failed (${fileRes.status}).`);
-      const blob = await fileRes.blob();
+      // Rebuild the blob with the KNOWN mime type. A blob from fetch inherits the
+      // response Content-Type, which can be empty/octet-stream (e.g. after a cloud
+      // signed-URL redirect). Chrome then refuses to render the PDF inline -> blank
+      // frame -> nothing to print. Forcing application/pdf fixes Chrome.
+      const buf = await fileRes.arrayBuffer();
+      const mime = detail.file.mimeType || "application/octet-stream";
+      const blob = new Blob([buf], { type: mime });
 
       if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current);
       const blobUrl = URL.createObjectURL(blob);
@@ -78,6 +85,7 @@ export default function ManualPrint({ id }: { id: string }) {
 
       const iframe = iframeRef.current;
       if (!iframe) return;
+      loadedRef.current = false;
       const isImage = (detail.file.mimeType || "").startsWith("image/");
 
       if (isImage) {
@@ -102,8 +110,14 @@ export default function ManualPrint({ id }: { id: string }) {
 
   // User-gesture triggered print — reliable across browsers.
   function doPrint() {
-    const win = iframeRef.current?.contentWindow;
-    if (!win) return;
+    const iframe = iframeRef.current;
+    const win = iframe?.contentWindow;
+    // If the frame hasn't finished loading the document, printing yields a blank
+    // page in Chrome. Bail to the new-tab fallback instead.
+    if (!win || !loadedRef.current) {
+      if (fileUrl) window.open(fileUrl, "_blank");
+      return;
+    }
     try {
       win.focus();
       win.print();
@@ -176,7 +190,12 @@ export default function ManualPrint({ id }: { id: string }) {
       </div>
 
       {/* Visible preview frame that also drives the browser print dialog. */}
-      <iframe ref={iframeRef} title="Print preview" className="manual-print-frame" />
+      <iframe
+        ref={iframeRef}
+        title="Print preview"
+        className="manual-print-frame"
+        onLoad={() => { loadedRef.current = true; }}
+      />
     </main>
   );
 }
