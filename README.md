@@ -17,21 +17,13 @@ Admin URL: `http://localhost:3000/admin`
 
 ### 2. Start the print agent (on shop PC)
 
-Ensure SumatraPDF is installed or placed in `agent/vendor/SumatraPDF.exe`, and that `agent/config.json` is configured. Then run:
+Ensure SumatraPDF is installed and `agent/config.json` is configured. Then run:
 
-```powershell
-npm run agent
-```
-
-For production shop use, use the Windows batch file `START-PRINTER.bat` to run the agent with auto-restart on network disconnect or crash:
 ```powershell
 .\START-PRINTER.bat
 ```
 
-To run it completely hidden in the background:
-```powershell
-.\START-PRINTER-BACKGROUND.vbs
-```
+See **[Windows Scripts](#windows-scripts)** section for all available `.bat` / `.vbs` files.
 
 ---
 
@@ -69,8 +61,107 @@ Everything else uses safe defaults. Admin login: `admin` / `1234`
 ### Supabase Setup
 
 1. Create a project at [supabase.com](https://supabase.com)
-2. Create the 8 tables matching the SQLite schema in `src/lib/db.ts` (`jobs`, `job_files`, `pricing_config`, `agent_config`, `agent_printers`, `admin_users`, `agent_tokens`, `print_events`)
-3. Seed the config rows (pricing, agent config, admin user, agent token). The admin password and agent token are stored as PBKDF2 hashes — see `hashSecret` in `src/lib/security.ts`.
+2. Run the following SQL in the **Supabase SQL Editor** to create all tables and seed defaults:
+
+```sql
+CREATE TABLE public.jobs (
+  id TEXT PRIMARY KEY,
+  token TEXT NOT NULL UNIQUE,
+  status TEXT NOT NULL,
+  print_type TEXT NOT NULL,
+  copies INTEGER NOT NULL,
+  page_range TEXT,
+  paper_size TEXT NOT NULL,
+  layout TEXT NOT NULL DEFAULT 'portrait',
+  pages_per_sheet INTEGER NOT NULL DEFAULT 1,
+  margins TEXT NOT NULL DEFAULT 'default',
+  scale TEXT NOT NULL DEFAULT 'default',
+  page_count INTEGER NOT NULL,
+  price_paise INTEGER NOT NULL,
+  needs_conversion INTEGER NOT NULL DEFAULT 0,
+  queue_position INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  paid_at TEXT,
+  printed_at TEXT
+);
+
+CREATE TABLE public.job_files (
+  id TEXT PRIMARY KEY,
+  job_id TEXT NOT NULL REFERENCES public.jobs(id) ON DELETE CASCADE,
+  original_name TEXT NOT NULL,
+  stored_name TEXT NOT NULL,
+  mime_type TEXT NOT NULL,
+  size_bytes INTEGER NOT NULL,
+  file_kind TEXT NOT NULL,
+  storage_path TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+
+CREATE TABLE public.pricing_config (
+  id INTEGER PRIMARY KEY CHECK (id = 1),
+  bw_per_page_paise INTEGER NOT NULL DEFAULT 150,
+  color_per_page_paise INTEGER NOT NULL DEFAULT 500,
+  photo_print_paise INTEGER NOT NULL DEFAULT 1000,
+  copy_multiplier REAL NOT NULL DEFAULT 1.0,
+  a4_multiplier REAL NOT NULL DEFAULT 1.0,
+  legal_multiplier REAL NOT NULL DEFAULT 1.2,
+  photo_multiplier REAL NOT NULL DEFAULT 2.0,
+  expiry_minutes INTEGER NOT NULL DEFAULT 1440,
+  updated_at TEXT NOT NULL DEFAULT now()::text
+);
+
+CREATE TABLE public.admin_users (
+  id TEXT PRIMARY KEY,
+  username TEXT NOT NULL UNIQUE,
+  password_hash TEXT NOT NULL,
+  role TEXT NOT NULL DEFAULT 'admin',
+  created_at TEXT NOT NULL
+);
+
+CREATE TABLE public.agent_tokens (
+  id TEXT PRIMARY KEY,
+  token TEXT NOT NULL UNIQUE,
+  name TEXT,
+  created_at TEXT NOT NULL
+);
+
+CREATE TABLE public.print_events (
+  id TEXT PRIMARY KEY,
+  job_id TEXT NOT NULL REFERENCES public.jobs(id) ON DELETE CASCADE,
+  printer_name TEXT,
+  event_type TEXT NOT NULL,
+  message TEXT,
+  created_at TEXT NOT NULL
+);
+
+CREATE TABLE public.agent_config (
+  id INTEGER PRIMARY KEY CHECK (id = 1),
+  printer_name TEXT NOT NULL DEFAULT '',
+  updated_at TEXT NOT NULL DEFAULT now()::text
+);
+
+CREATE TABLE public.agent_printers (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'online',
+  location TEXT,
+  updated_at TEXT NOT NULL
+);
+
+-- Seed defaults
+INSERT INTO public.pricing_config (id, bw_per_page_paise, color_per_page_paise, photo_print_paise, copy_multiplier, a4_multiplier, legal_multiplier, photo_multiplier, expiry_minutes, updated_at)
+VALUES (1, 150, 500, 1000, 1.0, 1.0, 1.2, 2.0, 1440, now()::text);
+
+INSERT INTO public.agent_config (id, printer_name, updated_at)
+VALUES (1, '', now()::text);
+
+-- Default agent token (value must match AGENT_TOKEN env var)
+INSERT INTO public.agent_tokens (id, token, name, created_at)
+VALUES (gen_random_uuid()::text, 'dev-agent', 'Default Agent', now()::text);
+```
+
+> **Admin user:** For Supabase, insert manually with the correct PBKDF2 hash — see `hashSecret` in `src/lib/security.ts`. Default credentials: `admin` / `1234`.
 4. **Enable RLS** on all 8 tables. The web app and print agent both connect with the service-role key, which bypasses RLS, so a deny-all (RLS on, no policies) state is safe and blocks all anon-key access:
 
 ```sql
@@ -138,28 +229,64 @@ Copy `agent/config.example.json` to `agent/config.json` and fill in your Supabas
 * **`fallbackPrinter`**: (Optional) The name of the printer to use if no printer is selected on the admin dashboard.
 
 #### 3. Run the Agent
-To start the print agent:
-```powershell
-npm run agent
-```
 
-For production/shop use, run the Windows batch file launcher which auto-restarts the agent if it crashes or loses network connection:
-```powershell
-.\START-PRINTER.bat
-```
-
-To run the agent **completely in the background (hidden window)**, double-click:
-```powershell
-.\START-PRINTER-BACKGROUND.vbs
-```
-
-#### 4. Configure Auto-Start (Hands-Free Shop Setup)
-To ensure the print service runs automatically whenever the shop PC turns on (without needing manual startup or leaving a command prompt open):
-1. Right-click **`INSTALL-AUTOSTART.bat`** and select **Run as Administrator**.
-2. This registers a Windows Scheduled Task (`SelfPrintAgent`) that executes `START-PRINTER-BACKGROUND.vbs` automatically at logon, running the print agent silently in the background with automatic crash recovery.
-3. *Recommendation:* Turn on Windows auto-login (bypass lock screen password) on the shop PC so the scheduled task starts up immediately upon boot.
+See **[Windows Scripts](#windows-scripts)** below for all `.bat` / `.vbs` launchers and auto-start setup.
 
 Once running, the agent automatically detects all installed Windows printers and reports them to the database so you can choose which printer to use in the Admin dashboard.
+
+---
+
+## Windows Scripts
+
+All `.bat` and `.vbs` files live in the project root. Keep them together — they reference each other by relative path.
+
+| File | Purpose | When to use |
+|---|---|---|
+| `START-PRINTER.bat` | Starts agent in a visible window; auto-restarts on crash | Daily testing / monitoring |
+| `START-PRINTER-BACKGROUND.vbs` | Starts agent silently (no visible window) | Production / auto-start |
+| `INSTALL-AUTOSTART.bat` | Registers a Windows Scheduled Task (`SelfPrintAgent`) that runs the agent at every logon | **Once only** during setup |
+| `TEST-PRINTER.bat` | Lists all printers on the PC and sends a test page | Setup / troubleshooting |
+| `STOP-DEV-AGENT.bat` | Kills any SelfPrint agent process running on this machine | Dev box only — stops it stealing jobs meant for the shop PC |
+| `agent\start-agent.bat` | Minimal auto-restart launcher inside the agent folder | Alternative to root `START-PRINTER.bat` |
+
+### Auto-Start Setup (one time)
+
+1. Double-click **`INSTALL-AUTOSTART.bat`** → approve the UAC prompt.
+2. Done. The agent now starts silently at every Windows logon.
+   - Task name: `SelfPrintAgent`
+   - Trigger: At Logon
+   - Auto-restarts every 1 minute on crash
+3. **Optional — fully hands-free after power cut:** enable Windows auto-login so the scheduled task fires without anyone typing a password.
+
+   Via GUI: `Win+R` → `netplwiz` → uncheck *Users must enter a username and password* → enter password.
+
+   Via PowerShell (run as Administrator):
+   ```powershell
+   $reg = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon"
+   Set-ItemProperty $reg "AutoAdminLogon"  "1"
+   Set-ItemProperty $reg "DefaultUsername" "YourWindowsUsername"
+   Set-ItemProperty $reg "DefaultPassword" "YourWindowsPassword"
+   ```
+
+To remove auto-start:
+```powershell
+Unregister-ScheduledTask -TaskName "SelfPrintAgent" -Confirm:$false
+```
+
+---
+
+## Manual Print (Fallback)
+
+If the print agent is down or **Release Print** does not work, admins can print directly from the browser:
+
+1. Admin dashboard → click job → **Manual Print** button.
+2. The file loads in a browser preview frame.
+3. The job's print settings (copies, pages, color, paper size, layout) are shown on screen.
+4. Click **Print** → native Windows print dialog opens.
+5. **Manually apply** the displayed settings in the dialog (they are not applied automatically).
+6. Select printer → Print.
+
+> Works from any browser on any PC — the operator can use a phone or counter PC via `https://your-app.vercel.app/admin`. DOC/DOCX jobs must be converted to PDF first before manual print is available.
 
 ---
 
