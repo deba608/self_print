@@ -306,19 +306,56 @@ If the print agent is down or **Release Print** does not work, admins can print 
 
 ## Architecture
 
+### System Overview
+
+```mermaid
+graph LR
+  subgraph CUSTOMER
+    MB[Mobile Browser\nUpload · QR scan]
+    AB[Admin Browser\n/admin dashboard]
+  end
+
+  subgraph CLOUD
+    VX[Vercel · Next.js 15\nSSR · API routes]
+    DB[(Supabase DB\nPostgreSQL · 8 tables)]
+    ST[(Supabase Storage\nbucket: selfprint)]
+  end
+
+  subgraph SHOP_PC[SHOP PC]
+    AG[Print Agent\nNode.js · polls 5s]
+    SP[SumatraPDF\nsilent print]
+    PR[Printer\nWindows driver]
+    TS[Task Scheduler\nauto-start at logon]
+  end
+
+  MB -->|POST /api/jobs| VX
+  MB -.->|direct upload\nsigned URL| ST
+  AB -->|manage jobs| VX
+  VX <-->|read/write| DB
+  VX <-->|signed URLs| ST
+  AG -->|poll approved jobs| VX
+  AG -.->|download file| ST
+  AG --> SP --> PR
+  TS -->|starts on logon| AG
 ```
-Customer (mobile)
-  ├── (cloud) POST /api/uploads/sign → signed URL → upload bytes direct to Supabase Storage
-  ├── (local) POST /api/jobs with file → server stores it
-  └── POST /api/jobs (metadata) → server verifies file, prices, returns token
-Admin (browser)
-  └── GET /admin → dashboard (SSE live updates)
-  └── POST /api/admin/jobs/[id] → mark paid / release
-  └── GET /api/uploads/[id] → preview (redirects to signed URL on cloud)
-Print Agent (Windows PC)
-  └── GET /api/agent/jobs/next → polls approved jobs
-  └── GET /api/agent/jobs/[id]/file → signed download URL
-  └── POST /api/agent/jobs/[id]/status → marks printed
+
+### Job Lifecycle
+
+```mermaid
+stateDiagram-v2
+  [*] --> pending : customer uploads file
+  pending --> paid : admin marks paid
+  paid --> approved : admin clicks Release Print
+  approved --> printing : agent claims job
+  printing --> printed : SumatraPDF sends to printer
+  printing --> failed : error / printer offline
+  failed --> approved : admin clicks Retry
+  printed --> [*]
+
+  note right of approved
+    Manual Print fallback
+    available here (browser-based)
+  end note
 ```
 
 **Database:** Dual-mode — SQLite (`better-sqlite3`) for local/dev, Supabase (PostgreSQL) for production. Auto-selected by presence of `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` (no toggle flag). Both share the same schema and query interface via `src/lib/db.ts` / `src/lib/db-supabase.ts`.
