@@ -1,7 +1,6 @@
 {
   "supabaseUrl": "https://your-project.supabase.co",
   "supabaseKey": "your-service-role-key",
-  "sumatraPath": "",
   "tempDir": "./agent-temp",
   "maxRetries": 3,
   "fallbackPrinter": ""

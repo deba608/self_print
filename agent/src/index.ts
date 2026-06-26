@@ -9,7 +9,6 @@ import { PDFiumLibrary } from "@hyzyla/pdfium";
 type AgentConfig = {
   supabaseUrl: string;
   supabaseKey: string;
-  sumatraPath?: string;
   tempDir: string;
   maxRetries: number;
   fallbackPrinter: string;
@@ -726,7 +725,6 @@ async function loadConfig() {
   return {
     supabaseUrl: String(supabaseUrl).replace(/\/$/, ""),
     supabaseKey: String(supabaseKey),
-    sumatraPath: parsed.sumatraPath ? String(parsed.sumatraPath) : undefined,
     tempDir: String(parsed.tempDir || "./agent-temp"),
     maxRetries: Number(parsed.maxRetries) || 3,
     fallbackPrinter: String(parsed.fallbackPrinter || "")
