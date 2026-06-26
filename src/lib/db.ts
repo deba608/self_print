@@ -1,5 +1,4 @@
 import type { Job, JobFile, PricingConfig, PrinterOption, SseClient } from './types';
-import { DEFAULT_EXPIRY_MINUTES } from './config';
 
 // Check if Supabase is configured
 const isSupabase = Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
@@ -210,7 +209,7 @@ async function seedDefaults(database: any, username: string, password: string, a
 }
 
 // Helper to convert SQLite row to Job type
-function mapJob(row: Record<string, unknown>, expiryMinutes: number = DEFAULT_EXPIRY_MINUTES): Job {
+function mapJob(row: Record<string, unknown>, expiryMinutes: number = 1440): Job {
   const createdAt = String(row.created_at);
   const expiresAt = new Date(new Date(createdAt).getTime() + expiryMinutes * 60000).toISOString();
   return {
