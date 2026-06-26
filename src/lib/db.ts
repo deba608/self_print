@@ -1,4 +1,5 @@
 import type { Job, JobFile, PricingConfig, PrinterOption, SseClient } from './types';
+import { DEFAULT_EXPIRY_MINUTES } from './config';
 
 // Check if Supabase is configured
 const isSupabase = Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);

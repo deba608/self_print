@@ -447,8 +447,10 @@ Conversion replaces the stored file with the PDF, deletes the original, and reco
 
 | Var | Purpose |
 |---|---|
+| `SHOP_UPI_ID` | Shop's UPI ID (e.g. `yourshop@upi`) — enables UPI QR + pay button on customer token screen |
+| `SHOP_NAME` | Shop display name shown in UPI payment (default: `Print Shop`) |
 | `LIBREOFFICE_PATH` | Path to `soffice(.exe)` if not auto-detected |
-| `CRON_SECRET` | Bearer secret for `/api/cleanup` |
+| `CRON_SECRET` | Bearer secret for `/api/cleanup` (required in production) |
 | `MAX_UPLOAD_MB` | Upload size limit (default 25) |
 | `SESSION_SECRET` | Admin session signing secret (set in production) |
 

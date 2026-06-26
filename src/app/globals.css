@@ -1347,6 +1347,78 @@ input, select, button {
   color: var(--ink);
 }
 
+/* UPI Payment Block */
+.upi-payment-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  width: 100%;
+  margin: 4px 0 16px;
+}
+
+.upi-amount {
+  font-size: 40px;
+  font-weight: 900;
+  color: var(--ink);
+  letter-spacing: -1px;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+
+.upi-instruction {
+  font-size: 14px;
+  color: var(--muted);
+  margin: 0 0 16px;
+}
+
+.upi-pay-btn {
+  width: 100%;
+  max-width: 340px;
+  padding: 14px 20px;
+  font-size: 16px;
+  font-weight: 700;
+  border-radius: 12px;
+}
+
+.upi-qr-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0 12px;
+}
+
+.upi-qr-label {
+  font-size: 13px;
+  color: var(--muted);
+  margin: 0;
+}
+
+.upi-qr-box {
+  padding: 12px;
+  background: #fff;
+  border: 2px solid var(--border);
+  border-radius: 16px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+}
+
+.upi-qr-hint {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 0;
+}
+
+.upi-after {
+  font-size: 13px;
+  color: var(--ink);
+  font-weight: 600;
+  margin: 8px 0 16px;
+  max-width: 280px;
+  text-align: center;
+  line-height: 1.5;
+}
+
 /* Thank You Note */
 .thank-you-note {
   margin-top: 24px;
