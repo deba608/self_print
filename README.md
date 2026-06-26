@@ -17,7 +17,7 @@ Admin URL: `http://localhost:3000/admin`
 
 ### 2. Start the print agent (on shop PC)
 
-Ensure SumatraPDF is installed and `agent/config.json` is configured. Then run:
+Ensure `agent/config.json` is configured. Then run:
 
 ```powershell
 .\START-PRINTER.bat
@@ -201,13 +201,10 @@ CREATE INDEX idx_jobs_approved ON public.jobs(status, needs_conversion, updated_
 
 ### Print Agent
 
-The Print Agent is a Node.js process that runs on the shop's Windows PC. It listens for print commands in real time via Supabase Realtime, downloads the PDF file, and prints it silently using SumatraPDF.
+The Print Agent is a Node.js process that runs on the shop's Windows PC. It listens for print commands in real time via Supabase Realtime, downloads the PDF file, renders it page-by-page to PNGs using PDFium WASM, and prints them silently using standard Windows GDI printing via PowerShell.
 
-#### 1. Install SumatraPDF (Print Engine)
-The agent needs SumatraPDF to run. You can configure it in one of three ways:
-* **Recommended:** Download the portable version of SumatraPDF.exe and place it directly inside `agent/vendor/SumatraPDF.exe`.
-* Install SumatraPDF on the client's PC (the agent automatically checks standard locations like `C:\Program Files\SumatraPDF\SumatraPDF.exe`).
-* Install it anywhere and specify the custom path in `agent/config.json` via the `sumatraPath` property.
+#### 1. Setup Requirements
+The agent runs self-contained out-of-the-box. There is no need to install external PDF viewers (like SumatraPDF or Acrobat Reader). All dependencies are handled automatically by `npm install`.
 
 #### 2. Create and Configure `agent/config.json`
 Copy `agent/config.example.json` to `agent/config.json` and fill in your Supabase project settings:
@@ -216,7 +213,6 @@ Copy `agent/config.example.json` to `agent/config.json` and fill in your Supabas
 {
   "supabaseUrl": "https://your-project.supabase.co",
   "supabaseKey": "your-service-role-key",
-  "sumatraPath": "",
   "tempDir": "./agent-temp",
   "maxRetries": 3,
   "fallbackPrinter": "Your Printer Name"
@@ -225,7 +221,6 @@ Copy `agent/config.example.json` to `agent/config.json` and fill in your Supabas
 
 * **`supabaseUrl`**: Your project URL from the Supabase dashboard (Settings -> API).
 * **`supabaseKey`**: Your service role key (`service_role` / `secret` key) from Supabase API settings. *(Must be the service role key, not the anon key).*
-* **`sumatraPath`**: (Optional) Path to your `SumatraPDF.exe` if not placed in `agent/vendor` or standard Program Files directories.
 * **`fallbackPrinter`**: (Optional) The name of the printer to use if no printer is selected on the admin dashboard.
 
 #### 3. Run the Agent
