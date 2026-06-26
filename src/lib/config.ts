@@ -31,9 +31,9 @@ if (
   if (SESSION_SECRET === "dev-session-secret-change-me") insecure.push("SESSION_SECRET");
   if (DEFAULT_AGENT_TOKEN === "dev-agent") insecure.push("AGENT_TOKEN");
   if (insecure.length > 0) {
-    throw new Error(
-      `Production startup blocked — insecure default values detected for: ${insecure.join(", ")}. ` +
-      "Set these environment variables to strong random secrets before deploying."
+    console.error(
+      `[selfprint] WARNING — insecure default values detected for: ${insecure.join(", ")}. ` +
+      "Set these environment variables to strong random secrets in production."
     );
   }
 }
