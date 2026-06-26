@@ -275,32 +275,31 @@ Unregister-ScheduledTask -TaskName "SelfPrintAgent" -Confirm:$false
 
 ---
 
-## Manual Print (Fallback)
-
-If the print agent is down or **Release Print** does not work, admins can print directly from the browser:
-
-1. Admin dashboard → click job → **Manual Print** button.
-2. The file loads in a browser preview frame.
-3. The job's print settings (copies, pages, color, paper size, layout) are shown on screen.
-4. Click **Print** → native Windows print dialog opens.
-5. **Manually apply** the displayed settings in the dialog (they are not applied automatically).
-6. Select printer → Print.
-
-> Works from any browser on any PC — the operator can use a phone or counter PC via `https://your-app.vercel.app/admin`. DOC/DOCX jobs must be converted to PDF first before manual print is available.
-
----
-
 ## Printing Flow & Retry Handling
 
 1. **Customer Upload**: Customer uploads a file and receives a token number and queue position.
 2. **Counter Payment**: Admin finds the token, collects payment, and clicks **Mark Paid**.
 3. **Release Print**: Admin clicks **Release Print** which updates the status to `approved`.
-4. **Agent Processing**: The Windows print agent polls the job, downloads the PDF file (via authenticated Supabase storage client), and silently sends it to the selected printer using SumatraPDF.
+4. **Agent Processing**: The Windows print agent polls (or receives Realtime push) for approved jobs, claims the job atomically, downloads the PDF file, rasterizes it page-by-page using **PDFium WASM**, and sends each page to the Windows printer via **GDI print (PowerShell)**.
 5. **Mark Done**: Agent updates status to `printed` (done).
 
 ### Retry / Error Handling
 * **Transient Failures**: If a job fails due to printer errors, network drops, or download issues, the agent marks the job status as `failed` and logs the error in the `print_events` table.
-* **One-Click Retry**: Admins can easily retry any failed job. Click **Retry** on the Admin Dashboard queue card or **Retry Print** in the Job Detail page. This queues it back into the queue with `approved` status so the agent prints it again immediately.
+* **One-Click Retry**: Admins can retry any failed job. Click **Retry** on the Admin Dashboard queue card or **Retry Print** in the Job Detail page. This queues it back into the queue with `approved` status so the agent prints it again immediately.
+* **Reprint**: Already-printed jobs can also be queued again via the **Reprint** button, setting them back to `approved`.
+
+### Manual Print (Fallback)
+
+If the print agent is down or **Release Print** does not work, admins can print directly from the browser:
+
+1. Admin dashboard → click job → **Manual Print** button.
+2. The file is fetched via a same-origin proxy (`/api/uploads/[id]?proxy=1`), avoiding CORS issues.
+3. A browser preview frame loads the file, and the job's print settings (copies, pages, color, paper size, layout) are displayed.
+4. Click **Print** → native Windows print dialog opens.
+5. Manually apply the displayed settings in the dialog (they are not applied automatically).
+6. Select printer → Print.
+
+> Works from any browser — the operator can use a phone or counter PC. DOC/DOCX jobs must be converted to PDF first. Manual Print is available for jobs in `paid`, `approved`, `printing`, `printed`, or `failed` status.
 
 ---
 
@@ -322,8 +321,9 @@ graph LR
   end
 
   subgraph SHOP_PC[SHOP PC]
-    AG[Print Agent\nNode.js · polls 5s]
-    SP[SumatraPDF\nsilent print]
+    AG[Print Agent\nNode.js · Realtime + poll 5s]
+    PF[PDFium WASM\nrender PDF → PNG]
+    GI[GDI Print\nPowerShell · System.Drawing.Printing]
     PR[Printer\nWindows driver]
     TS[Task Scheduler\nauto-start at logon]
   end
@@ -331,11 +331,12 @@ graph LR
   MB -->|POST /api/jobs| VX
   MB -.->|direct upload\nsigned URL| ST
   AB -->|manage jobs| VX
+  AB -->|Manual Print\nbrowser proxy| VX
   VX <-->|read/write| DB
   VX <-->|signed URLs| ST
-  AG -->|poll approved jobs| VX
+  AG -->|poll + Realtime| DB
   AG -.->|download file| ST
-  AG --> SP --> PR
+  AG --> PF --> GI --> PR
   TS -->|starts on logon| AG
 ```
 
@@ -343,18 +344,25 @@ graph LR
 
 ```mermaid
 stateDiagram-v2
-  [*] --> pending : customer uploads file
-  pending --> paid : admin marks paid
+  [*] --> pending_payment : customer uploads file
+  pending_payment --> paid : admin marks paid
   paid --> approved : admin clicks Release Print
-  approved --> printing : agent claims job
-  printing --> printed : SumatraPDF sends to printer
+  approved --> printing : agent claims job (atomic)
+  printing --> printed : GDI print (PowerShell)
   printing --> failed : error / printer offline
   failed --> approved : admin clicks Retry
+  printed --> approved : admin clicks Reprint
+  pending_payment --> cancelled : admin cancels
+  paid --> cancelled : admin cancels
+  approved --> cancelled : admin cancels
+  printing --> cancelled : admin cancels
   printed --> [*]
+  cancelled --> [*]
 
-  note right of approved
-    Manual Print fallback
-    available here (browser-based)
+  note right of pending_payment
+    Manual Print available
+    for paid, approved, printing,
+    printed, and failed states
   end note
 ```
 
