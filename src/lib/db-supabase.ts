@@ -333,28 +333,47 @@ export async function updateJobSettings(id: string, settings: {
     }]);
 }
 
+const PRICING_DEFAULTS: PricingConfig = {
+  bwPerPagePaise: 200,
+  colorPerPagePaise: 800,
+  photoPrintPaise: 1500,
+  copyMultiplier: 1.0,
+  a3Multiplier: 2.5,
+  a4Multiplier: 1.0,
+  a5Multiplier: 0.7,
+  a6Multiplier: 0.5,
+  b5Multiplier: 0.9,
+  legalMultiplier: 1.25,
+  photoMultiplier: 1.0,
+  expiryMinutes: 1440,
+};
+
 export async function getPricing(): Promise<PricingConfig> {
   const { data, error } = await supabase
     .from('pricing_config')
     .select('*')
     .eq('id', 1)
     .single();
-  
-  if (error) throw error;
-  
+
+  // PGRST116 = no rows — return defaults so the app works even if not seeded
+  if (error) {
+    if ((error as any).code === 'PGRST116') return PRICING_DEFAULTS;
+    throw error;
+  }
+
   return {
-    bwPerPagePaise: data.bw_per_page_paise,
-    colorPerPagePaise: data.color_per_page_paise,
-    photoPrintPaise: data.photo_print_paise,
-    copyMultiplier: data.copy_multiplier,
-    a3Multiplier: data.a3_multiplier ?? 2.5,
-    a4Multiplier: data.a4_multiplier ?? 1,
-    a5Multiplier: data.a5_multiplier ?? 0.7,
-    a6Multiplier: data.a6_multiplier ?? 0.5,
-    b5Multiplier: data.b5_multiplier ?? 0.9,
-    legalMultiplier: data.legal_multiplier ?? 1.25,
-    photoMultiplier: data.photo_multiplier ?? 1,
-    expiryMinutes: data.expiry_minutes ?? 1440
+    bwPerPagePaise: data.bw_per_page_paise ?? PRICING_DEFAULTS.bwPerPagePaise,
+    colorPerPagePaise: data.color_per_page_paise ?? PRICING_DEFAULTS.colorPerPagePaise,
+    photoPrintPaise: data.photo_print_paise ?? PRICING_DEFAULTS.photoPrintPaise,
+    copyMultiplier: data.copy_multiplier ?? PRICING_DEFAULTS.copyMultiplier,
+    a3Multiplier: data.a3_multiplier ?? PRICING_DEFAULTS.a3Multiplier,
+    a4Multiplier: data.a4_multiplier ?? PRICING_DEFAULTS.a4Multiplier,
+    a5Multiplier: data.a5_multiplier ?? PRICING_DEFAULTS.a5Multiplier,
+    a6Multiplier: data.a6_multiplier ?? PRICING_DEFAULTS.a6Multiplier,
+    b5Multiplier: data.b5_multiplier ?? PRICING_DEFAULTS.b5Multiplier,
+    legalMultiplier: data.legal_multiplier ?? PRICING_DEFAULTS.legalMultiplier,
+    photoMultiplier: data.photo_multiplier ?? PRICING_DEFAULTS.photoMultiplier,
+    expiryMinutes: data.expiry_minutes ?? PRICING_DEFAULTS.expiryMinutes,
   };
 }
 
