@@ -1,6 +1,5 @@
-import crypto from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
-import { getJobs, deleteJob, sseClients } from "@/lib/db";
+import { bulkDeleteJobs, getJobFilesForJobs, sseClients } from "@/lib/db";
 import { requireAdminResponse } from "@/lib/security";
 import { deleteFile } from "@/lib/storage";
 
@@ -15,24 +14,19 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "No job IDs provided" }, { status: 400 });
   }
 
-  const allJobs = await getJobs();
-  const jobsToDelete = allJobs.filter(j => ids.includes(j.id));
+  // Fetch files for only the requested IDs, not the entire jobs table.
+  const fileMap = await getJobFilesForJobs(ids);
+  await Promise.allSettled(
+    Object.values(fileMap).map(f => f.storagePath ? deleteFile(f.storagePath) : Promise.resolve())
+  );
 
-  for (const job of jobsToDelete) {
-    try {
-      const file = await import("@/lib/db").then(m => m.getJobFile(job.id)).catch(() => null);
-      if (file?.storagePath) {
-        await deleteFile(file.storagePath);
-      }
-    } catch {
-      // Ignore file deletion errors
-    }
-    
-    await deleteJob(job.id);
-    broadcast({ type: "job_deleted", jobId: job.id, token: job.token });
+  await bulkDeleteJobs(ids);
+
+  for (const id of ids) {
+    broadcast({ type: "job_deleted", jobId: id });
   }
 
-  return NextResponse.json({ ok: true, deleted: jobsToDelete.length });
+  return NextResponse.json({ ok: true, deleted: ids.length });
 }
 
 function broadcast(data: object) {

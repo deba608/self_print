@@ -143,7 +143,8 @@ async function connectRealtime() {
           log(`Realtime event: ${payload.eventType} job ${jobId} status=${newStatus}`);
           
           if (newStatus === "approved" && !needsConversion && !isProcessing && !isShuttingDown) {
-            await processJob(jobId);
+            isProcessing = true; // claim synchronously before any await to prevent double-processing
+            processJob(jobId).finally(() => { isProcessing = false; });
           }
         }
       )
@@ -218,7 +219,10 @@ function scheduleReconnect() {
 }
 
 async function processJob(jobId: string) {
-  if (isProcessing || isShuttingDown) return;
+  // Callers must check isProcessing before calling. isProcessing is set true
+  // synchronously by the caller (Realtime handler) or here (poll path) before
+  // any await, preventing concurrent execution.
+  if (isShuttingDown) return;
   isProcessing = true;
 
   try {
@@ -336,7 +340,13 @@ async function processJob(jobId: string) {
 
         log(`Printing ${job.copies} copy(s), paper: ${job.paper_size}, type: ${job.print_type}, printer: ${printer}...`);
         await logEvent(jobId, "spooling", `Sent to printer: ${printer}.`);
-        await printJob(tempPath, job, printer);
+        const PRINT_TIMEOUT_MS = 5 * 60 * 1000; // 5 min — covers PDF rasterisation + GDI spool
+        await Promise.race([
+          printJob(tempPath, job, printer),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error("Print job timed out after 5 minutes")), PRINT_TIMEOUT_MS)
+          )
+        ]);
 
         await updateStatus(jobId, "printed", `Printed successfully on attempt ${attempt}.`);
         log(`Job ${job.token} completed successfully.`);

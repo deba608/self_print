@@ -14,9 +14,8 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 export const sseClients = new Set<SseClient>();
 
 // Helper to convert Supabase row to Job type
-function mapJob(row: any): Job {
+function mapJob(row: any, expiryMinutes: number = 1440): Job {
   const createdAt = String(row.created_at);
-  const expiryMinutes = 1440; // Default
   const expiresAt = new Date(new Date(createdAt).getTime() + expiryMinutes * 60000).toISOString();
   
   return {
@@ -89,13 +88,12 @@ export async function getDb() {
 
 // Supabase-specific methods
 export async function getJobs() {
-  const { data, error } = await supabase
-    .from('jobs')
-    .select('*')
-    .order('created_at', { ascending: false });
-  
+  const [{ data, error }, pricing] = await Promise.all([
+    supabase.from('jobs').select('*').order('created_at', { ascending: false }),
+    getPricing()
+  ]);
   if (error) throw error;
-  return (data || []).map(mapJob);
+  return (data || []).map(row => mapJob(row, pricing.expiryMinutes));
 }
 
 export async function getJobsPage(limit: number, cursor?: string | null): Promise<{ jobs: Job[]; total: number }> {
@@ -112,8 +110,9 @@ export async function getJobsPage(limit: number, cursor?: string | null): Promis
   const { data, error, count } = await query;
   if (error) throw error;
 
+  const pricing = await getPricing();
   const jobs = (data || []).map(row => {
-    const job = mapJob(row);
+    const job = mapJob(row, pricing.expiryMinutes);
     if (row.job_files && Array.isArray(row.job_files) && row.job_files.length > 0) {
       job.file = mapJobFile(row.job_files[0]);
     }
@@ -137,39 +136,31 @@ export async function getJobFilesForJobs(jobIds: string[]): Promise<Record<strin
 }
 
 export async function getJobById(id: string) {
-  const { data, error } = await supabase
-    .from('jobs')
-    .select('*')
-    .eq('id', id)
-    .single();
-  
+  const [{ data, error }, pricing] = await Promise.all([
+    supabase.from('jobs').select('*').eq('id', id).single(),
+    getPricing()
+  ]);
   if (error) throw error;
-  return mapJob(data);
+  return mapJob(data, pricing.expiryMinutes);
 }
 
 export async function getJobByToken(token: string) {
-  const { data, error } = await supabase
-    .from('jobs')
-    .select('*')
-    .eq('token', token)
-    .single();
-  
+  const [{ data, error }, pricing] = await Promise.all([
+    supabase.from('jobs').select('*').eq('token', token).single(),
+    getPricing()
+  ]);
   if (error) throw error;
-  return mapJob(data);
+  return mapJob(data, pricing.expiryMinutes);
 }
 
 export async function getNextApprovedJob() {
-  const { data, error } = await supabase
-    .from('jobs')
-    .select('*')
-    .eq('status', 'approved')
-    .eq('needs_conversion', 0)
-    .order('updated_at', { ascending: true })
-    .limit(1)
-    .single();
-  
-  if (error && error.code !== 'PGRST116') throw error; // PGRST116 = not found
-  return data ? mapJob(data) : null;
+  const [{ data, error }, pricing] = await Promise.all([
+    supabase.from('jobs').select('*').eq('status', 'approved').eq('needs_conversion', 0)
+      .order('updated_at', { ascending: true }).limit(1).single(),
+    getPricing()
+  ]);
+  if (error && (error as any).code !== 'PGRST116') throw error; // PGRST116 = not found
+  return data ? mapJob(data, pricing.expiryMinutes) : null;
 }
 
 export async function getJobFile(jobId: string) {
@@ -534,9 +525,19 @@ export async function bulkDeleteJobs(ids: string[]) {
   if (error) throw error;
 }
 
+const PRINTING_LEASE_MINUTES = 10;
+
 export async function cleanupOldJobs(): Promise<{ deleted: number; storagePaths: string[] }> {
   const pricing = await getPricing();
   const cutoff = new Date(Date.now() - pricing.expiryMinutes * 60000).toISOString();
+  const leaseCutoff = new Date(Date.now() - PRINTING_LEASE_MINUTES * 60000).toISOString();
+
+  // Reset stale "printing" leases — agent crashed before completing.
+  await supabase
+    .from('jobs')
+    .update({ status: 'approved', updated_at: new Date().toISOString() })
+    .eq('status', 'printing')
+    .lt('updated_at', leaseCutoff);
 
   // Find jobs to remove: finished, or unpaid past expiry.
   const { data: finished, error: finErr } = await supabase

@@ -209,9 +209,8 @@ async function seedDefaults(database: any, username: string, password: string, a
 }
 
 // Helper to convert SQLite row to Job type
-function mapJob(row: Record<string, unknown>): Job {
+function mapJob(row: Record<string, unknown>, expiryMinutes: number = DEFAULT_EXPIRY_MINUTES): Job {
   const createdAt = String(row.created_at);
-  const expiryMinutes = 1440;
   const expiresAt = new Date(new Date(createdAt).getTime() + expiryMinutes * 60000).toISOString();
   return {
     id: String(row.id),
@@ -262,8 +261,9 @@ export async function getJobs(): Promise<Job[]> {
     return mod.getJobs();
   }
   const sqlite = await getDbInstance();
+  const pricing = await getPricing();
   const rows = sqlite.prepare('SELECT * FROM jobs ORDER BY created_at DESC').all() as Record<string, unknown>[];
-  return rows.map(mapJob);
+  return rows.map(row => mapJob(row, pricing.expiryMinutes));
 }
 
 // Paginated jobs. Avoids loading the entire table into memory.
@@ -304,8 +304,9 @@ export async function getJobsPage(limit: number, cursor?: string | null): Promis
     rows = stmt.all(limit) as any[];
   }
 
+  const expiry = (await getPricing()).expiryMinutes;
   const jobs = rows.map(row => {
-    const job = mapJob(row);
+    const job = mapJob(row, expiry);
     if (row.f_id) {
       job.file = {
         id: String(row.f_id),
@@ -348,9 +349,12 @@ export async function getJobById(id: string): Promise<Job> {
     return mod.getJobById(id);
   }
   const sqlite = await getDbInstance();
-  const row = sqlite.prepare('SELECT * FROM jobs WHERE id = ?').get(id) as Record<string, unknown> | undefined;
+  const [row, pricing] = await Promise.all([
+    sqlite.prepare('SELECT * FROM jobs WHERE id = ?').get(id) as Record<string, unknown> | undefined,
+    getPricing()
+  ]);
   if (!row) throw new Error('Job not found');
-  return mapJob(row);
+  return mapJob(row, pricing.expiryMinutes);
 }
 
 export async function getJobByToken(token: string): Promise<Job> {
@@ -359,9 +363,10 @@ export async function getJobByToken(token: string): Promise<Job> {
     return mod.getJobByToken(token);
   }
   const sqlite = await getDbInstance();
+  const pricing = await getPricing();
   const row = sqlite.prepare('SELECT * FROM jobs WHERE token = ?').get(token) as Record<string, unknown> | undefined;
   if (!row) throw new Error('Job not found');
-  return mapJob(row);
+  return mapJob(row, pricing.expiryMinutes);
 }
 
 export async function getNextApprovedJob(): Promise<Job | null> {
@@ -370,13 +375,14 @@ export async function getNextApprovedJob(): Promise<Job | null> {
     return mod.getNextApprovedJob();
   }
   const sqlite = await getDbInstance();
+  const pricing = await getPricing();
   const row = sqlite.prepare(`
     SELECT * FROM jobs
     WHERE status = 'approved' AND needs_conversion = 0
     ORDER BY updated_at ASC
     LIMIT 1
   `).get() as Record<string, unknown> | undefined;
-  return row ? mapJob(row) : null;
+  return row ? mapJob(row, pricing.expiryMinutes) : null;
 }
 
 export async function getJobFile(jobId: string): Promise<JobFile> {
@@ -722,6 +728,10 @@ export async function bulkDeleteJobs(ids: string[]): Promise<void> {
 
 // Deletes finished jobs (printed/cancelled/failed) and expired unpaid jobs.
 // Returns storage paths of removed files so the caller can purge them from disk/storage.
+// Also resets jobs stuck in "printing" for > PRINTING_LEASE_MINUTES back to "approved"
+// so they can be retried automatically after an agent crash.
+const PRINTING_LEASE_MINUTES = 10;
+
 export async function cleanupOldJobs(): Promise<{ deleted: number; storagePaths: string[] }> {
   if (isSupabase) {
     const mod = await import('./db-supabase');
@@ -731,6 +741,13 @@ export async function cleanupOldJobs(): Promise<{ deleted: number; storagePaths:
   const sqlite = await getDbInstance();
   const pricing = await getPricing();
   const cutoff = new Date(Date.now() - pricing.expiryMinutes * 60000).toISOString();
+  const leaseCutoff = new Date(Date.now() - PRINTING_LEASE_MINUTES * 60000).toISOString();
+
+  // Reset stale "printing" leases — agent crashed before completing.
+  sqlite.prepare(`
+    UPDATE jobs SET status = 'approved', updated_at = ?
+    WHERE status = 'printing' AND updated_at < ?
+  `).run(new Date().toISOString(), leaseCutoff);
 
   const targets = sqlite.prepare(`
     SELECT id FROM jobs
