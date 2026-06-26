@@ -35,12 +35,12 @@ Create a `.env` file:
 
 **SQLite mode (default, local):**
 ```env
-AGENT_TOKEN=dev-agent
+AGENT_TOKEN=change-me-to-a-random-secret
 ```
 
 **Supabase mode (cloud/production):**
 ```env
-AGENT_TOKEN=dev-agent
+AGENT_TOKEN=change-me-to-a-random-secret
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 
@@ -156,9 +156,9 @@ VALUES (1, 150, 500, 1000, 1.0, 1.0, 1.2, 2.0, 1440, now()::text);
 INSERT INTO public.agent_config (id, printer_name, updated_at)
 VALUES (1, '', now()::text);
 
--- Default agent token (value must match AGENT_TOKEN env var)
+-- Default agent token (replace with your own; value must match AGENT_TOKEN env var)
 INSERT INTO public.agent_tokens (id, token, name, created_at)
-VALUES (gen_random_uuid()::text, 'dev-agent', 'Default Agent', now()::text);
+VALUES (gen_random_uuid()::text, 'change-me-to-a-random-secret', 'Default Agent', now()::text);
 ```
 
 > **Admin user:** For Supabase, insert manually with the correct PBKDF2 hash — see `hashSecret` in `src/lib/security.ts`. Default credentials: `admin` / `1234`.
@@ -413,8 +413,8 @@ npm run agent      # Start print agent (connects to Supabase)
 
 | | Value |
 |---|---|
-| Admin | `admin` / `1234` |
-| Agent token | `dev-agent` |
+| Admin | `admin` / `1234` (change after first login) |
+| Agent token | set via `AGENT_TOKEN` env var |
 | B/W per page | ₹2 |
 | Color per page | ₹10 |
 | Job expiry | 24 hours |

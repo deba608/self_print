@@ -10,8 +10,8 @@ function authorized(request: NextRequest): boolean {
   const cronSecret = process.env.CRON_SECRET;
   const agentToken = process.env.AGENT_TOKEN;
 
-  // In production, CRON_SECRET is required — no silent fallback to dev-agent.
-  const secret = cronSecret ?? (isProd ? null : (agentToken ?? "dev-agent"));
+  // In production, CRON_SECRET is required. In dev, fall back to AGENT_TOKEN if set.
+  const secret = cronSecret ?? (isProd ? null : (agentToken || null));
   if (!secret) return false;
 
   const header = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");

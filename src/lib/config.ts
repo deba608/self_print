@@ -17,10 +17,13 @@ export const SESSION_COOKIE = "selfprint_session";
 export const SESSION_SECRET = process.env.SESSION_SECRET ?? "dev-session-secret-change-me";
 export const DEFAULT_ADMIN_USERNAME = process.env.ADMIN_USERNAME ?? "admin";
 export const DEFAULT_ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? "1234";
-export const DEFAULT_AGENT_TOKEN = process.env.AGENT_TOKEN ?? "dev-agent";
+// No hardcoded token default — AGENT_TOKEN must be set via env (.env locally,
+// Vercel env vars in production). Empty default fails closed: verifyAgentToken
+// rejects empty/missing bearer tokens, so no guessable secret ships in the repo.
+export const DEFAULT_AGENT_TOKEN = process.env.AGENT_TOKEN ?? "";
 export const DEFAULT_EXPIRY_MINUTES = 1440;
 
-// Fail fast in production if security-critical secrets are still set to dev defaults.
+// Warn in production if security-critical secrets are unset or still on dev defaults.
 // Skip during Next.js build (NEXT_PHASE=phase-production-build) — env vars may not
 // be injected at build time on Vercel; they are present at runtime only.
 if (
@@ -29,10 +32,10 @@ if (
 ) {
   const insecure: string[] = [];
   if (SESSION_SECRET === "dev-session-secret-change-me") insecure.push("SESSION_SECRET");
-  if (DEFAULT_AGENT_TOKEN === "dev-agent") insecure.push("AGENT_TOKEN");
+  if (!DEFAULT_AGENT_TOKEN) insecure.push("AGENT_TOKEN");
   if (insecure.length > 0) {
     console.error(
-      `[selfprint] WARNING — insecure default values detected for: ${insecure.join(", ")}. ` +
+      `[selfprint] WARNING — missing or insecure secrets: ${insecure.join(", ")}. ` +
       "Set these environment variables to strong random secrets in production."
     );
   }
