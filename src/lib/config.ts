@@ -21,7 +21,12 @@ export const DEFAULT_AGENT_TOKEN = process.env.AGENT_TOKEN ?? "dev-agent";
 export const DEFAULT_EXPIRY_MINUTES = 1440;
 
 // Fail fast in production if security-critical secrets are still set to dev defaults.
-if (process.env.NODE_ENV === "production") {
+// Skip during Next.js build (NEXT_PHASE=phase-production-build) — env vars may not
+// be injected at build time on Vercel; they are present at runtime only.
+if (
+  process.env.NODE_ENV === "production" &&
+  process.env.NEXT_PHASE !== "phase-production-build"
+) {
   const insecure: string[] = [];
   if (SESSION_SECRET === "dev-session-secret-change-me") insecure.push("SESSION_SECRET");
   if (DEFAULT_AGENT_TOKEN === "dev-agent") insecure.push("AGENT_TOKEN");
