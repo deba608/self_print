@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useRef } from "react";
-import { UploadCloud, FileText, Image, ArrowLeft, ArrowRight, Check, Eye, Loader2, File, Settings2, Maximize2, Minimize2, Smartphone } from "lucide-react";
+import { UploadCloud, FileText, Image, ArrowLeft, ArrowRight, Check, Eye, Loader2, File, Settings2, Maximize2, Minimize2, Smartphone, Copy, QrCode } from "lucide-react";
 import { formatRupees, paperSizeLabels, allPaperSizes } from "@/lib/pricing";
 import { supabaseClient } from "@/lib/supabaseClient";
 import { QRCodeSVG } from "qrcode.react";
@@ -39,6 +39,7 @@ export default function UploadForm() {
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<{ token: string; pricePaise: number; needsConversion: boolean; queuePosition: number } | null>(null);
   const [error, setError] = useState("");
+  const [copied, setCopied] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [filePageCount, setFilePageCount] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -329,6 +330,18 @@ export default function UploadForm() {
       ? `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(shopName)}&am=${amountRupees}&tn=${encodeURIComponent("Token " + result.token)}&cu=INR`
       : "";
 
+    const copyUpiId = async () => {
+      try {
+        await navigator.clipboard.writeText(upiId);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } catch {
+        /* clipboard unavailable — ignore */
+      }
+    };
+
+    const showUpi = Boolean(upiLink) && !result.needsConversion;
+
     return (
       <div className="result-screen result-success" role="status" aria-live="polite">
         <div className="success-animation">
@@ -336,42 +349,54 @@ export default function UploadForm() {
           <div className="success-burst"></div>
         </div>
         <h2 className="success-title">Print Job Submitted</h2>
-        <p className="muted">Your token number is</p>
-        <div className="token bounce-in">{result.token}</div>
-        <div className="queue-badge">Position #{result.queuePosition}</div>
 
-        {upiLink && !result.needsConversion ? (
-          <div className="upi-payment-block">
-            <div className="upi-amount">₹{amountRupees}</div>
-            <p className="upi-instruction">Pay now via any UPI app</p>
+        {/* Token + queue summary */}
+        <div className="result-meta">
+          <div className="result-meta-item">
+            <span className="result-meta-label">Token</span>
+            <span className="result-meta-value token-value bounce-in">{result.token}</span>
+          </div>
+          <div className="result-meta-divider" aria-hidden="true" />
+          <div className="result-meta-item">
+            <span className="result-meta-label">Queue</span>
+            <span className="result-meta-value">#{result.queuePosition}</span>
+          </div>
+        </div>
 
-            {/* Mobile: tap to open UPI app directly */}
-            <a
-              href={upiLink}
-              className="btn-primary upi-pay-btn"
-              style={{ display: "flex", alignItems: "center", gap: "0.5rem", justifyContent: "center", textDecoration: "none", marginBottom: "1.25rem" }}
-            >
-              <Smartphone size={20} aria-hidden="true" />
-              Pay ₹{amountRupees} via GPay / PhonePe / Paytm
-            </a>
-
-            {/* Desktop / fallback: scan QR */}
-            <div className="upi-qr-wrapper">
-              <p className="upi-qr-label">Or scan to pay</p>
-              <div className="upi-qr-box">
-                <QRCodeSVG
-                  value={upiLink}
-                  size={180}
-                  level="M"
-                  includeMargin={true}
-                />
-              </div>
-              <p className="upi-qr-hint">Works with GPay, PhonePe, Paytm &amp; all UPI apps</p>
+        {showUpi ? (
+          <div className="upi-card">
+            <div className="upi-card-top">
+              <span className="upi-tag"><QrCode size={13} aria-hidden="true" /> UPI Payment</span>
+              <div className="upi-amount">₹{amountRupees}</div>
+              <p className="upi-payee">to {shopName}</p>
             </div>
 
-            <p className="upi-after">
-              After paying, show this screen to staff and collect your print.
-            </p>
+            {/* Primary action — opens any UPI app on mobile */}
+            <a href={upiLink} className="upi-pay-btn">
+              <Smartphone size={20} aria-hidden="true" />
+              Pay ₹{amountRupees} now
+            </a>
+            <p className="upi-apps">GPay · PhonePe · Paytm · BHIM &amp; all UPI apps</p>
+
+            <div className="upi-divider"><span>or scan to pay</span></div>
+
+            {/* QR for desktop / another phone */}
+            <div className="upi-qr-box">
+              <QRCodeSVG value={upiLink} size={184} level="M" marginSize={2} />
+            </div>
+
+            {/* Manual fallback — copy the UPI ID */}
+            <button type="button" className="upi-copy" onClick={copyUpiId} aria-live="polite">
+              {copied ? <Check size={15} aria-hidden="true" /> : <Copy size={15} aria-hidden="true" />}
+              <span className="upi-copy-id">{copied ? "Copied!" : upiId}</span>
+            </button>
+
+            {/* What to do next */}
+            <ol className="upi-steps">
+              <li><span className="upi-step-num">1</span> Pay with the button or QR above</li>
+              <li><span className="upi-step-num">2</span> Show this screen to staff</li>
+              <li><span className="upi-step-num">3</span> Collect your print</li>
+            </ol>
           </div>
         ) : (
           <p className="price instruction">
@@ -381,7 +406,7 @@ export default function UploadForm() {
           </p>
         )}
 
-        <button className="btn-secondary" onClick={resetForm}>Upload Another</button>
+        <button className="btn-secondary upload-another" onClick={resetForm}>Upload Another</button>
         <div className="thank-you-note">
           <p>Thank you for using Self_Print</p>
           <p className="visit-again">We appreciate your business</p>
