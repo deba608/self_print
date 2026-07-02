@@ -21,6 +21,9 @@ type Detail = {
     paperSize: string;
     layout: string;
     scale: string;
+    margins: string;
+    pagesPerSheet: number;
+    duplex: string;
     pageCount: number;
     pricePaise: number;
     needsConversion: 0 | 1;
@@ -37,6 +40,9 @@ type PrintSettingsForm = {
   paperSize: string;
   layout: string;
   scale: string;
+  margins: string;
+  pagesPerSheet: number;
+  duplex: string;
 };
 
 const paperSizeOptions = ["A3", "A4", "A5", "A6", "B5", "Letter", "Legal", "Photo"];
@@ -269,6 +275,9 @@ function SummaryCard({ job }: { job: Detail["job"] }) {
     ["Paper", paperSizeLabels[job.paperSize as keyof typeof paperSizeLabels] || job.paperSize],
     ["Layout", titleCase(job.layout)],
     ["Scale", scaleLabel(job.scale)],
+    ["Sides", job.duplex === "simplex" || !job.duplex ? "Single-sided" : "Double-sided"],
+    ["Margins", titleCase(job.margins || "default")],
+    ["Pages/Sheet", String(job.pagesPerSheet ?? 1)],
     ["Uploaded", new Date(job.createdAt).toLocaleString()]
   ];
 

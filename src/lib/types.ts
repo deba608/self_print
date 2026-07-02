@@ -12,6 +12,7 @@ export type PaperSize = "A3" | "A4" | "A5" | "A6" | "B5" | "Letter" | "Legal" | 
 export type PrintLayout = "portrait" | "landscape";
 export type PrintMargins = "default" | "none" | "minimum";
 export type PrintScale = "default" | "fit" | "shrink" | "noscale";
+export type PrintDuplex = "simplex" | "long-edge" | "short-edge";
 export type FileKind = "pdf" | "image" | "document";
 
 export type Job = {
@@ -26,6 +27,7 @@ export type Job = {
   pagesPerSheet: number;
   margins: PrintMargins;
   scale: PrintScale;
+  duplex: PrintDuplex;
   pageCount: number;
   pricePaise: number;
   needsConversion: 0 | 1;

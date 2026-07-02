@@ -37,6 +37,9 @@ export default function UploadForm() {
   const [paperSize, setPaperSize] = useState("A4");
   const [layout, setLayout] = useState("portrait");
   const [scale, setScale] = useState("default");
+  const [margins, setMargins] = useState("default");
+  const [pagesPerSheet, setPagesPerSheet] = useState(1);
+  const [duplex, setDuplex] = useState("simplex");
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<{ token: string; pricePaise: number; needsConversion: boolean; queuePosition: number } | null>(null);
   const [error, setError] = useState("");
@@ -242,6 +245,9 @@ export default function UploadForm() {
     form.set("paperSize", paperSize);
     form.set("layout", layout);
     form.set("scale", scale);
+    form.set("margins", margins);
+    form.set("pagesPerSheet", String(pagesPerSheet));
+    form.set("duplex", duplex);
 
     const controller = new AbortController();
     const timeoutId = window.setTimeout(() => controller.abort(), 60000);
@@ -694,6 +700,34 @@ export default function UploadForm() {
                   </select>
                 </div>
               </div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label htmlFor="margins-select">Margins</label>
+                  <select id="margins-select" value={margins} onChange={(e) => setMargins(e.target.value)} className="mobile-select">
+                    <option value="default">Default</option>
+                    <option value="minimum">Minimum</option>
+                    <option value="none">None</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label htmlFor="pages-per-sheet-select">Pages per Sheet</label>
+                  <select id="pages-per-sheet-select" value={pagesPerSheet} onChange={(e) => setPagesPerSheet(Number(e.target.value))} className="mobile-select">
+                    <option value={1}>1</option>
+                    <option value={2}>2</option>
+                    <option value={4}>4</option>
+                  </select>
+                </div>
+              </div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label htmlFor="duplex-select">Sides</label>
+                  <select id="duplex-select" value={duplex} onChange={(e) => setDuplex(e.target.value)} className="mobile-select">
+                    <option value="simplex">Single-sided</option>
+                    <option value="long-edge">Double-sided (long edge)</option>
+                    <option value="short-edge">Double-sided (short edge)</option>
+                  </select>
+                </div>
+              </div>
             </div>
           </details>
 
@@ -794,6 +828,16 @@ export default function UploadForm() {
                 <span className="summary-label">Layout</span>
                 <span className="summary-value">{layout}</span>
               </div>
+              <div className="summary-item">
+                <span className="summary-label">Sides</span>
+                <span className="summary-value">{duplex === "simplex" ? "Single-sided" : "Double-sided"}</span>
+              </div>
+              {pagesPerSheet > 1 && (
+                <div className="summary-item">
+                  <span className="summary-label">Pages/Sheet</span>
+                  <span className="summary-value">{pagesPerSheet}</span>
+                </div>
+              )}
             </div>
           </div>
 

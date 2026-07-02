@@ -60,6 +60,7 @@ async function initSchema(database: any) {
       pages_per_sheet INTEGER NOT NULL DEFAULT 1,
       margins TEXT NOT NULL DEFAULT 'default',
       scale TEXT NOT NULL DEFAULT 'default',
+      duplex TEXT NOT NULL DEFAULT 'simplex',
       page_count INTEGER NOT NULL,
       price_paise INTEGER NOT NULL,
       needs_conversion INTEGER NOT NULL DEFAULT 0,
@@ -153,6 +154,7 @@ async function ensureJobColumns(database: any) {
     ['pages_per_sheet', 'INTEGER NOT NULL DEFAULT 1'],
     ['margins', "TEXT NOT NULL DEFAULT 'default'"],
     ['scale', "TEXT NOT NULL DEFAULT 'default'"],
+    ['duplex', "TEXT NOT NULL DEFAULT 'simplex'"],
     ['queue_position', 'INTEGER NOT NULL DEFAULT 0']
   ];
   for (const [name, definition] of additions) {
@@ -224,6 +226,7 @@ function mapJob(row: Record<string, unknown>, expiryMinutes: number = 1440): Job
     pagesPerSheet: Number(row.pages_per_sheet ?? 1),
     margins: (row.margins ?? 'default') as Job['margins'],
     scale: (row.scale ?? 'default') as Job['scale'],
+    duplex: (row.duplex ?? 'simplex') as Job['duplex'],
     pageCount: Number(row.page_count),
     pricePaise: Number(row.price_paise),
     needsConversion: Number(row.needs_conversion) as 0 | 1,
@@ -442,6 +445,7 @@ export async function createJob(jobData: any, fileData: any): Promise<{ jobId: s
     pagesPerSheet: jobData.pagesPerSheet ?? jobData.pages_per_sheet,
     margins: jobData.margins,
     scale: jobData.scale,
+    duplex: jobData.duplex ?? 'simplex',
     pageCount: jobData.pageCount ?? jobData.page_count,
     pricePaise: jobData.pricePaise ?? jobData.price_paise,
     needsConversion: jobData.needsConversion ?? jobData.needs_conversion,
@@ -458,9 +462,9 @@ export async function createJob(jobData: any, fileData: any): Promise<{ jobId: s
   
   sqlite.transaction(() => {
     sqlite.prepare(`
-      INSERT INTO jobs (id, token, status, print_type, copies, page_range, paper_size, layout, pages_per_sheet, margins, scale, page_count, price_paise, needs_conversion, queue_position, created_at, updated_at)
-      VALUES (?, ?, 'pending_payment', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(jobId, normalizedJobData.token, normalizedJobData.printType, normalizedJobData.copies, normalizedJobData.pageRange, normalizedJobData.paperSize, normalizedJobData.layout, normalizedJobData.pagesPerSheet, normalizedJobData.margins, normalizedJobData.scale, normalizedJobData.pageCount, normalizedJobData.pricePaise, normalizedJobData.needsConversion, normalizedJobData.queuePosition, now, now);
+      INSERT INTO jobs (id, token, status, print_type, copies, page_range, paper_size, layout, pages_per_sheet, margins, scale, duplex, page_count, price_paise, needs_conversion, queue_position, created_at, updated_at)
+      VALUES (?, ?, 'pending_payment', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(jobId, normalizedJobData.token, normalizedJobData.printType, normalizedJobData.copies, normalizedJobData.pageRange, normalizedJobData.paperSize, normalizedJobData.layout, normalizedJobData.pagesPerSheet, normalizedJobData.margins, normalizedJobData.scale, normalizedJobData.duplex, normalizedJobData.pageCount, normalizedJobData.pricePaise, normalizedJobData.needsConversion, normalizedJobData.queuePosition, now, now);
     
     sqlite.prepare(`
       INSERT INTO job_files (id, job_id, original_name, stored_name, mime_type, size_bytes, file_kind, storage_path, created_at)
@@ -503,6 +507,7 @@ export async function updateJobSettings(id: string, settings: {
   pagesPerSheet: number;
   margins: string;
   scale: string;
+  duplex: string;
   pricePaise: number;
   updatedAt: string;
 }): Promise<void> {
@@ -510,17 +515,17 @@ export async function updateJobSettings(id: string, settings: {
     const mod = await import('./db-supabase');
     return mod.updateJobSettings(id, settings);
   }
-  
+
   const crypto = await import('node:crypto');
   const sqlite = await getDbInstance();
   sqlite.prepare(`
     UPDATE jobs
     SET print_type = ?, copies = ?, page_range = ?, paper_size = ?, layout = ?,
-        pages_per_sheet = ?, margins = ?, scale = ?, price_paise = ?, updated_at = ?
+        pages_per_sheet = ?, margins = ?, scale = ?, duplex = ?, price_paise = ?, updated_at = ?
     WHERE id = ?
   `).run(
     settings.printType, settings.copies, settings.pageRange, settings.paperSize, settings.layout,
-    settings.pagesPerSheet, settings.margins, settings.scale, settings.pricePaise, settings.updatedAt, id
+    settings.pagesPerSheet, settings.margins, settings.scale, settings.duplex, settings.pricePaise, settings.updatedAt, id
   );
   
   sqlite.prepare("INSERT INTO print_events (id, job_id, event_type, message, created_at) VALUES (?, ?, 'settings', ?, ?)")

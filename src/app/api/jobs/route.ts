@@ -5,12 +5,14 @@ import { createJob, getPricing, nextQueuePosition, sseClients } from "@/lib/db";
 import { estimatePageCount, saveUpload, validateUpload } from "@/lib/files";
 import { bucketPathFor } from "@/lib/storage";
 import { calculatePrice } from "@/lib/pricing";
-import type { PaperSize, PrintLayout, PrintScale, PrintType } from "@/lib/types";
+import type { PaperSize, PrintDuplex, PrintLayout, PrintMargins, PrintScale, PrintType } from "@/lib/types";
 
 const printTypes: PrintType[] = ["bw", "color"];
 const paperSizes: PaperSize[] = ["A3", "A4", "A5", "A6", "B5", "Letter", "Legal", "Photo"];
 const layouts: PrintLayout[] = ["portrait", "landscape"];
 const scaleOptions: PrintScale[] = ["default", "fit", "shrink", "noscale"];
+const marginsOptions: PrintMargins[] = ["default", "none", "minimum"];
+const duplexOptions: PrintDuplex[] = ["simplex", "long-edge", "short-edge"];
 
 export async function POST(request: NextRequest) {
   try {
@@ -34,14 +36,17 @@ export async function POST(request: NextRequest) {
     }
     const paperSize = String(form.get("paperSize") ?? "A4") as PaperSize;
     const layout = String(form.get("layout") ?? "portrait") as PrintLayout;
-    const pagesPerSheet = 1;
-    const margins = "default";
+    const pagesPerSheet = Math.max(1, Math.min(4, Math.floor(Number(form.get("pagesPerSheet") ?? 1)) || 1));
+    const margins = String(form.get("margins") ?? "default") as PrintMargins;
     const scale = String(form.get("scale") ?? "default") as PrintScale;
+    const duplex = String(form.get("duplex") ?? "simplex") as PrintDuplex;
     if (
       !printTypes.includes(printType) ||
       !paperSizes.includes(paperSize) ||
       !layouts.includes(layout) ||
-      !scaleOptions.includes(scale)
+      !scaleOptions.includes(scale) ||
+      !marginsOptions.includes(margins) ||
+      !duplexOptions.includes(duplex)
     ) {
       return NextResponse.json({ error: "Invalid print settings" }, { status: 400 });
     }
@@ -124,6 +129,7 @@ export async function POST(request: NextRequest) {
       pages_per_sheet: pagesPerSheet,
       margins,
       scale,
+      duplex,
       page_count: pageCount,
       price_paise: pricePaise,
       needs_conversion: needsConversion,

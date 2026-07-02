@@ -30,6 +30,7 @@ function mapJob(row: any, expiryMinutes: number = 1440): Job {
     pagesPerSheet: Number(row.pages_per_sheet ?? 1),
     margins: (row.margins ?? 'default') as Job['margins'],
     scale: (row.scale ?? 'default') as Job['scale'],
+    duplex: (row.duplex ?? 'simplex') as Job['duplex'],
     pageCount: Number(row.page_count),
     pricePaise: Number(row.price_paise),
     needsConversion: Number(row.needs_conversion) as 0 | 1,
@@ -211,6 +212,7 @@ export async function createJob(jobData: any, fileData: any) {
     pages_per_sheet: jobData.pages_per_sheet ?? jobData.pagesPerSheet,
     margins: jobData.margins,
     scale: jobData.scale,
+    duplex: jobData.duplex ?? 'simplex',
     page_count: jobData.page_count ?? jobData.pageCount,
     price_paise: jobData.price_paise ?? jobData.pricePaise,
     needs_conversion: jobData.needs_conversion ?? jobData.needsConversion,
@@ -300,6 +302,7 @@ export async function updateJobSettings(id: string, settings: {
   pagesPerSheet: number;
   margins: string;
   scale: string;
+  duplex: string;
   pricePaise: number;
   updatedAt: string;
 }) {
@@ -314,6 +317,7 @@ export async function updateJobSettings(id: string, settings: {
       pages_per_sheet: settings.pagesPerSheet,
       margins: settings.margins,
       scale: settings.scale,
+      duplex: settings.duplex,
       price_paise: settings.pricePaise,
       updated_at: settings.updatedAt
     })
