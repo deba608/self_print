@@ -19,6 +19,7 @@ type Pricing = {
   legalMultiplier: number;
   photoMultiplier: number;
   shopUpiId?: string;
+  shopUpiQr?: string;
   shopName?: string;
 };
 
@@ -325,14 +326,34 @@ export default function UploadForm() {
   if (result) {
     const amountRupees = (result.pricePaise / 100).toFixed(2);
     const upiId = pricing?.shopUpiId ?? "";
+    const upiQr = (pricing?.shopUpiQr ?? "").trim();
     const shopName = pricing?.shopName ?? "Print Shop";
-    const upiLink = upiId
-      ? `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(shopName)}&am=${amountRupees}&tn=${encodeURIComponent("Token " + result.token)}&cu=INR`
-      : "";
+
+    // Build the UPI intent link.
+    // Merchant/aggregator stickers (GetePay, Paytm, etc.) carry signed params
+    // (mc, mode, sign, tr) that a rebuilt link would drop — so the payee VPA
+    // rejects it. When SHOP_UPI_QR holds the sticker's exact decoded string we
+    // pass it through verbatim and only inject the amount + token note.
+    // Otherwise fall back to building a plain link from SHOP_UPI_ID.
+    let upiLink = "";
+    if (upiQr.startsWith("upi://")) {
+      const [base, query = ""] = upiQr.split("?");
+      const params = new URLSearchParams(query);
+      params.set("am", amountRupees);
+      params.set("cu", "INR");
+      params.set("tn", "Token " + result.token);
+      upiLink = `${base}?${params.toString()}`;
+    } else if (upiId) {
+      upiLink = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(shopName)}&am=${amountRupees}&tn=${encodeURIComponent("Token " + result.token)}&cu=INR`;
+    }
+
+    const upiId_forCopy = upiQr.startsWith("upi://")
+      ? new URLSearchParams(upiQr.split("?")[1] ?? "").get("pa") ?? ""
+      : upiId;
 
     const copyUpiId = async () => {
       try {
-        await navigator.clipboard.writeText(upiId);
+        await navigator.clipboard.writeText(upiId_forCopy);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
       } catch {
@@ -388,7 +409,7 @@ export default function UploadForm() {
             {/* Manual fallback — copy the UPI ID */}
             <button type="button" className="upi-copy" onClick={copyUpiId} aria-live="polite">
               {copied ? <Check size={15} aria-hidden="true" /> : <Copy size={15} aria-hidden="true" />}
-              <span className="upi-copy-id">{copied ? "Copied!" : upiId}</span>
+              <span className="upi-copy-id">{copied ? "Copied!" : upiId_forCopy}</span>
             </button>
 
             {/* What to do next */}
