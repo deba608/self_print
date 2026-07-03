@@ -1288,8 +1288,8 @@ export default function AdminDashboard() {
       const endpoint = action === "convert"
         ? `/api/admin/jobs/${jobId}/convert`
         : action === "reprint"
-        ? `/api/admin/jobs/${jobId}/reprint`
-        : `/api/admin/jobs/${jobId}/status`;
+          ? `/api/admin/jobs/${jobId}/reprint`
+          : `/api/admin/jobs/${jobId}/status`;
       const response = await fetch(endpoint, {
         method: "POST",
         credentials: "include",
