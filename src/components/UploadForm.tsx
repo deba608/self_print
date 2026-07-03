@@ -359,7 +359,7 @@ export default function UploadForm() {
 
   if (result) {
     const amountRupees = (result.pricePaise / 100).toFixed(2);
-    const upiId = pricing?.shopUpiId ?? "";
+    const upiId = (pricing?.shopUpiId ?? "").trim();
     const upiQr = (pricing?.shopUpiQr ?? "").trim();
     const shopName = pricing?.shopName ?? "Print Shop";
 

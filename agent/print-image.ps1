@@ -37,9 +37,15 @@ switch ($Margins) {
 $ps = $doc.PrinterSettings.PaperSizes | Where-Object { $_.PaperName -like "*$PaperName*" } | Select-Object -First 1
 if ($ps) { $doc.DefaultPageSettings.PaperSize = $ps }
 
-# Duplex only applied if the driver actually supports it — otherwise the
-# selection is silently dropped rather than failing the whole print job.
-if ($Duplex -ne "simplex" -and $doc.PrinterSettings.CanDuplex) {
+# Double-sided requested: fail loudly if the printer can't duplex, rather than
+# silently printing single-sided (which would overcharge/underdeliver). The agent
+# surfaces this stderr as the job's failure message so staff can switch the job to
+# single-sided or route it to a duplex-capable printer.
+if ($Duplex -ne "simplex") {
+  if (-not $doc.PrinterSettings.CanDuplex) {
+    Write-Error "Printer '$Printer' does not support double-sided (duplex) printing. Set this job to single-sided or use a duplex-capable printer."
+    exit 4
+  }
   $doc.PrinterSettings.Duplex = if ($Duplex -eq "short-edge") {
     [System.Drawing.Printing.Duplex]::Horizontal
   } else {
