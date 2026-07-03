@@ -513,7 +513,46 @@ export default function UploadForm() {
           </div>
         </div>
 
-        {showUpi ? (
+        {showRazorpay ? (
+          <div className="upi-card">
+            <div className="upi-card-top">
+              <span className="upi-tag"><QrCode size={13} aria-hidden="true" /> Online Payment</span>
+              <div className="upi-amount">₹{amountRupees}</div>
+              <p className="upi-payee">to {shopName}</p>
+            </div>
+
+            {payState === "paid" ? (
+              <div className="pay-done" role="status">
+                <Check size={20} aria-hidden="true" />
+                <span>Payment received — show this screen to staff.</span>
+              </div>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  className="upi-pay-btn"
+                  onClick={startRazorpayPayment}
+                  disabled={payState === "processing"}
+                >
+                  {payState === "processing" ? (
+                    <><Loader2 size={20} className="spin" aria-hidden="true" /> Opening…</>
+                  ) : (
+                    <><Smartphone size={20} aria-hidden="true" /> Pay ₹{amountRupees} now</>
+                  )}
+                </button>
+                <p className="upi-apps">UPI · Cards · Netbanking · Wallets</p>
+                {payError && <p className="pay-error" role="alert">{payError}</p>}
+              </>
+            )}
+
+            {/* What to do next */}
+            <ol className="upi-steps">
+              <li><span className="upi-step-num">1</span> Tap Pay and complete payment</li>
+              <li><span className="upi-step-num">2</span> Show this screen to staff</li>
+              <li><span className="upi-step-num">3</span> Collect your print</li>
+            </ol>
+          </div>
+        ) : showUpi ? (
           <div className="upi-card">
             <div className="upi-card-top">
               <span className="upi-tag"><QrCode size={13} aria-hidden="true" /> UPI Payment</span>
