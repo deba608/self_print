@@ -175,7 +175,8 @@ async function ensurePricingColumns(database: any) {
     ['a3_multiplier', 'REAL NOT NULL DEFAULT 2.5'],
     ['a5_multiplier', 'REAL NOT NULL DEFAULT 0.7'],
     ['a6_multiplier', 'REAL NOT NULL DEFAULT 0.5'],
-    ['b5_multiplier', 'REAL NOT NULL DEFAULT 0.9']
+    ['b5_multiplier', 'REAL NOT NULL DEFAULT 0.9'],
+    ['duplex_multiplier', 'REAL NOT NULL DEFAULT 0.9']
   ];
   for (const [name, definition] of additions) {
     if (!columns.has(name)) {
@@ -190,8 +191,8 @@ async function seedDefaults(database: any, username: string, password: string, a
     INSERT OR IGNORE INTO pricing_config (
       id, bw_per_page_paise, color_per_page_paise, photo_print_paise, copy_multiplier,
       a3_multiplier, a4_multiplier, a5_multiplier, a6_multiplier, b5_multiplier,
-      legal_multiplier, photo_multiplier, expiry_minutes, updated_at
-    ) VALUES (1, 200, 1000, 3000, 1, 2.5, 1, 0.7, 0.5, 0.9, 1.25, 1, 1440, ?)
+      legal_multiplier, photo_multiplier, duplex_multiplier, expiry_minutes, updated_at
+    ) VALUES (1, 200, 1000, 3000, 1, 2.5, 1, 0.7, 0.5, 0.9, 1.25, 1, 0.9, 1440, ?)
   `).run(now);
 
   database.prepare(`
@@ -556,6 +557,7 @@ export async function getPricing(): Promise<PricingConfig> {
     b5Multiplier: row.b5_multiplier ?? 0.9,
     legalMultiplier: row.legal_multiplier ?? 1.25,
     photoMultiplier: row.photo_multiplier ?? 1,
+    duplexMultiplier: row.duplex_multiplier ?? 0.9,
     expiryMinutes: row.expiry_minutes ?? 1440
   };
   return pricingCache;
@@ -576,13 +578,13 @@ export async function updatePricing(pricing: PricingConfig): Promise<void> {
       bw_per_page_paise = ?, color_per_page_paise = ?, photo_print_paise = ?,
       copy_multiplier = ?, a3_multiplier = ?, a4_multiplier = ?, a5_multiplier = ?,
       a6_multiplier = ?, b5_multiplier = ?, legal_multiplier = ?, photo_multiplier = ?,
-      expiry_minutes = ?, updated_at = ?
+      duplex_multiplier = ?, expiry_minutes = ?, updated_at = ?
     WHERE id = 1
   `).run(
     pricing.bwPerPagePaise, pricing.colorPerPagePaise, pricing.photoPrintPaise,
     pricing.copyMultiplier, pricing.a3Multiplier, pricing.a4Multiplier, pricing.a5Multiplier,
     pricing.a6Multiplier, pricing.b5Multiplier, pricing.legalMultiplier, pricing.photoMultiplier,
-    pricing.expiryMinutes, now
+    pricing.duplexMultiplier, pricing.expiryMinutes, now
   );
 }
 
