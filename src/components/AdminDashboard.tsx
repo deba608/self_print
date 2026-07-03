@@ -35,7 +35,7 @@ type Pricing = {
   b5Multiplier: number;
   legalMultiplier: number;
   photoMultiplier: number;
-  duplexMultiplier: number;
+  duplexBwPerPagePaise: number;
   expiryMinutes: number;
 };
 
@@ -62,7 +62,7 @@ const defaultPricing: Pricing = {
   b5Multiplier: 0.9,
   legalMultiplier: 1.25,
   photoMultiplier: 1.5,
-  duplexMultiplier: 0.9,
+  duplexBwPerPagePaise: 100,
   expiryMinutes: 1440,
 };
 
@@ -331,6 +331,7 @@ function PricingPanel({
     bwPerPagePaise: formatPaiseInput((pricing || defaultPricing).bwPerPagePaise),
     colorPerPagePaise: formatPaiseInput((pricing || defaultPricing).colorPerPagePaise),
     photoPrintPaise: formatPaiseInput((pricing || defaultPricing).photoPrintPaise),
+    duplexBwPerPagePaise: formatPaiseInput((pricing || defaultPricing).duplexBwPerPagePaise),
   });
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -343,6 +344,7 @@ function PricingPanel({
       bwPerPagePaise: formatPaiseInput(nextPricing.bwPerPagePaise),
       colorPerPagePaise: formatPaiseInput(nextPricing.colorPerPagePaise),
       photoPrintPaise: formatPaiseInput(nextPricing.photoPrintPaise),
+      duplexBwPerPagePaise: formatPaiseInput(nextPricing.duplexBwPerPagePaise),
     });
   }, [pricing]);
 
@@ -357,7 +359,7 @@ function PricingPanel({
     setError("");
   };
 
-  const updatePriceField = (field: "bwPerPagePaise" | "colorPerPagePaise" | "photoPrintPaise", rawValue: string) => {
+  const updatePriceField = (field: "bwPerPagePaise" | "colorPerPagePaise" | "photoPrintPaise" | "duplexBwPerPagePaise", rawValue: string) => {
     setPriceInputs(prev => ({ ...prev, [field]: rawValue }));
     if (rawValue === "") {
       setFormData(prev => ({ ...prev, [field]: "" }));
@@ -447,6 +449,20 @@ function PricingPanel({
                   />
                 </div>
               </div>
+              <div className="pricing-field">
+                <label>Double-sided B&amp;W per page</label>
+                <div className="price-input">
+                  <span className="currency">₹</span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={priceInputs.duplexBwPerPagePaise}
+                    onChange={(e) => updatePriceField("duplexBwPerPagePaise", e.target.value)}
+                  />
+                </div>
+                <span className="pricing-hint">Color double-sided uses the normal color rate.</span>
+              </div>
             </div>
           </section>
 
@@ -531,16 +547,6 @@ function PricingPanel({
                   min="0"
                   value={formData.photoMultiplier}
                   onChange={(e) => updateField("photoMultiplier", e.target.value)}
-                />
-              </div>
-              <div className="pricing-field">
-                <label>Double-sided multiplier</label>
-                <input
-                  type="number"
-                  step="0.05"
-                  min="0"
-                  value={formData.duplexMultiplier}
-                  onChange={(e) => updateField("duplexMultiplier", e.target.value)}
                 />
               </div>
             </div>
