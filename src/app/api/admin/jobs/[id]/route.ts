@@ -71,9 +71,10 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   }
 
   const pageCount = Math.max(existing.pageCount, 1);
-  const totalPages = selectedPageCount(pageCount, pageRange) * copies;
-  if (duplex !== "simplex" && totalPages < 2) {
-    return NextResponse.json({ error: "Double-sided printing requires at least 2 total pages." }, { status: 400 });
+  // Duplex requires the document itself to have 2+ pages — copies don't count
+  // (each copy prints as its own separate stack, so a 1-page doc can't duplex).
+  if (duplex !== "simplex" && selectedPageCount(pageCount, pageRange) < 2) {
+    return NextResponse.json({ error: "Double-sided printing requires a document with at least 2 pages." }, { status: 400 });
   }
   const pricing = await getPricing();
   const pricePaise = calculatePrice({ printType, copies, pageRange, paperSize, pageCount, pricing, duplex });

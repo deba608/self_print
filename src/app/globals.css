@@ -532,6 +532,15 @@ input, select, button {
   transform: scale(0.97);
 }
 
+.page-mode-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.page-mode-btn:disabled:active {
+  transform: none;
+}
+
 .page-mode-btn.active {
   border-color: var(--accent);
   background: var(--accent-light);

@@ -113,19 +113,15 @@ export default function UploadForm() {
     return totalPages;
   }, [filePageCount, pageRangeMode, customPageRange]);
 
-  const isDuplexInvalid = useMemo(() => {
-    if (duplex === "simplex") return false;
-    const totalPages = filePageCount ?? 1;
-    let selectedPages = totalPages;
-    if (pageRangeMode === "even") {
-      selectedPages = Math.floor(totalPages / 2);
-    } else if (pageRangeMode === "odd") {
-      selectedPages = Math.ceil(totalPages / 2);
-    } else if (pageRangeMode === "custom" && customPageRange.trim()) {
-      selectedPages = estimateRange(customPageRange);
-    }
-    return (selectedPages * copies) < 2;
-  }, [duplex, filePageCount, pageRangeMode, customPageRange, copies]);
+  // Duplex is only physical when the document itself has 2+ pages to print
+  // back-to-back. Copies don't help — each copy is its own stack of sheets, so
+  // a 1-page doc can never be double-sided regardless of copy count.
+  const canDuplex = selectedPages >= 2;
+  const isDuplexInvalid = duplex !== "simplex" && !canDuplex;
+
+  useEffect(() => {
+    if (!canDuplex && duplex !== "simplex") setDuplex("simplex");
+  }, [canDuplex, duplex]);
 
   const estimate = useMemo(() => {
     if (!pricing) return 0;
@@ -723,16 +719,18 @@ export default function UploadForm() {
               <button
                 type="button"
                 className={`page-mode-btn ${duplex !== "simplex" ? "active" : ""}`}
-                onClick={() => setDuplex("long-edge")}
+                onClick={() => canDuplex && setDuplex("long-edge")}
                 aria-pressed={duplex !== "simplex"}
+                disabled={!canDuplex}
+                title={!canDuplex ? "Needs a document with at least 2 pages" : undefined}
               >
                 <Copy size={20} className="page-mode-icon" aria-hidden="true" />
                 <span className="page-mode-label">Double-sided</span>
               </button>
             </div>
-            {isDuplexInvalid && (
-              <span className="range-error" role="alert" style={{ marginTop: "0.25rem", display: "block" }}>
-                Double-sided printing requires at least 2 pages.
+            {!canDuplex && (
+              <span className="range-hint" style={{ marginTop: "0.25rem", display: "block" }}>
+                Double-sided needs a document with at least 2 pages.
               </span>
             )}
           </div>
