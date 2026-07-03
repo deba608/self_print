@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useRef } from "react";
-import { UploadCloud, FileText, Image, ArrowLeft, ArrowRight, Check, Eye, Loader2, File, Settings2, Maximize2, Minimize2, Smartphone, Copy, QrCode } from "lucide-react";
+import { UploadCloud, FileText, Image, ArrowLeft, ArrowRight, Check, Eye, Loader2, File, Settings2, Maximize2, Minimize2, Smartphone, Copy, QrCode, Store } from "lucide-react";
 import { formatRupees, paperSizeLabels, allPaperSizes } from "@/lib/pricing";
 import { supabaseClient } from "@/lib/supabaseClient";
 import { QRCodeSVG } from "qrcode.react";
@@ -598,11 +598,20 @@ export default function UploadForm() {
             </ol>
           </div>
         ) : (
-          <p className="price instruction">
-            {result.needsConversion
-              ? "Document needs conversion. Show token at counter."
-              : `Pay ₹${amountRupees} at counter, then collect your print.`}
-          </p>
+          <div className="counter-card">
+            <span className="upi-tag"><Store size={13} aria-hidden="true" /> Pay at Counter</span>
+            {!result.needsConversion && <div className="upi-amount">₹{amountRupees}</div>}
+            <p className="counter-msg">
+              {result.needsConversion
+                ? "Your file needs conversion. Show your token at the counter to collect it."
+                : "Pay at the counter, then collect your print."}
+            </p>
+            <ol className="upi-steps">
+              <li><span className="upi-step-num">1</span> Show token <strong>{result.token}</strong> to staff</li>
+              <li><span className="upi-step-num">2</span> {result.needsConversion ? "Staff prints your file" : `Pay ₹${amountRupees}`}</li>
+              <li><span className="upi-step-num">3</span> Collect your print</li>
+            </ol>
+          </div>
         )}
 
         <button className="btn-secondary upload-another" onClick={resetForm}>Upload Another</button>
