@@ -26,6 +26,7 @@ type SupabaseJob = {
   pages_per_sheet: number;
   margins: string;
   scale: string;
+  duplex: string;
   page_count: number;
   price_paise: number;
   needs_conversion: number;
@@ -615,7 +616,11 @@ function printImagesGDI(images: string[], job: SupabaseJob, printer: string) {
           "-Copies", String(job.copies || 1),
           "-Color", job.print_type === "color" ? "true" : "false",
           "-Landscape", job.layout === "landscape" ? "true" : "false",
-          "-PaperName", paperName(job.paper_size)
+          "-PaperName", paperName(job.paper_size),
+          "-Scale", job.scale || "default",
+          "-Margins", job.margins || "default",
+          "-PagesPerSheet", String(job.pages_per_sheet || 1),
+          "-Duplex", job.duplex || "simplex"
         ];
         log(`Printing ${images.length} page(s) via GDI to ${printer}...`);
 

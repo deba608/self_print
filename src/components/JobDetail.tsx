@@ -445,6 +445,30 @@ function SettingsCard({
               <option value="noscale">Actual Size</option>
             </select>
           </SettingsField>
+          <SettingsField label="Margins">
+            <select value={settings.margins} disabled={settingsLocked} onChange={(e) => setSettings({ ...settings, margins: e.target.value })}>
+              <option value="default">Default</option>
+              <option value="minimum">Minimum</option>
+              <option value="none">None</option>
+            </select>
+          </SettingsField>
+          <SettingsField label="Pages per Sheet">
+            <select value={settings.pagesPerSheet} disabled={settingsLocked} onChange={(e) => setSettings({ ...settings, pagesPerSheet: Number(e.target.value) })}>
+              <option value={1}>1</option>
+              <option value={2}>2</option>
+              <option value={4}>4</option>
+              <option value={6}>6</option>
+              <option value={9}>9</option>
+              <option value={16}>16</option>
+            </select>
+          </SettingsField>
+          <SettingsField label="Sides">
+            <select value={settings.duplex} disabled={settingsLocked} onChange={(e) => setSettings({ ...settings, duplex: e.target.value })}>
+              <option value="simplex">Single-sided</option>
+              <option value="long-edge">Double-sided (long edge)</option>
+              <option value="short-edge">Double-sided (short edge)</option>
+            </select>
+          </SettingsField>
         </div>
         <div className="settings-actions">
           <button type="submit" className="job-btn release settings-save-btn" disabled={savingSettings || settingsLocked}>
@@ -558,7 +582,10 @@ function settingsFromJob(job: Detail["job"]): PrintSettingsForm {
     pageRange: job.pageRange ?? "",
     paperSize: job.paperSize,
     layout: job.layout ?? "portrait",
-    scale: job.scale ?? "default"
+    scale: job.scale ?? "default",
+    margins: job.margins ?? "default",
+    pagesPerSheet: job.pagesPerSheet ?? 1,
+    duplex: job.duplex ?? "simplex"
   };
 }
 
