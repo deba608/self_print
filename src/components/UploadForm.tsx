@@ -683,8 +683,7 @@ export default function UploadForm() {
             <label htmlFor="duplex-select">Sides</label>
             <select id="duplex-select" value={duplex} onChange={(e) => setDuplex(e.target.value)} className="mobile-select">
               <option value="simplex">Single-sided</option>
-              <option value="long-edge">Double-sided (long edge)</option>
-              <option value="short-edge">Double-sided (short edge)</option>
+              <option value="long-edge">Double-sided</option>
             </select>
           </div>
 
