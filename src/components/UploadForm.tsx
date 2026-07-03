@@ -67,6 +67,7 @@ export default function UploadForm() {
   const [copied, setCopied] = useState(false);
   const [payState, setPayState] = useState<"idle" | "processing" | "paid">("idle");
   const [payError, setPayError] = useState("");
+  const [payMethod, setPayMethod] = useState<"online" | "offline" | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [filePageCount, setFilePageCount] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -369,6 +370,7 @@ export default function UploadForm() {
     setError("");
     setPayState("idle");
     setPayError("");
+    setPayMethod(null);
     if (previewUrl) {
       URL.revokeObjectURL(previewUrl);
       setPreviewUrl(null);
@@ -421,7 +423,8 @@ export default function UploadForm() {
 
     const razorpayKeyId = (pricing?.razorpayKeyId ?? "").trim();
     const showRazorpay = Boolean(razorpayKeyId) && !result.needsConversion && result.pricePaise >= 100;
-    const showUpi = !showRazorpay && Boolean(upiLink) && !result.needsConversion;
+    // Online payment (UPI QR or Razorpay) is offered as a choice alongside cash.
+    const onlineAvailable = !result.needsConversion && (Boolean(upiLink) || showRazorpay);
 
     async function startRazorpayPayment() {
       if (!result) return;
@@ -523,92 +526,145 @@ export default function UploadForm() {
           </div>
         </div>
 
-        {showRazorpay ? (
-          <div className="upi-card">
-            <div className="upi-card-top">
-              <span className="upi-tag"><QrCode size={13} aria-hidden="true" /> Online Payment</span>
-              <div className="upi-amount">₹{amountRupees}</div>
-              <p className="upi-payee">to {shopName}</p>
-            </div>
-
-            {payState === "paid" ? (
-              <div className="pay-done" role="status">
-                <Check size={20} aria-hidden="true" />
-                <span>Payment received — show this screen to staff.</span>
-              </div>
-            ) : (
-              <>
-                <button
-                  type="button"
-                  className="upi-pay-btn"
-                  onClick={startRazorpayPayment}
-                  disabled={payState === "processing"}
-                >
-                  {payState === "processing" ? (
-                    <><Loader2 size={20} className="spin" aria-hidden="true" /> Opening…</>
-                  ) : (
-                    <><Smartphone size={20} aria-hidden="true" /> Pay ₹{amountRupees} now</>
-                  )}
-                </button>
-                <p className="upi-apps">GPay · PhonePe · Paytm · BHIM &amp; all UPI apps</p>
-                {payError && <p className="pay-error" role="alert">{payError}</p>}
-              </>
-            )}
-
-            {/* What to do next */}
-            <ol className="upi-steps">
-              <li><span className="upi-step-num">1</span> Tap Pay and complete payment</li>
-              <li><span className="upi-step-num">2</span> Show this screen to staff</li>
-              <li><span className="upi-step-num">3</span> Collect your print</li>
-            </ol>
-          </div>
-        ) : showUpi ? (
-          <div className="upi-card">
-            <div className="upi-card-top">
-              <span className="upi-tag"><QrCode size={13} aria-hidden="true" /> UPI Payment</span>
-              <div className="upi-amount">₹{amountRupees}</div>
-              <p className="upi-payee">to {shopName}</p>
-            </div>
-
-            {/* Primary action — opens any UPI app on mobile */}
-            <a href={upiLink} className="upi-pay-btn">
-              <Smartphone size={20} aria-hidden="true" />
-              Pay ₹{amountRupees} now
-            </a>
-            <p className="upi-apps">GPay · PhonePe · Paytm · BHIM &amp; all UPI apps</p>
-
-            <div className="upi-divider"><span>or scan to pay</span></div>
-
-            {/* QR for desktop / another phone */}
-            <div className="upi-qr-box">
-              <QRCodeSVG value={upiLink} size={184} level="M" marginSize={2} />
-            </div>
-
-            {/* Manual fallback — copy the UPI ID */}
-            <button type="button" className="upi-copy" onClick={copyUpiId} aria-live="polite">
-              {copied ? <Check size={15} aria-hidden="true" /> : <Copy size={15} aria-hidden="true" />}
-              <span className="upi-copy-id">{copied ? "Copied!" : upiId_forCopy}</span>
-            </button>
-
-            {/* What to do next */}
-            <ol className="upi-steps">
-              <li><span className="upi-step-num">1</span> Pay with the button or QR above</li>
-              <li><span className="upi-step-num">2</span> Show this screen to staff</li>
-              <li><span className="upi-step-num">3</span> Collect your print</li>
-            </ol>
-          </div>
-        ) : (
+        {result.needsConversion ? (
           <div className="counter-card">
             <span className="upi-tag"><Store size={13} aria-hidden="true" /> Pay at Counter</span>
-            {!result.needsConversion && <div className="upi-amount">₹{amountRupees}</div>}
             <p className="counter-msg">
-              {result.needsConversion
-                ? "Your file needs conversion. Show your token at the counter to collect it."
-                : "Pay at the counter, then collect your print."}
+              Your file needs conversion. Show your token at the counter to collect it.
             </p>
             <ol className="upi-steps">
               <li><span className="upi-step-num">1</span> Show token <strong>{result.token}</strong> to staff</li>
-              <li><span className="upi-step-num">2</span> {result.needsConversion ? "Staff prints your file" : `Pay ₹${amountRupees}`}</li>
+              <li><span className="upi-step-num">2</span> Staff prints your file</li>
+              <li><span className="upi-step-num">3</span> Collect your print</li>
+            </ol>
+          </div>
+        ) : onlineAvailable ? (
+          <>
+            {/* Payment method chooser */}
+            <div className="pay-choice" role="group" aria-label="Choose how to pay">
+              <button
+                type="button"
+                className={`pay-choice-btn ${payMethod === "online" ? "active" : ""}`}
+                onClick={() => setPayMethod("online")}
+                aria-pressed={payMethod === "online"}
+              >
+                <Smartphone size={22} aria-hidden="true" />
+                <span className="pay-choice-title">Pay Online</span>
+                <span className="pay-choice-sub">UPI / QR</span>
+              </button>
+              <button
+                type="button"
+                className={`pay-choice-btn ${payMethod === "offline" ? "active" : ""}`}
+                onClick={() => setPayMethod("offline")}
+                aria-pressed={payMethod === "offline"}
+              >
+                <Store size={22} aria-hidden="true" />
+                <span className="pay-choice-title">Pay Cash</span>
+                <span className="pay-choice-sub">At counter</span>
+              </button>
+            </div>
+
+            {payMethod === null && (
+              <p className="pay-hint">Select a payment method above</p>
+            )}
+
+            {payMethod === "online" && (
+              showRazorpay ? (
+                <div className="upi-card">
+                  <div className="upi-card-top">
+                    <span className="upi-tag"><QrCode size={13} aria-hidden="true" /> Online Payment</span>
+                    <div className="upi-amount">₹{amountRupees}</div>
+                    <p className="upi-payee">to {shopName}</p>
+                  </div>
+
+                  {payState === "paid" ? (
+                    <div className="pay-done" role="status">
+                      <Check size={20} aria-hidden="true" />
+                      <span>Payment received — show this screen to staff.</span>
+                    </div>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        className="upi-pay-btn"
+                        onClick={startRazorpayPayment}
+                        disabled={payState === "processing"}
+                      >
+                        {payState === "processing" ? (
+                          <><Loader2 size={20} className="spin" aria-hidden="true" /> Opening…</>
+                        ) : (
+                          <><Smartphone size={20} aria-hidden="true" /> Pay ₹{amountRupees} now</>
+                        )}
+                      </button>
+                      <p className="upi-apps">GPay · PhonePe · Paytm · BHIM &amp; all UPI apps</p>
+                      {payError && <p className="pay-error" role="alert">{payError}</p>}
+                    </>
+                  )}
+
+                  <ol className="upi-steps">
+                    <li><span className="upi-step-num">1</span> Tap Pay and complete payment</li>
+                    <li><span className="upi-step-num">2</span> Show this screen to staff</li>
+                    <li><span className="upi-step-num">3</span> Collect your print</li>
+                  </ol>
+                </div>
+              ) : (
+                <div className="upi-card">
+                  <div className="upi-card-top">
+                    <span className="upi-tag"><QrCode size={13} aria-hidden="true" /> UPI Payment</span>
+                    <div className="upi-amount">₹{amountRupees}</div>
+                    <p className="upi-payee">to {shopName}</p>
+                  </div>
+
+                  {/* Primary action — opens any UPI app on mobile */}
+                  <a href={upiLink} className="upi-pay-btn">
+                    <Smartphone size={20} aria-hidden="true" />
+                    Pay ₹{amountRupees} now
+                  </a>
+                  <p className="upi-apps">GPay · PhonePe · Paytm · BHIM &amp; all UPI apps</p>
+
+                  <div className="upi-divider"><span>or scan to pay</span></div>
+
+                  {/* QR for desktop / another phone */}
+                  <div className="upi-qr-box">
+                    <QRCodeSVG value={upiLink} size={184} level="M" marginSize={2} />
+                  </div>
+
+                  {/* Manual fallback — copy the UPI ID */}
+                  <button type="button" className="upi-copy" onClick={copyUpiId} aria-live="polite">
+                    {copied ? <Check size={15} aria-hidden="true" /> : <Copy size={15} aria-hidden="true" />}
+                    <span className="upi-copy-id">{copied ? "Copied!" : upiId_forCopy}</span>
+                  </button>
+
+                  <ol className="upi-steps">
+                    <li><span className="upi-step-num">1</span> Pay with the button or QR above</li>
+                    <li><span className="upi-step-num">2</span> Show this screen to staff</li>
+                    <li><span className="upi-step-num">3</span> Collect your print</li>
+                  </ol>
+                </div>
+              )
+            )}
+
+            {payMethod === "offline" && (
+              <div className="counter-card">
+                <span className="upi-tag"><Store size={13} aria-hidden="true" /> Pay at Counter</span>
+                <div className="upi-amount">₹{amountRupees}</div>
+                <p className="counter-msg">Pay in cash at the counter, then collect your print.</p>
+                <ol className="upi-steps">
+                  <li><span className="upi-step-num">1</span> Show token <strong>{result.token}</strong> to staff</li>
+                  <li><span className="upi-step-num">2</span> Pay ₹{amountRupees} in cash</li>
+                  <li><span className="upi-step-num">3</span> Collect your print</li>
+                </ol>
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="counter-card">
+            <span className="upi-tag"><Store size={13} aria-hidden="true" /> Pay at Counter</span>
+            <div className="upi-amount">₹{amountRupees}</div>
+            <p className="counter-msg">Pay at the counter, then collect your print.</p>
+            <ol className="upi-steps">
+              <li><span className="upi-step-num">1</span> Show token <strong>{result.token}</strong> to staff</li>
+              <li><span className="upi-step-num">2</span> Pay ₹{amountRupees}</li>
               <li><span className="upi-step-num">3</span> Collect your print</li>
             </ol>
           </div>
