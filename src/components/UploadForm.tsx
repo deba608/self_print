@@ -463,6 +463,16 @@ export default function UploadForm() {
         name: shopName,
         description: `Token ${result.token}`,
         theme: { color: "#2563eb" },
+        // UPI-only: UPI has 0% MDR (zero-MDR mandate), cards/netbanking/wallets
+        // carry ~2% — so hide everything except UPI to stay fee-free.
+        method: {
+          upi: true,
+          card: false,
+          netbanking: false,
+          wallet: false,
+          emi: false,
+          paylater: false,
+        },
         handler: async (response: any) => {
           try {
             const verifyRes = await fetch("/api/payments/verify", {
@@ -540,7 +550,7 @@ export default function UploadForm() {
                     <><Smartphone size={20} aria-hidden="true" /> Pay ₹{amountRupees} now</>
                   )}
                 </button>
-                <p className="upi-apps">UPI · Cards · Netbanking · Wallets</p>
+                <p className="upi-apps">GPay · PhonePe · Paytm · BHIM &amp; all UPI apps</p>
                 {payError && <p className="pay-error" role="alert">{payError}</p>}
               </>
             )}
