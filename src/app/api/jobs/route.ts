@@ -115,7 +115,7 @@ export async function POST(request: NextRequest) {
     }
 
     const pricing = await getPricing();
-    const pricePaise = calculatePrice({ printType, copies, pageRange, paperSize, pageCount: Math.max(pageCount, 1), pricing });
+    const pricePaise = calculatePrice({ printType, copies, pageRange, paperSize, pageCount: Math.max(pageCount, 1), pricing, duplex });
     const token = randomToken();
     const queuePos = await nextQueuePosition();
 

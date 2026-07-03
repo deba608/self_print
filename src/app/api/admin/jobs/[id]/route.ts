@@ -72,7 +72,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
   const pageCount = Math.max(existing.pageCount, 1);
   const pricing = await getPricing();
-  const pricePaise = calculatePrice({ printType, copies, pageRange, paperSize, pageCount, pricing });
+  const pricePaise = calculatePrice({ printType, copies, pageRange, paperSize, pageCount, pricing, duplex });
   const now = new Date().toISOString();
 
   await updateJobSettings(id, {

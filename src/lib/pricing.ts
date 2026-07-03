@@ -1,4 +1,4 @@
-import type { PaperSize, PricingConfig, PrintType } from "./types";
+import type { PaperSize, PricingConfig, PrintDuplex, PrintType } from "./types";
 
 const paperMultipliers: Record<PaperSize, keyof Omit<PricingConfig, "bwPerPagePaise" | "colorPerPagePaise" | "photoPrintPaise" | "copyMultiplier" | "expiryMinutes">> = {
   A3: "a3Multiplier",
@@ -33,14 +33,16 @@ export function calculatePrice(input: {
   paperSize: PaperSize;
   pageCount: number;
   pricing: PricingConfig;
+  duplex?: PrintDuplex;
 }) {
   const selectedPages = selectedPageCount(input.pageCount, input.pageRange);
   const copies = Math.max(1, input.copies);
-  if (input.paperSize === "Photo") return input.pricing.photoPrintPaise * copies;
+  const duplexMultiplier = input.duplex && input.duplex !== "simplex" ? input.pricing.duplexMultiplier : 1;
+  if (input.paperSize === "Photo") return Math.round(input.pricing.photoPrintPaise * copies * duplexMultiplier);
   const base = input.printType === "bw" ? input.pricing.bwPerPagePaise : input.pricing.colorPerPagePaise;
   const multiplierKey = paperMultipliers[input.paperSize];
   const paperMultiplier = input.pricing[multiplierKey] as number;
-  return Math.round(base * selectedPages * copies * paperMultiplier * input.pricing.copyMultiplier);
+  return Math.round(base * selectedPages * copies * paperMultiplier * input.pricing.copyMultiplier * duplexMultiplier);
 }
 
 export function formatRupees(paise: number) {

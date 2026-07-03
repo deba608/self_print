@@ -18,6 +18,7 @@ type Pricing = {
   b5Multiplier: number;
   legalMultiplier: number;
   photoMultiplier: number;
+  duplexMultiplier: number;
   shopUpiId?: string;
   shopUpiQr?: string;
   shopName?: string;
@@ -117,7 +118,8 @@ export default function UploadForm() {
       selectedPages = estimateRange(customPageRange);
     }
 
-    if (paperSize === "Photo") return (pricing.photoPrintPaise / 100) * copies;
+    const duplexMultiplier = duplex !== "simplex" ? pricing.duplexMultiplier : 1;
+    if (paperSize === "Photo") return (pricing.photoPrintPaise / 100) * copies * duplexMultiplier;
     const base = printType === "bw" ? pricing.bwPerPagePaise : pricing.colorPerPagePaise;
     let paperMultiplier = 1;
     switch (paperSize) {
@@ -128,8 +130,8 @@ export default function UploadForm() {
       case "B5": paperMultiplier = pricing.b5Multiplier; break;
       case "Legal": paperMultiplier = pricing.legalMultiplier; break;
     }
-    return (base / 100) * selectedPages * copies * paperMultiplier * pricing.copyMultiplier;
-  }, [copies, filePageCount, customPageRange, pageRangeMode, paperSize, printType, pricing]);
+    return (base / 100) * selectedPages * copies * paperMultiplier * pricing.copyMultiplier * duplexMultiplier;
+  }, [copies, filePageCount, customPageRange, pageRangeMode, paperSize, printType, pricing, duplex]);
 
   const pageInfo = useMemo(() => {
     const totalPages = filePageCount ?? 1;

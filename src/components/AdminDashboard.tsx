@@ -35,6 +35,7 @@ type Pricing = {
   b5Multiplier: number;
   legalMultiplier: number;
   photoMultiplier: number;
+  duplexMultiplier: number;
   expiryMinutes: number;
 };
 
@@ -61,6 +62,7 @@ const defaultPricing: Pricing = {
   b5Multiplier: 0.9,
   legalMultiplier: 1.25,
   photoMultiplier: 1.5,
+  duplexMultiplier: 0.9,
   expiryMinutes: 1440,
 };
 
