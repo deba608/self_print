@@ -680,11 +680,27 @@ export default function UploadForm() {
 
           {/* Sides */}
           <div className="form-group">
-            <label htmlFor="duplex-select">Sides</label>
-            <select id="duplex-select" value={duplex} onChange={(e) => setDuplex(e.target.value)} className="mobile-select">
-              <option value="simplex">Single-sided</option>
-              <option value="long-edge">Double-sided</option>
-            </select>
+            <label id="sides-label">Sides</label>
+            <div className="page-mode-grid" role="group" aria-labelledby="sides-label">
+              <button
+                type="button"
+                className={`page-mode-btn ${duplex === "simplex" ? "active" : ""}`}
+                onClick={() => setDuplex("simplex")}
+                aria-pressed={duplex === "simplex"}
+              >
+                <FileText size={20} className="page-mode-icon" aria-hidden="true" />
+                <span className="page-mode-label">Single-sided</span>
+              </button>
+              <button
+                type="button"
+                className={`page-mode-btn ${duplex !== "simplex" ? "active" : ""}`}
+                onClick={() => setDuplex("long-edge")}
+                aria-pressed={duplex !== "simplex"}
+              >
+                <Copy size={20} className="page-mode-icon" aria-hidden="true" />
+                <span className="page-mode-label">Double-sided</span>
+              </button>
+            </div>
           </div>
 
           {/* Advanced options */}
