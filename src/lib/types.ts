@@ -64,7 +64,6 @@ export type PricingConfig = {
   b5Multiplier: number;
   legalMultiplier: number;
   photoMultiplier: number;
-  duplexBwPerPagePaise: number;
   expiryMinutes: number;
 };
 

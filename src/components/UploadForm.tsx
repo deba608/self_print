@@ -18,7 +18,6 @@ type Pricing = {
   b5Multiplier: number;
   legalMultiplier: number;
   photoMultiplier: number;
-  duplexBwPerPagePaise: number;
   shopUpiId?: string;
   shopUpiQr?: string;
   shopName?: string;
@@ -129,11 +128,9 @@ export default function UploadForm() {
 
   const estimate = useMemo(() => {
     if (!pricing) return 0;
-    const duplexMultiplier = duplex === "simplex" ? 1.5 : 1;
-    if (paperSize === "Photo") return (pricing.photoPrintPaise / 100) * copies * duplexMultiplier;
-    const isDuplex = duplex !== "simplex";
-    const base = isDuplex && printType === "bw" ? pricing.duplexBwPerPagePaise
-      : printType === "bw" ? pricing.bwPerPagePaise : pricing.colorPerPagePaise;
+    if (paperSize === "Photo") return (pricing.photoPrintPaise / 100) * copies;
+    const sidesMultiplier = duplex === "simplex" ? 1.5 : 1;
+    const base = printType === "bw" ? pricing.bwPerPagePaise : pricing.colorPerPagePaise;
     let paperMultiplier = 1;
     switch (paperSize) {
       case "A3": paperMultiplier = pricing.a3Multiplier; break;

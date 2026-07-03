@@ -37,18 +37,27 @@ export function calculatePrice(input: {
 }) {
   const selectedPages = selectedPageCount(input.pageCount, input.pageRange);
   const copies = Math.max(1, input.copies);
-  if (input.paperSize === "Photo") return Math.round(input.pricing.photoPrintPaise * copies);
+  if (input.paperSize === "Photo") {
+    const duplexMultiplier = input.duplex === "simplex" ? 1.5 : 1;
+    return Math.round(input.pricing.photoPrintPaise * copies * duplexMultiplier);
+  }
+
   const isDuplex = input.duplex && input.duplex !== "simplex";
-  // Double-sided has its own flat B/W per-page rate (shops typically only care
-  // about a discount for B/W duplex jobs); color duplex just uses the normal
-  // color per-page rate — no separate config needed for that uncommon case.
-  const base = isDuplex && input.printType === "bw"
-    ? input.pricing.duplexBwPerPagePaise
-    : input.printType === "bw" ? input.pricing.bwPerPagePaise : input.pricing.colorPerPagePaise;
-  const duplexMultiplier = input.duplex === "simplex" ? 1.5 : 1;
+  const baseSimplex = input.printType === "bw" ? input.pricing.bwPerPagePaise : input.pricing.colorPerPagePaise;
+  const baseDuplex = input.printType === "bw" ? input.pricing.duplexBwPerPagePaise : input.pricing.colorPerPagePaise;
+
+  let pageCostSum = 0;
+  if (!isDuplex) {
+    pageCostSum = baseSimplex * selectedPages * 1.5;
+  } else {
+    const doubleSidedPages = Math.floor(selectedPages / 2) * 2;
+    const singleSidedPages = selectedPages % 2;
+    pageCostSum = (baseDuplex * doubleSidedPages * 1.0) + (baseSimplex * singleSidedPages * 1.5);
+  }
+
   const multiplierKey = paperMultipliers[input.paperSize];
   const paperMultiplier = input.pricing[multiplierKey] as number;
-  return Math.round(base * selectedPages * copies * paperMultiplier * input.pricing.copyMultiplier * duplexMultiplier);
+  return Math.round(pageCostSum * copies * paperMultiplier * input.pricing.copyMultiplier);
 }
 
 export function formatRupees(paise: number) {
