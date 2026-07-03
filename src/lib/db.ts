@@ -578,13 +578,13 @@ export async function updatePricing(pricing: PricingConfig): Promise<void> {
       bw_per_page_paise = ?, color_per_page_paise = ?, photo_print_paise = ?,
       copy_multiplier = ?, a3_multiplier = ?, a4_multiplier = ?, a5_multiplier = ?,
       a6_multiplier = ?, b5_multiplier = ?, legal_multiplier = ?, photo_multiplier = ?,
-      duplex_multiplier = ?, expiry_minutes = ?, updated_at = ?
+      duplex_bw_per_page_paise = ?, expiry_minutes = ?, updated_at = ?
     WHERE id = 1
   `).run(
     pricing.bwPerPagePaise, pricing.colorPerPagePaise, pricing.photoPrintPaise,
     pricing.copyMultiplier, pricing.a3Multiplier, pricing.a4Multiplier, pricing.a5Multiplier,
     pricing.a6Multiplier, pricing.b5Multiplier, pricing.legalMultiplier, pricing.photoMultiplier,
-    pricing.duplexMultiplier, pricing.expiryMinutes, now
+    pricing.duplexBwPerPagePaise, pricing.expiryMinutes, now
   );
 }
 
