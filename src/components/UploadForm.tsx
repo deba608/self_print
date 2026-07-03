@@ -677,6 +677,16 @@ export default function UploadForm() {
             </select>
           </div>
 
+          {/* Sides */}
+          <div className="form-group">
+            <label htmlFor="duplex-select">Sides</label>
+            <select id="duplex-select" value={duplex} onChange={(e) => setDuplex(e.target.value)} className="mobile-select">
+              <option value="simplex">Single-sided</option>
+              <option value="long-edge">Double-sided (long edge)</option>
+              <option value="short-edge">Double-sided (short edge)</option>
+            </select>
+          </div>
+
           {/* Advanced options */}
           <details className="advanced-section">
             <summary>
@@ -717,16 +727,6 @@ export default function UploadForm() {
                     <option value={1}>1</option>
                     <option value={2}>2</option>
                     <option value={4}>4</option>
-                  </select>
-                </div>
-              </div>
-              <div className="form-row">
-                <div className="form-group">
-                  <label htmlFor="duplex-select">Sides</label>
-                  <select id="duplex-select" value={duplex} onChange={(e) => setDuplex(e.target.value)} className="mobile-select">
-                    <option value="simplex">Single-sided</option>
-                    <option value="long-edge">Double-sided (long edge)</option>
-                    <option value="short-edge">Double-sided (short edge)</option>
                   </select>
                 </div>
               </div>

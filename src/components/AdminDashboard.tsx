@@ -533,6 +533,16 @@ function PricingPanel({
                   onChange={(e) => updateField("photoMultiplier", e.target.value)}
                 />
               </div>
+              <div className="pricing-field">
+                <label>Double-sided multiplier</label>
+                <input
+                  type="number"
+                  step="0.05"
+                  min="0"
+                  value={formData.duplexMultiplier}
+                  onChange={(e) => updateField("duplexMultiplier", e.target.value)}
+                />
+              </div>
             </div>
           </section>
         </div>
