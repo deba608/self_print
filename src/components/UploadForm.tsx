@@ -22,7 +22,27 @@ type Pricing = {
   shopUpiId?: string;
   shopUpiQr?: string;
   shopName?: string;
+  razorpayKeyId?: string;
 };
+
+// Loads the Razorpay Standard Checkout script once and resolves when ready.
+let razorpayScriptPromise: Promise<boolean> | null = null;
+function loadRazorpayCheckout(): Promise<boolean> {
+  if (typeof window === "undefined") return Promise.resolve(false);
+  if ((window as any).Razorpay) return Promise.resolve(true);
+  if (razorpayScriptPromise) return razorpayScriptPromise;
+  razorpayScriptPromise = new Promise<boolean>((resolve) => {
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.onload = () => resolve(true);
+    script.onerror = () => {
+      razorpayScriptPromise = null;
+      resolve(false);
+    };
+    document.body.appendChild(script);
+  });
+  return razorpayScriptPromise;
+}
 
 type Step = "upload" | "settings" | "preview" | "converting" | "done" | "docx-warning";
 type PageRangeMode = "all" | "even" | "odd" | "custom";
@@ -45,6 +65,8 @@ export default function UploadForm() {
   const [result, setResult] = useState<{ token: string; pricePaise: number; needsConversion: boolean; queuePosition: number } | null>(null);
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
+  const [payState, setPayState] = useState<"idle" | "processing" | "paid">("idle");
+  const [payError, setPayError] = useState("");
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [filePageCount, setFilePageCount] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -345,6 +367,8 @@ export default function UploadForm() {
     setFilePageCount(null);
     setResult(null);
     setError("");
+    setPayState("idle");
+    setPayError("");
     if (previewUrl) {
       URL.revokeObjectURL(previewUrl);
       setPreviewUrl(null);
@@ -395,7 +419,78 @@ export default function UploadForm() {
       }
     };
 
-    const showUpi = Boolean(upiLink) && !result.needsConversion;
+    const razorpayKeyId = (pricing?.razorpayKeyId ?? "").trim();
+    const showRazorpay = Boolean(razorpayKeyId) && !result.needsConversion && result.pricePaise >= 100;
+    const showUpi = !showRazorpay && Boolean(upiLink) && !result.needsConversion;
+
+    async function startRazorpayPayment() {
+      if (!result) return;
+      setPayError("");
+      setPayState("processing");
+
+      const loaded = await loadRazorpayCheckout();
+      if (!loaded) {
+        setPayState("idle");
+        setPayError("Could not load the payment window. Check your connection and retry.");
+        return;
+      }
+
+      let order: { orderId: string; amount: number; currency: string; keyId: string };
+      try {
+        const res = await fetch("/api/payments/order", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token: result.token }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.status === 409 && data.alreadyPaid) {
+          setPayState("paid");
+          return;
+        }
+        if (!res.ok) throw new Error(data.error ?? "Could not start payment.");
+        order = data;
+      } catch (err) {
+        setPayState("idle");
+        setPayError(err instanceof Error ? err.message : "Could not start payment.");
+        return;
+      }
+
+      const rzp = new (window as any).Razorpay({
+        key: order.keyId,
+        order_id: order.orderId,
+        amount: order.amount,
+        currency: order.currency,
+        name: shopName,
+        description: `Token ${result.token}`,
+        theme: { color: "#2563eb" },
+        handler: async (response: any) => {
+          try {
+            const verifyRes = await fetch("/api/payments/verify", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ ...response, token: result.token }),
+            });
+            if (!verifyRes.ok) throw new Error("Payment could not be verified.");
+            setPayState("paid");
+            setPayError("");
+          } catch (err) {
+            setPayState("idle");
+            setPayError(err instanceof Error ? err.message : "Payment verification failed. Show the counter your payment.");
+          }
+        },
+        modal: {
+          ondismiss: () => {
+            // Customer closed the window without paying — allow a retry.
+            setPayState((s) => (s === "paid" ? s : "idle"));
+          },
+        },
+      });
+      rzp.on("payment.failed", (resp: any) => {
+        setPayState("idle");
+        setPayError(resp?.error?.description ?? "Payment failed. Please try again.");
+      });
+      rzp.open();
+    }
 
     return (
       <div className="result-screen result-success" role="status" aria-live="polite">

@@ -5,6 +5,18 @@ const isSupabase = Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERV
 
 export const sseClients = new Set<SseClient>();
 
+/** Pushes a Server-Sent Event to every connected admin dashboard client. */
+export function broadcastSse(data: object): void {
+  const payload = `data: ${JSON.stringify(data)}\n\n`;
+  for (const client of sseClients) {
+    try {
+      client.controller.enqueue(new TextEncoder().encode(payload));
+    } catch {
+      sseClients.delete(client);
+    }
+  }
+}
+
 // In-memory pricing cache. Pricing rarely changes; cleared on updatePricing.
 let pricingCache: PricingConfig | null = null;
 
