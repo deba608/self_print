@@ -45,9 +45,10 @@ export function calculatePrice(input: {
   const base = isDuplex && input.printType === "bw"
     ? input.pricing.duplexBwPerPagePaise
     : input.printType === "bw" ? input.pricing.bwPerPagePaise : input.pricing.colorPerPagePaise;
+  const duplexMultiplier = input.duplex === "simplex" ? 1.5 : 1;
   const multiplierKey = paperMultipliers[input.paperSize];
   const paperMultiplier = input.pricing[multiplierKey] as number;
-  return Math.round(base * selectedPages * copies * paperMultiplier * input.pricing.copyMultiplier);
+  return Math.round(base * selectedPages * copies * paperMultiplier * input.pricing.copyMultiplier * duplexMultiplier);
 }
 
 export function formatRupees(paise: number) {

@@ -113,9 +113,24 @@ export default function UploadForm() {
     return totalPages;
   }, [filePageCount, pageRangeMode, customPageRange]);
 
+  const isDuplexInvalid = useMemo(() => {
+    if (duplex === "simplex") return false;
+    const totalPages = filePageCount ?? 1;
+    let selectedPages = totalPages;
+    if (pageRangeMode === "even") {
+      selectedPages = Math.floor(totalPages / 2);
+    } else if (pageRangeMode === "odd") {
+      selectedPages = Math.ceil(totalPages / 2);
+    } else if (pageRangeMode === "custom" && customPageRange.trim()) {
+      selectedPages = estimateRange(customPageRange);
+    }
+    return (selectedPages * copies) < 2;
+  }, [duplex, filePageCount, pageRangeMode, customPageRange, copies]);
+
   const estimate = useMemo(() => {
     if (!pricing) return 0;
-    if (paperSize === "Photo") return (pricing.photoPrintPaise / 100) * copies;
+    const duplexMultiplier = duplex === "simplex" ? 1.5 : 1;
+    if (paperSize === "Photo") return (pricing.photoPrintPaise / 100) * copies * duplexMultiplier;
     const isDuplex = duplex !== "simplex";
     const base = isDuplex && printType === "bw" ? pricing.duplexBwPerPagePaise
       : printType === "bw" ? pricing.bwPerPagePaise : pricing.colorPerPagePaise;
@@ -128,7 +143,7 @@ export default function UploadForm() {
       case "B5": paperMultiplier = pricing.b5Multiplier; break;
       case "Legal": paperMultiplier = pricing.legalMultiplier; break;
     }
-    return (base / 100) * selectedPages * copies * paperMultiplier * pricing.copyMultiplier;
+    return (base / 100) * selectedPages * copies * paperMultiplier * pricing.copyMultiplier * duplexMultiplier;
   }, [copies, selectedPages, paperSize, printType, pricing, duplex]);
 
   const pageInfo = useMemo(() => {
@@ -179,8 +194,6 @@ export default function UploadForm() {
     }
     return null;
   }, [pageRangeMode, customPageRange, filePageCount, isValidPageRange]);
-
-  const isDuplexInvalid = duplex !== "simplex" && selectedPages < 2;
 
   const fileTypeLabel = useMemo(() => {
     if (!file) return null;

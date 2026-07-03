@@ -115,9 +115,9 @@ export async function POST(request: NextRequest) {
     }
 
     const pricing = await getPricing();
-    const selPages = selectedPageCount(pageCount, pageRange);
-    if (duplex !== "simplex" && selPages < 2) {
-      return NextResponse.json({ error: "Double-sided printing requires at least 2 pages." }, { status: 400 });
+    const totalPages = selectedPageCount(pageCount, pageRange) * copies;
+    if (duplex !== "simplex" && totalPages < 2) {
+      return NextResponse.json({ error: "Double-sided printing requires at least 2 total pages." }, { status: 400 });
     }
     const pricePaise = calculatePrice({ printType, copies, pageRange, paperSize, pageCount: Math.max(pageCount, 1), pricing, duplex });
     const token = randomToken();
