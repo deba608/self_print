@@ -18,6 +18,7 @@ type Pricing = {
   b5Multiplier: number;
   legalMultiplier: number;
   photoMultiplier: number;
+  duplexBwPerPagePaise: number;
   shopUpiId?: string;
   shopUpiQr?: string;
   shopName?: string;
@@ -128,9 +129,24 @@ export default function UploadForm() {
 
   const estimate = useMemo(() => {
     if (!pricing) return 0;
-    if (paperSize === "Photo") return (pricing.photoPrintPaise / 100) * copies;
-    const sidesMultiplier = duplex === "simplex" ? 1.5 : 1;
-    const base = printType === "bw" ? pricing.bwPerPagePaise : pricing.colorPerPagePaise;
+    if (paperSize === "Photo") {
+      const duplexMultiplier = duplex === "simplex" ? 1.5 : 1;
+      return (pricing.photoPrintPaise / 100) * copies * duplexMultiplier;
+    }
+    const isDuplex = duplex !== "simplex";
+    const baseSimplex = printType === "bw" ? pricing.bwPerPagePaise : pricing.colorPerPagePaise;
+    const baseDuplex = (isDuplex && pricing.duplexBwPerPagePaise && printType === "bw") ? pricing.duplexBwPerPagePaise
+      : printType === "bw" ? pricing.bwPerPagePaise : pricing.colorPerPagePaise;
+
+    let pageCostSum = 0;
+    if (!isDuplex) {
+      pageCostSum = baseSimplex * selectedPages * 1.5;
+    } else {
+      const doubleSidedPages = Math.floor(selectedPages / 2) * 2;
+      const singleSidedPages = selectedPages % 2;
+      pageCostSum = (baseDuplex * doubleSidedPages * 1.0) + (baseSimplex * singleSidedPages * 1.5);
+    }
+
     let paperMultiplier = 1;
     switch (paperSize) {
       case "A3": paperMultiplier = pricing.a3Multiplier; break;
@@ -140,7 +156,7 @@ export default function UploadForm() {
       case "B5": paperMultiplier = pricing.b5Multiplier; break;
       case "Legal": paperMultiplier = pricing.legalMultiplier; break;
     }
-    return (base / 100) * selectedPages * copies * paperMultiplier * pricing.copyMultiplier * duplexMultiplier;
+    return (pageCostSum / 100) * copies * paperMultiplier * pricing.copyMultiplier;
   }, [copies, selectedPages, paperSize, printType, pricing, duplex]);
 
   const pageInfo = useMemo(() => {
