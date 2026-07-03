@@ -13,6 +13,12 @@ const paperMultipliers: Record<PaperSize, keyof Omit<PricingConfig, "bwPerPagePa
 
 export function selectedPageCount(pageCount: number, pageRange: string | null) {
   if (!pageRange?.trim()) return Math.max(pageCount, 1);
+  // "even"/"odd" select half the document — must match the client estimate,
+  // otherwise the final charge differs from the price shown to the customer.
+  const normalized = pageRange.trim().toLowerCase();
+  const total = Math.max(pageCount, 1);
+  if (normalized === "even") return Math.floor(total / 2);
+  if (normalized === "odd") return Math.ceil(total / 2);
   const pages = new Set<number>();
   for (const part of pageRange.split(",")) {
     const trimmed = part.trim();

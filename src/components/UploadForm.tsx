@@ -150,7 +150,9 @@ export default function UploadForm() {
     if (!pricing) return 0;
     if (paperSize === "Photo") {
       const duplexMultiplier = duplex === "simplex" ? 1.5 : 1;
-      return (pricing.photoPrintPaise / 100) * copies * duplexMultiplier;
+      // Round to whole paise exactly like the server (calculatePrice) so the
+      // estimate never drifts a paisa from the final charged amount.
+      return Math.round(pricing.photoPrintPaise * copies * duplexMultiplier) / 100;
     }
     const isDuplex = duplex !== "simplex";
     const baseSimplex = printType === "bw" ? pricing.bwPerPagePaise : pricing.colorPerPagePaise;
@@ -175,7 +177,9 @@ export default function UploadForm() {
       case "B5": paperMultiplier = pricing.b5Multiplier; break;
       case "Legal": paperMultiplier = pricing.legalMultiplier; break;
     }
-    return (pageCostSum / 100) * copies * paperMultiplier * pricing.copyMultiplier;
+    // Round to whole paise exactly like the server (calculatePrice) so the
+    // estimate never drifts a paisa from the final charged amount.
+    return Math.round(pageCostSum * copies * paperMultiplier * pricing.copyMultiplier) / 100;
   }, [copies, selectedPages, paperSize, printType, pricing, duplex]);
 
   const pageInfo = useMemo(() => {
