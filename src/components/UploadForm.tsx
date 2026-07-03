@@ -183,6 +183,20 @@ export default function UploadForm() {
     return null;
   }, [pageRangeMode, customPageRange, filePageCount, isValidPageRange]);
 
+  const isDuplexInvalid = useMemo(() => {
+    if (duplex === "simplex") return false;
+    const totalPages = filePageCount ?? 1;
+    let selectedPages = totalPages;
+    if (pageRangeMode === "even") {
+      selectedPages = Math.floor(totalPages / 2);
+    } else if (pageRangeMode === "odd") {
+      selectedPages = Math.ceil(totalPages / 2);
+    } else if (pageRangeMode === "custom" && customPageRange.trim()) {
+      selectedPages = estimateRange(customPageRange);
+    }
+    return selectedPages < 2;
+  }, [duplex, filePageCount, pageRangeMode, customPageRange]);
+
   const fileTypeLabel = useMemo(() => {
     if (!file) return null;
     const name = file.name.toLowerCase();
@@ -304,6 +318,10 @@ export default function UploadForm() {
   }
 
   function goToPreview() {
+    if (isDuplexInvalid) {
+      setError("Double-sided printing requires at least 2 pages.");
+      return;
+    }
     setStep("preview");
   }
 
@@ -701,6 +719,11 @@ export default function UploadForm() {
                 <span className="page-mode-label">Double-sided</span>
               </button>
             </div>
+            {isDuplexInvalid && (
+              <span className="range-error" role="alert" style={{ marginTop: "0.25rem", display: "block" }}>
+                Double-sided printing requires at least 2 pages.
+              </span>
+            )}
           </div>
 
           {/* Advanced options */}
@@ -787,7 +810,7 @@ export default function UploadForm() {
               type="button"
               className="btn-primary"
               onClick={goToPreview}
-              disabled={pageRangeMode === "custom" && !!customPageRange.trim() && !isValidPageRange}
+              disabled={(pageRangeMode === "custom" && !!customPageRange.trim() && !isValidPageRange) || isDuplexInvalid}
               aria-label="Preview print settings"
             >
               Preview <Eye size={20} aria-hidden="true" />

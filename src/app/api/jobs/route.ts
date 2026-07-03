@@ -4,7 +4,7 @@ import { MAX_UPLOAD_BYTES } from "@/lib/config";
 import { createJob, getPricing, nextQueuePosition, sseClients } from "@/lib/db";
 import { estimatePageCount, saveUpload, validateUpload } from "@/lib/files";
 import { bucketPathFor } from "@/lib/storage";
-import { calculatePrice } from "@/lib/pricing";
+import { calculatePrice, selectedPageCount } from "@/lib/pricing";
 import type { PaperSize, PrintDuplex, PrintLayout, PrintMargins, PrintScale, PrintType } from "@/lib/types";
 
 const printTypes: PrintType[] = ["bw", "color"];
@@ -115,6 +115,10 @@ export async function POST(request: NextRequest) {
     }
 
     const pricing = await getPricing();
+    const selPages = selectedPageCount(pageCount, pageRange);
+    if (duplex !== "simplex" && selPages < 2) {
+      return NextResponse.json({ error: "Double-sided printing requires at least 2 pages." }, { status: 400 });
+    }
     const pricePaise = calculatePrice({ printType, copies, pageRange, paperSize, pageCount: Math.max(pageCount, 1), pricing, duplex });
     const token = randomToken();
     const queuePos = await nextQueuePosition();
