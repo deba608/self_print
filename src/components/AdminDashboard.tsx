@@ -461,7 +461,6 @@ function PricingPanel({
                     onChange={(e) => updatePriceField("duplexBwPerPagePaise", e.target.value)}
                   />
                 </div>
-                <span className="pricing-hint">Color double-sided uses the normal color rate.</span>
               </div>
             </div>
           </section>
