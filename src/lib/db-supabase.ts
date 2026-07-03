@@ -349,7 +349,7 @@ const PRICING_DEFAULTS: PricingConfig = {
   b5Multiplier: 0.9,
   legalMultiplier: 1.25,
   photoMultiplier: 1.0,
-  duplexMultiplier: 0.9,
+  duplexBwPerPagePaise: 100,
   expiryMinutes: 1440,
 };
 
@@ -378,7 +378,7 @@ export async function getPricing(): Promise<PricingConfig> {
     b5Multiplier: data.b5_multiplier ?? PRICING_DEFAULTS.b5Multiplier,
     legalMultiplier: data.legal_multiplier ?? PRICING_DEFAULTS.legalMultiplier,
     photoMultiplier: data.photo_multiplier ?? PRICING_DEFAULTS.photoMultiplier,
-    duplexMultiplier: data.duplex_multiplier ?? PRICING_DEFAULTS.duplexMultiplier,
+    duplexBwPerPagePaise: data.duplex_bw_per_page_paise ?? PRICING_DEFAULTS.duplexBwPerPagePaise,
     expiryMinutes: data.expiry_minutes ?? PRICING_DEFAULTS.expiryMinutes,
   };
 }
@@ -399,7 +399,7 @@ export async function updatePricing(pricing: PricingConfig) {
       b5_multiplier: pricing.b5Multiplier,
       legal_multiplier: pricing.legalMultiplier,
       photo_multiplier: pricing.photoMultiplier,
-      duplex_multiplier: pricing.duplexMultiplier,
+      duplex_bw_per_page_paise: pricing.duplexBwPerPagePaise,
       expiry_minutes: pricing.expiryMinutes,
       updated_at: now
     })
