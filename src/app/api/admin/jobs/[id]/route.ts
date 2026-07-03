@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getJobById, getJobFile, getJobEvents, updateJobSettings, deleteJob, getPricing } from "@/lib/db";
-import { calculatePrice } from "@/lib/pricing";
+import { calculatePrice, selectedPageCount } from "@/lib/pricing";
 import { requireAdminResponse } from "@/lib/security";
 import type { JobStatus, PaperSize, PrintDuplex, PrintLayout, PrintMargins, PrintScale, PrintType } from "@/lib/types";
 import { deleteFile } from "@/lib/storage";
@@ -71,6 +71,10 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   }
 
   const pageCount = Math.max(existing.pageCount, 1);
+  const selPages = selectedPageCount(pageCount, pageRange);
+  if (duplex !== "simplex" && selPages < 2) {
+    return NextResponse.json({ error: "Double-sided printing requires at least 2 pages." }, { status: 400 });
+  }
   const pricing = await getPricing();
   const pricePaise = calculatePrice({ printType, copies, pageRange, paperSize, pageCount, pricing, duplex });
   const now = new Date().toISOString();

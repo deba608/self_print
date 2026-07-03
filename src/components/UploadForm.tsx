@@ -105,19 +105,16 @@ export default function UploadForm() {
     return customPageRange;
   }, [pageRangeMode, customPageRange]);
 
+  const selectedPages = useMemo(() => {
+    const totalPages = filePageCount ?? 1;
+    if (pageRangeMode === "even") return Math.floor(totalPages / 2);
+    if (pageRangeMode === "odd") return Math.ceil(totalPages / 2);
+    if (pageRangeMode === "custom" && customPageRange.trim()) return estimateRange(customPageRange);
+    return totalPages;
+  }, [filePageCount, pageRangeMode, customPageRange]);
+
   const estimate = useMemo(() => {
     if (!pricing) return 0;
-    const totalPages = filePageCount ?? 1;
-    let selectedPages = totalPages;
-
-    if (pageRangeMode === "even") {
-      selectedPages = Math.floor(totalPages / 2);
-    } else if (pageRangeMode === "odd") {
-      selectedPages = Math.ceil(totalPages / 2);
-    } else if (pageRangeMode === "custom" && customPageRange.trim()) {
-      selectedPages = estimateRange(customPageRange);
-    }
-
     if (paperSize === "Photo") return (pricing.photoPrintPaise / 100) * copies;
     const isDuplex = duplex !== "simplex";
     const base = isDuplex && printType === "bw" ? pricing.duplexBwPerPagePaise
@@ -132,7 +129,7 @@ export default function UploadForm() {
       case "Legal": paperMultiplier = pricing.legalMultiplier; break;
     }
     return (base / 100) * selectedPages * copies * paperMultiplier * pricing.copyMultiplier;
-  }, [copies, filePageCount, customPageRange, pageRangeMode, paperSize, printType, pricing, duplex]);
+  }, [copies, selectedPages, paperSize, printType, pricing, duplex]);
 
   const pageInfo = useMemo(() => {
     const totalPages = filePageCount ?? 1;
@@ -183,19 +180,7 @@ export default function UploadForm() {
     return null;
   }, [pageRangeMode, customPageRange, filePageCount, isValidPageRange]);
 
-  const isDuplexInvalid = useMemo(() => {
-    if (duplex === "simplex") return false;
-    const totalPages = filePageCount ?? 1;
-    let selectedPages = totalPages;
-    if (pageRangeMode === "even") {
-      selectedPages = Math.floor(totalPages / 2);
-    } else if (pageRangeMode === "odd") {
-      selectedPages = Math.ceil(totalPages / 2);
-    } else if (pageRangeMode === "custom" && customPageRange.trim()) {
-      selectedPages = estimateRange(customPageRange);
-    }
-    return selectedPages < 2;
-  }, [duplex, filePageCount, pageRangeMode, customPageRange]);
+  const isDuplexInvalid = duplex !== "simplex" && selectedPages < 2;
 
   const fileTypeLabel = useMemo(() => {
     if (!file) return null;
