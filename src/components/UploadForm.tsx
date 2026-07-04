@@ -619,19 +619,12 @@ export default function UploadForm() {
                     <p className="upi-payee">to {shopName}</p>
                   </div>
 
-                  {/* Primary action — opens any UPI app on mobile */}
-                  <a href={upiLink} className="upi-pay-btn">
-                    <Smartphone size={20} aria-hidden="true" />
-                    Pay ₹{amountRupees} now
-                  </a>
-                  <p className="upi-apps">GPay · PhonePe · Paytm · BHIM &amp; all UPI apps</p>
-
-                  <div className="upi-divider"><span>or scan to pay</span></div>
-
-                  {/* QR for desktop / another phone */}
+                  {/* QR payment — intent links get blocked by UPI risk policy
+                      for this VPA, so scan-to-pay is the only offered flow. */}
                   <div className="upi-qr-box">
                     <QRCodeSVG value={upiLink} size={184} level="M" marginSize={2} />
                   </div>
+                  <p className="upi-apps">Scan with GPay · PhonePe · Paytm · BHIM &amp; all UPI apps</p>
 
                   {/* Manual fallback — copy the UPI ID */}
                   <button type="button" className="upi-copy" onClick={copyUpiId} aria-live="polite">
@@ -640,8 +633,8 @@ export default function UploadForm() {
                   </button>
 
                   <ol className="upi-steps">
-                    <li><span className="upi-step-num">1</span> Pay with the button or QR above</li>
-                    <li><span className="upi-step-num">2</span> Show this screen to staff</li>
+                    <li><span className="upi-step-num">1</span> On this phone? Screenshot the QR, then scan it from gallery in your UPI app</li>
+                    <li><span className="upi-step-num">2</span> Pay ₹{amountRupees} and show this screen to staff</li>
                     <li><span className="upi-step-num">3</span> Collect your print</li>
                   </ol>
                 </div>
