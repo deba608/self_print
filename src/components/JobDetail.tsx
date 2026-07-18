@@ -226,7 +226,7 @@ export default function JobDetail({ id }: { id: string }) {
         </section>
 
         <section className={`detail-pane detail-pane-preview ${activeTab === "preview" ? "active" : ""}`}>
-          <PreviewCard files={files} />
+          <PreviewCard files={files} job={job} />
         </section>
 
         <section className={`detail-pane detail-pane-settings ${activeTab === "settings" ? "active" : ""}`}>
@@ -383,12 +383,13 @@ function ActionsCard({
   );
 }
 
-function PreviewCard({ files }: { files: Detail["files"] }) {
+function PreviewCard({ files, job }: { files: Detail["files"]; job: Detail["job"] }) {
   const [selectedFileId, setSelectedFileId] = useState<string | undefined>(files[0]?.id);
 
   if (files.length === 0) return null;
   const file = files.find((f) => f.id === selectedFileId) ?? files[0];
   const previewUrl = `/api/uploads/${file.id}`;
+  const isBw = job.printType === "bw";
 
   return (
     <div className="detail-card">
@@ -396,6 +397,13 @@ function PreviewCard({ files }: { files: Detail["files"] }) {
         {file.fileKind === "pdf" ? <FileText size={16} /> : <Image size={16} />}
         Preview
       </h3>
+      {/* Mirror what the job actually prints as, not just the raw file */}
+      <div className="print-sim-chips">
+        <span className={`sim-chip ${isBw ? "sim-chip-bw" : "sim-chip-color"}`}>{isBw ? "Prints B&W" : "Prints color"}</span>
+        <span className="sim-chip">{job.duplex === "simplex" || !job.duplex ? "Single-sided" : "Double-sided"}</span>
+        {job.pagesPerSheet > 1 && <span className="sim-chip">{job.pagesPerSheet} pages/sheet</span>}
+        {job.copies > 1 && <span className="sim-chip">{job.copies} copies</span>}
+      </div>
       {files.length > 1 && (
         <div className="preview-file-switcher">
           {files.map((f, i) => (
@@ -411,7 +419,7 @@ function PreviewCard({ files }: { files: Detail["files"] }) {
           ))}
         </div>
       )}
-      <div className="admin-preview-area">
+      <div className={`admin-preview-area ${isBw ? "bw-sim" : ""}`}>
         {file.fileKind === "pdf" ? (
           <iframe src={previewUrl} className="preview-iframe" title="File Preview" />
         ) : file.fileKind === "image" ? (

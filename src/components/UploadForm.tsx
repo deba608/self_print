@@ -254,6 +254,14 @@ export default function UploadForm() {
     return Math.round(pageCostSum * copies * paperMultiplier * pricing.copyMultiplier) / 100;
   }, [copies, selectedPages, paperSize, printType, pricing, duplex, isBulk, bulkTotalPages]);
 
+  // Physical sheets of paper per copy: pages are grouped pagesPerSheet-per-side,
+  // and duplex halves the sheet count (rounded up for a trailing odd side).
+  const physicalSheets = useMemo(() => {
+    const pages = Math.max(1, isBulk ? bulkTotalPages : selectedPages);
+    const sides = Math.ceil(pages / Math.max(1, pagesPerSheet));
+    return duplex !== "simplex" ? Math.ceil(sides / 2) : sides;
+  }, [isBulk, bulkTotalPages, selectedPages, pagesPerSheet, duplex]);
+
   const pageInfo = useMemo(() => {
     const totalPages = filePageCount ?? 1;
     if (pageRangeMode === "all") {
@@ -1294,13 +1302,25 @@ export default function UploadForm() {
         <div className="step-content fade-in">
           <h3 className="preview-title">Review Your Print Job</h3>
 
-          {/* Preview area */}
-          <div className="preview-area">
+          {/* Print simulation chips — mirror what will physically come out */}
+          <div className="print-sim-chips" aria-label="Print output summary">
+            <span className={`sim-chip ${printType === "bw" ? "sim-chip-bw" : "sim-chip-color"}`}>
+              {printType === "bw" ? "B&W preview" : "Color"}
+            </span>
+            <span className="sim-chip">{duplex === "simplex" ? "Single-sided" : "Double-sided"}</span>
+            {pagesPerSheet > 1 && <span className="sim-chip">{pagesPerSheet} pages/sheet</span>}
+            <span className="sim-chip sim-chip-sheets">
+              {physicalSheets} sheet{physicalSheets === 1 ? "" : "s"} of paper{copies > 1 ? ` × ${copies} copies` : ""}
+            </span>
+          </div>
+
+          {/* Preview area — grayscale simulation when printing B&W */}
+          <div className={`preview-area ${printType === "bw" ? "bw-sim" : ""}`}>
             {isBulk && (
               <div className="bulk-file-list">
                 {bulkFiles.map((f, i) => (
                   <div className="bulk-file-row" key={i}>
-                    <FileText size={18} aria-hidden="true" />
+                    <BulkThumb file={f} grayscale={printType === "bw"} />
                     <span className="bulk-file-name">{f.name}</span>
                     <span className="bulk-file-pages">{bulkPageCounts[i] ?? 1} pg</span>
                     <button type="button" className="bulk-file-remove" aria-label={`Remove ${f.name}`}
@@ -1606,6 +1626,61 @@ function PdfCanvasPreview({ file, fallbackPageCount }: { file: File; fallbackPag
       </div>
     </div>
   );
+}
+
+// Tiny first-page thumbnail for a bulk-selected PDF. Renders once per file at a
+// fixed small width; falls back to the generic file icon if pdf.js can't render
+// on this device (the file still uploads and prints fine).
+function BulkThumb({ file, grayscale }: { file: File; grayscale: boolean }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let disposed = false;
+    let pdf: { destroy: () => Promise<void> | void } | null = null;
+
+    async function renderThumb() {
+      try {
+        const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+        pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
+        const data = await file.arrayBuffer();
+        const loaded = await pdfjs.getDocument({
+          data: new Uint8Array(data),
+          disableFontFace: true,
+          isEvalSupported: false,
+          useWorkerFetch: false,
+        } as unknown as Parameters<typeof pdfjs.getDocument>[0]).promise;
+        if (disposed) { await loaded.destroy(); return; }
+        pdf = loaded;
+        const page = await loaded.getPage(1);
+        const canvas = canvasRef.current;
+        if (disposed || !canvas) return;
+        const base = page.getViewport({ scale: 1 });
+        const scale = 44 / base.width; // ~44px wide thumb
+        const viewport = page.getViewport({ scale });
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+        const ratio = window.devicePixelRatio || 1;
+        canvas.width = Math.floor(viewport.width * ratio);
+        canvas.height = Math.floor(viewport.height * ratio);
+        canvas.style.width = `${Math.floor(viewport.width)}px`;
+        canvas.style.height = `${Math.floor(viewport.height)}px`;
+        ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+        await page.render({ canvas, canvasContext: ctx, viewport } as Parameters<typeof page.render>[0]).promise;
+      } catch {
+        if (!disposed) setFailed(true);
+      }
+    }
+
+    renderThumb();
+    return () => {
+      disposed = true;
+      pdf?.destroy?.();
+    };
+  }, [file]);
+
+  if (failed) return <FileText size={18} aria-hidden="true" />;
+  return <canvas ref={canvasRef} className={`bulk-thumb ${grayscale ? "bw-sim-img" : ""}`} aria-hidden="true" />;
 }
 
 function estimateRange(value: string) {

@@ -963,6 +963,57 @@ input, select, button {
   border: 1px solid var(--line);
 }
 
+/* Print simulation — make the preview match what actually comes out of the
+   printer. B&W jobs get a grayscale filter on the rendered page/image. */
+.bw-sim .pdfjs-canvas,
+.bw-sim .preview-image,
+.bw-sim .preview-iframe,
+.bw-sim-img {
+  filter: grayscale(1);
+}
+
+.print-sim-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.sim-chip {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--accent-light);
+  color: var(--accent);
+  border: 1px solid transparent;
+}
+
+.sim-chip-bw {
+  background: #2b2f33;
+  color: #fff;
+}
+
+.sim-chip-color {
+  background: linear-gradient(90deg, #e8f4ff, #ffe9f2);
+  color: #6b3fa0;
+}
+
+.sim-chip-sheets {
+  background: #fff;
+  border-color: var(--line);
+  color: var(--ink);
+}
+
+/* Bulk first-page thumbnails */
+.bulk-thumb {
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(23, 32, 42, 0.15);
+  flex-shrink: 0;
+}
+
 .preview-iframe {
   width: 100%;
   height: 350px;
