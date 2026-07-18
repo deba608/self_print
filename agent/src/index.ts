@@ -244,15 +244,16 @@ async function processJob(jobId: string) {
       return;
     }
 
-    const { data: file, error: fileError } = await supabase
+    const { data: files, error: fileError } = await supabase
       .from("job_files")
       .select("*")
       .eq("job_id", jobId)
-      .single() as { data: SupabaseJobFile | null; error: { message: string } | null };
+      .order("created_at", { ascending: true })
+      .order("id", { ascending: true }) as { data: SupabaseJobFile[] | null; error: { message: string } | null };
 
-    if (fileError || !file) {
+    if (fileError || !files || files.length === 0) {
       await updateStatus(jobId, "failed", "No file found for this job.");
-      log(`No file found for job ${jobId}`);
+      log(`No files found for job ${jobId}`);
       return;
     }
 
@@ -273,12 +274,6 @@ async function processJob(jobId: string) {
       }
     }
 
-    const extension = extensionFor(file.mime_type, file.original_name);
-    const tempPath = path.resolve(
-      config.tempDir,
-      `${job.token}-${safeFileName(file.original_name, extension)}`
-    );
-
     // Atomically claim the job: flip approved -> printing only if it's still
     // approved. Postgres serializes this, so when several agents race for the
     // same job exactly one wins. Losers get 0 rows back and bail — this is what
@@ -291,65 +286,39 @@ async function processJob(jobId: string) {
     let attempt = 0;
     while (attempt < config.maxRetries) {
       attempt++;
+      const tempPaths: string[] = [];
       try {
-        log(`Downloading file (attempt ${attempt}/${config.maxRetries})...`);
+        for (let idx = 0; idx < files.length; idx++) {
+          const file = files[idx];
+          const extension = extensionFor(file.mime_type, file.original_name);
+          const tempPath = path.resolve(
+            config.tempDir,
+            `${job.token}-${idx}-${safeFileName(file.original_name, extension)}`
+          );
+          tempPaths.push(tempPath);
 
-        let fileBytes: Buffer;
-        const storagePath = file.storage_path;
+          log(`Downloading file ${idx + 1}/${files.length} (attempt ${attempt}/${config.maxRetries})...`);
+          const fileBytes = await downloadJobFile(file);
+          await fs.writeFile(tempPath, fileBytes);
+          log(`File downloaded: ${fileBytes.length} bytes`);
+          await logEvent(jobId, "downloaded", `Downloaded ${file.original_name} (${(fileBytes.length / 1024).toFixed(0)} KB), file ${idx + 1}/${files.length}.`);
 
-        // Resolve the object path inside the "selfprint" bucket. Uploads may store
-        // a relative path (originals/x.pdf) OR a full Supabase URL (public/sign/
-        // authenticated). In all those cases download via the service-role SDK so
-        // it works even though the bucket is PRIVATE (plain fetch on a private
-        // bucket's public URL returns 400).
-        let objectPath: string | null = null;
-        if (storagePath.startsWith("http")) {
-          try {
-            const url = new URL(storagePath);
-            const marker = url.pathname.match(/\/object\/(?:public|sign|authenticated)\/[^/]+\/(.+)$/);
-            if (marker?.[1]) objectPath = decodeURIComponent(marker[1]);
-          } catch {}
-        } else {
-          objectPath = storagePath.replace(/^selfprint\//, "");
+          const printer = cachedPrinterName || config.fallbackPrinter;
+          if (!printer) throw new Error("No printer selected. Set a printer in admin dashboard.");
+
+          log(`Printing ${job.copies} copy(s), paper: ${job.paper_size}, type: ${job.print_type}, printer: ${printer}...`);
+          await logEvent(jobId, "spooling", `Printing ${file.original_name} (${idx + 1}/${files.length}) on ${printer}.`);
+          const PRINT_TIMEOUT_MS = 5 * 60 * 1000; // 5 min — covers PDF rasterisation + GDI spool
+          await Promise.race([
+            printJob(tempPath, job, printer),
+            new Promise<never>((_, reject) =>
+              setTimeout(() => reject(new Error("Print job timed out after 5 minutes")), PRINT_TIMEOUT_MS)
+            )
+          ]);
         }
 
-        if (objectPath) {
-          const { data: blob, error: downloadError } = await supabase.storage
-            .from("selfprint")
-            .download(objectPath);
-
-          if (downloadError) throw new Error(`Storage download failed: ${downloadError.message}`);
-          fileBytes = Buffer.from(await blob.arrayBuffer());
-        } else {
-          // Truly external URL (not a Supabase storage object).
-          const response = await fetch(storagePath);
-          if (!response.ok) throw new Error(`Download failed: ${response.status}`);
-          fileBytes = Buffer.from(await response.arrayBuffer());
-        }
-
-        if (Number.isFinite(file.size_bytes) && file.size_bytes > 0 && fileBytes.length !== file.size_bytes) {
-          log(`Warning: file size mismatch (expected ${file.size_bytes}, got ${fileBytes.length})`);
-        }
-
-        await fs.writeFile(tempPath, fileBytes);
-        log(`File downloaded: ${fileBytes.length} bytes`);
-        await logEvent(jobId, "downloaded", `File downloaded (${(fileBytes.length / 1024).toFixed(0)} KB).`);
-
-        const printer = cachedPrinterName || config.fallbackPrinter;
-        if (!printer) throw new Error("No printer selected. Set a printer in admin dashboard.");
-
-        log(`Printing ${job.copies} copy(s), paper: ${job.paper_size}, type: ${job.print_type}, printer: ${printer}...`);
-        await logEvent(jobId, "spooling", `Sent to printer: ${printer}.`);
-        const PRINT_TIMEOUT_MS = 5 * 60 * 1000; // 5 min — covers PDF rasterisation + GDI spool
-        await Promise.race([
-          printJob(tempPath, job, printer),
-          new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error("Print job timed out after 5 minutes")), PRINT_TIMEOUT_MS)
-          )
-        ]);
-
-        await updateStatus(jobId, "printed", `Printed successfully on attempt ${attempt}.`);
-        log(`Job ${job.token} completed successfully.`);
+        await updateStatus(jobId, "printed", `Printed ${files.length} file(s) on attempt ${attempt}.`);
+        log(`Job ${job.token} completed successfully (${files.length} file(s)).`);
         break;
       } catch (error) {
         const errorMsg = error instanceof Error ? error.message : String(error);
@@ -362,15 +331,56 @@ async function processJob(jobId: string) {
           await updateStatus(jobId, "printing", `Retry ${attempt}/${config.maxRetries} after error: ${errorMsg}`);
           await sleep(2000);
         }
+      } finally {
+        for (const p of tempPaths) await fs.rm(p, { force: true }).catch(() => undefined);
       }
     }
-
-    await fs.rm(tempPath, { force: true }).catch(() => undefined);
   } catch (error) {
     log(`Job processing error: ${error instanceof Error ? error.message : String(error)}`);
   } finally {
     isProcessing = false;
   }
+}
+
+// Download one job_files row's bytes from Supabase Storage. Uploads may store
+// a relative path (originals/x.pdf) OR a full Supabase URL (public/sign/
+// authenticated). In all those cases download via the service-role SDK so it
+// works even though the bucket is PRIVATE (plain fetch on a private bucket's
+// public URL returns 400).
+async function downloadJobFile(file: SupabaseJobFile): Promise<Buffer> {
+  let fileBytes: Buffer;
+  const storagePath = file.storage_path;
+
+  let objectPath: string | null = null;
+  if (storagePath.startsWith("http")) {
+    try {
+      const url = new URL(storagePath);
+      const marker = url.pathname.match(/\/object\/(?:public|sign|authenticated)\/[^/]+\/(.+)$/);
+      if (marker?.[1]) objectPath = decodeURIComponent(marker[1]);
+    } catch {}
+  } else {
+    objectPath = storagePath.replace(/^selfprint\//, "");
+  }
+
+  if (objectPath) {
+    const { data: blob, error: downloadError } = await supabase.storage
+      .from("selfprint")
+      .download(objectPath);
+
+    if (downloadError) throw new Error(`Storage download failed: ${downloadError.message}`);
+    fileBytes = Buffer.from(await blob.arrayBuffer());
+  } else {
+    // Truly external URL (not a Supabase storage object).
+    const response = await fetch(storagePath);
+    if (!response.ok) throw new Error(`Download failed: ${response.status}`);
+    fileBytes = Buffer.from(await response.arrayBuffer());
+  }
+
+  if (Number.isFinite(file.size_bytes) && file.size_bytes > 0 && fileBytes.length !== file.size_bytes) {
+    log(`Warning: file size mismatch (expected ${file.size_bytes}, got ${fileBytes.length})`);
+  }
+
+  return fileBytes;
 }
 
 // Insert a progress event without touching job.status (drives the admin UI's
