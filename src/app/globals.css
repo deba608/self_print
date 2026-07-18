@@ -3792,6 +3792,23 @@ input[type="number"] {
   gap: 6px;
 }
 
+/* Multi-file count pill on dashboard job cards ("3 files" before the name) */
+.file-count-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  margin-right: 7px;
+  border-radius: 999px;
+  background: var(--accent-light, rgba(13, 122, 116, 0.12));
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.2px;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
 .file-name {
   font-size: 14px;
   font-weight: 500;
@@ -3800,6 +3817,19 @@ input[type="number"] {
   text-overflow: ellipsis;
   max-width: 400px;
   color: var(--ink);
+}
+
+.file-count-inline {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  background: var(--surface-2, #f1f5f9);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 1px 8px;
+  margin-left: 6px;
+  white-space: nowrap;
+  vertical-align: middle;
 }
 
 .job-time {

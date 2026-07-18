@@ -1073,10 +1073,15 @@ function JobCard({
         </div>
 
         <div className="job-details">
-          <span className="file-name">{job.file?.originalName || "No file"}</span>
-          {job.fileCount != null && job.fileCount > 1 && (
-            <span className="default-tag">{job.fileCount} files</span>
-          )}
+          <span className="file-name">
+            {job.fileCount != null && job.fileCount > 1 && (
+              <span className="file-count-pill">
+                <FileText size={11} aria-hidden="true" />
+                {job.fileCount} files
+              </span>
+            )}
+            {job.file?.originalName || "No file"}
+          </span>
           <div className="job-time">
             <span>{new Date(job.createdAt).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "2-digit" })} at {new Date(job.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
           </div>
