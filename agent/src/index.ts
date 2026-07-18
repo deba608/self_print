@@ -638,7 +638,8 @@ function printImagesGDI(images: string[], job: SupabaseJob, printer: string) {
           "-Scale", job.scale || "default",
           "-Margins", job.margins || "default",
           "-PagesPerSheet", String(job.pages_per_sheet || 1),
-          "-Duplex", job.duplex || "simplex"
+          "-Duplex", job.duplex || "simplex",
+          "-Collate", "true"
         ];
         log(`Printing ${images.length} page(s) via GDI to ${printer}...`);
 
