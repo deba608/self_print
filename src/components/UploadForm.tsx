@@ -467,17 +467,13 @@ export default function UploadForm() {
       // Resolve each file's upload by its stable id so storedName stays zipped
       // to the correct file regardless of any prior removals.
       const uploadsMap = bulkUploadsRef.current;
-      const missing: Promise<{ storedName?: string; error?: string }> = Promise.resolve({ error: "Upload was not started for this file." });
+      const missing: Promise<{ storedName?: string; error?: string; fallback?: boolean }> = Promise.resolve({ error: "Upload was not started for this file." });
       const uploadResults = await Promise.all(
         bulkIds.map((id) => uploadsMap?.get(id) ?? missing)
       );
       const failed = uploadResults.find((r) => r.error);
       if (failed?.error) {
         throw new Error(failed.error);
-      }
-      const uploadedStoredNames = uploadResults.map((r) => r.storedName);
-      if (uploadedStoredNames.some((n) => !n)) {
-        throw new Error("Some files failed to upload. Please try again.");
       }
 
       const bulkForm = new FormData();
@@ -490,15 +486,26 @@ export default function UploadForm() {
       bulkForm.set("margins", margins);
       bulkForm.set("pagesPerSheet", String(pagesPerSheet));
       bulkForm.set("duplex", duplex);
-      bulkForm.set("filesJson", JSON.stringify(
-        bulkFiles.map((f, i) => ({
-          storedName: uploadedStoredNames[i],
-          originalName: f.name,
-          mimeType: f.type || "application/pdf",
-          sizeBytes: f.size,
-          pageCount: bulkPageCounts[i] ?? 1,
-        }))
-      ));
+
+      if (uploadResults.some((r) => r.fallback)) {
+        // Direct upload unavailable — send the PDFs themselves; the server
+        // saves them and derives page counts from the real bytes.
+        for (const f of bulkFiles) bulkForm.append("files", f);
+      } else {
+        const uploadedStoredNames = uploadResults.map((r) => r.storedName);
+        if (uploadedStoredNames.some((n) => !n)) {
+          throw new Error("Some files failed to upload. Please try again.");
+        }
+        bulkForm.set("filesJson", JSON.stringify(
+          bulkFiles.map((f, i) => ({
+            storedName: uploadedStoredNames[i],
+            originalName: f.name,
+            mimeType: f.type || "application/pdf",
+            sizeBytes: f.size,
+            pageCount: bulkPageCounts[i] ?? 1,
+          }))
+        ));
+      }
 
       const response = await fetch("/api/jobs", { method: "POST", body: bulkForm, signal: controller.signal });
       const body = await response.json().catch(() => ({}));
@@ -1407,6 +1414,14 @@ export default function UploadForm() {
             <span>Total</span>
             <strong>₹{estimate.toFixed(2)}</strong>
           </div>
+
+          {/* Submit errors must be visible HERE — Confirm lives on this step,
+              and the settings-step error block is not rendered here. */}
+          {error && (
+            <div className="error-msg" role="alert">
+              {error}
+            </div>
+          )}
 
           {/* Actions */}
           <div className="form-actions">
