@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState, useRef } from "react";
 import { UploadCloud, FileText, Image, ArrowLeft, ArrowRight, Check, Eye, Loader2, File, Settings2, Maximize2, Minimize2, Printer, Smartphone, Copy, QrCode, Store, X } from "lucide-react";
 import { formatRupees, paperSizeLabels, allPaperSizes } from "@/lib/pricing";
-import { supabaseClient } from "@/lib/supabaseClient";
 import BillReceipt, { type BillData } from "./BillReceipt";
 import { QRCodeSVG } from "qrcode.react";
 
@@ -104,9 +103,61 @@ export default function UploadForm() {
 
   const isBulk = bulkMode;
 
-  // Starts one shared sign request for the whole batch, then kicks off each
-  // file's upload as its own promise, stored in a Map keyed by stable id so an
-  // individual file can be removed later without disturbing the others.
+  // PUTs a file straight to a signed storage URL via XHR (fetch has no upload
+  // progress events). The signed URL is absolute and carries its own token, so
+  // this needs NO client-side Supabase config — works on any deployment where
+  // the server has cloud storage.
+  function xhrPutFile(
+    url: string,
+    file: File,
+    onProgress: (loaded: number) => void,
+    signal: AbortSignal
+  ): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      const onAbort = () => xhr.abort();
+      signal.addEventListener("abort", onAbort);
+      xhr.open("PUT", url);
+      xhr.setRequestHeader("Content-Type", file.type || "application/octet-stream");
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) onProgress(e.loaded);
+      };
+      xhr.onload = () => {
+        signal.removeEventListener("abort", onAbort);
+        if (xhr.status >= 200 && xhr.status < 300) {
+          onProgress(file.size);
+          resolve();
+        } else {
+          reject(new Error(`Upload failed (${xhr.status})`));
+        }
+      };
+      xhr.onerror = () => {
+        signal.removeEventListener("abort", onAbort);
+        reject(new Error("Upload failed — check your connection."));
+      };
+      xhr.onabort = () => {
+        signal.removeEventListener("abort", onAbort);
+        reject(Object.assign(new Error("Aborted"), { name: "AbortError" }));
+      };
+      xhr.send(file);
+    });
+  }
+
+  // Overall upload progress across the current batch (0-100).
+  const uploadedBytesRef = useRef<Map<string, number>>(new Map());
+  const [uploadPct, setUploadPct] = useState(0);
+
+  function reportProgress(id: string, loaded: number, totalBytes: number) {
+    uploadedBytesRef.current.set(id, loaded);
+    let sum = 0;
+    for (const v of uploadedBytesRef.current.values()) sum += v;
+    setUploadPct(totalBytes > 0 ? Math.min(100, Math.round((sum / totalBytes) * 100)) : 0);
+  }
+
+  // Starts one shared sign request for the whole batch, then PUTs each file
+  // directly to storage with progress. Falls back to sending bytes with the
+  // job form ONLY when the server has no cloud storage (local SQLite mode —
+  // the sign endpoint answers 400 "Direct upload not available").
   function startBulkUploads(selected: File[], ids: string[]): Map<string, Promise<{ storedName?: string; error?: string; fallback?: boolean }>> {
     if (bulkUploadAbortControllerRef.current) {
       bulkUploadAbortControllerRef.current.abort();
@@ -114,37 +165,38 @@ export default function UploadForm() {
     const controller = new AbortController();
     bulkUploadAbortControllerRef.current = controller;
 
+    uploadedBytesRef.current = new Map();
+    setUploadPct(0);
+    const totalBytes = selected.reduce((s, f) => s + f.size, 0);
+
     const map = new Map<string, Promise<{ storedName?: string; error?: string; fallback?: boolean }>>();
 
-    if (!supabaseClient) {
-      // No direct-to-storage client (NEXT_PUBLIC_* env absent — e.g. local
-      // SQLite mode). Fall back to sending the file bytes with the job form.
-      ids.forEach((id) => map.set(id, Promise.resolve({ fallback: true })));
-      return map;
-    }
-
-    const signPromise: Promise<Array<{ objectPath: string; token: string; storedName: string }>> = fetch("/api/uploads/sign", {
+    const signPromise: Promise<Array<{ signedUrl: string; token: string; storedName: string }> | "fallback"> = fetch("/api/uploads/sign", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ files: selected.map((f) => ({ fileName: f.name, mimeType: f.type, sizeBytes: f.size })) }),
       signal: controller.signal,
     }).then(async (res) => {
       const signBody = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(signBody.error ?? "Could not start upload.");
-      return signBody.uploads as Array<{ objectPath: string; token: string; storedName: string }>;
+      if (!res.ok) {
+        if (String(signBody.error ?? "").includes("not available")) return "fallback" as const;
+        throw new Error(signBody.error ?? "Could not start upload.");
+      }
+      return signBody.uploads as Array<{ signedUrl: string; token: string; storedName: string }>;
     });
 
     selected.forEach((file, i) => {
       map.set(ids[i], signPromise
         .then(async (uploads) => {
+          if (uploads === "fallback") return { fallback: true };
           const u = uploads[i];
-          const { error } = await supabaseClient!.storage
-            .from("selfprint")
-            .uploadToSignedUrl(u.objectPath, u.token, file, { contentType: file.type || "application/pdf" });
-          if (error) return { error: `Upload failed for ${file.name}: ${error.message}` };
+          await xhrPutFile(u.signedUrl, file, (loaded) => reportProgress(ids[i], loaded, totalBytes), controller.signal);
           return { storedName: u.storedName };
         })
-        .catch((err) => ({ error: err instanceof Error ? err.message : "Upload failed" }))
+        .catch((err) => {
+          if (err?.name === "AbortError") return { error: "Aborted" };
+          return { error: err instanceof Error ? `Upload failed for ${file.name}: ${err.message}` : "Upload failed" };
+        })
       );
     });
 
@@ -158,9 +210,8 @@ export default function UploadForm() {
     const controller = new AbortController();
     uploadAbortControllerRef.current = controller;
 
-    if (!supabaseClient) {
-      return { isDirectUpload: false };
-    }
+    uploadedBytesRef.current = new Map();
+    setUploadPct(0);
 
     try {
       const signRes = await fetch("/api/uploads/sign", {
@@ -171,18 +222,17 @@ export default function UploadForm() {
       });
       const signBody = await signRes.json().catch(() => ({}));
       if (!signRes.ok) {
+        // Server has no cloud storage — send the file bytes with the job form.
+        if (String(signBody.error ?? "").includes("not available")) return { isDirectUpload: false };
         throw new Error(signBody.error ?? "Could not start upload.");
       }
 
-      const { error: uploadError } = await supabaseClient.storage
-        .from("selfprint")
-        .uploadToSignedUrl(signBody.objectPath, signBody.token, selectedFile, {
-          contentType: selectedFile.type || "application/octet-stream",
-        });
-
-      if (uploadError) {
-        throw new Error(`Direct upload failed: ${uploadError.message}`);
-      }
+      await xhrPutFile(
+        signBody.signedUrl,
+        selectedFile,
+        (loaded) => reportProgress("single", loaded, selectedFile.size),
+        controller.signal
+      );
 
       return { isDirectUpload: true, storedName: signBody.storedName };
     } catch (err: any) {
@@ -378,8 +428,18 @@ export default function UploadForm() {
     setBulkIds(ids);
     setBulkMode(true);
     setBulkPreviewIndex(0);
-    const pageCounts = await Promise.all(selected.map((f) => estimatePdfPages(f)));
-    setBulkPageCounts(pageCounts);
+    // Show the settings step IMMEDIATELY — counting pages means reading every
+    // file, which takes seconds for large PDFs. Placeholder 1s now; real
+    // counts patch in when ready (guarded so a newer selection isn't clobbered).
+    setBulkPageCounts(selected.map(() => 1));
+    Promise.all(selected.map((f) => estimatePdfPages(f))).then((counts) => {
+      setBulkIds((currentIds) => {
+        if (currentIds.length === ids.length && currentIds.every((v, i) => v === ids[i])) {
+          setBulkPageCounts(counts);
+        }
+        return currentIds;
+      });
+    });
     const uploadsMap = startBulkUploads(selected, ids);
     bulkUploadsRef.current = uploadsMap;
     setBulkUploading(true);
@@ -483,8 +543,15 @@ export default function UploadForm() {
       if (selectedFile.type === "application/pdf") {
         const url = URL.createObjectURL(selectedFile);
         setPreviewUrl(url);
-        const pages = await estimatePdfPages(selectedFile);
-        setFilePageCount(pages);
+        // Count pages in the background — reading a large PDF takes seconds
+        // and must not block the step transition. UI shows "All pages" until
+        // the count lands (filePageCount stays null meanwhile).
+        estimatePdfPages(selectedFile).then((pages) => {
+          setFile((current) => {
+            if (current === selectedFile) setFilePageCount(pages);
+            return current;
+          });
+        });
       } else if (selectedFile.type.startsWith("image/")) {
         const url = URL.createObjectURL(selectedFile);
         setPreviewUrl(url);
@@ -1186,6 +1253,16 @@ export default function UploadForm() {
                 </span>
               </button>
             </>
+          )}
+
+          {/* Live upload progress — large files take a while on mobile data */}
+          {(isBulk ? bulkUploading : uploadPct > 0 && uploadPct < 100) && (
+            <div className="upload-progress" role="progressbar" aria-valuenow={uploadPct} aria-valuemin={0} aria-valuemax={100} aria-label="Upload progress">
+              <div className="upload-progress-track">
+                <div className="upload-progress-fill" style={{ width: `${uploadPct}%` }} />
+              </div>
+              <span className="upload-progress-label">Uploading… {uploadPct}%</span>
+            </div>
           )}
 
           {/* Print type toggle */}
