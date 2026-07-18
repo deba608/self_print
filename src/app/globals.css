@@ -262,6 +262,36 @@ input, select, button {
   flex-shrink: 0;
 }
 
+/* Live upload progress bar (settings step) */
+.upload-progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: -4px 0 14px;
+}
+
+.upload-progress-track {
+  flex: 1;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.upload-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent);
+  transition: width 0.3s ease;
+}
+
+.upload-progress-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
 /* "Add more PDFs" button under the file summary — grows a single PDF into a batch */
 .add-more-btn {
   display: flex;
