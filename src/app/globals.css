@@ -1005,6 +1005,19 @@ input, select, button {
   border: 1px solid var(--line);
 }
 
+/* Physical-output line at the bottom of the settings summary */
+.summary-paper-note {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--line);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+}
+
 /* The rendered sheet reads as a physical piece of paper. */
 .pdfjs-canvas {
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.14);
