@@ -8,7 +8,8 @@ param(
   [string]$Scale = "default",         # default | fit | shrink | noscale
   [string]$Margins = "default",       # default | none | minimum
   [int]$PagesPerSheet = 1,
-  [string]$Duplex = "simplex"         # simplex | long-edge | short-edge
+  [string]$Duplex = "simplex",        # simplex | long-edge | short-edge
+  [string]$Collate = "true"           # true | false — collate multi-copy output
 )
 
 $ErrorActionPreference = "Stop"
@@ -23,6 +24,7 @@ if (-not $doc.PrinterSettings.IsValid) { Write-Error "Invalid printer: $Printer"
 
 if ($Copies -lt 1) { $Copies = 1 }
 $doc.PrinterSettings.Copies = [int16]$Copies
+$doc.PrinterSettings.Collate = ($Collate -eq "true")
 $doc.DefaultPageSettings.Landscape = ($Landscape -eq "true")
 $doc.DefaultPageSettings.Color = ($Color -eq "true")
 

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getJobById, getJobFile, getJobEvents, updateJobSettings, deleteJob, getPricing } from "@/lib/db";
+import { getJobById, getJobEvents, updateJobSettings, deleteJob, getPricing } from "@/lib/db";
 import { calculatePrice, selectedPageCount } from "@/lib/pricing";
 import { requireAdminResponse } from "@/lib/security";
 import type { JobStatus, PaperSize, PrintDuplex, PrintLayout, PrintMargins, PrintScale, PrintType } from "@/lib/types";
@@ -12,9 +12,11 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
   
   try {
     const job = await getJobById(id);
-    const file = await getJobFile(id);
+    const { getJobFilesByJob } = await import("@/lib/db");
+    const files = await getJobFilesByJob(id);
+    const file = files[0] ?? null;
     const events = await getJobEvents(id);
-    return NextResponse.json({ job, file, events });
+    return NextResponse.json({ job, file, files, events });
   } catch {
     return NextResponse.json({ error: "Job not found" }, { status: 404 });
   }
@@ -111,9 +113,10 @@ export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id:
   }
 
   try {
-    const file = await getJobFile(id);
-    if (file?.storagePath) {
-      await deleteFile(file.storagePath);
+    const { getJobFilesByJob } = await import("@/lib/db");
+    const files = await getJobFilesByJob(id);
+    for (const f of files) {
+      if (f.storagePath) await deleteFile(f.storagePath).catch(() => undefined);
     }
   } catch {
     // Ignore file deletion errors

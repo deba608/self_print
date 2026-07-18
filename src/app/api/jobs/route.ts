@@ -1,7 +1,8 @@
 import crypto from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { MAX_UPLOAD_BYTES } from "@/lib/config";
-import { createJob, getPricing, nextQueuePosition, sseClients } from "@/lib/db";
+import { parseBulkFiles, sumPages } from "@/lib/bulk";
+import { createJob, createJobWithFiles, getPricing, nextQueuePosition, sseClients } from "@/lib/db";
 import { estimatePageCount, saveUpload, validateUpload } from "@/lib/files";
 import { bucketPathFor } from "@/lib/storage";
 import { calculatePrice, selectedPageCount } from "@/lib/pricing";
@@ -17,6 +18,10 @@ const duplexOptions: PrintDuplex[] = ["simplex", "long-edge", "short-edge"];
 export async function POST(request: NextRequest) {
   try {
     const form = await request.formData();
+
+    if (form.get("bulk") === "true") {
+      return await handleBulk(form);
+    }
 
     const printType = String(form.get("printType") ?? "bw") as PrintType;
     const copies = Math.max(1, Math.floor(Number(form.get("copies") ?? 1)));
@@ -158,6 +163,84 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Upload failed" }, { status: 400 });
   }
+}
+
+async function handleBulk(form: FormData): Promise<NextResponse> {
+  // Shared settings (page range intentionally omitted for bulk).
+  const printType = String(form.get("printType") ?? "bw") as PrintType;
+  const copies = Math.max(1, Math.floor(Number(form.get("copies") ?? 1)));
+  if (isNaN(copies) || copies < 1 || copies > 99) {
+    return NextResponse.json({ error: "Copies must be between 1 and 99" }, { status: 400 });
+  }
+  const paperSize = String(form.get("paperSize") ?? "A4") as PaperSize;
+  const layout = String(form.get("layout") ?? "portrait") as PrintLayout;
+  const pagesPerSheet = Math.max(1, Math.min(4, Math.floor(Number(form.get("pagesPerSheet") ?? 1)) || 1));
+  const margins = String(form.get("margins") ?? "default") as PrintMargins;
+  const scale = String(form.get("scale") ?? "default") as PrintScale;
+  const duplex = String(form.get("duplex") ?? "simplex") as PrintDuplex;
+  if (
+    !printTypes.includes(printType) ||
+    !paperSizes.includes(paperSize) ||
+    !layouts.includes(layout) ||
+    !scaleOptions.includes(scale) ||
+    !marginsOptions.includes(margins) ||
+    !duplexOptions.includes(duplex)
+  ) {
+    return NextResponse.json({ error: "Invalid print settings" }, { status: 400 });
+  }
+
+  let rawFiles: unknown;
+  try {
+    rawFiles = JSON.parse(String(form.get("filesJson") ?? "[]"));
+  } catch {
+    return NextResponse.json({ error: "Invalid file list." }, { status: 400 });
+  }
+  const parsed = parseBulkFiles(rawFiles);
+  if ("error" in parsed) {
+    return NextResponse.json({ error: parsed.error }, { status: 400 });
+  }
+  const files = parsed.files;
+
+  const pageCount = sumPages(files);
+  const pricing = await getPricing();
+  // Bulk has no page range; duplex needs 2+ pages across the whole batch.
+  if (duplex !== "simplex" && pageCount < 2) {
+    return NextResponse.json({ error: "Double-sided printing requires at least 2 pages." }, { status: 400 });
+  }
+  const pricePaise = calculatePrice({ printType, copies, pageRange: null, paperSize, pageCount: Math.max(pageCount, 1), pricing, duplex });
+  const token = randomToken();
+  const queuePos = await nextQueuePosition();
+
+  const jobData = {
+    token,
+    print_type: printType,
+    copies,
+    page_range: null,
+    paper_size: paperSize,
+    layout,
+    pages_per_sheet: pagesPerSheet,
+    margins,
+    scale,
+    duplex,
+    page_count: pageCount,
+    price_paise: pricePaise,
+    needs_conversion: 0,
+    queue_position: queuePos,
+  };
+
+  const filesData = files.map((f) => ({
+    original_name: f.originalName,
+    stored_name: f.storedName,
+    mime_type: f.mimeType || "application/pdf",
+    size_bytes: f.sizeBytes,
+    file_kind: "pdf",
+    storage_path: bucketPathFor("pdf", f.storedName),
+  }));
+
+  const { jobId } = await createJobWithFiles(jobData, filesData);
+  broadcast({ type: "new_job", jobId, token, queuePosition: queuePos });
+
+  return NextResponse.json({ jobId, token, pricePaise, needsConversion: false, pageCount, queuePosition: queuePos });
 }
 
 function randomToken() {

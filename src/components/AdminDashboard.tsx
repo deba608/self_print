@@ -21,6 +21,7 @@ type Job = {
   paperSize: string;
   copies: number;
   file: { originalName: string } | null;
+  fileCount?: number;
 };
 
 type Pricing = {
@@ -1058,6 +1059,9 @@ function JobCard({
 
         <div className="job-details">
           <span className="file-name">{job.file?.originalName || "No file"}</span>
+          {job.fileCount != null && job.fileCount > 1 && (
+            <span className="default-tag">{job.fileCount} files</span>
+          )}
           <div className="job-time">
             <span>{new Date(job.createdAt).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "2-digit" })} at {new Date(job.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
           </div>

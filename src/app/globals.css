@@ -262,6 +262,72 @@ input, select, button {
   flex-shrink: 0;
 }
 
+/* Bulk file list (2-10 PDFs preview) */
+.bulk-file-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 12px;
+}
+
+.bulk-file-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.bulk-file-row.active {
+  border-color: var(--accent);
+  background: var(--accent-light);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.bulk-file-name {
+  flex: 1;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bulk-file-pages {
+  font-weight: 500;
+  color: var(--ink-secondary);
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.bulk-file-remove {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.bulk-file-remove:hover,
+.bulk-file-remove:active {
+  background: #fde8e8;
+  color: #c0392b;
+}
+
 /* Print Type Toggle */
 .print-type-toggle {
   display: grid;
@@ -902,6 +968,57 @@ input, select, button {
   min-height: 320px;
   margin-bottom: 0;
   border: 1px solid var(--line);
+}
+
+/* Print simulation — make the preview match what actually comes out of the
+   printer. B&W jobs get a grayscale filter on the rendered page/image. */
+.bw-sim .pdfjs-canvas,
+.bw-sim .preview-image,
+.bw-sim .preview-iframe,
+.bw-sim-img {
+  filter: grayscale(1);
+}
+
+.print-sim-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.sim-chip {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--accent-light);
+  color: var(--accent);
+  border: 1px solid transparent;
+}
+
+.sim-chip-bw {
+  background: #2b2f33;
+  color: #fff;
+}
+
+.sim-chip-color {
+  background: linear-gradient(90deg, #e8f4ff, #ffe9f2);
+  color: #6b3fa0;
+}
+
+.sim-chip-sheets {
+  background: #fff;
+  border-color: var(--line);
+  color: var(--ink);
+}
+
+/* Bulk first-page thumbnails */
+.bulk-thumb {
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(23, 32, 42, 0.15);
+  flex-shrink: 0;
 }
 
 .preview-iframe {
@@ -4147,6 +4264,22 @@ input[type="number"] {
   font-weight: 700;
 }
 
+.file-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.file-list .file-info-row {
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.file-list .file-info-row:last-child {
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
 .summary-list {
   display: grid;
   gap: 2px;
@@ -4197,6 +4330,32 @@ input[type="number"] {
 
 .job-btn.cancel-text:hover {
   background: var(--danger);
+  color: #fff;
+}
+
+.preview-file-switcher {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.preview-file-btn {
+  min-width: 28px;
+  height: 28px;
+  padding: 0 8px;
+  border-radius: 999px;
+  border: 1.5px solid var(--line);
+  background: var(--panel);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.preview-file-btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
   color: #fff;
 }
 
