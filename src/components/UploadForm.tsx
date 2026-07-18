@@ -63,7 +63,7 @@ export default function UploadForm() {
   const [pagesPerSheet, setPagesPerSheet] = useState(1);
   const [duplex, setDuplex] = useState("simplex");
   const [busy, setBusy] = useState(false);
-  const [result, setResult] = useState<{ token: string; pricePaise: number; needsConversion: boolean; queuePosition: number } | null>(null);
+  const [result, setResult] = useState<{ token: string; pricePaise: number; needsConversion: boolean; queuePosition: number; pageCount?: number } | null>(null);
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
   const [payState, setPayState] = useState<"idle" | "processing" | "paid">("idle");
