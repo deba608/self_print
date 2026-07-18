@@ -1005,6 +1005,38 @@ input, select, button {
   border: 1px solid var(--line);
 }
 
+/* Bill / receipt card shown once payment is confirmed */
+.bill-wrap { display: flex; flex-direction: column; gap: 12px; width: 100%; }
+.bill-card {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 18px 20px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.07);
+  text-align: left;
+}
+.bill-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.bill-shop { font-size: 17px; color: var(--ink, #111827); }
+.bill-paid-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: color-mix(in srgb, var(--ok, #16a34a) 12%, transparent);
+  color: var(--ok, #16a34a);
+  font-size: 12px; font-weight: 800; letter-spacing: 0.5px;
+  padding: 3px 9px; border-radius: 999px;
+}
+.bill-meta { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); font-weight: 600; }
+.bill-divider { border-top: 1px dashed var(--line); margin: 12px 0; }
+.bill-files { display: flex; flex-direction: column; gap: 6px; }
+.bill-file-row { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; font-weight: 600; }
+.bill-file-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bill-file-pages { color: var(--muted); flex-shrink: 0; }
+.bill-settings { font-size: 12px; color: var(--muted); font-weight: 600; margin-bottom: 6px; }
+.bill-line { font-size: 12px; color: var(--muted); font-weight: 600; margin-bottom: 4px; }
+.bill-total { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; font-size: 16px; font-weight: 800; }
+.bill-foot-line { font-size: 12px; color: var(--muted); font-weight: 600; margin-bottom: 4px; }
+.bill-thanks { font-size: 12px; color: var(--accent); font-weight: 700; margin-top: 6px; }
+.bill-save-btn { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; }
+
 /* Physical-output line at the bottom of the settings summary */
 .summary-paper-note {
   display: flex;
