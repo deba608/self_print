@@ -297,24 +297,32 @@ async function processJob(jobId: string) {
           );
           tempPaths.push(tempPath);
 
-          log(`Downloading file ${idx + 1}/${files.length} (attempt ${attempt}/${config.maxRetries})...`);
-          const fileBytes = await downloadJobFile(file);
-          await fs.writeFile(tempPath, fileBytes);
-          log(`File downloaded: ${fileBytes.length} bytes`);
-          await logEvent(jobId, "downloaded", `Downloaded ${file.original_name} (${(fileBytes.length / 1024).toFixed(0)} KB), file ${idx + 1}/${files.length}.`);
+          // Wrap per-file work so any failure names the offending file in the
+          // job's failure message (an admin reading jobs.status can then tell
+          // which of N files broke). The outer retry/catch still fires unchanged.
+          try {
+            log(`Downloading file ${idx + 1}/${files.length} (attempt ${attempt}/${config.maxRetries})...`);
+            const fileBytes = await downloadJobFile(file);
+            await fs.writeFile(tempPath, fileBytes);
+            log(`File downloaded: ${fileBytes.length} bytes`);
+            await logEvent(jobId, "downloaded", `Downloaded ${file.original_name} (${(fileBytes.length / 1024).toFixed(0)} KB), file ${idx + 1}/${files.length}.`);
 
-          const printer = cachedPrinterName || config.fallbackPrinter;
-          if (!printer) throw new Error("No printer selected. Set a printer in admin dashboard.");
+            const printer = cachedPrinterName || config.fallbackPrinter;
+            if (!printer) throw new Error("No printer selected. Set a printer in admin dashboard.");
 
-          log(`Printing ${job.copies} copy(s), paper: ${job.paper_size}, type: ${job.print_type}, printer: ${printer}...`);
-          await logEvent(jobId, "spooling", `Printing ${file.original_name} (${idx + 1}/${files.length}) on ${printer}.`);
-          const PRINT_TIMEOUT_MS = 5 * 60 * 1000; // 5 min — covers PDF rasterisation + GDI spool
-          await Promise.race([
-            printJob(tempPath, job, printer),
-            new Promise<never>((_, reject) =>
-              setTimeout(() => reject(new Error("Print job timed out after 5 minutes")), PRINT_TIMEOUT_MS)
-            )
-          ]);
+            log(`Printing ${job.copies} copy(s), paper: ${job.paper_size}, type: ${job.print_type}, printer: ${printer}...`);
+            await logEvent(jobId, "spooling", `Printing ${file.original_name} (${idx + 1}/${files.length}) on ${printer}.`);
+            const PRINT_TIMEOUT_MS = 5 * 60 * 1000; // 5 min — covers PDF rasterisation + GDI spool
+            await Promise.race([
+              printJob(tempPath, job, printer),
+              new Promise<never>((_, reject) =>
+                setTimeout(() => reject(new Error("Print job timed out after 5 minutes")), PRINT_TIMEOUT_MS)
+              )
+            ]);
+          } catch (e) {
+            const msg = e instanceof Error ? e.message : String(e);
+            throw new Error(`File "${file.original_name}": ${msg}`);
+          }
         }
 
         await updateStatus(jobId, "printed", `Printed ${files.length} file(s) on attempt ${attempt}.`);
