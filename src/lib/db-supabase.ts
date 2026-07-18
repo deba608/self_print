@@ -117,6 +117,7 @@ export async function getJobsPage(limit: number, cursor?: string | null): Promis
     if (row.job_files && Array.isArray(row.job_files) && row.job_files.length > 0) {
       job.file = mapJobFile(row.job_files[0]);
     }
+    job.fileCount = Array.isArray(row.job_files) ? row.job_files.length : (job.file ? 1 : 0);
     return job;
   });
 
@@ -197,16 +198,17 @@ export async function getJobEvents(jobId: string) {
   return data || [];
 }
 
-export async function createJob(jobData: any, fileData: any) {
+export async function createJobWithFiles(jobData: any, filesData: any[]) {
   const now = new Date().toISOString();
   const jobId = crypto.randomUUID();
-  const fileId = crypto.randomUUID();
+  const fileIds = filesData.map(() => crypto.randomUUID());
+
   const normalizedJobData = {
     token: jobData.token,
     status: jobData.status ?? 'pending_payment',
     print_type: jobData.print_type ?? jobData.printType,
     copies: jobData.copies,
-    page_range: jobData.page_range ?? jobData.pageRange,
+    page_range: jobData.page_range ?? jobData.pageRange ?? null,
     paper_size: jobData.paper_size ?? jobData.paperSize,
     layout: jobData.layout,
     pages_per_sheet: jobData.pages_per_sheet ?? jobData.pagesPerSheet,
@@ -216,55 +218,60 @@ export async function createJob(jobData: any, fileData: any) {
     page_count: jobData.page_count ?? jobData.pageCount,
     price_paise: jobData.price_paise ?? jobData.pricePaise,
     needs_conversion: jobData.needs_conversion ?? jobData.needsConversion,
-    queue_position: jobData.queue_position ?? jobData.queuePosition
+    queue_position: jobData.queue_position ?? jobData.queuePosition,
   };
-  const normalizedFileData = {
-    original_name: fileData.original_name ?? fileData.originalName,
-    stored_name: fileData.stored_name ?? fileData.storedName,
-    mime_type: fileData.mime_type ?? fileData.mimeType,
-    size_bytes: fileData.size_bytes ?? fileData.sizeBytes,
-    file_kind: fileData.file_kind ?? fileData.fileKind,
-    storage_path: fileData.storage_path ?? fileData.storagePath
-  };
-  
-  // Insert job
+
   const { error: jobError } = await supabase
     .from('jobs')
-    .insert([{
-      id: jobId,
-      ...normalizedJobData,
-      created_at: now,
-      updated_at: now
-    }]);
-  
+    .insert([{ id: jobId, ...normalizedJobData, created_at: now, updated_at: now }]);
   if (jobError) throw jobError;
-  
-  // Insert job file
-  const { error: fileError } = await supabase
-    .from('job_files')
-    .insert([{
-      id: fileId,
-      job_id: jobId,
-      ...normalizedFileData,
-      created_at: now
-    }]);
-  
+
+  const fileRows = filesData.map((fd, i) => ({
+    id: fileIds[i],
+    job_id: jobId,
+    original_name: fd.original_name ?? fd.originalName,
+    stored_name: fd.stored_name ?? fd.storedName,
+    mime_type: fd.mime_type ?? fd.mimeType,
+    size_bytes: fd.size_bytes ?? fd.sizeBytes,
+    file_kind: fd.file_kind ?? fd.fileKind,
+    storage_path: fd.storage_path ?? fd.storagePath,
+    // Offset each file's created_at by i ms so multi-file batches (which all
+    // share the same wall-clock "now") still sort by insertion order via
+    // `ORDER BY created_at ASC, id ASC` — file ids are random UUIDs, so id
+    // alone can't be relied on as a tiebreaker across a shared timestamp.
+    created_at: new Date(Date.parse(now) + i).toISOString(),
+  }));
+  const { error: fileError } = await supabase.from('job_files').insert(fileRows);
   if (fileError) throw fileError;
-  
-  // Insert print event
-  await supabase
-    .from('print_events')
-    .insert([{
-      id: crypto.randomUUID(),
-      job_id: jobId,
-      event_type: 'created',
-      message: normalizedFileData.file_kind === 'document' 
-        ? 'Document upload needs conversion before printing.'
-        : 'Customer submitted job.',
-      created_at: now
-    }]);
-  
-  return { jobId, fileId };
+
+  const firstKind = fileRows[0]?.file_kind;
+  await supabase.from('print_events').insert([{
+    id: crypto.randomUUID(),
+    job_id: jobId,
+    event_type: 'created',
+    message: firstKind === 'document'
+      ? 'Document upload needs conversion before printing.'
+      : 'Customer submitted job.',
+    created_at: now,
+  }]);
+
+  return { jobId, fileIds };
+}
+
+export async function getJobFilesByJob(jobId: string): Promise<JobFile[]> {
+  const { data, error } = await supabase
+    .from('job_files')
+    .select('*')
+    .eq('job_id', jobId)
+    .order('created_at', { ascending: true })
+    .order('id', { ascending: true });
+  if (error) throw error;
+  return (data || []).map(mapJobFile);
+}
+
+export async function createJob(jobData: any, fileData: any) {
+  const { jobId, fileIds } = await createJobWithFiles(jobData, [fileData]);
+  return { jobId, fileId: fileIds[0] };
 }
 
 export async function updateJobStatus(id: string, status: string) {

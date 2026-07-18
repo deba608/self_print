@@ -15,6 +15,7 @@ dist/
 
 # Database
 data/*.sqlite*
+data-test-bulk.sqlite*
 
 # Uploads (keep directories, ignore contents)
 uploads/originals/*

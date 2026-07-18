@@ -38,6 +38,7 @@ export type Job = {
   printedAt: string | null;
   expiresAt: string;
   file?: JobFile;
+  fileCount?: number;
 };
 
 export type JobFile = {
