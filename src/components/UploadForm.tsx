@@ -72,30 +72,40 @@ export default function UploadForm() {
   const [filePageCount, setFilePageCount] = useState<number | null>(null);
   const [bulkFiles, setBulkFiles] = useState<File[]>([]);
   const [bulkPageCounts, setBulkPageCounts] = useState<number[]>([]);
+  // Stable per-file ids, kept index-aligned with bulkFiles/bulkPageCounts and
+  // used to key the upload promises (see bulkUploadsRef) so storedName↔file
+  // alignment survives any removal, independent of positional index.
+  const [bulkIds, setBulkIds] = useState<string[]>([]);
+  // Sticky: once a 2+ file selection enters bulk, we stay in bulk UI even if
+  // the user removes files down to 1 via the ✕ button. Cleared only on reset
+  // or an explicit fresh single-file selection — never derived from length.
+  const [bulkMode, setBulkMode] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const uploadPromiseRef = useRef<Promise<{ isDirectUpload: boolean; storedName?: string; error?: string }> | null>(null);
   const uploadAbortControllerRef = useRef<AbortController | null>(null);
-  // One promise per bulk file, all fed by a single shared /api/uploads/sign
-  // call (see startBulkUploads). Kept as an array (not a single Promise.all)
-  // so removeBulkFile can splice out an individual file's promise by index.
-  const bulkUploadsRef = useRef<Array<Promise<{ storedName?: string; error?: string }>> | null>(null);
+  // Upload promises keyed by stable file id (all fed by a single shared
+  // /api/uploads/sign call, see startBulkUploads). Keyed by id — not array
+  // index — so removeBulkFile can drop one entry without any index desync.
+  const bulkUploadsRef = useRef<Map<string, Promise<{ storedName?: string; error?: string }>> | null>(null);
   const bulkUploadAbortControllerRef = useRef<AbortController | null>(null);
 
-  // Bulk mode activates once 2+ files are selected; a single selection (or a
-  // non-PDF) always takes the original single-file path untouched.
-  const isBulk = bulkFiles.length > 1;
+  const isBulk = bulkMode;
 
   // Starts one shared sign request for the whole batch, then kicks off each
-  // file's upload as its own promise so it can be individually removed later.
-  function startBulkUploads(selected: File[]): Array<Promise<{ storedName?: string; error?: string }>> {
+  // file's upload as its own promise, stored in a Map keyed by stable id so an
+  // individual file can be removed later without disturbing the others.
+  function startBulkUploads(selected: File[], ids: string[]): Map<string, Promise<{ storedName?: string; error?: string }>> {
     if (bulkUploadAbortControllerRef.current) {
       bulkUploadAbortControllerRef.current.abort();
     }
     const controller = new AbortController();
     bulkUploadAbortControllerRef.current = controller;
 
+    const map = new Map<string, Promise<{ storedName?: string; error?: string }>>();
+
     if (!supabaseClient) {
-      return selected.map(() => Promise.resolve({ error: "Direct upload unavailable" }));
+      ids.forEach((id) => map.set(id, Promise.resolve({ error: "Direct upload unavailable" })));
+      return map;
     }
 
     const signPromise: Promise<Array<{ objectPath: string; token: string; storedName: string }>> = fetch("/api/uploads/sign", {
@@ -109,8 +119,8 @@ export default function UploadForm() {
       return signBody.uploads as Array<{ objectPath: string; token: string; storedName: string }>;
     });
 
-    return selected.map((file, i) =>
-      signPromise
+    selected.forEach((file, i) => {
+      map.set(ids[i], signPromise
         .then(async (uploads) => {
           const u = uploads[i];
           const { error } = await supabaseClient!.storage
@@ -120,7 +130,10 @@ export default function UploadForm() {
           return { storedName: u.storedName };
         })
         .catch((err) => ({ error: err instanceof Error ? err.message : "Upload failed" }))
-    );
+      );
+    });
+
+    return map;
   }
 
   async function startBackgroundUpload(selectedFile: File) {
@@ -320,6 +333,12 @@ export default function UploadForm() {
       }
 
       // A fresh bulk selection replaces any single-file state entirely.
+      // Abort any single-file upload still in flight from a prior selection.
+      if (uploadAbortControllerRef.current) {
+        uploadAbortControllerRef.current.abort();
+        uploadAbortControllerRef.current = null;
+      }
+      uploadPromiseRef.current = null;
       setFile(null);
       setFilePageCount(null);
       if (previewUrl) {
@@ -327,18 +346,28 @@ export default function UploadForm() {
         setPreviewUrl(null);
       }
 
+      const ids = selected.map(() => crypto.randomUUID());
       setBulkFiles(selected);
+      setBulkIds(ids);
+      setBulkMode(true);
       const pageCounts = await Promise.all(selected.map((f) => estimatePdfPages(f)));
       setBulkPageCounts(pageCounts);
-      bulkUploadsRef.current = startBulkUploads(selected);
+      bulkUploadsRef.current = startBulkUploads(selected, ids);
       setStep("settings");
       return;
     }
 
     // Exactly one file (or none) selected — original single-file path,
-    // unchanged. Clear any leftover bulk state from a prior selection.
+    // unchanged. Clear any leftover bulk state from a prior selection, and
+    // abort any bulk sign/upload still in flight.
+    if (bulkUploadAbortControllerRef.current) {
+      bulkUploadAbortControllerRef.current.abort();
+      bulkUploadAbortControllerRef.current = null;
+    }
     setBulkFiles([]);
     setBulkPageCounts([]);
+    setBulkIds([]);
+    setBulkMode(false);
     bulkUploadsRef.current = null;
 
     const selectedFile = selectedFiles[0] ?? null;
@@ -381,12 +410,32 @@ export default function UploadForm() {
   }
 
   function removeBulkFile(i: number) {
+    const id = bulkIds[i];
+    // Drop the id from all three index-aligned arrays with the same predicate
+    // so they stay mutually aligned; drop the upload promise from the Map by
+    // its stable id (individual in-flight uploads can't be cancelled, but we
+    // stop tracking this one so it's excluded from submit).
+    if (id !== undefined) {
+      bulkUploadsRef.current?.delete(id);
+    }
     setBulkFiles((prev) => prev.filter((_, idx) => idx !== i));
     setBulkPageCounts((prev) => prev.filter((_, idx) => idx !== i));
-    // Individual in-flight storage uploads can't be cancelled mid-request, but
-    // we stop tracking/awaiting this file's promise so it's excluded from submit.
-    if (bulkUploadsRef.current) {
-      bulkUploadsRef.current = bulkUploadsRef.current.filter((_, idx) => idx !== i);
+    setBulkIds((prev) => prev.filter((_, idx) => idx !== i));
+
+    // Removing the last file empties the batch — there is nothing to configure
+    // or submit, so return to the Upload step and drop bulk mode entirely. When
+    // one file remains we deliberately STAY in bulk UI (a submittable list of 1)
+    // rather than silently switching to the single-file flow mid-edit.
+    if (bulkFiles.length <= 1) {
+      if (bulkUploadAbortControllerRef.current) {
+        bulkUploadAbortControllerRef.current.abort();
+        bulkUploadAbortControllerRef.current = null;
+      }
+      bulkUploadsRef.current = null;
+      setBulkMode(false);
+      setError("");
+      setStep("upload");
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   }
 
@@ -399,7 +448,13 @@ export default function UploadForm() {
     const timeoutId = window.setTimeout(() => controller.abort(), 60000);
 
     try {
-      const uploadResults = await Promise.all(bulkUploadsRef.current ?? []);
+      // Resolve each file's upload by its stable id so storedName stays zipped
+      // to the correct file regardless of any prior removals.
+      const uploadsMap = bulkUploadsRef.current;
+      const missing: Promise<{ storedName?: string; error?: string }> = Promise.resolve({ error: "Upload was not started for this file." });
+      const uploadResults = await Promise.all(
+        bulkIds.map((id) => uploadsMap?.get(id) ?? missing)
+      );
       const failed = uploadResults.find((r) => r.error);
       if (failed?.error) {
         throw new Error(failed.error);
@@ -542,6 +597,8 @@ export default function UploadForm() {
     setFilePageCount(null);
     setBulkFiles([]);
     setBulkPageCounts([]);
+    setBulkIds([]);
+    setBulkMode(false);
     setResult(null);
     setError("");
     setPayState("idle");
