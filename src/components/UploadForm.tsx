@@ -89,7 +89,7 @@ export default function UploadForm() {
   // Upload promises keyed by stable file id (all fed by a single shared
   // /api/uploads/sign call, see startBulkUploads). Keyed by id — not array
   // index — so removeBulkFile can drop one entry without any index desync.
-  const bulkUploadsRef = useRef<Map<string, Promise<{ storedName?: string; error?: string }>> | null>(null);
+  const bulkUploadsRef = useRef<Map<string, Promise<{ storedName?: string; error?: string; fallback?: boolean }>> | null>(null);
   const bulkUploadAbortControllerRef = useRef<AbortController | null>(null);
 
   const isBulk = bulkMode;
@@ -97,17 +97,19 @@ export default function UploadForm() {
   // Starts one shared sign request for the whole batch, then kicks off each
   // file's upload as its own promise, stored in a Map keyed by stable id so an
   // individual file can be removed later without disturbing the others.
-  function startBulkUploads(selected: File[], ids: string[]): Map<string, Promise<{ storedName?: string; error?: string }>> {
+  function startBulkUploads(selected: File[], ids: string[]): Map<string, Promise<{ storedName?: string; error?: string; fallback?: boolean }>> {
     if (bulkUploadAbortControllerRef.current) {
       bulkUploadAbortControllerRef.current.abort();
     }
     const controller = new AbortController();
     bulkUploadAbortControllerRef.current = controller;
 
-    const map = new Map<string, Promise<{ storedName?: string; error?: string }>>();
+    const map = new Map<string, Promise<{ storedName?: string; error?: string; fallback?: boolean }>>();
 
     if (!supabaseClient) {
-      ids.forEach((id) => map.set(id, Promise.resolve({ error: "Direct upload unavailable" })));
+      // No direct-to-storage client (NEXT_PUBLIC_* env absent — e.g. local
+      // SQLite mode). Fall back to sending the file bytes with the job form.
+      ids.forEach((id) => map.set(id, Promise.resolve({ fallback: true })));
       return map;
     }
 
