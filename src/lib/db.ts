@@ -437,22 +437,26 @@ export async function getJobEvents(jobId: string) {
   `).all(jobId);
 }
 
-export async function createJob(jobData: any, fileData: any): Promise<{ jobId: string; fileId: string }> {
+export async function createJobWithFiles(
+  jobData: any,
+  filesData: any[]
+): Promise<{ jobId: string; fileIds: string[] }> {
   if (isSupabase) {
     const mod = await import('./db-supabase');
-    return mod.createJob(jobData, fileData);
+    return mod.createJobWithFiles(jobData, filesData);
   }
-  
+
   const crypto = await import('node:crypto');
   const sqlite = await getDbInstance();
   const now = new Date().toISOString();
   const jobId = crypto.randomUUID();
-  const fileId = crypto.randomUUID();
-  const normalizedJobData = {
+  const fileIds = filesData.map(() => crypto.randomUUID());
+
+  const j = {
     token: jobData.token,
     printType: jobData.printType ?? jobData.print_type,
     copies: jobData.copies,
-    pageRange: jobData.pageRange ?? jobData.page_range,
+    pageRange: jobData.pageRange ?? jobData.page_range ?? null,
     paperSize: jobData.paperSize ?? jobData.paper_size,
     layout: jobData.layout,
     pagesPerSheet: jobData.pagesPerSheet ?? jobData.pages_per_sheet,
@@ -462,33 +466,61 @@ export async function createJob(jobData: any, fileData: any): Promise<{ jobId: s
     pageCount: jobData.pageCount ?? jobData.page_count,
     pricePaise: jobData.pricePaise ?? jobData.price_paise,
     needsConversion: jobData.needsConversion ?? jobData.needs_conversion,
-    queuePosition: jobData.queuePosition ?? jobData.queue_position
+    queuePosition: jobData.queuePosition ?? jobData.queue_position,
   };
-  const normalizedFileData = {
-    originalName: fileData.originalName ?? fileData.original_name,
-    storedName: fileData.storedName ?? fileData.stored_name,
-    mimeType: fileData.mimeType ?? fileData.mime_type,
-    sizeBytes: fileData.sizeBytes ?? fileData.size_bytes,
-    fileKind: fileData.fileKind ?? fileData.file_kind,
-    storagePath: fileData.storagePath ?? fileData.storage_path
-  };
-  
+
+  const firstKind = filesData[0]?.fileKind ?? filesData[0]?.file_kind;
+
   sqlite.transaction(() => {
     sqlite.prepare(`
       INSERT INTO jobs (id, token, status, print_type, copies, page_range, paper_size, layout, pages_per_sheet, margins, scale, duplex, page_count, price_paise, needs_conversion, queue_position, created_at, updated_at)
       VALUES (?, ?, 'pending_payment', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(jobId, normalizedJobData.token, normalizedJobData.printType, normalizedJobData.copies, normalizedJobData.pageRange, normalizedJobData.paperSize, normalizedJobData.layout, normalizedJobData.pagesPerSheet, normalizedJobData.margins, normalizedJobData.scale, normalizedJobData.duplex, normalizedJobData.pageCount, normalizedJobData.pricePaise, normalizedJobData.needsConversion, normalizedJobData.queuePosition, now, now);
-    
-    sqlite.prepare(`
+    `).run(jobId, j.token, j.printType, j.copies, j.pageRange, j.paperSize, j.layout, j.pagesPerSheet, j.margins, j.scale, j.duplex, j.pageCount, j.pricePaise, j.needsConversion, j.queuePosition, now, now);
+
+    const insertFile = sqlite.prepare(`
       INSERT INTO job_files (id, job_id, original_name, stored_name, mime_type, size_bytes, file_kind, storage_path, created_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(fileId, jobId, normalizedFileData.originalName, normalizedFileData.storedName, normalizedFileData.mimeType, normalizedFileData.sizeBytes, normalizedFileData.fileKind, normalizedFileData.storagePath, now);
-    
+    `);
+    filesData.forEach((fd, i) => {
+      // Offset each file's created_at by i ms so multi-file batches (which all
+      // share the same wall-clock "now") still sort by insertion order via
+      // `ORDER BY created_at ASC, id ASC` — file ids are random UUIDs, so id
+      // alone can't be relied on as a tiebreaker across a shared timestamp.
+      const fileCreatedAt = new Date(Date.parse(now) + i).toISOString();
+      insertFile.run(
+        fileIds[i], jobId,
+        fd.originalName ?? fd.original_name,
+        fd.storedName ?? fd.stored_name,
+        fd.mimeType ?? fd.mime_type,
+        fd.sizeBytes ?? fd.size_bytes,
+        fd.fileKind ?? fd.file_kind,
+        fd.storagePath ?? fd.storage_path,
+        fileCreatedAt
+      );
+    });
+
     sqlite.prepare("INSERT INTO print_events (id, job_id, event_type, message, created_at) VALUES (?, ?, 'created', ?, ?)")
-      .run(crypto.randomUUID(), jobId, normalizedFileData.fileKind === 'document' ? 'Document upload needs conversion before printing.' : 'Customer submitted job.', now);
+      .run(crypto.randomUUID(), jobId, firstKind === 'document' ? 'Document upload needs conversion before printing.' : 'Customer submitted job.', now);
   })();
-  
-  return { jobId, fileId };
+
+  return { jobId, fileIds };
+}
+
+export async function getJobFilesByJob(jobId: string): Promise<JobFile[]> {
+  if (isSupabase) {
+    const mod = await import('./db-supabase');
+    return mod.getJobFilesByJob(jobId);
+  }
+  const sqlite = await getDbInstance();
+  const rows = sqlite
+    .prepare('SELECT * FROM job_files WHERE job_id = ? ORDER BY created_at ASC, id ASC')
+    .all(jobId) as Record<string, unknown>[];
+  return rows.map(mapJobFile);
+}
+
+export async function createJob(jobData: any, fileData: any): Promise<{ jobId: string; fileId: string }> {
+  const { jobId, fileIds } = await createJobWithFiles(jobData, [fileData]);
+  return { jobId, fileId: fileIds[0] };
 }
 
 export async function updateJobStatus(id: string, status: string): Promise<void> {
