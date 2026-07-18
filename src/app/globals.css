@@ -197,34 +197,6 @@ input, select, button {
   color: var(--muted);
 }
 
-/* Upload mode hints — informational only; actual mode is auto-detected by how
-   many files the user selects (1 = single, 2-10 PDFs = bulk). */
-.upload-modes {
-  display: flex;
-  justify-content: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-top: 12px;
-}
-
-.mode-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  background: var(--bg-card, #fff);
-  border: 1px solid var(--border-color, #e2e8e6);
-  color: var(--muted);
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.mode-badge svg {
-  color: var(--accent);
-  flex-shrink: 0;
-}
-
 /* Supported Formats */
 .supported-formats {
   display: flex;
