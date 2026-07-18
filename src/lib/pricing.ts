@@ -44,21 +44,23 @@ export function calculatePrice(input: {
   const selectedPages = selectedPageCount(input.pageCount, input.pageRange);
   const copies = Math.max(1, input.copies);
   if (input.paperSize === "Photo") {
-    const duplexMultiplier = input.duplex === "simplex" ? 1.5 : 1;
-    return Math.round(input.pricing.photoPrintPaise * copies * duplexMultiplier);
+    return Math.round(input.pricing.photoPrintPaise * copies);
   }
 
   const isDuplex = input.duplex && input.duplex !== "simplex";
   const baseSimplex = input.printType === "bw" ? input.pricing.bwPerPagePaise : input.pricing.colorPerPagePaise;
   const baseDuplex = input.printType === "bw" ? input.pricing.duplexBwPerPagePaise : input.pricing.colorPerPagePaise;
 
+  // Customers pay exactly the advertised per-page rate — no hidden multiplier.
+  // Duplex full pairs use the duplex rate; a trailing odd page prints
+  // single-sided and costs the simplex rate.
   let pageCostSum = 0;
   if (!isDuplex) {
-    pageCostSum = baseSimplex * selectedPages * 1.5;
+    pageCostSum = baseSimplex * selectedPages;
   } else {
     const doubleSidedPages = Math.floor(selectedPages / 2) * 2;
     const singleSidedPages = selectedPages % 2;
-    pageCostSum = (baseDuplex * doubleSidedPages * 1.0) + (baseSimplex * singleSidedPages * 1.5);
+    pageCostSum = (baseDuplex * doubleSidedPages) + (baseSimplex * singleSidedPages);
   }
 
   const multiplierKey = paperMultipliers[input.paperSize];

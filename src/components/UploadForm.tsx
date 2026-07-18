@@ -232,23 +232,23 @@ export default function UploadForm() {
     // across the whole batch instead of the single-file selectedPages.
     const pages = isBulk ? bulkTotalPages : selectedPages;
     if (paperSize === "Photo") {
-      const duplexMultiplier = duplex === "simplex" ? 1.5 : 1;
       // Round to whole paise exactly like the server (calculatePrice) so the
       // estimate never drifts a paisa from the final charged amount.
-      return Math.round(pricing.photoPrintPaise * copies * duplexMultiplier) / 100;
+      return Math.round(pricing.photoPrintPaise * copies) / 100;
     }
     const isDuplex = duplex !== "simplex";
     const baseSimplex = printType === "bw" ? pricing.bwPerPagePaise : pricing.colorPerPagePaise;
     const baseDuplex = (isDuplex && pricing.duplexBwPerPagePaise && printType === "bw") ? pricing.duplexBwPerPagePaise
       : printType === "bw" ? pricing.bwPerPagePaise : pricing.colorPerPagePaise;
 
+    // Mirrors calculatePrice: pay exactly the advertised per-page rate.
     let pageCostSum = 0;
     if (!isDuplex) {
-      pageCostSum = baseSimplex * pages * 1.5;
+      pageCostSum = baseSimplex * pages;
     } else {
       const doubleSidedPages = Math.floor(pages / 2) * 2;
       const singleSidedPages = pages % 2;
-      pageCostSum = (baseDuplex * doubleSidedPages * 1.0) + (baseSimplex * singleSidedPages * 1.5);
+      pageCostSum = (baseDuplex * doubleSidedPages) + (baseSimplex * singleSidedPages);
     }
 
     let paperMultiplier = 1;
