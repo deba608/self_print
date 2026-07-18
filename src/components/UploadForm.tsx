@@ -83,6 +83,9 @@ export default function UploadForm() {
   // Which bulk file the full print preview shows; row taps switch it. Clamped
   // whenever files are removed so it always points at a real file.
   const [bulkPreviewIndex, setBulkPreviewIndex] = useState(0);
+  // True while background bulk uploads are still in flight — Confirm shows an
+  // uploading state instead of failing (or waiting silently) when tapped early.
+  const [bulkUploading, setBulkUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const uploadPromiseRef = useRef<Promise<{ isDirectUpload: boolean; storedName?: string; error?: string }> | null>(null);
   const uploadAbortControllerRef = useRef<AbortController | null>(null);
@@ -366,7 +369,10 @@ export default function UploadForm() {
       setBulkPreviewIndex(0);
       const pageCounts = await Promise.all(selected.map((f) => estimatePdfPages(f)));
       setBulkPageCounts(pageCounts);
-      bulkUploadsRef.current = startBulkUploads(selected, ids);
+      const uploadsMap = startBulkUploads(selected, ids);
+      bulkUploadsRef.current = uploadsMap;
+      setBulkUploading(true);
+      Promise.allSettled([...uploadsMap.values()]).then(() => setBulkUploading(false));
       setStep("settings");
       return;
     }
@@ -382,6 +388,7 @@ export default function UploadForm() {
     setBulkPageCounts([]);
     setBulkIds([]);
     setBulkMode(false);
+    setBulkUploading(false);
     bulkUploadsRef.current = null;
 
     const selectedFile = selectedFiles[0] ?? null;
@@ -449,6 +456,7 @@ export default function UploadForm() {
       }
       bulkUploadsRef.current = null;
       setBulkMode(false);
+      setBulkUploading(false);
       setError("");
       setStep("upload");
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -622,6 +630,7 @@ export default function UploadForm() {
     setBulkPageCounts([]);
     setBulkIds([]);
     setBulkMode(false);
+    setBulkUploading(false);
     setResult(null);
     setError("");
     setPayState("idle");
@@ -1269,7 +1278,7 @@ export default function UploadForm() {
           <div className="price-box">
             <div className="price-header">
               <span className="price-label">Estimated Price</span>
-              <span className="price-value">₹{estimate.toFixed(2)}</span>
+              <span className="price-value">{pricing ? `₹${estimate.toFixed(2)}` : "…"}</span>
             </div>
             <div className="price-breakdown">
               <span className="breakdown-item">{isBulk ? `${bulkFiles.length} files, ${bulkTotalPages} pages` : pageInfo}</span>
@@ -1316,6 +1325,18 @@ export default function UploadForm() {
       {step === "preview" && (
         <div className="step-content fade-in">
           <h3 className="preview-title">Review Your Print Job</h3>
+
+          {/* Print simulation chips — mirror what will physically come out */}
+          <div className="print-sim-chips" aria-label="Print output summary">
+            <span className={`sim-chip ${printType === "bw" ? "sim-chip-bw" : "sim-chip-color"}`}>
+              {printType === "bw" ? "B&W preview" : "Color"}
+            </span>
+            <span className="sim-chip">{duplex === "simplex" ? "Single-sided" : "Double-sided"}</span>
+            {pagesPerSheet > 1 && <span className="sim-chip">{pagesPerSheet} pages/sheet</span>}
+            <span className="sim-chip sim-chip-sheets">
+              {physicalSheets} sheet{physicalSheets === 1 ? "" : "s"} of paper{copies > 1 ? ` × ${copies} copies` : ""}
+            </span>
+          </div>
 
           {/* Preview area — grayscale simulation when printing B&W */}
           <div className={`preview-area ${printType === "bw" ? "bw-sim" : ""}`}>
@@ -1412,7 +1433,7 @@ export default function UploadForm() {
           {/* Total price */}
           <div className="total-price">
             <span>Total</span>
-            <strong>₹{estimate.toFixed(2)}</strong>
+            <strong>{pricing ? `₹${estimate.toFixed(2)}` : "…"}</strong>
           </div>
 
           {/* Submit errors must be visible HERE — Confirm lives on this step,
@@ -1437,11 +1458,13 @@ export default function UploadForm() {
               type="button"
               className="btn-primary btn-submit"
               onClick={handleSubmit}
-              disabled={busy}
-              aria-busy={busy}
+              disabled={busy || (isBulk && bulkUploading)}
+              aria-busy={busy || (isBulk && bulkUploading)}
             >
               {busy ? (
                 <><Loader2 size={20} className="spin" aria-hidden="true" /> Processing...</>
+              ) : isBulk && bulkUploading ? (
+                <><Loader2 size={20} className="spin" aria-hidden="true" /> Uploading files...</>
               ) : (
                 <><Check size={20} aria-hidden="true" /> Confirm Print</>
               )}
