@@ -262,6 +262,41 @@ input, select, button {
   flex-shrink: 0;
 }
 
+/* "Add more PDFs" button under the file summary — grows a single PDF into a batch */
+.add-more-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 14px;
+  margin-top: -6px;
+  margin-bottom: 14px;
+  border: 1.5px dashed var(--accent);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.add-more-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+.add-more-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.add-more-btn .add-more-hint {
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
 /* Bulk file list (2-10 PDFs preview) */
 .bulk-file-list {
   display: flex;

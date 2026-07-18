@@ -87,6 +87,9 @@ export default function UploadForm() {
   // uploading state instead of failing (or waiting silently) when tapped early.
   const [bulkUploading, setBulkUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // Separate picker for "Add more" so opening it never clobbers the main
+  // input's selection state.
+  const addMoreInputRef = useRef<HTMLInputElement>(null);
   const uploadPromiseRef = useRef<Promise<{ isDirectUpload: boolean; storedName?: string; error?: string }> | null>(null);
   const uploadAbortControllerRef = useRef<AbortController | null>(null);
   // Upload promises keyed by stable file id (all fed by a single shared
@@ -328,6 +331,68 @@ export default function UploadForm() {
     return "File";
   }, [file]);
 
+  // Enters (or re-enters) bulk mode with the given PDF set: replaces any
+  // single-file state, restarts all background uploads, recomputes page counts.
+  // Used by both a fresh 2+ multi-select and the "Add more" flow.
+  async function enterBulkMode(selected: File[]) {
+    // A bulk selection replaces any single-file state entirely.
+    // Abort any single-file upload still in flight from a prior selection.
+    if (uploadAbortControllerRef.current) {
+      uploadAbortControllerRef.current.abort();
+      uploadAbortControllerRef.current = null;
+    }
+    uploadPromiseRef.current = null;
+    setFile(null);
+    setFilePageCount(null);
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+      setPreviewUrl(null);
+    }
+
+    const ids = selected.map(() => crypto.randomUUID());
+    setBulkFiles(selected);
+    setBulkIds(ids);
+    setBulkMode(true);
+    setBulkPreviewIndex(0);
+    const pageCounts = await Promise.all(selected.map((f) => estimatePdfPages(f)));
+    setBulkPageCounts(pageCounts);
+    const uploadsMap = startBulkUploads(selected, ids);
+    bulkUploadsRef.current = uploadsMap;
+    setBulkUploading(true);
+    Promise.allSettled([...uploadsMap.values()]).then(() => setBulkUploading(false));
+    setStep("settings");
+  }
+
+  // "Add more" picker: appends PDFs to the current job. From single-file mode
+  // (PDF selected) this converts the job into a bulk job; in bulk mode it
+  // grows the batch. All uploads restart so every file shares one sign call.
+  async function handleAddMoreFiles(e: React.ChangeEvent<HTMLInputElement>) {
+    const added = Array.from(e.target.files ?? []);
+    if (addMoreInputRef.current) addMoreInputRef.current.value = "";
+    if (added.length === 0) return;
+
+    const nonPdf = added.find((f) => f.type !== "application/pdf");
+    if (nonPdf) {
+      setError(`Only PDF files can be added to a batch. "${nonPdf.name}" is not a PDF.`);
+      return;
+    }
+
+    const current = isBulk ? bulkFiles : file && file.type === "application/pdf" ? [file] : [];
+    if (!isBulk && file && file.type !== "application/pdf") {
+      setError("Adding more files needs a PDF batch — images print as single jobs.");
+      return;
+    }
+
+    let combined = [...current, ...added];
+    if (combined.length > 10) {
+      setError("You can print up to 10 files in one job — only the first 10 were kept.");
+      combined = combined.slice(0, 10);
+    } else {
+      setError("");
+    }
+    await enterBulkMode(combined);
+  }
+
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const selectedFiles = Array.from(e.target.files ?? []);
 
@@ -348,32 +413,7 @@ export default function UploadForm() {
         setError("");
       }
 
-      // A fresh bulk selection replaces any single-file state entirely.
-      // Abort any single-file upload still in flight from a prior selection.
-      if (uploadAbortControllerRef.current) {
-        uploadAbortControllerRef.current.abort();
-        uploadAbortControllerRef.current = null;
-      }
-      uploadPromiseRef.current = null;
-      setFile(null);
-      setFilePageCount(null);
-      if (previewUrl) {
-        URL.revokeObjectURL(previewUrl);
-        setPreviewUrl(null);
-      }
-
-      const ids = selected.map(() => crypto.randomUUID());
-      setBulkFiles(selected);
-      setBulkIds(ids);
-      setBulkMode(true);
-      setBulkPreviewIndex(0);
-      const pageCounts = await Promise.all(selected.map((f) => estimatePdfPages(f)));
-      setBulkPageCounts(pageCounts);
-      const uploadsMap = startBulkUploads(selected, ids);
-      bulkUploadsRef.current = uploadsMap;
-      setBulkUploading(true);
-      Promise.allSettled([...uploadsMap.values()]).then(() => setBulkUploading(false));
-      setStep("settings");
+      await enterBulkMode(selected);
       return;
     }
 
@@ -1054,6 +1094,35 @@ export default function UploadForm() {
               </span>
               <span className="change-link">Change</span>
             </button>
+          )}
+
+          {/* Add more PDFs to this job (converts a single PDF into a batch).
+              Hidden for images/docs — bulk is PDF-only. */}
+          {(isBulk || file?.type === "application/pdf") && (
+            <>
+              <input
+                ref={addMoreInputRef}
+                type="file"
+                id="add-more-input"
+                multiple
+                accept=".pdf,application/pdf"
+                onChange={handleAddMoreFiles}
+                style={{ display: "none" }}
+              />
+              <button
+                type="button"
+                className="add-more-btn"
+                onClick={() => addMoreInputRef.current?.click()}
+                disabled={isBulk && bulkFiles.length >= 10}
+                title={isBulk && bulkFiles.length >= 10 ? "Maximum 10 files per job" : undefined}
+              >
+                <UploadCloud size={16} aria-hidden="true" />
+                Add more PDFs
+                <span className="add-more-hint">
+                  {isBulk ? `${bulkFiles.length}/10 files` : "print several in one job"}
+                </span>
+              </button>
+            </>
           )}
 
           {/* Print type toggle */}

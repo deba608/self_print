@@ -80,3 +80,29 @@ export type PrinterOption = {
   isDefault: boolean;
   seenAt: string;
 };
+
+export type DailyJobSummary = {
+  date: string;              // "YYYY-MM-DD"
+  totalJobs: number;
+  totalRevenuePaise: number;
+  confirmedRevenuePaise: number; // paid + printed only
+  bwJobs: number;
+  colorJobs: number;
+  photoJobs: number;
+  pagesTotal: number;
+  printedJobs: number;
+  cancelledJobs: number;
+  pendingJobs: number;
+};
+
+export type AccountsSummary = {
+  totalRevenuePaise: number;
+  confirmedRevenuePaise: number;
+  pendingRevenuePaise: number;
+  totalJobs: number;
+  printedJobs: number;
+  totalPages: number;
+  bwJobs: number;
+  colorJobs: number;
+  photoJobs: number;
+};

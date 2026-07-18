@@ -714,3 +714,105 @@ export async function updateJobStatusByAgent(id: string, status: string, message
   
   if (eventError) throw eventError;
 }
+
+// ─── Analytics / Accounts ────────────────────────────────────────────────────
+
+import type { DailyJobSummary, AccountsSummary } from './types';
+
+/**
+ * Returns per-day aggregates for jobs created between `from` and `to` (inclusive, YYYY-MM-DD strings).
+ * Aggregation happens in JavaScript over the raw rows — no custom SQL view needed.
+ */
+export async function getDailyAnalytics(from: string, to: string): Promise<DailyJobSummary[]> {
+  // Use the date boundaries directly as ISO timestamps so Supabase can use its index.
+  const fromTs = `${from}T00:00:00.000Z`;
+  const toTs   = `${to}T23:59:59.999Z`;
+
+  const { data, error } = await supabase
+    .from('jobs')
+    .select('created_at, status, print_type, page_count, price_paise')
+    .gte('created_at', fromTs)
+    .lte('created_at', toTs)
+    .order('created_at', { ascending: true });
+
+  if (error) throw error;
+
+  const byDate: Record<string, DailyJobSummary> = {};
+
+  for (const row of data || []) {
+    const date = String(row.created_at).slice(0, 10); // "YYYY-MM-DD"
+    if (!byDate[date]) {
+      byDate[date] = {
+        date,
+        totalJobs: 0,
+        totalRevenuePaise: 0,
+        confirmedRevenuePaise: 0,
+        bwJobs: 0,
+        colorJobs: 0,
+        photoJobs: 0,
+        pagesTotal: 0,
+        printedJobs: 0,
+        cancelledJobs: 0,
+        pendingJobs: 0,
+      };
+    }
+    const d = byDate[date];
+    const pricePaise = Number(row.price_paise) || 0;
+    const pages      = Number(row.page_count)  || 0;
+    const status     = String(row.status);
+    const printType  = String(row.print_type);
+
+    d.totalJobs++;
+    d.totalRevenuePaise += pricePaise;
+    d.pagesTotal += pages;
+
+    if (status === 'paid' || status === 'approved' || status === 'printing' || status === 'printed') {
+      d.confirmedRevenuePaise += pricePaise;
+    }
+    if (status === 'printed')   d.printedJobs++;
+    if (status === 'cancelled') d.cancelledJobs++;
+    if (status === 'pending_payment') d.pendingJobs++;
+
+    if (printType === 'color') d.colorJobs++;
+    else if (printType === 'photo') d.photoJobs++;
+    else d.bwJobs++;
+  }
+
+  // Return sorted by date ascending, filling no gaps (only days with jobs are returned).
+  return Object.values(byDate).sort((a, b) => a.date.localeCompare(b.date));
+}
+
+/**
+ * Returns an aggregated summary for a single calendar day (defaults to today in UTC).
+ */
+export async function getAccountsSummary(date?: string): Promise<AccountsSummary> {
+  const day = date ?? new Date().toISOString().slice(0, 10);
+  const rows = await getDailyAnalytics(day, day);
+  const d = rows[0];
+
+  if (!d) {
+    return {
+      totalRevenuePaise: 0,
+      confirmedRevenuePaise: 0,
+      pendingRevenuePaise: 0,
+      totalJobs: 0,
+      printedJobs: 0,
+      totalPages: 0,
+      bwJobs: 0,
+      colorJobs: 0,
+      photoJobs: 0,
+    };
+  }
+
+  return {
+    totalRevenuePaise: d.totalRevenuePaise,
+    confirmedRevenuePaise: d.confirmedRevenuePaise,
+    pendingRevenuePaise: d.totalRevenuePaise - d.confirmedRevenuePaise,
+    totalJobs: d.totalJobs,
+    printedJobs: d.printedJobs,
+    totalPages: d.pagesTotal,
+    bwJobs: d.bwJobs,
+    colorJobs: d.colorJobs,
+    photoJobs: d.photoJobs,
+  };
+}
