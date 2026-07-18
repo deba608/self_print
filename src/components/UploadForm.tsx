@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useRef } from "react";
-import { UploadCloud, FileText, Image, ArrowLeft, ArrowRight, Check, Eye, Loader2, File, Settings2, Maximize2, Minimize2, Smartphone, Copy, QrCode, Store, X } from "lucide-react";
+import { UploadCloud, FileText, Image, ArrowLeft, ArrowRight, Check, Eye, Loader2, File, Settings2, Maximize2, Minimize2, Printer, Smartphone, Copy, QrCode, Store, X } from "lucide-react";
 import { formatRupees, paperSizeLabels, allPaperSizes } from "@/lib/pricing";
 import { supabaseClient } from "@/lib/supabaseClient";
 import { QRCodeSVG } from "qrcode.react";
@@ -1398,18 +1398,6 @@ export default function UploadForm() {
         <div className="step-content fade-in">
           <h3 className="preview-title">Review Your Print Job</h3>
 
-          {/* Print simulation chips — mirror what will physically come out */}
-          <div className="print-sim-chips" aria-label="Print output summary">
-            <span className={`sim-chip ${printType === "bw" ? "sim-chip-bw" : "sim-chip-color"}`}>
-              {printType === "bw" ? "B&W preview" : "Color"}
-            </span>
-            <span className="sim-chip">{duplex === "simplex" ? "Single-sided" : "Double-sided"}</span>
-            {pagesPerSheet > 1 && <span className="sim-chip">{pagesPerSheet} pages/sheet</span>}
-            <span className="sim-chip sim-chip-sheets">
-              {physicalSheets} sheet{physicalSheets === 1 ? "" : "s"} of paper{copies > 1 ? ` × ${copies} copies` : ""}
-            </span>
-          </div>
-
           {/* Preview area — grayscale simulation when printing B&W */}
           <div className={`preview-area ${printType === "bw" ? "bw-sim" : ""}`}>
             {isBulk && (
@@ -1492,7 +1480,7 @@ export default function UploadForm() {
               </div>
               <div className="summary-item">
                 <span className="summary-label">Layout</span>
-                <span className="summary-value">{layout}</span>
+                <span className="summary-value">{layout === "portrait" ? "Portrait" : "Landscape"}</span>
               </div>
               <div className="summary-item">
                 <span className="summary-label">Sides</span>
@@ -1504,6 +1492,12 @@ export default function UploadForm() {
                   <span className="summary-value">{pagesPerSheet}</span>
                 </div>
               )}
+            </div>
+            {/* Physical output line — the one fact the settings rows can't show */}
+            <div className="summary-paper-note">
+              <Printer size={14} aria-hidden="true" />
+              Prints on {physicalSheets} sheet{physicalSheets === 1 ? "" : "s"} of paper
+              {copies > 1 ? ` per copy (${physicalSheets * copies} total)` : ""}
             </div>
           </div>
 
