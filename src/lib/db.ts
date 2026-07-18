@@ -921,3 +921,77 @@ export async function updateJobStatusByAgent(id: string, status: string, message
   sqlite.prepare("INSERT INTO print_events (id, job_id, event_type, message, created_at) VALUES (?, ?, ?, ?, ?)")
     .run(crypto.randomUUID(), id, status, message ?? '', now);
 }
+
+// ─── Analytics / Accounts ────────────────────────────────────────────────────
+
+import type { DailyJobSummary, AccountsSummary } from './types';
+
+export async function getDailyAnalytics(from: string, to: string): Promise<DailyJobSummary[]> {
+  if (isSupabase) {
+    const mod = await import('./db-supabase');
+    return mod.getDailyAnalytics(from, to);
+  }
+
+  // SQLite fallback
+  const sqlite = await getDbInstance();
+  const fromTs = `${from}T00:00:00.000Z`;
+  const toTs   = `${to}T23:59:59.999Z`;
+  const rows = sqlite.prepare(
+    `SELECT created_at, status, print_type, page_count, price_paise
+     FROM jobs
+     WHERE created_at >= ? AND created_at <= ?
+     ORDER BY created_at ASC`
+  ).all(fromTs, toTs) as any[];
+
+  const byDate: Record<string, DailyJobSummary> = {};
+  for (const row of rows) {
+    const date = String(row.created_at).slice(0, 10);
+    if (!byDate[date]) {
+      byDate[date] = { date, totalJobs: 0, totalRevenuePaise: 0, confirmedRevenuePaise: 0,
+        bwJobs: 0, colorJobs: 0, photoJobs: 0, pagesTotal: 0, printedJobs: 0, cancelledJobs: 0, pendingJobs: 0 };
+    }
+    const d = byDate[date];
+    const pricePaise = Number(row.price_paise) || 0;
+    const pages      = Number(row.page_count)  || 0;
+    const status     = String(row.status);
+    const printType  = String(row.print_type);
+
+    d.totalJobs++;
+    d.totalRevenuePaise += pricePaise;
+    d.pagesTotal += pages;
+    if (['paid', 'approved', 'printing', 'printed'].includes(status)) d.confirmedRevenuePaise += pricePaise;
+    if (status === 'printed')          d.printedJobs++;
+    if (status === 'cancelled')        d.cancelledJobs++;
+    if (status === 'pending_payment')  d.pendingJobs++;
+    if (printType === 'color')         d.colorJobs++;
+    else if (printType === 'photo')    d.photoJobs++;
+    else                               d.bwJobs++;
+  }
+  return Object.values(byDate).sort((a, b) => a.date.localeCompare(b.date));
+}
+
+export async function getAccountsSummary(date?: string): Promise<AccountsSummary> {
+  if (isSupabase) {
+    const mod = await import('./db-supabase');
+    return mod.getAccountsSummary(date);
+  }
+
+  const day = date ?? new Date().toISOString().slice(0, 10);
+  const rows = await getDailyAnalytics(day, day);
+  const d = rows[0];
+  if (!d) {
+    return { totalRevenuePaise: 0, confirmedRevenuePaise: 0, pendingRevenuePaise: 0,
+      totalJobs: 0, printedJobs: 0, totalPages: 0, bwJobs: 0, colorJobs: 0, photoJobs: 0 };
+  }
+  return {
+    totalRevenuePaise: d.totalRevenuePaise,
+    confirmedRevenuePaise: d.confirmedRevenuePaise,
+    pendingRevenuePaise: d.totalRevenuePaise - d.confirmedRevenuePaise,
+    totalJobs: d.totalJobs,
+    printedJobs: d.printedJobs,
+    totalPages: d.pagesTotal,
+    bwJobs: d.bwJobs,
+    colorJobs: d.colorJobs,
+    photoJobs: d.photoJobs,
+  };
+}

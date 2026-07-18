@@ -83,13 +83,19 @@ export default function UploadForm() {
   // Which bulk file the full print preview shows; row taps switch it. Clamped
   // whenever files are removed so it always points at a real file.
   const [bulkPreviewIndex, setBulkPreviewIndex] = useState(0);
+  // True while background bulk uploads are still in flight — Confirm shows an
+  // uploading state instead of failing (or waiting silently) when tapped early.
+  const [bulkUploading, setBulkUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // Separate picker for "Add more" so opening it never clobbers the main
+  // input's selection state.
+  const addMoreInputRef = useRef<HTMLInputElement>(null);
   const uploadPromiseRef = useRef<Promise<{ isDirectUpload: boolean; storedName?: string; error?: string }> | null>(null);
   const uploadAbortControllerRef = useRef<AbortController | null>(null);
   // Upload promises keyed by stable file id (all fed by a single shared
   // /api/uploads/sign call, see startBulkUploads). Keyed by id — not array
   // index — so removeBulkFile can drop one entry without any index desync.
-  const bulkUploadsRef = useRef<Map<string, Promise<{ storedName?: string; error?: string }>> | null>(null);
+  const bulkUploadsRef = useRef<Map<string, Promise<{ storedName?: string; error?: string; fallback?: boolean }>> | null>(null);
   const bulkUploadAbortControllerRef = useRef<AbortController | null>(null);
 
   const isBulk = bulkMode;
@@ -97,17 +103,19 @@ export default function UploadForm() {
   // Starts one shared sign request for the whole batch, then kicks off each
   // file's upload as its own promise, stored in a Map keyed by stable id so an
   // individual file can be removed later without disturbing the others.
-  function startBulkUploads(selected: File[], ids: string[]): Map<string, Promise<{ storedName?: string; error?: string }>> {
+  function startBulkUploads(selected: File[], ids: string[]): Map<string, Promise<{ storedName?: string; error?: string; fallback?: boolean }>> {
     if (bulkUploadAbortControllerRef.current) {
       bulkUploadAbortControllerRef.current.abort();
     }
     const controller = new AbortController();
     bulkUploadAbortControllerRef.current = controller;
 
-    const map = new Map<string, Promise<{ storedName?: string; error?: string }>>();
+    const map = new Map<string, Promise<{ storedName?: string; error?: string; fallback?: boolean }>>();
 
     if (!supabaseClient) {
-      ids.forEach((id) => map.set(id, Promise.resolve({ error: "Direct upload unavailable" })));
+      // No direct-to-storage client (NEXT_PUBLIC_* env absent — e.g. local
+      // SQLite mode). Fall back to sending the file bytes with the job form.
+      ids.forEach((id) => map.set(id, Promise.resolve({ fallback: true })));
       return map;
     }
 
@@ -323,6 +331,68 @@ export default function UploadForm() {
     return "File";
   }, [file]);
 
+  // Enters (or re-enters) bulk mode with the given PDF set: replaces any
+  // single-file state, restarts all background uploads, recomputes page counts.
+  // Used by both a fresh 2+ multi-select and the "Add more" flow.
+  async function enterBulkMode(selected: File[]) {
+    // A bulk selection replaces any single-file state entirely.
+    // Abort any single-file upload still in flight from a prior selection.
+    if (uploadAbortControllerRef.current) {
+      uploadAbortControllerRef.current.abort();
+      uploadAbortControllerRef.current = null;
+    }
+    uploadPromiseRef.current = null;
+    setFile(null);
+    setFilePageCount(null);
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+      setPreviewUrl(null);
+    }
+
+    const ids = selected.map(() => crypto.randomUUID());
+    setBulkFiles(selected);
+    setBulkIds(ids);
+    setBulkMode(true);
+    setBulkPreviewIndex(0);
+    const pageCounts = await Promise.all(selected.map((f) => estimatePdfPages(f)));
+    setBulkPageCounts(pageCounts);
+    const uploadsMap = startBulkUploads(selected, ids);
+    bulkUploadsRef.current = uploadsMap;
+    setBulkUploading(true);
+    Promise.allSettled([...uploadsMap.values()]).then(() => setBulkUploading(false));
+    setStep("settings");
+  }
+
+  // "Add more" picker: appends PDFs to the current job. From single-file mode
+  // (PDF selected) this converts the job into a bulk job; in bulk mode it
+  // grows the batch. All uploads restart so every file shares one sign call.
+  async function handleAddMoreFiles(e: React.ChangeEvent<HTMLInputElement>) {
+    const added = Array.from(e.target.files ?? []);
+    if (addMoreInputRef.current) addMoreInputRef.current.value = "";
+    if (added.length === 0) return;
+
+    const nonPdf = added.find((f) => f.type !== "application/pdf");
+    if (nonPdf) {
+      setError(`Only PDF files can be added to a batch. "${nonPdf.name}" is not a PDF.`);
+      return;
+    }
+
+    const current = isBulk ? bulkFiles : file && file.type === "application/pdf" ? [file] : [];
+    if (!isBulk && file && file.type !== "application/pdf") {
+      setError("Adding more files needs a PDF batch — images print as single jobs.");
+      return;
+    }
+
+    let combined = [...current, ...added];
+    if (combined.length > 10) {
+      setError("You can print up to 10 files in one job — only the first 10 were kept.");
+      combined = combined.slice(0, 10);
+    } else {
+      setError("");
+    }
+    await enterBulkMode(combined);
+  }
+
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const selectedFiles = Array.from(e.target.files ?? []);
 
@@ -343,29 +413,7 @@ export default function UploadForm() {
         setError("");
       }
 
-      // A fresh bulk selection replaces any single-file state entirely.
-      // Abort any single-file upload still in flight from a prior selection.
-      if (uploadAbortControllerRef.current) {
-        uploadAbortControllerRef.current.abort();
-        uploadAbortControllerRef.current = null;
-      }
-      uploadPromiseRef.current = null;
-      setFile(null);
-      setFilePageCount(null);
-      if (previewUrl) {
-        URL.revokeObjectURL(previewUrl);
-        setPreviewUrl(null);
-      }
-
-      const ids = selected.map(() => crypto.randomUUID());
-      setBulkFiles(selected);
-      setBulkIds(ids);
-      setBulkMode(true);
-      setBulkPreviewIndex(0);
-      const pageCounts = await Promise.all(selected.map((f) => estimatePdfPages(f)));
-      setBulkPageCounts(pageCounts);
-      bulkUploadsRef.current = startBulkUploads(selected, ids);
-      setStep("settings");
+      await enterBulkMode(selected);
       return;
     }
 
@@ -380,6 +428,7 @@ export default function UploadForm() {
     setBulkPageCounts([]);
     setBulkIds([]);
     setBulkMode(false);
+    setBulkUploading(false);
     bulkUploadsRef.current = null;
 
     const selectedFile = selectedFiles[0] ?? null;
@@ -447,6 +496,7 @@ export default function UploadForm() {
       }
       bulkUploadsRef.current = null;
       setBulkMode(false);
+      setBulkUploading(false);
       setError("");
       setStep("upload");
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -465,17 +515,13 @@ export default function UploadForm() {
       // Resolve each file's upload by its stable id so storedName stays zipped
       // to the correct file regardless of any prior removals.
       const uploadsMap = bulkUploadsRef.current;
-      const missing: Promise<{ storedName?: string; error?: string }> = Promise.resolve({ error: "Upload was not started for this file." });
+      const missing: Promise<{ storedName?: string; error?: string; fallback?: boolean }> = Promise.resolve({ error: "Upload was not started for this file." });
       const uploadResults = await Promise.all(
         bulkIds.map((id) => uploadsMap?.get(id) ?? missing)
       );
       const failed = uploadResults.find((r) => r.error);
       if (failed?.error) {
         throw new Error(failed.error);
-      }
-      const uploadedStoredNames = uploadResults.map((r) => r.storedName);
-      if (uploadedStoredNames.some((n) => !n)) {
-        throw new Error("Some files failed to upload. Please try again.");
       }
 
       const bulkForm = new FormData();
@@ -488,15 +534,26 @@ export default function UploadForm() {
       bulkForm.set("margins", margins);
       bulkForm.set("pagesPerSheet", String(pagesPerSheet));
       bulkForm.set("duplex", duplex);
-      bulkForm.set("filesJson", JSON.stringify(
-        bulkFiles.map((f, i) => ({
-          storedName: uploadedStoredNames[i],
-          originalName: f.name,
-          mimeType: f.type || "application/pdf",
-          sizeBytes: f.size,
-          pageCount: bulkPageCounts[i] ?? 1,
-        }))
-      ));
+
+      if (uploadResults.some((r) => r.fallback)) {
+        // Direct upload unavailable — send the PDFs themselves; the server
+        // saves them and derives page counts from the real bytes.
+        for (const f of bulkFiles) bulkForm.append("files", f);
+      } else {
+        const uploadedStoredNames = uploadResults.map((r) => r.storedName);
+        if (uploadedStoredNames.some((n) => !n)) {
+          throw new Error("Some files failed to upload. Please try again.");
+        }
+        bulkForm.set("filesJson", JSON.stringify(
+          bulkFiles.map((f, i) => ({
+            storedName: uploadedStoredNames[i],
+            originalName: f.name,
+            mimeType: f.type || "application/pdf",
+            sizeBytes: f.size,
+            pageCount: bulkPageCounts[i] ?? 1,
+          }))
+        ));
+      }
 
       const response = await fetch("/api/jobs", { method: "POST", body: bulkForm, signal: controller.signal });
       const body = await response.json().catch(() => ({}));
@@ -613,6 +670,7 @@ export default function UploadForm() {
     setBulkPageCounts([]);
     setBulkIds([]);
     setBulkMode(false);
+    setBulkUploading(false);
     setResult(null);
     setError("");
     setPayState("idle");
@@ -1038,6 +1096,35 @@ export default function UploadForm() {
             </button>
           )}
 
+          {/* Add more PDFs to this job (converts a single PDF into a batch).
+              Hidden for images/docs — bulk is PDF-only. */}
+          {(isBulk || file?.type === "application/pdf") && (
+            <>
+              <input
+                ref={addMoreInputRef}
+                type="file"
+                id="add-more-input"
+                multiple
+                accept=".pdf,application/pdf"
+                onChange={handleAddMoreFiles}
+                style={{ display: "none" }}
+              />
+              <button
+                type="button"
+                className="add-more-btn"
+                onClick={() => addMoreInputRef.current?.click()}
+                disabled={isBulk && bulkFiles.length >= 10}
+                title={isBulk && bulkFiles.length >= 10 ? "Maximum 10 files per job" : undefined}
+              >
+                <UploadCloud size={16} aria-hidden="true" />
+                Add more PDFs
+                <span className="add-more-hint">
+                  {isBulk ? `${bulkFiles.length}/10 files` : "print several in one job"}
+                </span>
+              </button>
+            </>
+          )}
+
           {/* Print type toggle */}
           <div className="print-type-toggle">
             <button
@@ -1260,7 +1347,7 @@ export default function UploadForm() {
           <div className="price-box">
             <div className="price-header">
               <span className="price-label">Estimated Price</span>
-              <span className="price-value">₹{estimate.toFixed(2)}</span>
+              <span className="price-value">{pricing ? `₹${estimate.toFixed(2)}` : "…"}</span>
             </div>
             <div className="price-breakdown">
               <span className="breakdown-item">{isBulk ? `${bulkFiles.length} files, ${bulkTotalPages} pages` : pageInfo}</span>
@@ -1307,6 +1394,18 @@ export default function UploadForm() {
       {step === "preview" && (
         <div className="step-content fade-in">
           <h3 className="preview-title">Review Your Print Job</h3>
+
+          {/* Print simulation chips — mirror what will physically come out */}
+          <div className="print-sim-chips" aria-label="Print output summary">
+            <span className={`sim-chip ${printType === "bw" ? "sim-chip-bw" : "sim-chip-color"}`}>
+              {printType === "bw" ? "B&W preview" : "Color"}
+            </span>
+            <span className="sim-chip">{duplex === "simplex" ? "Single-sided" : "Double-sided"}</span>
+            {pagesPerSheet > 1 && <span className="sim-chip">{pagesPerSheet} pages/sheet</span>}
+            <span className="sim-chip sim-chip-sheets">
+              {physicalSheets} sheet{physicalSheets === 1 ? "" : "s"} of paper{copies > 1 ? ` × ${copies} copies` : ""}
+            </span>
+          </div>
 
           {/* Preview area — grayscale simulation when printing B&W */}
           <div className={`preview-area ${printType === "bw" ? "bw-sim" : ""}`}>
@@ -1403,8 +1502,16 @@ export default function UploadForm() {
           {/* Total price */}
           <div className="total-price">
             <span>Total</span>
-            <strong>₹{estimate.toFixed(2)}</strong>
+            <strong>{pricing ? `₹${estimate.toFixed(2)}` : "…"}</strong>
           </div>
+
+          {/* Submit errors must be visible HERE — Confirm lives on this step,
+              and the settings-step error block is not rendered here. */}
+          {error && (
+            <div className="error-msg" role="alert">
+              {error}
+            </div>
+          )}
 
           {/* Actions */}
           <div className="form-actions">
@@ -1420,11 +1527,13 @@ export default function UploadForm() {
               type="button"
               className="btn-primary btn-submit"
               onClick={handleSubmit}
-              disabled={busy}
-              aria-busy={busy}
+              disabled={busy || (isBulk && bulkUploading)}
+              aria-busy={busy || (isBulk && bulkUploading)}
             >
               {busy ? (
                 <><Loader2 size={20} className="spin" aria-hidden="true" /> Processing...</>
+              ) : isBulk && bulkUploading ? (
+                <><Loader2 size={20} className="spin" aria-hidden="true" /> Uploading files...</>
               ) : (
                 <><Check size={20} aria-hidden="true" /> Confirm Print</>
               )}

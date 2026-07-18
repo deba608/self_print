@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getJobById, getJobEvents, updateJobSettings, deleteJob, getPricing } from "@/lib/db";
+import { getJobById, getJobEvents, getJobFilesByJob, updateJobSettings, deleteJob, getPricing } from "@/lib/db";
 import { calculatePrice, selectedPageCount } from "@/lib/pricing";
 import { requireAdminResponse } from "@/lib/security";
 import type { JobStatus, PaperSize, PrintDuplex, PrintLayout, PrintMargins, PrintScale, PrintType } from "@/lib/types";
@@ -12,7 +12,6 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
   
   try {
     const job = await getJobById(id);
-    const { getJobFilesByJob } = await import("@/lib/db");
     const files = await getJobFilesByJob(id);
     const file = files[0] ?? null;
     const events = await getJobEvents(id);
@@ -113,7 +112,6 @@ export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id:
   }
 
   try {
-    const { getJobFilesByJob } = await import("@/lib/db");
     const files = await getJobFilesByJob(id);
     for (const f of files) {
       if (f.storagePath) await deleteFile(f.storagePath).catch(() => undefined);

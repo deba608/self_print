@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { MAX_UPLOAD_BYTES } from "@/lib/config";
-import { parseBulkFiles, sumPages } from "@/lib/bulk";
+import { MAX_BULK_FILES, parseBulkFiles, sumPages } from "@/lib/bulk";
 import { createJob, createJobWithFiles, getPricing, nextQueuePosition, sseClients } from "@/lib/db";
 import { estimatePageCount, saveUpload, validateUpload } from "@/lib/files";
 import { bucketPathFor } from "@/lib/storage";
@@ -189,19 +189,83 @@ async function handleBulk(form: FormData): Promise<NextResponse> {
     return NextResponse.json({ error: "Invalid print settings" }, { status: 400 });
   }
 
-  let rawFiles: unknown;
-  try {
-    rawFiles = JSON.parse(String(form.get("filesJson") ?? "[]"));
-  } catch {
-    return NextResponse.json({ error: "Invalid file list." }, { status: 400 });
-  }
-  const parsed = parseBulkFiles(rawFiles);
-  if ("error" in parsed) {
-    return NextResponse.json({ error: parsed.error }, { status: 400 });
-  }
-  const files = parsed.files;
+  // Two upload sources: direct-to-storage (filesJson metadata) when the browser
+  // could upload straight to Supabase, or a multipart fallback carrying the
+  // actual file bytes (local/offline mode without NEXT_PUBLIC_* client env).
+  let filesData: Array<{
+    original_name: string;
+    stored_name: string;
+    mime_type: string;
+    size_bytes: number;
+    file_kind: string;
+    storage_path: string;
+  }>;
+  let pageCount: number;
 
-  const pageCount = sumPages(files);
+  const filesJsonRaw = form.get("filesJson");
+  if (filesJsonRaw !== null) {
+    let rawFiles: unknown;
+    try {
+      rawFiles = JSON.parse(String(filesJsonRaw));
+    } catch {
+      return NextResponse.json({ error: "Invalid file list." }, { status: 400 });
+    }
+    const parsed = parseBulkFiles(rawFiles);
+    if ("error" in parsed) {
+      return NextResponse.json({ error: parsed.error }, { status: 400 });
+    }
+    const files = parsed.files;
+    pageCount = sumPages(files);
+    filesData = files.map((f) => ({
+      original_name: f.originalName,
+      stored_name: f.storedName,
+      mime_type: f.mimeType || "application/pdf",
+      size_bytes: f.sizeBytes,
+      file_kind: "pdf",
+      storage_path: bucketPathFor("pdf", f.storedName),
+    }));
+  } else {
+    // Multipart fallback: the browser sent the PDFs themselves. Save each via
+    // the same path the single-file flow uses; page counts are derived from
+    // the real bytes here, so this branch is server-authoritative.
+    const uploads = form.getAll("files").filter((f): f is File => f instanceof File);
+    if (uploads.length === 0) {
+      return NextResponse.json({ error: "Select at least one PDF." }, { status: 400 });
+    }
+    if (uploads.length > MAX_BULK_FILES) {
+      return NextResponse.json({ error: `You can upload at most ${MAX_BULK_FILES} files at once.` }, { status: 400 });
+    }
+
+    filesData = [];
+    pageCount = 0;
+    for (const upload of uploads) {
+      if (upload.size > MAX_UPLOAD_BYTES) {
+        return NextResponse.json({ error: `"${upload.name}" is too large` }, { status: 400 });
+      }
+      let ext: string, kind: string;
+      try {
+        ({ ext, kind } = validateUpload(upload.name, upload.type));
+      } catch (error) {
+        return NextResponse.json(
+          { error: error instanceof Error ? error.message : "Invalid file type" },
+          { status: 400 }
+        );
+      }
+      if (kind !== "pdf") {
+        return NextResponse.json({ error: "Bulk upload accepts PDF files only." }, { status: 400 });
+      }
+      const saved = await saveUpload(upload, ext, "pdf");
+      pageCount += Math.max(1, estimatePageCount("pdf", saved.bytes));
+      filesData.push({
+        original_name: upload.name,
+        stored_name: saved.storedName,
+        mime_type: upload.type || "application/pdf",
+        size_bytes: saved.sizeBytes,
+        file_kind: "pdf",
+        storage_path: saved.storagePath,
+      });
+    }
+  }
   const pricing = await getPricing();
   // Bulk has no page range; duplex needs 2+ pages across the whole batch.
   if (duplex !== "simplex" && pageCount < 2) {
@@ -227,15 +291,6 @@ async function handleBulk(form: FormData): Promise<NextResponse> {
     needs_conversion: 0,
     queue_position: queuePos,
   };
-
-  const filesData = files.map((f) => ({
-    original_name: f.originalName,
-    stored_name: f.storedName,
-    mime_type: f.mimeType || "application/pdf",
-    size_bytes: f.sizeBytes,
-    file_kind: "pdf",
-    storage_path: bucketPathFor("pdf", f.storedName),
-  }));
 
   const { jobId } = await createJobWithFiles(jobData, filesData);
   broadcast({ type: "new_job", jobId, token, queuePosition: queuePos });
