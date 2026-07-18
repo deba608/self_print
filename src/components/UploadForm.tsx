@@ -565,6 +565,15 @@ export default function UploadForm() {
       if (uploadResults.some((r) => r.fallback)) {
         // Direct upload unavailable — send the PDFs themselves; the server
         // saves them and derives page counts from the real bytes.
+        // Serverless platforms (Vercel) cap request bodies at ~4.5MB, so a
+        // batch above that can never arrive — fail fast with a clear message
+        // instead of a cryptic network error.
+        const totalBytes = bulkFiles.reduce((s, f) => s + f.size, 0);
+        if (totalBytes > 4 * 1024 * 1024) {
+          throw new Error(
+            `Files total ${(totalBytes / (1024 * 1024)).toFixed(1)} MB — too large to upload together right now (4 MB limit). Remove some files, or upload them one at a time.`
+          );
+        }
         for (const f of bulkFiles) bulkForm.append("files", f);
       } else {
         const uploadedStoredNames = uploadResults.map((r) => r.storedName);
