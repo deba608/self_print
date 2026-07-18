@@ -1005,6 +1005,12 @@ input, select, button {
   border: 1px solid var(--line);
 }
 
+/* The rendered sheet reads as a physical piece of paper. */
+.pdfjs-canvas {
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.14);
+  border-radius: 2px;
+}
+
 /* Print simulation — make the preview match what actually comes out of the
    printer. B&W jobs get a grayscale filter on the rendered page/image. */
 .bw-sim .pdfjs-canvas,
@@ -4680,7 +4686,9 @@ input[type="number"] {
 
   .step-line {
     width: 40px;
-    margin: 0 8px;
+    /* Keep the connector centered on the 32px step circles (15px = circle
+       center minus half the 2px line) — a 0 top-margin floats it to the top. */
+    margin: 15px 8px 0;
   }
 
   .preview-area {

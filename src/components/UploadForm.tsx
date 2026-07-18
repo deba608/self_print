@@ -432,6 +432,9 @@ export default function UploadForm() {
     bulkUploadsRef.current = null;
 
     const selectedFile = selectedFiles[0] ?? null;
+    // A fresh valid selection clears any stale error (e.g. a rejected bulk
+    // attempt's "PDF only" message must not stick to the next file).
+    if (selectedFile) setError("");
 
     if (selectedFile) {
       const name = selectedFile.name.toLowerCase();
@@ -1439,12 +1442,17 @@ export default function UploadForm() {
                     key={bulkIds[bulkPreviewIndex] ?? bulkPreviewIndex}
                     file={bulkFiles[bulkPreviewIndex]}
                     fallbackPageCount={bulkPageCounts[bulkPreviewIndex] ?? 1}
+                    sim={{ pagesPerSheet, layout, paperSize, margins }}
                   />
                 )}
               </>
             )}
             {file && file.type === "application/pdf" && (
-              <PdfCanvasPreview file={file} fallbackPageCount={filePageCount ?? 1} />
+              <PdfCanvasPreview
+                file={file}
+                fallbackPageCount={filePageCount ?? 1}
+                sim={{ pagesPerSheet, layout, paperSize, margins }}
+              />
             )}
             {file && file.type.startsWith("image/") && previewUrl && (
               <img src={previewUrl} alt="Image Preview" className="preview-image" />
@@ -1552,7 +1560,24 @@ export default function UploadForm() {
   );
 }
 
-function PdfCanvasPreview({ file, fallbackPageCount }: { file: File; fallbackPageCount: number }) {
+// Paper dimensions in mm, portrait width × height. Landscape swaps them.
+const PAPER_MM: Record<string, [number, number]> = {
+  A3: [297, 420], A4: [210, 297], A5: [148, 210], A6: [105, 148],
+  B5: [176, 250], Letter: [216, 279], Legal: [216, 356], Photo: [102, 152],
+};
+
+// What the print helper does with margins, mirrored for the preview:
+// default ≈ driver margins, minimum = 0.25in, none = 0.
+const MARGIN_FRACTION: Record<string, number> = { default: 0.05, minimum: 0.02, none: 0 };
+
+type PreviewSim = {
+  pagesPerSheet: number;
+  layout: string;      // portrait | landscape
+  paperSize: string;   // A3..Photo
+  margins: string;     // default | minimum | none
+};
+
+function PdfCanvasPreview({ file, fallbackPageCount, sim }: { file: File; fallbackPageCount: number; sim?: PreviewSim }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const renderTaskRef = useRef<{ cancel: () => void } | null>(null);
@@ -1611,42 +1636,89 @@ function PdfCanvasPreview({ file, fallbackPageCount }: { file: File; fallbackPag
     };
   }, [file]);
 
+  // Pages-per-sheet grid: same layout math as agent/print-image.ps1 — cols is
+  // the ceiling square root, pages fill row-major, each page fits its cell.
+  const pps = Math.max(1, sim?.pagesPerSheet ?? 1);
+  const sheetCount = Math.max(1, Math.ceil(pageCount / pps));
+
   useEffect(() => {
     let disposed = false;
 
-    async function renderPage() {
+    async function renderSheet() {
       if (!pdfRef.current || !canvasRef.current) return;
       setLoading(true);
       try {
         renderTaskRef.current?.cancel();
-        const page = await pdfRef.current.getPage(pageNumber);
-        if (disposed || !canvasRef.current) return;
-
-        const baseViewport = page.getViewport({ scale: 1 });
-        const containerWidth = Math.max((containerRef.current?.clientWidth ?? 320) - 24, 240);
-        const containerHeight = Math.max((containerRef.current?.clientHeight ?? 400) - 24, 300);
-
-        let fitScale: number;
-        if (fitMode === "width") {
-          fitScale = containerWidth / baseViewport.width;
-        } else {
-          fitScale = Math.min(containerWidth / baseViewport.width, containerHeight / baseViewport.height);
-        }
-        const viewport = page.getViewport({ scale: Math.max(0.4, fitScale) });
         const canvas = canvasRef.current;
         const context = canvas.getContext("2d");
         if (!context) return;
 
+        const containerWidth = Math.max((containerRef.current?.clientWidth ?? 320) - 24, 240);
+        const containerHeight = Math.max((containerRef.current?.clientHeight ?? 400) - 24, 300);
+
+        // Sheet aspect from paper size + orientation. Without sim, fall back
+        // to the first page's own aspect (plain document view).
+        let [mmW, mmH] = PAPER_MM[sim?.paperSize ?? "A4"] ?? PAPER_MM.A4;
+        if (sim?.layout === "landscape") [mmW, mmH] = [mmH, mmW];
+
+        let sheetW = containerWidth;
+        let sheetH = (sheetW * mmH) / mmW;
+        if (fitMode === "page" && sheetH > containerHeight) {
+          sheetH = containerHeight;
+          sheetW = (sheetH * mmW) / mmH;
+        }
+
         const pixelRatio = window.devicePixelRatio || 1;
-        canvas.width = Math.floor(viewport.width * pixelRatio);
-        canvas.height = Math.floor(viewport.height * pixelRatio);
-        canvas.style.width = `${Math.floor(viewport.width)}px`;
-        canvas.style.height = `${Math.floor(viewport.height)}px`;
+        canvas.width = Math.floor(sheetW * pixelRatio);
+        canvas.height = Math.floor(sheetH * pixelRatio);
+        canvas.style.width = `${Math.floor(sheetW)}px`;
+        canvas.style.height = `${Math.floor(sheetH)}px`;
         context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
 
-        const renderTask = page.render({ canvasContext: context, viewport });
-        renderTaskRef.current = renderTask;
-        await renderTask.promise;
+        // White sheet of paper.
+        context.fillStyle = "#ffffff";
+        context.fillRect(0, 0, sheetW, sheetH);
+
+        const marginPx = sheetW * (MARGIN_FRACTION[sim?.margins ?? "default"] ?? 0.05);
+        const areaX = marginPx, areaY = marginPx;
+        const areaW = sheetW - 2 * marginPx, areaH = sheetH - 2 * marginPx;
+
+        const cols = Math.ceil(Math.sqrt(pps));
+        const rows = Math.ceil(pps / cols);
+        const cellW = areaW / cols, cellH = areaH / rows;
+
+        const firstPage = (pageNumber - 1) * pps + 1;
+        for (let n = 0; n < pps; n++) {
+          const pageIdx = firstPage + n;
+          if (pageIdx > pageCount) break;
+          const page = await pdfRef.current.getPage(pageIdx);
+          if (disposed) return;
+
+          const vp1 = page.getViewport({ scale: 1 });
+          const fit = Math.min(cellW / vp1.width, cellH / vp1.height);
+          const vp = page.getViewport({ scale: Math.max(0.1, fit) * pixelRatio });
+
+          const off = document.createElement("canvas");
+          off.width = Math.max(1, Math.floor(vp.width));
+          off.height = Math.max(1, Math.floor(vp.height));
+          const offCtx = off.getContext("2d");
+          if (!offCtx) continue;
+          const renderTask = page.render({ canvasContext: offCtx, viewport: vp });
+          renderTaskRef.current = renderTask;
+          await renderTask.promise;
+          if (disposed) return;
+
+          const drawW = vp.width / pixelRatio, drawH = vp.height / pixelRatio;
+          const col = n % cols, row = Math.floor(n / cols);
+          const x = areaX + col * cellW + (cellW - drawW) / 2;
+          const y = areaY + row * cellH + (cellH - drawH) / 2;
+          context.drawImage(off, x, y, drawW, drawH);
+          // Faint page outline so multiple pages per sheet read clearly.
+          if (pps > 1) {
+            context.strokeStyle = "rgba(0,0,0,0.12)";
+            context.strokeRect(x, y, drawW, drawH);
+          }
+        }
       } catch (err) {
         if (!disposed && !(err instanceof Error && err.name === "RenderingCancelledException")) {
           setError("Unable to render this PDF page.");
@@ -1656,17 +1728,22 @@ function PdfCanvasPreview({ file, fallbackPageCount }: { file: File; fallbackPag
       }
     }
 
-    renderPage();
+    renderSheet();
 
     return () => {
       disposed = true;
       renderTaskRef.current?.cancel();
     };
-  }, [pageNumber, pdfVersion, fitMode]);
+  }, [pageNumber, pdfVersion, fitMode, pps, sim?.layout, sim?.paperSize, sim?.margins, pageCount]);
+
+  // Keep the sheet cursor valid when pages-per-sheet (and thus sheet count) changes.
+  useEffect(() => {
+    if (pageNumber > sheetCount) setPageNumber(sheetCount);
+  }, [sheetCount, pageNumber]);
 
   function handlePageJump() {
     const num = parseInt(pageInput, 10);
-    if (Number.isFinite(num) && num >= 1 && num <= pageCount) {
+    if (Number.isFinite(num) && num >= 1 && num <= sheetCount) {
       setPageNumber(num);
       setPageInput("");
     }
@@ -1695,23 +1772,23 @@ function PdfCanvasPreview({ file, fallbackPageCount }: { file: File; fallbackPag
             <ArrowLeft size={18} />
           </button>
           <div className="pdfjs-page-jump">
-            <span className="pdfjs-page-label">Page</span>
+            <span className="pdfjs-page-label">{pps > 1 ? "Sheet" : "Page"}</span>
             <input
               type="number"
               min="1"
-              max={pageCount}
+              max={sheetCount}
               value={pageInput}
               onChange={(e) => setPageInput(e.target.value.replace(/[^0-9]/g, ""))}
               onKeyDown={handlePageInputKey}
               onBlur={handlePageJump}
               placeholder={String(pageNumber)}
-              aria-label="Jump to page"
+              aria-label={pps > 1 ? "Jump to sheet" : "Jump to page"}
               className="pdfjs-page-input"
             />
             <span className="pdfjs-page-of">of</span>
-            <span className="pdfjs-page-total">{pageCount}</span>
+            <span className="pdfjs-page-total">{sheetCount}</span>
           </div>
-          <button type="button" onClick={() => setPageNumber((page) => Math.min(pageCount, page + 1))} disabled={pageNumber >= pageCount} aria-label="Next PDF page" className="pdfjs-nav-btn">
+          <button type="button" onClick={() => setPageNumber((page) => Math.min(sheetCount, page + 1))} disabled={pageNumber >= sheetCount} aria-label="Next PDF page" className="pdfjs-nav-btn">
             <ArrowRight size={18} />
           </button>
         </div>
