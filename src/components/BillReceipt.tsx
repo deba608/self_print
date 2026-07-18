@@ -100,7 +100,7 @@ export default function BillReceipt({ bill }: { bill: BillData }) {
         <p className="bill-thanks">Thank you for printing with us!</p>
       </div>
 
-      <button type="button" className="btn-secondary bill-save-btn" onClick={saveAsImage} disabled={saving}>
+      <button type="button" className="btn-secondary bill-save-btn" style={{ marginTop: "1.25rem" }} onClick={saveAsImage} disabled={saving}>
         {saving ? <Loader2 size={18} className="spin" aria-hidden="true" /> : <Download size={18} aria-hidden="true" />}
         Save bill as image
       </button>
