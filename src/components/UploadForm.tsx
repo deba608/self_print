@@ -80,6 +80,9 @@ export default function UploadForm() {
   // the user removes files down to 1 via the ✕ button. Cleared only on reset
   // or an explicit fresh single-file selection — never derived from length.
   const [bulkMode, setBulkMode] = useState(false);
+  // Which bulk file the full print preview shows; row taps switch it. Clamped
+  // whenever files are removed so it always points at a real file.
+  const [bulkPreviewIndex, setBulkPreviewIndex] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const uploadPromiseRef = useRef<Promise<{ isDirectUpload: boolean; storedName?: string; error?: string }> | null>(null);
   const uploadAbortControllerRef = useRef<AbortController | null>(null);
@@ -358,6 +361,7 @@ export default function UploadForm() {
       setBulkFiles(selected);
       setBulkIds(ids);
       setBulkMode(true);
+      setBulkPreviewIndex(0);
       const pageCounts = await Promise.all(selected.map((f) => estimatePdfPages(f)));
       setBulkPageCounts(pageCounts);
       bulkUploadsRef.current = startBulkUploads(selected, ids);
@@ -429,6 +433,8 @@ export default function UploadForm() {
     setBulkFiles((prev) => prev.filter((_, idx) => idx !== i));
     setBulkPageCounts((prev) => prev.filter((_, idx) => idx !== i));
     setBulkIds((prev) => prev.filter((_, idx) => idx !== i));
+    // Keep the full-preview selection pointing at a real file after removal.
+    setBulkPreviewIndex((prev) => Math.min(prev > i ? prev - 1 : prev, Math.max(0, bulkFiles.length - 2)));
 
     // Removing the last file empties the batch — there is nothing to configure
     // or submit, so return to the Upload step and drop bulk mode entirely. When
@@ -1302,34 +1308,41 @@ export default function UploadForm() {
         <div className="step-content fade-in">
           <h3 className="preview-title">Review Your Print Job</h3>
 
-          {/* Print simulation chips — mirror what will physically come out */}
-          <div className="print-sim-chips" aria-label="Print output summary">
-            <span className={`sim-chip ${printType === "bw" ? "sim-chip-bw" : "sim-chip-color"}`}>
-              {printType === "bw" ? "B&W preview" : "Color"}
-            </span>
-            <span className="sim-chip">{duplex === "simplex" ? "Single-sided" : "Double-sided"}</span>
-            {pagesPerSheet > 1 && <span className="sim-chip">{pagesPerSheet} pages/sheet</span>}
-            <span className="sim-chip sim-chip-sheets">
-              {physicalSheets} sheet{physicalSheets === 1 ? "" : "s"} of paper{copies > 1 ? ` × ${copies} copies` : ""}
-            </span>
-          </div>
-
           {/* Preview area — grayscale simulation when printing B&W */}
           <div className={`preview-area ${printType === "bw" ? "bw-sim" : ""}`}>
             {isBulk && (
-              <div className="bulk-file-list">
-                {bulkFiles.map((f, i) => (
-                  <div className="bulk-file-row" key={i}>
-                    <BulkThumb file={f} grayscale={printType === "bw"} />
-                    <span className="bulk-file-name">{f.name}</span>
-                    <span className="bulk-file-pages">{bulkPageCounts[i] ?? 1} pg</span>
-                    <button type="button" className="bulk-file-remove" aria-label={`Remove ${f.name}`}
-                      onClick={() => removeBulkFile(i)}>
-                      <X size={16} />
-                    </button>
-                  </div>
-                ))}
-              </div>
+              <>
+                <div className="bulk-file-list">
+                  {bulkFiles.map((f, i) => (
+                    <div
+                      className={`bulk-file-row ${i === bulkPreviewIndex ? "active" : ""}`}
+                      key={i}
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`Preview ${f.name}`}
+                      aria-pressed={i === bulkPreviewIndex}
+                      onClick={() => setBulkPreviewIndex(i)}
+                      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setBulkPreviewIndex(i); } }}
+                    >
+                      <BulkThumb file={f} grayscale={printType === "bw"} />
+                      <span className="bulk-file-name">{f.name}</span>
+                      <span className="bulk-file-pages">{bulkPageCounts[i] ?? 1} pg</span>
+                      <button type="button" className="bulk-file-remove" aria-label={`Remove ${f.name}`}
+                        onClick={(e) => { e.stopPropagation(); removeBulkFile(i); }}>
+                        <X size={16} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                {/* Full print preview of the tapped file — same viewer as single mode */}
+                {bulkFiles[bulkPreviewIndex] && (
+                  <PdfCanvasPreview
+                    key={bulkIds[bulkPreviewIndex] ?? bulkPreviewIndex}
+                    file={bulkFiles[bulkPreviewIndex]}
+                    fallbackPageCount={bulkPageCounts[bulkPreviewIndex] ?? 1}
+                  />
+                )}
+              </>
             )}
             {file && file.type === "application/pdf" && (
               <PdfCanvasPreview file={file} fallbackPageCount={filePageCount ?? 1} />

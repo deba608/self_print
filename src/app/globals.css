@@ -281,6 +281,13 @@ input, select, button {
   border: 1px solid var(--line);
   border-radius: 10px;
   color: var(--accent);
+  cursor: pointer;
+}
+
+.bulk-file-row.active {
+  border-color: var(--accent);
+  background: var(--accent-light);
+  box-shadow: 0 0 0 1px var(--accent);
 }
 
 .bulk-file-name {
