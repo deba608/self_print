@@ -30,6 +30,7 @@ type Detail = {
     createdAt: string;
   };
   file: { id: string; originalName: string; mimeType: string; fileKind: string; sizeBytes: number } | null;
+  files: Array<{ id: string; originalName: string; mimeType: string; fileKind: string; sizeBytes: number }>;
   events: Array<{ id: string; event_type: string; message: string; created_at: string }>;
 };
 
@@ -165,8 +166,8 @@ export default function JobDetail({ id }: { id: string }) {
     );
   }
 
-  const { job, file } = detail;
-  const previewUrl = file ? `/api/uploads/${file.id}` : "";
+  const { job } = detail;
+  const files = detail.files ?? (detail.file ? [detail.file] : []);
   const settingsLocked = job.status === "approved" || job.status === "printing";
   const badge = statusBadge(job.status);
 
@@ -219,13 +220,13 @@ export default function JobDetail({ id }: { id: string }) {
 
       <div className="job-detail-grid">
         <section className={`detail-pane detail-pane-details ${activeTab === "details" ? "active" : ""}`}>
-          <FileCard file={file} />
-          <SummaryCard job={job} />
+          <FileCard files={files} />
+          <SummaryCard job={job} files={files} />
           <ActionsCard job={job} setStatus={setStatus} reprint={reprint} />
         </section>
 
         <section className={`detail-pane detail-pane-preview ${activeTab === "preview" ? "active" : ""}`}>
-          <PreviewCard file={file} previewUrl={previewUrl} />
+          <PreviewCard files={files} />
         </section>
 
         <section className={`detail-pane detail-pane-settings ${activeTab === "settings" ? "active" : ""}`}>
@@ -247,31 +248,54 @@ export default function JobDetail({ id }: { id: string }) {
   );
 }
 
-function FileCard({ file }: { file: Detail["file"] }) {
-  if (!file) return null;
+function FileCard({ files }: { files: Detail["files"] }) {
+  if (files.length === 0) return null;
+  if (files.length === 1) {
+    const file = files[0];
+    return (
+      <div className="detail-card">
+        <h3 className="card-title">
+          {file.fileKind === "image" ? <Image size={16} /> : <FileText size={16} />}
+          File
+        </h3>
+        <div className="file-info-row">
+          <span className="file-name-display">{file.originalName}</span>
+        </div>
+        <div className="file-meta">
+          <span>{(file.sizeBytes / 1024).toFixed(1)} KB</span>
+          <span className="dot">·</span>
+          <span>{file.fileKind.toUpperCase()}</span>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="detail-card">
       <h3 className="card-title">
-        {file.fileKind === "image" ? <Image size={16} /> : <FileText size={16} />}
-        File
+        <FileText size={16} />
+        Files ({files.length})
       </h3>
-      <div className="file-info-row">
-        <span className="file-name-display">{file.originalName}</span>
-      </div>
-      <div className="file-meta">
-        <span>{(file.sizeBytes / 1024).toFixed(1)} KB</span>
-        <span className="dot">·</span>
-        <span>{file.fileKind.toUpperCase()}</span>
+      <div className="file-list">
+        {files.map((file) => (
+          <div className="file-info-row" key={file.id}>
+            <span className="file-name-display">{file.originalName}</span>
+            <div className="file-meta">
+              <span>{(file.sizeBytes / 1024).toFixed(1)} KB</span>
+              <span className="dot">·</span>
+              <span>{file.fileKind.toUpperCase()}</span>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );
 }
 
-function SummaryCard({ job }: { job: Detail["job"] }) {
+function SummaryCard({ job, files }: { job: Detail["job"]; files: Detail["files"] }) {
   const rows = [
     ["Type", job.printType === "bw" ? "Black & White" : "Color"],
     ["Copies", String(job.copies)],
-    ["Pages", job.pageRange || "All"],
+    ["Pages", files.length > 1 ? `${job.pageCount} pages, ${files.length} files` : (job.pageRange || "All")],
     ["Paper", paperSizeLabels[job.paperSize as keyof typeof paperSizeLabels] || job.paperSize],
     ["Layout", titleCase(job.layout)],
     ["Scale", scaleLabel(job.scale)],
@@ -359,14 +383,34 @@ function ActionsCard({
   );
 }
 
-function PreviewCard({ file, previewUrl }: { file: Detail["file"]; previewUrl: string }) {
-  if (!file) return null;
+function PreviewCard({ files }: { files: Detail["files"] }) {
+  const [selectedFileId, setSelectedFileId] = useState<string | undefined>(files[0]?.id);
+
+  if (files.length === 0) return null;
+  const file = files.find((f) => f.id === selectedFileId) ?? files[0];
+  const previewUrl = `/api/uploads/${file.id}`;
+
   return (
     <div className="detail-card">
       <h3 className="card-title">
         {file.fileKind === "pdf" ? <FileText size={16} /> : <Image size={16} />}
         Preview
       </h3>
+      {files.length > 1 && (
+        <div className="preview-file-switcher">
+          {files.map((f, i) => (
+            <button
+              type="button"
+              key={f.id}
+              className={`preview-file-btn ${f.id === file.id ? "active" : ""}`}
+              onClick={() => setSelectedFileId(f.id)}
+              title={f.originalName}
+            >
+              {i + 1}
+            </button>
+          ))}
+        </div>
+      )}
       <div className="admin-preview-area">
         {file.fileKind === "pdf" ? (
           <iframe src={previewUrl} className="preview-iframe" title="File Preview" />

@@ -117,6 +117,7 @@ export async function getJobsPage(limit: number, cursor?: string | null): Promis
     if (row.job_files && Array.isArray(row.job_files) && row.job_files.length > 0) {
       job.file = mapJobFile(row.job_files[0]);
     }
+    job.fileCount = Array.isArray(row.job_files) ? row.job_files.length : (job.file ? 1 : 0);
     return job;
   });
 

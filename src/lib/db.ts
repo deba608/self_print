@@ -295,26 +295,30 @@ export async function getJobsPage(limit: number, cursor?: string | null): Promis
   let rows;
   if (cursor) {
     stmt = sqlite.prepare(`
-      SELECT jobs.*, 
+      SELECT jobs.*,
         job_files.id AS f_id, job_files.original_name AS f_original_name,
         job_files.stored_name AS f_stored_name, job_files.mime_type AS f_mime_type,
         job_files.size_bytes AS f_size_bytes, job_files.file_kind AS f_file_kind,
-        job_files.storage_path AS f_storage_path, job_files.created_at AS f_created_at
-      FROM jobs 
-      LEFT JOIN job_files ON jobs.id = job_files.job_id 
-      WHERE jobs.created_at < ? 
+        job_files.storage_path AS f_storage_path, job_files.created_at AS f_created_at,
+        (SELECT COUNT(*) FROM job_files jf WHERE jf.job_id = jobs.id) AS f_count
+      FROM jobs
+      LEFT JOIN job_files ON jobs.id = job_files.job_id
+      WHERE jobs.created_at < ?
+      GROUP BY jobs.id
       ORDER BY jobs.created_at DESC LIMIT ?
     `);
     rows = stmt.all(cursor, limit) as any[];
   } else {
     stmt = sqlite.prepare(`
-      SELECT jobs.*, 
+      SELECT jobs.*,
         job_files.id AS f_id, job_files.original_name AS f_original_name,
         job_files.stored_name AS f_stored_name, job_files.mime_type AS f_mime_type,
         job_files.size_bytes AS f_size_bytes, job_files.file_kind AS f_file_kind,
-        job_files.storage_path AS f_storage_path, job_files.created_at AS f_created_at
-      FROM jobs 
-      LEFT JOIN job_files ON jobs.id = job_files.job_id 
+        job_files.storage_path AS f_storage_path, job_files.created_at AS f_created_at,
+        (SELECT COUNT(*) FROM job_files jf WHERE jf.job_id = jobs.id) AS f_count
+      FROM jobs
+      LEFT JOIN job_files ON jobs.id = job_files.job_id
+      GROUP BY jobs.id
       ORDER BY jobs.created_at DESC LIMIT ?
     `);
     rows = stmt.all(limit) as any[];
@@ -336,6 +340,7 @@ export async function getJobsPage(limit: number, cursor?: string | null): Promis
         createdAt: String(row.f_created_at)
       };
     }
+    job.fileCount = Number(row.f_count ?? (row.f_id ? 1 : 0));
     return job;
   });
 

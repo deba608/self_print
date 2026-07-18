@@ -197,6 +197,34 @@ input, select, button {
   color: var(--muted);
 }
 
+/* Upload mode hints — informational only; actual mode is auto-detected by how
+   many files the user selects (1 = single, 2-10 PDFs = bulk). */
+.upload-modes {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.mode-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--bg-card, #fff);
+  border: 1px solid var(--border-color, #e2e8e6);
+  color: var(--muted);
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.mode-badge svg {
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
 /* Supported Formats */
 .supported-formats {
   display: flex;
@@ -4206,6 +4234,22 @@ input[type="number"] {
   font-weight: 700;
 }
 
+.file-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.file-list .file-info-row {
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.file-list .file-info-row:last-child {
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
 .summary-list {
   display: grid;
   gap: 2px;
@@ -4256,6 +4300,32 @@ input[type="number"] {
 
 .job-btn.cancel-text:hover {
   background: var(--danger);
+  color: #fff;
+}
+
+.preview-file-switcher {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.preview-file-btn {
+  min-width: 28px;
+  height: 28px;
+  padding: 0 8px;
+  border-radius: 999px;
+  border: 1.5px solid var(--line);
+  background: var(--panel);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.preview-file-btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
   color: #fff;
 }
 
