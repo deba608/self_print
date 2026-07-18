@@ -344,7 +344,7 @@ function ActionsCard({
       <div className="detail-action-grid">
         {job.status === "pending_payment" && (
           <button type="button" className="job-btn paid" onClick={() => setStatus("paid")}>
-            <CreditCard size={16} /> Mark Paid
+            <CreditCard size={16} /> Mark as Paid
           </button>
         )}
         {job.status === "paid" && (
