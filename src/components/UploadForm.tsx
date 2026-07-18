@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, useRef } from "react";
 import { UploadCloud, FileText, Image, ArrowLeft, ArrowRight, Check, Eye, Loader2, File, Settings2, Maximize2, Minimize2, Printer, Smartphone, Copy, QrCode, Store, X } from "lucide-react";
 import { formatRupees, paperSizeLabels, allPaperSizes } from "@/lib/pricing";
 import { supabaseClient } from "@/lib/supabaseClient";
+import BillReceipt, { type BillData } from "./BillReceipt";
 import { QRCodeSVG } from "qrcode.react";
 
 type Pricing = {
@@ -66,6 +67,9 @@ export default function UploadForm() {
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
   const [payState, setPayState] = useState<"idle" | "processing" | "paid">("idle");
+  // Set once payment is confirmed (Razorpay success, or staff marking the job
+  // paid — detected by polling). Switches the token screen to the receipt.
+  const [paidInfo, setPaidInfo] = useState<{ method: "online" | "counter"; at: string } | null>(null);
   const [payError, setPayError] = useState("");
   const [payMethod, setPayMethod] = useState<"online" | "offline" | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -193,6 +197,26 @@ export default function UploadForm() {
       .then(setPricing)
       .catch(() => {});
   }, []);
+
+  // While the token screen shows an unpaid job, poll its status so a staff
+  // "Mark Paid" (cash / QR-scan payments) flips this phone to the receipt.
+  useEffect(() => {
+    if (!result || paidInfo || result.needsConversion) return;
+    const paidStatuses = ["paid", "approved", "printing", "printed"];
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/jobs/${result.token}/status`, { cache: "no-store" });
+        if (!res.ok) return;
+        const body = await res.json();
+        if (paidStatuses.includes(body.status)) {
+          setPaidInfo({ method: "counter", at: body.paidAt ?? new Date().toISOString() });
+        }
+      } catch {
+        /* transient network error — next tick retries */
+      }
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [result, paidInfo]);
 
   const effectivePageRange = useMemo(() => {
     if (pageRangeMode === "all") return "";
@@ -677,6 +701,7 @@ export default function UploadForm() {
     setResult(null);
     setError("");
     setPayState("idle");
+    setPaidInfo(null);
     setPayError("");
     setPayMethod(null);
     if (previewUrl) {
@@ -701,6 +726,28 @@ export default function UploadForm() {
     const upiId = (pricing?.shopUpiId ?? "").trim();
     const upiQr = (pricing?.shopUpiQr ?? "").trim();
     const shopName = pricing?.shopName ?? "Print Shop";
+
+    // Receipt data — everything is already in client state at this point.
+    const billFiles = isBulk
+      ? bulkFiles.map((f, i) => ({ name: f.name, pages: bulkPageCounts[i] ?? 1 }))
+      : [{ name: file?.name ?? "Document", pages: result.pageCount || filePageCount || 1 }];
+    const billPerPage = pricing
+      ? (duplex !== "simplex" && printType === "bw" && pricing.duplexBwPerPagePaise
+          ? pricing.duplexBwPerPagePaise
+          : printType === "bw" ? pricing.bwPerPagePaise : pricing.colorPerPagePaise)
+      : 0;
+    const billData: BillData = {
+      shopName,
+      token: result.token,
+      queuePosition: result.queuePosition,
+      files: billFiles,
+      settings: { printType, duplex, paperSize, copies, pagesPerSheet },
+      totalPaise: result.pricePaise,
+      perPagePaise: billPerPage,
+      totalPages: result.pageCount || billFiles.reduce((s, f) => s + f.pages, 0),
+      paidVia: paidInfo?.method ?? "counter",
+      paidAt: paidInfo?.at ?? new Date().toISOString(),
+    };
 
     // Build the UPI intent link.
     // Merchant/aggregator stickers (GetePay, Paytm, etc.) carry signed params
@@ -761,6 +808,7 @@ export default function UploadForm() {
         const data = await res.json().catch(() => ({}));
         if (res.status === 409 && data.alreadyPaid) {
           setPayState("paid");
+          setPaidInfo((p) => p ?? { method: "online", at: new Date().toISOString() });
           return;
         }
         if (!res.ok) throw new Error(data.error ?? "Could not start payment.");
@@ -798,6 +846,7 @@ export default function UploadForm() {
             });
             if (!verifyRes.ok) throw new Error("Payment could not be verified.");
             setPayState("paid");
+            setPaidInfo({ method: "online", at: new Date().toISOString() });
             setPayError("");
           } catch (err) {
             setPayState("idle");
@@ -839,7 +888,9 @@ export default function UploadForm() {
           </div>
         </div>
 
-        {result.needsConversion ? (
+        {paidInfo ? (
+          <BillReceipt bill={billData} />
+        ) : result.needsConversion ? (
           <div className="counter-card">
             <span className="upi-tag"><Store size={13} aria-hidden="true" /> Pay at Counter</span>
             <p className="counter-msg">
