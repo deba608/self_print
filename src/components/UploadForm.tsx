@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useRef } from "react";
-import { UploadCloud, FileText, Image, ArrowLeft, ArrowRight, Check, Eye, Loader2, File, Settings2, Maximize2, Minimize2, Smartphone, Copy, QrCode, Store } from "lucide-react";
+import { UploadCloud, FileText, Image, ArrowLeft, ArrowRight, Check, Eye, Loader2, File, Settings2, Maximize2, Minimize2, Smartphone, Copy, QrCode, Store, X } from "lucide-react";
 import { formatRupees, paperSizeLabels, allPaperSizes } from "@/lib/pricing";
 import { supabaseClient } from "@/lib/supabaseClient";
 import { QRCodeSVG } from "qrcode.react";
@@ -70,9 +70,58 @@ export default function UploadForm() {
   const [payMethod, setPayMethod] = useState<"online" | "offline" | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [filePageCount, setFilePageCount] = useState<number | null>(null);
+  const [bulkFiles, setBulkFiles] = useState<File[]>([]);
+  const [bulkPageCounts, setBulkPageCounts] = useState<number[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const uploadPromiseRef = useRef<Promise<{ isDirectUpload: boolean; storedName?: string; error?: string }> | null>(null);
   const uploadAbortControllerRef = useRef<AbortController | null>(null);
+  // One promise per bulk file, all fed by a single shared /api/uploads/sign
+  // call (see startBulkUploads). Kept as an array (not a single Promise.all)
+  // so removeBulkFile can splice out an individual file's promise by index.
+  const bulkUploadsRef = useRef<Array<Promise<{ storedName?: string; error?: string }>> | null>(null);
+  const bulkUploadAbortControllerRef = useRef<AbortController | null>(null);
+
+  // Bulk mode activates once 2+ files are selected; a single selection (or a
+  // non-PDF) always takes the original single-file path untouched.
+  const isBulk = bulkFiles.length > 1;
+
+  // Starts one shared sign request for the whole batch, then kicks off each
+  // file's upload as its own promise so it can be individually removed later.
+  function startBulkUploads(selected: File[]): Array<Promise<{ storedName?: string; error?: string }>> {
+    if (bulkUploadAbortControllerRef.current) {
+      bulkUploadAbortControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    bulkUploadAbortControllerRef.current = controller;
+
+    if (!supabaseClient) {
+      return selected.map(() => Promise.resolve({ error: "Direct upload unavailable" }));
+    }
+
+    const signPromise: Promise<Array<{ objectPath: string; token: string; storedName: string }>> = fetch("/api/uploads/sign", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ files: selected.map((f) => ({ fileName: f.name, mimeType: f.type, sizeBytes: f.size })) }),
+      signal: controller.signal,
+    }).then(async (res) => {
+      const signBody = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(signBody.error ?? "Could not start upload.");
+      return signBody.uploads as Array<{ objectPath: string; token: string; storedName: string }>;
+    });
+
+    return selected.map((file, i) =>
+      signPromise
+        .then(async (uploads) => {
+          const u = uploads[i];
+          const { error } = await supabaseClient!.storage
+            .from("selfprint")
+            .uploadToSignedUrl(u.objectPath, u.token, file, { contentType: file.type || "application/pdf" });
+          if (error) return { error: `Upload failed for ${file.name}: ${error.message}` };
+          return { storedName: u.storedName };
+        })
+        .catch((err) => ({ error: err instanceof Error ? err.message : "Upload failed" }))
+    );
+  }
 
   async function startBackgroundUpload(selectedFile: File) {
     if (uploadAbortControllerRef.current) {
@@ -136,10 +185,17 @@ export default function UploadForm() {
     return totalPages;
   }, [filePageCount, pageRangeMode, customPageRange]);
 
+  // Bulk mode has no page-range selector, so the price is simply driven by
+  // the summed page count across every file in the batch.
+  const bulkTotalPages = useMemo(
+    () => bulkPageCounts.reduce((sum, count) => sum + (count || 1), 0),
+    [bulkPageCounts]
+  );
+
   // Duplex is only physical when the document itself has 2+ pages to print
   // back-to-back. Copies don't help — each copy is its own stack of sheets, so
   // a 1-page doc can never be double-sided regardless of copy count.
-  const canDuplex = selectedPages >= 2;
+  const canDuplex = (isBulk ? bulkTotalPages : selectedPages) >= 2;
   const isDuplexInvalid = duplex !== "simplex" && !canDuplex;
 
   useEffect(() => {
@@ -148,6 +204,9 @@ export default function UploadForm() {
 
   const estimate = useMemo(() => {
     if (!pricing) return 0;
+    // Bulk mode has no page-range selector — price off the summed page count
+    // across the whole batch instead of the single-file selectedPages.
+    const pages = isBulk ? bulkTotalPages : selectedPages;
     if (paperSize === "Photo") {
       const duplexMultiplier = duplex === "simplex" ? 1.5 : 1;
       // Round to whole paise exactly like the server (calculatePrice) so the
@@ -161,10 +220,10 @@ export default function UploadForm() {
 
     let pageCostSum = 0;
     if (!isDuplex) {
-      pageCostSum = baseSimplex * selectedPages * 1.5;
+      pageCostSum = baseSimplex * pages * 1.5;
     } else {
-      const doubleSidedPages = Math.floor(selectedPages / 2) * 2;
-      const singleSidedPages = selectedPages % 2;
+      const doubleSidedPages = Math.floor(pages / 2) * 2;
+      const singleSidedPages = pages % 2;
       pageCostSum = (baseDuplex * doubleSidedPages * 1.0) + (baseSimplex * singleSidedPages * 1.5);
     }
 
@@ -180,7 +239,7 @@ export default function UploadForm() {
     // Round to whole paise exactly like the server (calculatePrice) so the
     // estimate never drifts a paisa from the final charged amount.
     return Math.round(pageCostSum * copies * paperMultiplier * pricing.copyMultiplier) / 100;
-  }, [copies, selectedPages, paperSize, printType, pricing, duplex]);
+  }, [copies, selectedPages, paperSize, printType, pricing, duplex, isBulk, bulkTotalPages]);
 
   const pageInfo = useMemo(() => {
     const totalPages = filePageCount ?? 1;
@@ -241,8 +300,49 @@ export default function UploadForm() {
   }, [file]);
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const selectedFile = e.target.files?.[0] ?? null;
-    
+    const selectedFiles = Array.from(e.target.files ?? []);
+
+    if (selectedFiles.length > 1) {
+      // Bulk mode: 2+ files selected. PDF-only, shared settings, no page range.
+      const nonPdf = selectedFiles.find((f) => f.type !== "application/pdf");
+      if (nonPdf) {
+        setError(`Bulk upload only supports PDF files. Remove "${nonPdf.name}" and try again.`);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+        return;
+      }
+
+      let selected = selectedFiles;
+      if (selected.length > 10) {
+        setError("You can upload up to 10 files at once — only the first 10 were kept.");
+        selected = selected.slice(0, 10);
+      } else {
+        setError("");
+      }
+
+      // A fresh bulk selection replaces any single-file state entirely.
+      setFile(null);
+      setFilePageCount(null);
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+        setPreviewUrl(null);
+      }
+
+      setBulkFiles(selected);
+      const pageCounts = await Promise.all(selected.map((f) => estimatePdfPages(f)));
+      setBulkPageCounts(pageCounts);
+      bulkUploadsRef.current = startBulkUploads(selected);
+      setStep("settings");
+      return;
+    }
+
+    // Exactly one file (or none) selected — original single-file path,
+    // unchanged. Clear any leftover bulk state from a prior selection.
+    setBulkFiles([]);
+    setBulkPageCounts([]);
+    bulkUploadsRef.current = null;
+
+    const selectedFile = selectedFiles[0] ?? null;
+
     if (selectedFile) {
       const name = selectedFile.name.toLowerCase();
       if (name.endsWith(".doc") || name.endsWith(".docx")) {
@@ -280,7 +380,77 @@ export default function UploadForm() {
     }
   }
 
+  function removeBulkFile(i: number) {
+    setBulkFiles((prev) => prev.filter((_, idx) => idx !== i));
+    setBulkPageCounts((prev) => prev.filter((_, idx) => idx !== i));
+    // Individual in-flight storage uploads can't be cancelled mid-request, but
+    // we stop tracking/awaiting this file's promise so it's excluded from submit.
+    if (bulkUploadsRef.current) {
+      bulkUploadsRef.current = bulkUploadsRef.current.filter((_, idx) => idx !== i);
+    }
+  }
+
+  async function handleBulkSubmit() {
+    if (bulkFiles.length === 0) return;
+    setBusy(true);
+    setError("");
+
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), 60000);
+
+    try {
+      const uploadResults = await Promise.all(bulkUploadsRef.current ?? []);
+      const failed = uploadResults.find((r) => r.error);
+      if (failed?.error) {
+        throw new Error(failed.error);
+      }
+      const uploadedStoredNames = uploadResults.map((r) => r.storedName);
+      if (uploadedStoredNames.some((n) => !n)) {
+        throw new Error("Some files failed to upload. Please try again.");
+      }
+
+      const bulkForm = new FormData();
+      bulkForm.set("bulk", "true");
+      bulkForm.set("printType", printType);
+      bulkForm.set("copies", String(copies));
+      bulkForm.set("paperSize", paperSize);
+      bulkForm.set("layout", layout);
+      bulkForm.set("scale", scale);
+      bulkForm.set("margins", margins);
+      bulkForm.set("pagesPerSheet", String(pagesPerSheet));
+      bulkForm.set("duplex", duplex);
+      bulkForm.set("filesJson", JSON.stringify(
+        bulkFiles.map((f, i) => ({
+          storedName: uploadedStoredNames[i],
+          originalName: f.name,
+          mimeType: f.type || "application/pdf",
+          sizeBytes: f.size,
+          pageCount: bulkPageCounts[i] ?? 1,
+        }))
+      ));
+
+      const response = await fetch("/api/jobs", { method: "POST", body: bulkForm, signal: controller.signal });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setError(body.error ?? "Upload failed. Please try again.");
+        return;
+      }
+
+      setResult(body);
+      setStep("done");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to submit print job. Please check your connection and try again.");
+    } finally {
+      window.clearTimeout(timeoutId);
+      setBusy(false);
+    }
+  }
+
   async function handleSubmit() {
+    if (isBulk) {
+      await handleBulkSubmit();
+      return;
+    }
     if (!file) return;
     // Validate custom page range before submission
     if (pageRangeMode === "custom" && customPageRange.trim() && !isValidPageRange) {
@@ -370,6 +540,8 @@ export default function UploadForm() {
     setLayout("portrait");
     setScale("default");
     setFilePageCount(null);
+    setBulkFiles([]);
+    setBulkPageCounts([]);
     setResult(null);
     setError("");
     setPayState("idle");
@@ -379,6 +551,11 @@ export default function UploadForm() {
       URL.revokeObjectURL(previewUrl);
       setPreviewUrl(null);
     }
+    if (bulkUploadAbortControllerRef.current) {
+      bulkUploadAbortControllerRef.current.abort();
+      bulkUploadAbortControllerRef.current = null;
+    }
+    bulkUploadsRef.current = null;
     if (uploadAbortControllerRef.current) {
       uploadAbortControllerRef.current.abort();
       uploadAbortControllerRef.current = null;
@@ -706,13 +883,14 @@ export default function UploadForm() {
               ref={fileInputRef}
               type="file"
               id="file-input"
+              multiple
               accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,application/pdf,image/jpeg,image/png"
               onChange={handleFileChange}
             />
             <label htmlFor="file-input" className="upload-label">
               <UploadCloud size={56} className="upload-icon" aria-hidden="true" />
               <strong>Tap to select file</strong>
-              <span className="muted">PDF, JPG, PNG up to 25MB</span>
+              <span className="muted">PDF, JPG, PNG up to 25MB · or select 2-10 PDFs at once</span>
             </label>
           </div>
           <div className="supported-formats">
@@ -720,6 +898,11 @@ export default function UploadForm() {
             <span className="format-badge">JPG</span>
             <span className="format-badge">PNG</span>
           </div>
+          {error && (
+            <div className="error-msg" role="alert">
+              {error}
+            </div>
+          )}
         </div>
       )}
 
@@ -758,18 +941,31 @@ export default function UploadForm() {
       {step === "settings" && (
         <div className="step-content fade-in">
           {/* File summary */}
-          <button className="file-summary" onClick={() => setStep("upload")} aria-label="Change file">
-            <span className="file-icon">
-              {fileTypeLabel === "PDF" ? <FileText size={24} aria-hidden="true" /> : fileTypeLabel === "Image" ? <Image size={24} aria-hidden="true" /> : <File size={24} aria-hidden="true" />}
-            </span>
-            <span className="file-name">
-              {file?.name}
-              {file?.type === "application/pdf" && filePageCount && (
-                <span className="file-pages"> ({filePageCount} pages)</span>
-              )}
-            </span>
-            <span className="change-link">Change</span>
-          </button>
+          {isBulk ? (
+            <button className="file-summary" onClick={() => setStep("upload")} aria-label="Change files">
+              <span className="file-icon">
+                <FileText size={24} aria-hidden="true" />
+              </span>
+              <span className="file-name">
+                {bulkFiles.length} PDF files
+                <span className="file-pages"> ({bulkTotalPages} pages total)</span>
+              </span>
+              <span className="change-link">Change</span>
+            </button>
+          ) : (
+            <button className="file-summary" onClick={() => setStep("upload")} aria-label="Change file">
+              <span className="file-icon">
+                {fileTypeLabel === "PDF" ? <FileText size={24} aria-hidden="true" /> : fileTypeLabel === "Image" ? <Image size={24} aria-hidden="true" /> : <File size={24} aria-hidden="true" />}
+              </span>
+              <span className="file-name">
+                {file?.name}
+                {file?.type === "application/pdf" && filePageCount && (
+                  <span className="file-pages"> ({filePageCount} pages)</span>
+                )}
+              </span>
+              <span className="change-link">Change</span>
+            </button>
+          )}
 
           {/* Print type toggle */}
           <div className="print-type-toggle">
@@ -830,69 +1026,71 @@ export default function UploadForm() {
             </div>
           </div>
 
-          {/* Page Range */}
-          <div className="form-group">
-            <label>Select Pages</label>
-            <div className="page-range-selector">
-              <div className="page-mode-grid">
-                <button
-                  type="button"
-                  className={`page-mode-btn ${pageRangeMode === "all" ? "active" : ""}`}
-                  onClick={() => setPageRangeMode("all")}
-                  aria-pressed={pageRangeMode === "all"}
-                >
-                  <File size={20} className="page-mode-icon" aria-hidden="true" />
-                  <span className="page-mode-label">All Pages</span>
-                </button>
-                <button
-                  type="button"
-                  className={`page-mode-btn ${pageRangeMode === "even" ? "active" : ""}`}
-                  onClick={() => setPageRangeMode("even")}
-                  aria-pressed={pageRangeMode === "even"}
-                >
-                  <span className="page-mode-num">2</span>
-                  <span className="page-mode-label">Even Only</span>
-                </button>
-                <button
-                  type="button"
-                  className={`page-mode-btn ${pageRangeMode === "odd" ? "active" : ""}`}
-                  onClick={() => setPageRangeMode("odd")}
-                  aria-pressed={pageRangeMode === "odd"}
-                >
-                  <span className="page-mode-num">1</span>
-                  <span className="page-mode-label">Odd Only</span>
-                </button>
-                <button
-                  type="button"
-                  className={`page-mode-btn ${pageRangeMode === "custom" ? "active" : ""}`}
-                  onClick={() => setPageRangeMode("custom")}
-                  aria-pressed={pageRangeMode === "custom"}
-                >
-                  <span className="page-mode-num">C</span>
-                  <span className="page-mode-label">Custom</span>
-                </button>
-              </div>
-              {pageRangeMode === "custom" && (
-                <div className="custom-range-input">
-                  <input
-                    type="text"
-                    placeholder="e.g., 1-5 or 1,3,5"
-                    value={customPageRange}
-                    onChange={(e) => setCustomPageRange(e.target.value.replace(/[^0-9,\-]/g, ''))}
-                    aria-label="Enter custom page range"
-                    inputMode="numeric"
-                    aria-invalid={!isValidPageRange && !!customPageRange.trim()}
-                  />
-                  <span className="range-hint">Separate with commas or dash for range</span>
-                  {pageRangeValidationMessage && (
-                    <span className="range-error" role="alert">
-                      {pageRangeValidationMessage}
-                    </span>
-                  )}
+          {/* Page Range — not applicable in bulk mode (multiple whole PDFs) */}
+          {!isBulk && (
+            <div className="form-group">
+              <label>Select Pages</label>
+              <div className="page-range-selector">
+                <div className="page-mode-grid">
+                  <button
+                    type="button"
+                    className={`page-mode-btn ${pageRangeMode === "all" ? "active" : ""}`}
+                    onClick={() => setPageRangeMode("all")}
+                    aria-pressed={pageRangeMode === "all"}
+                  >
+                    <File size={20} className="page-mode-icon" aria-hidden="true" />
+                    <span className="page-mode-label">All Pages</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`page-mode-btn ${pageRangeMode === "even" ? "active" : ""}`}
+                    onClick={() => setPageRangeMode("even")}
+                    aria-pressed={pageRangeMode === "even"}
+                  >
+                    <span className="page-mode-num">2</span>
+                    <span className="page-mode-label">Even Only</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`page-mode-btn ${pageRangeMode === "odd" ? "active" : ""}`}
+                    onClick={() => setPageRangeMode("odd")}
+                    aria-pressed={pageRangeMode === "odd"}
+                  >
+                    <span className="page-mode-num">1</span>
+                    <span className="page-mode-label">Odd Only</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`page-mode-btn ${pageRangeMode === "custom" ? "active" : ""}`}
+                    onClick={() => setPageRangeMode("custom")}
+                    aria-pressed={pageRangeMode === "custom"}
+                  >
+                    <span className="page-mode-num">C</span>
+                    <span className="page-mode-label">Custom</span>
+                  </button>
                 </div>
-              )}
+                {pageRangeMode === "custom" && (
+                  <div className="custom-range-input">
+                    <input
+                      type="text"
+                      placeholder="e.g., 1-5 or 1,3,5"
+                      value={customPageRange}
+                      onChange={(e) => setCustomPageRange(e.target.value.replace(/[^0-9,\-]/g, ''))}
+                      aria-label="Enter custom page range"
+                      inputMode="numeric"
+                      aria-invalid={!isValidPageRange && !!customPageRange.trim()}
+                    />
+                    <span className="range-hint">Separate with commas or dash for range</span>
+                    {pageRangeValidationMessage && (
+                      <span className="range-error" role="alert">
+                        {pageRangeValidationMessage}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Paper size */}
           <div className="form-group">
@@ -994,13 +1192,13 @@ export default function UploadForm() {
               <span className="price-value">₹{estimate.toFixed(2)}</span>
             </div>
             <div className="price-breakdown">
-              <span className="breakdown-item">{pageInfo}</span>
+              <span className="breakdown-item">{isBulk ? `${bulkFiles.length} files, ${bulkTotalPages} pages` : pageInfo}</span>
               <span className="breakdown-sep">x</span>
               <span className="breakdown-item">{copies} {copies === 1 ? "copy" : "copies"}</span>
               <span className="breakdown-sep">x</span>
               <span className="breakdown-item">{paperSizeLabels[paperSize as keyof typeof paperSizeLabels] || paperSize}</span>
             </div>
-            {filePageCount && filePageCount > 1 && (
+            {!isBulk && filePageCount && filePageCount > 1 && (
               <span className="page-count-hint">{filePageCount} pages detected</span>
             )}
           </div>
@@ -1041,6 +1239,21 @@ export default function UploadForm() {
 
           {/* Preview area */}
           <div className="preview-area">
+            {isBulk && (
+              <div className="bulk-file-list">
+                {bulkFiles.map((f, i) => (
+                  <div className="bulk-file-row" key={i}>
+                    <FileText size={18} aria-hidden="true" />
+                    <span className="bulk-file-name">{f.name}</span>
+                    <span className="bulk-file-pages">{bulkPageCounts[i] ?? 1} pg</span>
+                    <button type="button" className="bulk-file-remove" aria-label={`Remove ${f.name}`}
+                      onClick={() => removeBulkFile(i)}>
+                      <X size={16} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
             {file && file.type === "application/pdf" && (
               <PdfCanvasPreview file={file} fallbackPageCount={filePageCount ?? 1} />
             )}
@@ -1062,7 +1275,7 @@ export default function UploadForm() {
             <div className="summary-grid">
               <div className="summary-item">
                 <span className="summary-label">File</span>
-                <span className="summary-value">{file?.name}</span>
+                <span className="summary-value">{isBulk ? `${bulkFiles.length} files` : file?.name}</span>
               </div>
               <div className="summary-item">
                 <span className="summary-label">Type</span>
@@ -1074,7 +1287,7 @@ export default function UploadForm() {
               </div>
               <div className="summary-item">
                 <span className="summary-label">Pages</span>
-                <span className="summary-value">{pageInfo}</span>
+                <span className="summary-value">{isBulk ? `${bulkTotalPages} pages total` : pageInfo}</span>
               </div>
               <div className="summary-item">
                 <span className="summary-label">Paper</span>
