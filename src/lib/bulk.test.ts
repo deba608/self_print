@@ -2,8 +2,9 @@ import { describe, it, expect } from "vitest";
 import { parseBulkFiles, sumPages, MAX_BULK_FILES, type BulkFileMeta } from "./bulk";
 
 function pdf(n: number, overrides: Partial<BulkFileMeta> = {}): BulkFileMeta {
+  // storedName must be a server-issued UUID name (isValidStoredName).
   return {
-    storedName: `s${n}.pdf`,
+    storedName: `00000000-0000-4000-8000-${String(n).padStart(12, "0")}.pdf`,
     originalName: `doc${n}.pdf`,
     mimeType: "application/pdf",
     sizeBytes: 1000,
