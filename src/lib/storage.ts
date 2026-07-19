@@ -16,6 +16,15 @@ function getSupabase() {
   return supabase;
 }
 
+// Server-generated stored names are always `<uuid><ext>`. Any client-supplied
+// storedName (direct-upload / bulk flows) must match this exactly before it's
+// used to build a storage path — otherwise `..`/`/` could escape the bucket.
+const STORED_NAME_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(pdf|jpg|jpeg|png|doc|docx)$/i;
+
+export function isValidStoredName(storedName: string): boolean {
+  return STORED_NAME_RE.test(storedName);
+}
+
 export interface SavedFile {
   storedName: string;
   storagePath: string;

@@ -1,5 +1,6 @@
 import { MAX_UPLOAD_BYTES } from "./config";
 import { validateUpload } from "./files";
+import { isValidStoredName } from "./storage";
 
 export const MAX_BULK_FILES = 10;
 
@@ -29,7 +30,7 @@ export function parseBulkFiles(raw: unknown): { files: BulkFileMeta[] } | { erro
     const sizeBytes = Math.max(1, Math.floor(Number(e.sizeBytes ?? 0)));
     const pageCount = Math.max(1, Math.min(1000, Math.floor(Number(e.pageCount ?? 1)) || 1));
 
-    if (!storedName || !originalName) return { error: "Invalid upload metadata." };
+    if (!storedName || !originalName || !isValidStoredName(storedName)) return { error: "Invalid upload metadata." };
 
     // PDF-only in bulk. validateUpload throws on non-PDF/JPG/PNG; then we also
     // require the resolved kind to be pdf.

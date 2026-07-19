@@ -4,7 +4,7 @@ import { MAX_UPLOAD_BYTES } from "@/lib/config";
 import { MAX_BULK_FILES, parseBulkFiles, sumPages } from "@/lib/bulk";
 import { createJob, createJobWithFiles, getPricing, nextQueuePosition, sseClients } from "@/lib/db";
 import { estimatePageCount, saveUpload, validateUpload } from "@/lib/files";
-import { bucketPathFor } from "@/lib/storage";
+import { bucketPathFor, isValidStoredName } from "@/lib/storage";
 import { calculatePrice, selectedPageCount } from "@/lib/pricing";
 import type { PaperSize, PrintDuplex, PrintLayout, PrintMargins, PrintScale, PrintType } from "@/lib/types";
 
@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
       originalName = String(form.get("originalName") ?? "");
       mimeType = String(form.get("mimeType") ?? "");
 
-      if (!storedName || !originalName) {
+      if (!storedName || !originalName || !isValidStoredName(storedName)) {
         return NextResponse.json({ error: "Invalid upload metadata" }, { status: 400 });
       }
 
