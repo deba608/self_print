@@ -1103,7 +1103,7 @@ export default function UploadForm() {
           </div>
         )}
 
-        <button className="btn-secondary upload-another" onClick={resetForm}>Upload Another</button>
+        <button className="btn-secondary upload-another" style={{ marginTop: "0.75rem" }} onClick={resetForm}>Upload Another</button>
         <div className="thank-you-note">
           <p>Thank you for using Self_Print</p>
           <p className="visit-again">We appreciate your business</p>
