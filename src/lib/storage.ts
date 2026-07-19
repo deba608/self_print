@@ -1,5 +1,6 @@
 import path from 'node:path';
-import { ORIGINALS_DIR, CONVERTED_DIR } from './config';
+import { createHmac, timingSafeEqual } from 'node:crypto';
+import { ORIGINALS_DIR, CONVERTED_DIR, SESSION_SECRET } from './config';
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.SUPABASE_URL?.trim();
@@ -23,6 +24,21 @@ const STORED_NAME_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f
 
 export function isValidStoredName(storedName: string): boolean {
   return STORED_NAME_RE.test(storedName);
+}
+
+// HMAC binding between the sign step and job creation: /api/uploads/sign issues
+// a signature over the storedName it generated; /api/jobs only accepts a
+// client-supplied storedName if it carries a matching signature. This stops a
+// client from attaching an object it never uploaded (IDOR) even if it somehow
+// learns another customer's storedName.
+export function signStoredName(storedName: string): string {
+  return createHmac('sha256', SESSION_SECRET).update(`upload:${storedName}`).digest('hex');
+}
+
+export function verifyStoredNameSig(storedName: string, sig: string): boolean {
+  const expected = signStoredName(storedName);
+  if (sig.length !== expected.length) return false;
+  return timingSafeEqual(Buffer.from(expected), Buffer.from(sig));
 }
 
 export interface SavedFile {

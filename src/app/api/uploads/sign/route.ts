@@ -3,46 +3,22 @@ import { NextRequest, NextResponse } from "next/server";
 import { MAX_BULK_FILES } from "@/lib/bulk";
 import { MAX_UPLOAD_BYTES } from "@/lib/config";
 import { validateUpload } from "@/lib/files";
-import { cloudStorageEnabled, createSignedUpload } from "@/lib/storage";
+import { cloudStorageEnabled, createSignedUpload, signStoredName } from "@/lib/storage";
+import { clientIp, isRateLimited } from "@/lib/ratelimit";
 
 // Issues a short-lived signed upload URL for direct browser -> Supabase upload.
 // The server owns validation and the object path; the bucket stays private.
 
-// Basic in-memory rate limiter for serverless instances
-const rateLimitMap = new Map<string, { count: number; lastReset: number }>();
 const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
-const MAX_REQUESTS_PER_WINDOW = 5; // 5 uploads per minute per IP
-
-function isRateLimited(ip: string): boolean {
-  const now = Date.now();
-  let entry = rateLimitMap.get(ip);
-
-  if (!entry || now - entry.lastReset > RATE_LIMIT_WINDOW_MS) {
-    entry = { count: 1, lastReset: now };
-    rateLimitMap.set(ip, entry);
-    
-    // Periodically sweep old entries if map gets too large
-    if (rateLimitMap.size > 1000) {
-      for (const [key, val] of rateLimitMap.entries()) {
-        if (now - val.lastReset > RATE_LIMIT_WINDOW_MS) {
-          rateLimitMap.delete(key);
-        }
-      }
-    }
-    return false;
-  }
-
-  entry.count++;
-  return entry.count > MAX_REQUESTS_PER_WINDOW;
-}
+const MAX_REQUESTS_PER_WINDOW = 5; // 5 sign requests per minute per IP
 
 export async function POST(request: NextRequest) {
   if (!cloudStorageEnabled) {
     return NextResponse.json({ error: "Direct upload not available" }, { status: 400 });
   }
 
-  const ip = request.headers.get("x-forwarded-for") ?? "unknown";
-  if (isRateLimited(ip)) {
+  const ip = clientIp(request.headers);
+  if (isRateLimited("uploads-sign", ip, MAX_REQUESTS_PER_WINDOW, RATE_LIMIT_WINDOW_MS)) {
     return NextResponse.json({ error: "Too many requests. Please try again later." }, { status: 429 });
   }
 
@@ -63,7 +39,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: `You can upload at most ${MAX_BULK_FILES} files at once.` }, { status: 400 });
     }
 
-    const uploads: Array<{ signedUrl: string; token: string; objectPath: string; storedName: string; kind: string }> = [];
+    const uploads: Array<{ signedUrl: string; token: string; objectPath: string; storedName: string; kind: string; uploadSig: string }> = [];
     for (const entry of entries) {
       const fileName = String(entry.fileName ?? "");
       const mimeType = String(entry.mimeType ?? "");
@@ -86,7 +62,7 @@ export async function POST(request: NextRequest) {
       const storedName = `${crypto.randomUUID()}${ext}`;
       try {
         const { signedUrl, token, objectPath } = await createSignedUpload(kind, storedName);
-        uploads.push({ signedUrl, token, objectPath, storedName, kind });
+        uploads.push({ signedUrl, token, objectPath, storedName, kind, uploadSig: signStoredName(storedName) });
       } catch (error) {
         return NextResponse.json({ error: error instanceof Error ? error.message : "Could not create upload URL" }, { status: 500 });
       }
@@ -121,7 +97,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const { signedUrl, token, objectPath } = await createSignedUpload(kind, storedName);
-    return NextResponse.json({ signedUrl, token, objectPath, storedName, kind });
+    return NextResponse.json({ signedUrl, token, objectPath, storedName, kind, uploadSig: signStoredName(storedName) });
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Could not create upload URL" },
