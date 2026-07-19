@@ -10,6 +10,7 @@ export type BulkFileMeta = {
   mimeType: string;
   sizeBytes: number;
   pageCount: number;
+  uploadSig: string;
 };
 
 // Parses and validates the client-supplied file metadata for a bulk upload.
@@ -29,6 +30,7 @@ export function parseBulkFiles(raw: unknown): { files: BulkFileMeta[] } | { erro
     const mimeType = String(e.mimeType ?? "");
     const sizeBytes = Math.max(1, Math.floor(Number(e.sizeBytes ?? 0)));
     const pageCount = Math.max(1, Math.min(1000, Math.floor(Number(e.pageCount ?? 1)) || 1));
+    const uploadSig = String(e.uploadSig ?? "");
 
     if (!storedName || !originalName || !isValidStoredName(storedName)) return { error: "Invalid upload metadata." };
 
@@ -46,7 +48,7 @@ export function parseBulkFiles(raw: unknown): { files: BulkFileMeta[] } | { erro
       return { error: `"${originalName}" is too large.` };
     }
     total += sizeBytes;
-    files.push({ storedName, originalName, mimeType, sizeBytes, pageCount });
+    files.push({ storedName, originalName, mimeType, sizeBytes, pageCount, uploadSig });
   }
 
   if (total > MAX_UPLOAD_BYTES * MAX_BULK_FILES) {
