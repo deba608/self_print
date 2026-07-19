@@ -865,7 +865,9 @@ function ManageOrdersPanel({
                   onClick={() => toggleSelect(job.id)}
                   type="button"
                 >
-                  {selectedIds.has(job.id) ? <CheckSquare size={16} /> : <Square size={16} />}
+                  <span className={`checkbox-circle checkbox-circle-sm ${selectedIds.has(job.id) ? "checked" : ""}`}>
+                    {selectedIds.has(job.id) && <Check size={12} strokeWidth={3.5} />}
+                  </span>
                 </button>
                 <div className="manage-order-info">
                   <div className="manage-order-header">
@@ -1056,7 +1058,9 @@ function JobCard({
           aria-label={isSelected ? "Deselect job" : "Select job"}
           type="button"
         >
-          {isSelected ? <CheckSquare size={22} /> : <Square size={22} />}
+          <span className={`checkbox-circle ${isSelected ? "checked" : ""}`}>
+            {isSelected && <Check size={15} strokeWidth={3.5} />}
+          </span>
         </button>
       )}
 
