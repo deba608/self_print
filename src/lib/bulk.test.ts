@@ -9,6 +9,7 @@ function pdf(n: number, overrides: Partial<BulkFileMeta> = {}): BulkFileMeta {
     mimeType: "application/pdf",
     sizeBytes: 1000,
     pageCount: 2,
+    uploadSig: "",
     ...overrides,
   };
 }

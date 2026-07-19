@@ -650,6 +650,7 @@ export default function UploadForm() {
         bulkForm.set("filesJson", JSON.stringify(
           bulkFiles.map((f, i) => ({
             storedName: uploadedStoredNames[i],
+            uploadSig: uploadResults[i]?.uploadSig ?? "",
             originalName: f.name,
             mimeType: f.type || "application/pdf",
             sizeBytes: f.size,
