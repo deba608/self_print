@@ -3744,6 +3744,36 @@ input[type="number"] {
   color: var(--accent);
 }
 
+/* Round check-mark selector — reads as "tap to tick", not a mystery square */
+.checkbox-circle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 2px solid var(--line);
+  background: #fff;
+  color: #fff;
+  transition: all var(--duration-fast);
+}
+
+.checkbox-circle-sm {
+  width: 20px;
+  height: 20px;
+  border-width: 1.5px;
+}
+
+.job-checkbox:hover .checkbox-circle,
+.manage-order-checkbox:hover .checkbox-circle {
+  border-color: var(--accent);
+}
+
+.checkbox-circle.checked {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
 .job-content {
   flex: 1;
   min-width: 0;
