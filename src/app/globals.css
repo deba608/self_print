@@ -4819,11 +4819,30 @@ input[type="number"] {
     gap: 0;
   }
 
+  /* Fill the row edge-to-edge: connectors stretch instead of leaving dead
+     space either side of the three steps. */
+  .step-indicator {
+    max-width: 100%;
+    padding: 0 8px;
+  }
+
   .step-line {
-    width: 40px;
+    flex: 1;
+    width: auto;
+    min-width: 24px;
     /* Keep the connector centered on the 32px step circles (15px = circle
        center minus half the 2px line) — a 0 top-margin floats it to the top. */
     margin: 15px 8px 0;
+  }
+
+  /* Admin: use the full phone width — cards were losing ~32px to gutters. */
+  .admin-shell {
+    width: calc(100% - 12px);
+  }
+
+  .job-card {
+    padding: 14px 10px 14px 6px;
+    gap: 8px;
   }
 
   .preview-area {
