@@ -38,7 +38,14 @@ export async function requireAdmin() {
   const token = (await cookies()).get(SESSION_COOKIE)?.value;
   if (!token) return null;
   const [payload, signature] = token.split(".");
-  if (!payload || !signature || sign(payload) !== signature) return null;
+  if (!payload || !signature) return null;
+  const expected = sign(payload);
+  if (
+    signature.length !== expected.length ||
+    !crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(signature))
+  ) {
+    return null;
+  }
 
   const [username, rawTimestamp] = payload.split(":");
   if (!username || !rawTimestamp) return null;
