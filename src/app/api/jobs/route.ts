@@ -4,7 +4,8 @@ import { MAX_UPLOAD_BYTES } from "@/lib/config";
 import { MAX_BULK_FILES, parseBulkFiles, sumPages } from "@/lib/bulk";
 import { createJob, createJobWithFiles, getPricing, nextQueuePosition, sseClients } from "@/lib/db";
 import { estimatePageCount, saveUpload, validateUpload } from "@/lib/files";
-import { bucketPathFor, isValidStoredName } from "@/lib/storage";
+import { bucketPathFor, isValidStoredName, verifyStoredNameSig } from "@/lib/storage";
+import { clientIp, isRateLimited } from "@/lib/ratelimit";
 import { calculatePrice, selectedPageCount } from "@/lib/pricing";
 import type { PaperSize, PrintDuplex, PrintLayout, PrintMargins, PrintScale, PrintType } from "@/lib/types";
 
@@ -15,8 +16,15 @@ const scaleOptions: PrintScale[] = ["default", "fit", "shrink", "noscale"];
 const marginsOptions: PrintMargins[] = ["default", "none", "minimum"];
 const duplexOptions: PrintDuplex[] = ["simplex", "long-edge", "short-edge"];
 
+const JOBS_RATE_WINDOW_MS = 60 * 1000;
+const JOBS_MAX_PER_WINDOW = 10; // 10 job creations per minute per IP
+
 export async function POST(request: NextRequest) {
   try {
+    if (isRateLimited("jobs-create", clientIp(request.headers), JOBS_MAX_PER_WINDOW, JOBS_RATE_WINDOW_MS)) {
+      return NextResponse.json({ error: "Too many requests. Please try again later." }, { status: 429 });
+    }
+
     const form = await request.formData();
 
     if (form.get("bulk") === "true") {
