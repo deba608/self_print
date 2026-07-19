@@ -93,12 +93,12 @@ export default function UploadForm() {
   // Separate picker for "Add more" so opening it never clobbers the main
   // input's selection state.
   const addMoreInputRef = useRef<HTMLInputElement>(null);
-  const uploadPromiseRef = useRef<Promise<{ isDirectUpload: boolean; storedName?: string; error?: string }> | null>(null);
+  const uploadPromiseRef = useRef<Promise<{ isDirectUpload: boolean; storedName?: string; uploadSig?: string; error?: string }> | null>(null);
   const uploadAbortControllerRef = useRef<AbortController | null>(null);
   // Upload promises keyed by stable file id (all fed by a single shared
   // /api/uploads/sign call, see startBulkUploads). Keyed by id — not array
   // index — so removeBulkFile can drop one entry without any index desync.
-  const bulkUploadsRef = useRef<Map<string, Promise<{ storedName?: string; error?: string; fallback?: boolean }>> | null>(null);
+  const bulkUploadsRef = useRef<Map<string, Promise<{ storedName?: string; uploadSig?: string; error?: string; fallback?: boolean }>> | null>(null);
   const bulkUploadAbortControllerRef = useRef<AbortController | null>(null);
 
   const isBulk = bulkMode;
@@ -158,7 +158,7 @@ export default function UploadForm() {
   // directly to storage with progress. Falls back to sending bytes with the
   // job form ONLY when the server has no cloud storage (local SQLite mode —
   // the sign endpoint answers 400 "Direct upload not available").
-  function startBulkUploads(selected: File[], ids: string[]): Map<string, Promise<{ storedName?: string; error?: string; fallback?: boolean }>> {
+  function startBulkUploads(selected: File[], ids: string[]): Map<string, Promise<{ storedName?: string; uploadSig?: string; error?: string; fallback?: boolean }>> {
     if (bulkUploadAbortControllerRef.current) {
       bulkUploadAbortControllerRef.current.abort();
     }
@@ -169,9 +169,9 @@ export default function UploadForm() {
     setUploadPct(0);
     const totalBytes = selected.reduce((s, f) => s + f.size, 0);
 
-    const map = new Map<string, Promise<{ storedName?: string; error?: string; fallback?: boolean }>>();
+    const map = new Map<string, Promise<{ storedName?: string; uploadSig?: string; error?: string; fallback?: boolean }>>();
 
-    const signPromise: Promise<Array<{ signedUrl: string; token: string; storedName: string }> | "fallback"> = fetch("/api/uploads/sign", {
+    const signPromise: Promise<Array<{ signedUrl: string; token: string; storedName: string; uploadSig: string }> | "fallback"> = fetch("/api/uploads/sign", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ files: selected.map((f) => ({ fileName: f.name, mimeType: f.type, sizeBytes: f.size })) }),
@@ -182,7 +182,7 @@ export default function UploadForm() {
         if (String(signBody.error ?? "").includes("not available")) return "fallback" as const;
         throw new Error(signBody.error ?? "Could not start upload.");
       }
-      return signBody.uploads as Array<{ signedUrl: string; token: string; storedName: string }>;
+      return signBody.uploads as Array<{ signedUrl: string; token: string; storedName: string; uploadSig: string }>;
     });
 
     selected.forEach((file, i) => {
@@ -191,7 +191,7 @@ export default function UploadForm() {
           if (uploads === "fallback") return { fallback: true };
           const u = uploads[i];
           await xhrPutFile(u.signedUrl, file, (loaded) => reportProgress(ids[i], loaded, totalBytes), controller.signal);
-          return { storedName: u.storedName };
+          return { storedName: u.storedName, uploadSig: u.uploadSig };
         })
         .catch((err) => {
           if (err?.name === "AbortError") return { error: "Aborted" };
@@ -234,7 +234,7 @@ export default function UploadForm() {
         controller.signal
       );
 
-      return { isDirectUpload: true, storedName: signBody.storedName };
+      return { isDirectUpload: true, storedName: signBody.storedName, uploadSig: signBody.uploadSig };
     } catch (err: any) {
       if (err.name === "AbortError") throw err;
       return { isDirectUpload: true, error: err instanceof Error ? err.message : "Upload failed" };
@@ -609,7 +609,7 @@ export default function UploadForm() {
       // Resolve each file's upload by its stable id so storedName stays zipped
       // to the correct file regardless of any prior removals.
       const uploadsMap = bulkUploadsRef.current;
-      const missing: Promise<{ storedName?: string; error?: string; fallback?: boolean }> = Promise.resolve({ error: "Upload was not started for this file." });
+      const missing: Promise<{ storedName?: string; uploadSig?: string; error?: string; fallback?: boolean }> = Promise.resolve({ error: "Upload was not started for this file." });
       const uploadResults = await Promise.all(
         bulkIds.map((id) => uploadsMap?.get(id) ?? missing)
       );
@@ -712,6 +712,7 @@ export default function UploadForm() {
         if (uploadResult.isDirectUpload && uploadResult.storedName) {
           form.set("isDirectUpload", "true");
           form.set("storedName", uploadResult.storedName);
+          form.set("uploadSig", uploadResult.uploadSig ?? "");
           form.set("originalName", file.name);
           form.set("mimeType", file.type);
           // Send known values so server skips re-downloading the file just to

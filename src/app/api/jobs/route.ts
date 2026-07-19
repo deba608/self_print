@@ -85,6 +85,12 @@ export async function POST(request: NextRequest) {
       if (!storedName || !originalName || !isValidStoredName(storedName)) {
         return NextResponse.json({ error: "Invalid upload metadata" }, { status: 400 });
       }
+      // The sign endpoint issued an HMAC over the storedName it generated;
+      // require it here so a client can only reference objects it uploaded.
+      const uploadSig = String(form.get("uploadSig") ?? "");
+      if (!uploadSig || !verifyStoredNameSig(storedName, uploadSig)) {
+        return NextResponse.json({ error: "Invalid upload metadata" }, { status: 400 });
+      }
 
       const { kind: k } = validateUpload(originalName, mimeType);
       kind = k;
@@ -223,6 +229,13 @@ async function handleBulk(form: FormData): Promise<NextResponse> {
       return NextResponse.json({ error: parsed.error }, { status: 400 });
     }
     const files = parsed.files;
+    // Same HMAC binding as the single-file direct-upload path: each storedName
+    // must carry the signature issued by /api/uploads/sign.
+    for (const f of files) {
+      if (!f.uploadSig || !verifyStoredNameSig(f.storedName, f.uploadSig)) {
+        return NextResponse.json({ error: "Invalid upload metadata." }, { status: 400 });
+      }
+    }
     pageCount = sumPages(files);
     filesData = files.map((f) => ({
       original_name: f.originalName,
