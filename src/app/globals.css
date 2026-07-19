@@ -4928,6 +4928,18 @@ input[type="number"] {
   }
 }
 
+@media (max-width: 600px) {
+  /* Admin: use the full phone width — cards were losing ~32px to gutters. */
+  .admin-shell {
+    width: calc(100% - 12px);
+  }
+
+  .job-card {
+    padding: 14px 10px 14px 6px;
+    gap: 8px;
+  }
+}
+
 @media (max-width: 480px) {
   .stats-bar {
     flex-direction: column;
