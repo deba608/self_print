@@ -1275,10 +1275,17 @@ export default function AdminDashboard() {
   const toastIdRef = useRef(0);
   const esRef = useRef<EventSource | null>(null);
 
-  // New-job chime + tab-title flash so a busy counter notices uploads.
-  const [soundOn, setSoundOn] = useState(false);
+  // New-job chime + tab-title flash so a busy counter notices uploads (ON by default).
+  const [soundOn, setSoundOn] = useState(true);
   useEffect(() => {
-    try { setSoundOn(localStorage.getItem("selfprint:admin:sound") === "1"); } catch { /* private mode */ }
+    try {
+      const stored = localStorage.getItem("selfprint:admin:sound");
+      if (stored === "0") {
+        setSoundOn(false);
+      } else {
+        setSoundOn(true);
+      }
+    } catch { /* private mode */ }
   }, []);
   const audioCtxRef = useRef<AudioContext | null>(null);
   const soundOnRef = useRef(soundOn);
