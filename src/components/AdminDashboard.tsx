@@ -1629,6 +1629,8 @@ export default function AdminDashboard() {
         printerName={printerName}
         newJobCount={newJobCount}
         sseConnected={sseConnected}
+        soundOn={soundOn}
+        onToggleSound={toggleSound}
         onRefresh={load}
         onOpenPricing={() => { setShowSettings(true); setShowPrinter(false); setShowManageOrders(false); }}
         onOpenPrinter={() => { setShowPrinter(true); setShowSettings(false); setShowManageOrders(false); }}
@@ -1678,17 +1680,6 @@ export default function AdminDashboard() {
       )}
 
       <StatsBar activeJobs={activeJobs.length} todayRevenue={summary.totalPaise} />
-
-      <button
-        type="button"
-        className={`sound-toggle ${soundOn ? "on" : ""}`}
-        onClick={toggleSound}
-        aria-pressed={soundOn}
-        title="Play a chime when a new order arrives"
-      >
-        <Bell size={14} aria-hidden="true" />
-        {soundOn ? "New-order chime on" : "New-order chime off"}
-      </button>
 
       <FilterTabs
         filters={statusFilters}
