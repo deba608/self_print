@@ -8,6 +8,7 @@ type TrackData = {
   status: string;
   paidAt: string | null;
   queuePosition: number;
+  jobsAhead: number;
   pricePaise: number;
   createdAt: string;
   fileCount: number;
@@ -193,7 +194,7 @@ export default function TrackOrder({ initialToken }: { initialToken?: string }) 
               <span className="result-meta-label">Queue</span>
               <span className="result-meta-value">#{job.queuePosition}</span>
               {job.status !== "printed" && !tl.failed && (
-                <span className="track-eta">~{Math.max(1, job.queuePosition) * 3} min</span>
+                <span className="track-eta">~{Math.max(1, job.jobsAhead + 1) * 3} min</span>
               )}
             </div>
             <div className="result-meta-divider" aria-hidden="true" />

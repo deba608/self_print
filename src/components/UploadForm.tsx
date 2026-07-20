@@ -1163,7 +1163,7 @@ export default function UploadForm() {
               <div className="mini-track-head">
                 <span className="mini-track-title">Live status</span>
                 {st !== "printed" && !failed && (
-                  <span className="mini-track-eta">~{Math.max(1, queuePos) * 3} min wait</span>
+                  <span className="mini-track-eta">~{Math.max(1, jobsAhead + 1) * 3} min wait</span>
                 )}
               </div>
               {failed ? (
