@@ -12,8 +12,17 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ token:
 
   try {
     const job = await getJobByToken(token);
+    // Public tracking data only — the token is the sole credential, so no
+    // file names or contents are ever exposed here.
     return NextResponse.json(
-      { status: job.status, paidAt: job.paidAt },
+      {
+        status: job.status,
+        paidAt: job.paidAt,
+        queuePosition: job.queuePosition,
+        pricePaise: job.pricePaise,
+        createdAt: job.createdAt,
+        fileCount: job.fileCount ?? 1,
+      },
       { headers: { "Cache-Control": "no-store" } }
     );
   } catch {
