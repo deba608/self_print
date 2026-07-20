@@ -40,6 +40,9 @@ export default function TrackOrder({ initialToken }: { initialToken?: string }) 
   const [error, setError] = useState("");
   const [activeToken, setActiveToken] = useState("");
   const inputsRef = useRef<Array<HTMLInputElement | null>>([]);
+  // Last token we auto-submitted — prevents a failed lookup from re-firing
+  // in a loop (the effect would otherwise retry the same 6 digits forever).
+  const lastTriedRef = useRef("");
 
   const lookup = useCallback(async (token: string) => {
     setChecking(true);
@@ -68,9 +71,12 @@ export default function TrackOrder({ initialToken }: { initialToken?: string }) 
   // Auto-submit when all six digits are present (typed, pasted, or from URL).
   const token = digits.join("");
   useEffect(() => {
-    if (token.length === TOKEN_LEN && /^\d{6}$/.test(token) && token !== activeToken && !checking) {
+    if (token.length === TOKEN_LEN && /^\d{6}$/.test(token) && token !== lastTriedRef.current && !checking) {
+      lastTriedRef.current = token;
       lookup(token);
     }
+    // Editing back below 6 digits re-arms auto-submit for the next full token.
+    if (token.length < TOKEN_LEN) lastTriedRef.current = "";
   }, [token, activeToken, checking, lookup]);
 
   // Poll a loaded job every 5s so the timeline moves while the customer watches.
@@ -104,6 +110,7 @@ export default function TrackOrder({ initialToken }: { initialToken?: string }) 
   }
 
   function reset() {
+    lastTriedRef.current = "";
     setDigits(Array.from({ length: TOKEN_LEN }, () => ""));
     setJob(null);
     setActiveToken("");
