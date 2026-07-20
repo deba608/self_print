@@ -251,7 +251,6 @@ function StatsBar({ activeJobs, todayRevenue }: { activeJobs: number; todayReven
 function AdminTopbar({
   printerName,
   newJobCount,
-  sseConnected,
   soundOn,
   onToggleSound,
   onRefresh,
@@ -263,7 +262,6 @@ function AdminTopbar({
 }: {
   printerName: string;
   newJobCount: number;
-  sseConnected: boolean;
   soundOn: boolean;
   onToggleSound: () => void;
   onRefresh: () => void;
@@ -275,6 +273,7 @@ function AdminTopbar({
 }) {
   return (
     <header className="admin-topbar">
+      <div className="admin-topbar-inner">
       <div className="topbar-brand">
         <div className="brand-logo">
           <Printer size={24} strokeWidth={1.5} />
@@ -353,15 +352,11 @@ function AdminTopbar({
         <div className="topbar-divider" aria-hidden="true" />
 
         <div className="action-group">
-          <div className="sse-indicator" title={sseConnected ? "Live updates active" : "Connecting..."}>
-            <span className={`sse-dot ${sseConnected ? "connected" : ""}`}></span>
-            <span className="sse-label">{sseConnected ? "Live" : "Offline"}</span>
-          </div>
-
           <button type="button" className="action-btn danger" onClick={onLogout} title="Logout" aria-label="Logout">
             <LogOut size={18} />
           </button>
         </div>
+      </div>
       </div>
     </header>
   );
@@ -1291,7 +1286,6 @@ export default function AdminDashboard() {
   const [printers, setPrinters] = useState<PrinterOption[]>([]);
   const [printerName, setPrinterName] = useState("");
   const [newJobCount, setNewJobCount] = useState(0);
-  const [sseConnected, setSseConnected] = useState(false);
   const [selectedJobs, setSelectedJobs] = useState<Set<string>>(new Set());
   const [filterStatus, setFilterStatus] = useState("all");
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -1477,8 +1471,7 @@ export default function AdminDashboard() {
         load();
       }
     };
-    es.onopen = () => setSseConnected(true);
-    es.onerror = () => { setSseConnected(false); setTimeout(connectSSE, 5000); };
+    es.onerror = () => { setTimeout(connectSSE, 5000); };
     esRef.current = es;
   }
 
@@ -1669,11 +1662,10 @@ export default function AdminDashboard() {
   }
 
   return (
-    <main className="admin-shell">
+    <>
       <AdminTopbar
         printerName={printerName}
         newJobCount={newJobCount}
-        sseConnected={sseConnected}
         soundOn={soundOn}
         onToggleSound={toggleSound}
         onRefresh={load}
@@ -1683,6 +1675,7 @@ export default function AdminDashboard() {
         onLogout={logout}
         showPricing={showSettings}
       />
+      <main className="admin-shell">
 
       {showSettings && pricing && (
         <PricingPanel
@@ -1805,6 +1798,7 @@ export default function AdminDashboard() {
           ))}
         </div>
       )}
-    </main>
+      </main>
+    </>
   );
 }

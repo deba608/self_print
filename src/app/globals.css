@@ -2533,34 +2533,38 @@ input[type="number"] {
   letter-spacing: -0.3px;
 }
 
-/* === Admin Topbar === */
+/* === Admin Topbar — flush full-width bar pinned to the viewport top === */
 .admin-topbar {
   position: sticky;
-  top: 10px;
-  z-index: 20;
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 12px 18px;
-  margin-bottom: 16px;
-  background: rgba(255, 255, 255, 0.75);
+  top: 0;
+  z-index: 30;
+  width: 100%;
+  background: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(13, 122, 116, 0.08);
-  border-radius: 16px;
+  border-bottom: 1px solid rgba(13, 122, 116, 0.1);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02), 0 4px 16px rgba(13, 122, 116, 0.04);
-  flex-wrap: wrap;
 }
 
 .admin-topbar::after {
   content: '';
   position: absolute;
-  left: 18px;
-  right: 18px;
-  bottom: 0;
+  left: 0;
+  right: 0;
+  bottom: -2px;
   height: 2px;
   background: linear-gradient(90deg, transparent, rgba(13, 122, 116, 0.35), transparent);
-  border-radius: 2px;
+}
+
+.admin-topbar-inner {
+  position: relative;
+  width: min(1200px, calc(100% - 32px));
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 0;
+  flex-wrap: wrap;
 }
 
 .topbar-brand {
@@ -2816,44 +2820,6 @@ input[type="number"] {
 @keyframes popIn {
   from { transform: scale(0); }
   to { transform: scale(1); }
-}
-
-.sse-indicator {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 0 10px;
-  height: 40px;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.5);
-  border: 1px solid rgba(13, 122, 116, 0.08);
-}
-
-.sse-label {
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
-}
-
-.sse-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #ccc;
-  flex-shrink: 0;
-  transition: background var(--duration-base);
-}
-
-.sse-dot.connected {
-  background: var(--ok);
-  animation: sse-pulse 2s infinite;
-}
-
-@keyframes sse-pulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.6; transform: scale(0.85); }
 }
 
 /* === Panel Overlay with smooth transitions === */
@@ -5193,9 +5159,9 @@ input[type="number"] {
     grid-template-columns: 1fr;
   }
 
-  .admin-topbar {
-    padding: 12px 14px;
-    top: 6px;
+  .admin-topbar-inner {
+    width: calc(100% - 28px);
+    padding: 12px 0;
   }
 
   .topbar-brand .brand-text {
@@ -5276,7 +5242,7 @@ input[type="number"] {
     display: none;
   }
 
-  .admin-topbar {
+  .admin-topbar-inner {
     gap: 8px;
     align-items: stretch;
   }
@@ -5299,14 +5265,6 @@ input[type="number"] {
 
   .topbar-divider {
     display: none;
-  }
-
-  .sse-label {
-    display: none;
-  }
-
-  .sse-indicator {
-    padding: 0 8px;
   }
 
   .job-header {
@@ -5397,8 +5355,8 @@ input[type="number"] {
     grid-template-columns: 1fr 1fr;
   }
 
-  .admin-topbar {
-    padding: 10px 12px;
+  .admin-topbar-inner {
+    padding: 10px 0;
     gap: 8px;
   }
 
