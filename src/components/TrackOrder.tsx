@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Check, Loader2, Printer, Search, Store, X, CreditCard, PackageCheck, UploadCloud } from "lucide-react";
+import { Check, Loader2, Printer, Search, Store, X, CreditCard, PackageCheck, UploadCloud, Download } from "lucide-react";
+import BillReceipt, { type BillData } from "./BillReceipt";
 
 type TrackData = {
   status: string;
@@ -43,6 +44,28 @@ export default function TrackOrder({ initialToken }: { initialToken?: string }) 
   // Last token we auto-submitted — prevents a failed lookup from re-firing
   // in a loop (the effect would otherwise retry the same 6 digits forever).
   const lastTriedRef = useRef("");
+  const [receipt, setReceipt] = useState<BillData | null>(null);
+  const [receiptLoading, setReceiptLoading] = useState(false);
+  const [receiptError, setReceiptError] = useState("");
+
+  async function loadReceipt() {
+    if (!activeToken) return;
+    setReceiptLoading(true);
+    setReceiptError("");
+    try {
+      const res = await fetch(`/api/jobs/${activeToken}/receipt`, { cache: "no-store" });
+      const body = await res.json();
+      if (!res.ok) {
+        setReceiptError(body.error ?? "Could not load the receipt.");
+        return;
+      }
+      setReceipt(body as BillData);
+    } catch {
+      setReceiptError("Network problem — try again.");
+    } finally {
+      setReceiptLoading(false);
+    }
+  }
 
   const lookup = useCallback(async (token: string) => {
     setChecking(true);
@@ -115,6 +138,8 @@ export default function TrackOrder({ initialToken }: { initialToken?: string }) 
     setJob(null);
     setActiveToken("");
     setError("");
+    setReceipt(null);
+    setReceiptError("");
     inputsRef.current[0]?.focus();
   }
 
@@ -206,6 +231,15 @@ export default function TrackOrder({ initialToken }: { initialToken?: string }) 
           {job.status === "printed" && (
             <p className="track-collect"><Store size={15} aria-hidden="true" /> Your print is ready — show this token at the counter.</p>
           )}
+
+          {job.paidAt && !receipt && (
+            <button type="button" className="btn-secondary track-receipt-btn" onClick={loadReceipt} disabled={receiptLoading}>
+              {receiptLoading ? <Loader2 size={16} className="spin" aria-hidden="true" /> : <Download size={16} aria-hidden="true" />}
+              Download receipt
+            </button>
+          )}
+          {receiptError && <div className="error-msg" role="alert">{receiptError}</div>}
+          {receipt && <BillReceipt bill={receipt} />}
 
           <button type="button" className="btn-secondary track-again" onClick={reset}>
             <Search size={16} aria-hidden="true" /> Check another order
