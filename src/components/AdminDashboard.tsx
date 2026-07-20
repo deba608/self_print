@@ -1111,9 +1111,6 @@ function JobCard({
             <span className="queue-num">#{job.queuePosition}</span>
             <span className="job-token">Token {job.token}</span>
           </div>
-          <div className="job-meta">
-            <span className={`status-badge ${status.class}`}>{status.label}</span>
-          </div>
         </div>
 
         <div className="job-details">
@@ -1145,6 +1142,10 @@ function JobCard({
 
       <div className="job-side">
       <div className="job-actions">
+
+        {/* Print status leads the control row — state and its actions read
+            together as one line. */}
+        <span className={`status-badge ${status.class}`}>{status.label}</span>
 
         {(job.status === "pending_payment" || job.status === "paid") && (
           <button type="button" className="job-btn release" onClick={() => handleActionClick("approved")} disabled={actionLoading}>
