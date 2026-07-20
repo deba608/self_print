@@ -7011,3 +7011,100 @@ input[type="number"] {
   cursor: pointer;
 }
 .job-issue-flag .job-issue-resolve:hover { background: var(--danger); color: #fff; }
+/* Repeat-print chip — one tap re-applies the customer's last job settings */
+.repeat-settings-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 14px;
+  margin-bottom: 4px;
+  background: var(--accent-bg);
+  border: 1.5px dashed var(--accent);
+  border-radius: 12px;
+  color: var(--accent-strong);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-out);
+}
+.repeat-settings-chip:hover { background: var(--accent-light); }
+.repeat-settings-chip svg { flex-shrink: 0; }
+.repeat-settings-sub {
+  margin-left: auto;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Cost preview on the upload step — the rate table before committing */
+.cost-preview {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.cost-preview-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 10px 6px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  text-align: center;
+}
+
+.cost-preview-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.cost-preview-value {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--accent);
+}
+
+.cost-preview-unit {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--muted);
+  margin-left: 1px;
+}
+
+/* Printer trouble banner — a failure streak stands in for a real ink/paper
+   sensor, which the Windows GDI print path doesn't expose. */
+.printer-trouble-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  margin-bottom: 14px;
+  background: var(--danger-light);
+  border: 1px solid #f3c6c6;
+  border-left: 4px solid var(--danger);
+  border-radius: 12px;
+  color: var(--danger);
+  animation: fadeInUp 0.3s var(--ease-out) both;
+}
+.printer-trouble-banner > svg { flex-shrink: 0; margin-top: 1px; }
+.printer-trouble-banner > div { flex: 1; }
+.printer-trouble-banner strong { display: block; font-size: 14px; }
+.printer-trouble-banner p { margin: 2px 0 0; font-size: 13px; color: var(--ink); font-weight: 500; }
+.printer-trouble-banner > button {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: var(--danger);
+  cursor: pointer;
+  padding: 2px;
+}

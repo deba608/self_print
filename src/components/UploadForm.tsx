@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useRef } from "react";
-import { UploadCloud, FileText, Image, ArrowLeft, ArrowRight, Check, Eye, Loader2, File, Settings2, Maximize2, Minimize2, Printer, Smartphone, Copy, Store, X, Search, CreditCard } from "lucide-react";
+import { UploadCloud, FileText, Image, ArrowLeft, ArrowRight, Check, Eye, Loader2, File, Settings2, Maximize2, Minimize2, Printer, Smartphone, Copy, Store, X, Search, CreditCard, RefreshCw } from "lucide-react";
 import { formatRupees, paperSizeLabels, allPaperSizes } from "@/lib/pricing";
 import BillReceipt, { type BillData } from "./BillReceipt";
 import { QRCodeSVG } from "qrcode.react";
@@ -273,6 +273,46 @@ export default function UploadForm() {
       .then(setPricing)
       .catch(() => {});
   }, []);
+
+  // Repeat-print: remembers the last successful job's settings so a
+  // returning customer can apply them with one tap instead of re-picking
+  // print type, copies, paper size, etc. every visit.
+  type LastSettings = {
+    printType: string; copies: number; paperSize: string; layout: string;
+    scale: string; margins: string; pagesPerSheet: number; duplex: string;
+  };
+  const LAST_SETTINGS_KEY = "selfprint:lastSettings";
+  const [lastSettings, setLastSettings] = useState<LastSettings | null>(null);
+  const [appliedLastSettings, setAppliedLastSettings] = useState(false);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(LAST_SETTINGS_KEY);
+      if (raw) setLastSettings(JSON.parse(raw));
+    } catch { /* private mode or malformed value */ }
+  }, []);
+
+  function saveLastSettings() {
+    const s: LastSettings = { printType, copies, paperSize, layout, scale, margins, pagesPerSheet, duplex };
+    try { localStorage.setItem(LAST_SETTINGS_KEY, JSON.stringify(s)); } catch { /* private mode */ }
+  }
+
+  function applyLastSettings() {
+    if (!lastSettings) return;
+    setPrintType(lastSettings.printType);
+    setCopies(lastSettings.copies);
+    setPaperSize(lastSettings.paperSize);
+    setLayout(lastSettings.layout);
+    setScale(lastSettings.scale);
+    setMargins(lastSettings.margins);
+    setPagesPerSheet(lastSettings.pagesPerSheet);
+    setDuplex(lastSettings.duplex);
+    setAppliedLastSettings(true);
+  }
+
+  const lastSettingsSummary = lastSettings
+    ? `${lastSettings.printType === "bw" ? "B&W" : "Color"} · ${lastSettings.paperSize} · ${lastSettings.copies} ${lastSettings.copies === 1 ? "copy" : "copies"}`
+    : "";
 
   // Live status for the mini-timeline at the bottom of the token screen, and
   // the paid-detection that flips this phone to the receipt. One poll serves
@@ -696,6 +736,7 @@ export default function UploadForm() {
         return;
       }
 
+      saveLastSettings();
       setResult(body);
       setStep("done");
     } catch (err) {
@@ -771,6 +812,7 @@ export default function UploadForm() {
         setError("Document conversion is required. Please convert to PDF and try again.");
         setStep("upload");
       } else {
+        saveLastSettings();
         setResult(body);
         setStep("done");
       }
@@ -1264,6 +1306,25 @@ export default function UploadForm() {
             <span className="format-badge">JPG</span>
             <span className="format-badge">PNG</span>
           </div>
+
+          {/* Cost preview — know the rate before committing to an upload */}
+          {pricing && (
+            <div className="cost-preview" aria-label="Pricing">
+              <div className="cost-preview-item">
+                <span className="cost-preview-label">Black &amp; White</span>
+                <span className="cost-preview-value">{formatRupees(pricing.bwPerPagePaise)}<span className="cost-preview-unit">/page</span></span>
+              </div>
+              <div className="cost-preview-item">
+                <span className="cost-preview-label">Color</span>
+                <span className="cost-preview-value">{formatRupees(pricing.colorPerPagePaise)}<span className="cost-preview-unit">/page</span></span>
+              </div>
+              <div className="cost-preview-item">
+                <span className="cost-preview-label">Photo Print</span>
+                <span className="cost-preview-value">{formatRupees(pricing.photoPrintPaise)}<span className="cost-preview-unit">/print</span></span>
+              </div>
+            </div>
+          )}
+
           {recentToken && (
             <div className="track-link-row">
               <a className="recent-order-chip" href={`/track?token=${recentToken}`}>
@@ -1378,6 +1439,15 @@ export default function UploadForm() {
               </div>
               <span className="upload-progress-label">Uploading… {uploadPct}%</span>
             </div>
+          )}
+
+          {/* Repeat-print: one tap reapplies the last successful job's settings */}
+          {lastSettings && !appliedLastSettings && (
+            <button type="button" className="repeat-settings-chip" onClick={applyLastSettings}>
+              <RefreshCw size={14} aria-hidden="true" />
+              <span>Use same as last time</span>
+              <span className="repeat-settings-sub">{lastSettingsSummary}</span>
+            </button>
           )}
 
           {/* Print type toggle */}
