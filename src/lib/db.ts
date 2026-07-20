@@ -548,6 +548,25 @@ export async function updateJobStatus(id: string, status: string): Promise<void>
     .run(crypto.randomUUID(), id, status, `Admin set status to ${status}.`, now);
 }
 
+// Payment is tracked independently of print-progress status — a job can be
+// released/printed before it's paid (pay-at-counter-after-print flow), so
+// marking paid only ever touches paid_at, never the status column.
+export async function markJobPaid(id: string): Promise<{ paidAt: string }> {
+  if (isSupabase) {
+    const mod = await import('./db-supabase');
+    return mod.markJobPaid(id);
+  }
+
+  const crypto = await import('node:crypto');
+  const sqlite = await getDbInstance();
+  const now = new Date().toISOString();
+  sqlite.prepare(`UPDATE jobs SET paid_at = COALESCE(paid_at, ?), updated_at = ? WHERE id = ?`).run(now, now, id);
+  sqlite.prepare("INSERT INTO print_events (id, job_id, event_type, message, created_at) VALUES (?, ?, ?, ?, ?)")
+    .run(crypto.randomUUID(), id, 'paid', 'Marked as paid.', now);
+  const row = sqlite.prepare(`SELECT paid_at FROM jobs WHERE id = ?`).get(id) as { paid_at: string };
+  return { paidAt: row.paid_at };
+}
+
 export async function updateJobSettings(id: string, settings: {
   printType: string;
   copies: number;
@@ -937,7 +956,7 @@ export async function getDailyAnalytics(from: string, to: string): Promise<Daily
   const fromTs = `${from}T00:00:00.000Z`;
   const toTs   = `${to}T23:59:59.999Z`;
   const rows = sqlite.prepare(
-    `SELECT created_at, status, print_type, page_count, price_paise
+    `SELECT created_at, status, print_type, page_count, price_paise, paid_at
      FROM jobs
      WHERE created_at >= ? AND created_at <= ?
      ORDER BY created_at ASC`
@@ -959,7 +978,7 @@ export async function getDailyAnalytics(from: string, to: string): Promise<Daily
     d.totalJobs++;
     d.totalRevenuePaise += pricePaise;
     d.pagesTotal += pages;
-    if (['paid', 'approved', 'printing', 'printed'].includes(status)) d.confirmedRevenuePaise += pricePaise;
+    if (row.paid_at) d.confirmedRevenuePaise += pricePaise;
     if (status === 'printed')          d.printedJobs++;
     if (status === 'cancelled')        d.cancelledJobs++;
     if (status === 'pending_payment')  d.pendingJobs++;
