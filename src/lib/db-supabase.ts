@@ -38,6 +38,7 @@ function mapJob(row: any, expiryMinutes: number = 1440): Job {
     createdAt,
     updatedAt: String(row.updated_at),
     paidAt: row.paid_at ? String(row.paid_at) : null,
+    paidVia: row.paid_via ? (row.paid_via as Job['paidVia']) : null,
     printedAt: row.printed_at ? String(row.printed_at) : null,
     expiresAt
   };
@@ -303,7 +304,7 @@ export async function updateJobStatus(id: string, status: string) {
 // Payment is tracked independently of print-progress status — a job can be
 // released/printed before it's paid (pay-at-counter-after-print flow), so
 // marking paid only ever touches paid_at, never the status column.
-export async function markJobPaid(id: string): Promise<{ paidAt: string }> {
+export async function markJobPaid(id: string, via: 'online' | 'counter' = 'counter'): Promise<{ paidAt: string }> {
   const { data: existing, error: selError } = await supabase
     .from('jobs')
     .select('paid_at')
@@ -318,13 +319,13 @@ export async function markJobPaid(id: string): Promise<{ paidAt: string }> {
   const now = new Date().toISOString();
   const { error } = await supabase
     .from('jobs')
-    .update({ paid_at: now, updated_at: now })
+    .update({ paid_at: now, paid_via: via, updated_at: now })
     .eq('id', id);
   if (error) throw error;
 
   await supabase
     .from('print_events')
-    .insert([{ id: crypto.randomUUID(), job_id: id, event_type: 'paid', message: 'Marked as paid.', created_at: now }]);
+    .insert([{ id: crypto.randomUUID(), job_id: id, event_type: 'paid', message: `Marked as paid (${via}).`, created_at: now }]);
 
   return { paidAt: now };
 }

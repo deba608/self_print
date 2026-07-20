@@ -554,18 +554,18 @@ export async function updateJobStatus(id: string, status: string): Promise<void>
 // Payment is tracked independently of print-progress status — a job can be
 // released/printed before it's paid (pay-at-counter-after-print flow), so
 // marking paid only ever touches paid_at, never the status column.
-export async function markJobPaid(id: string): Promise<{ paidAt: string }> {
+export async function markJobPaid(id: string, via: "online" | "counter" = "counter"): Promise<{ paidAt: string }> {
   if (isSupabase) {
     const mod = await import('./db-supabase');
-    return mod.markJobPaid(id);
+    return mod.markJobPaid(id, via);
   }
 
   const crypto = await import('node:crypto');
   const sqlite = await getDbInstance();
   const now = new Date().toISOString();
-  sqlite.prepare(`UPDATE jobs SET paid_at = COALESCE(paid_at, ?), updated_at = ? WHERE id = ?`).run(now, now, id);
+  sqlite.prepare(`UPDATE jobs SET paid_at = COALESCE(paid_at, ?), paid_via = COALESCE(paid_via, ?), updated_at = ? WHERE id = ?`).run(now, via, now, id);
   sqlite.prepare("INSERT INTO print_events (id, job_id, event_type, message, created_at) VALUES (?, ?, ?, ?, ?)")
-    .run(crypto.randomUUID(), id, 'paid', 'Marked as paid.', now);
+    .run(crypto.randomUUID(), id, 'paid', `Marked as paid (${via}).`, now);
   const row = sqlite.prepare(`SELECT paid_at FROM jobs WHERE id = ?`).get(id) as { paid_at: string };
   return { paidAt: row.paid_at };
 }
