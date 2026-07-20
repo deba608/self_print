@@ -2670,6 +2670,13 @@ input[type="number"] {
 .action-btn.active:hover {
   background: rgba(13, 122, 116, 0.15);
   border-color: rgba(13, 122, 116, 0.3);
+}
+
+.action-btn.danger {
+  color: var(--danger);
+  border-color: rgba(185, 28, 28, 0.15);
+}
+
 .action-btn.danger:hover {
   border-color: rgba(185, 28, 28, 0.2);
   background: rgba(254, 242, 242, 0.8);
