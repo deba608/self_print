@@ -35,6 +35,7 @@ export type Job = {
   createdAt: string;
   updatedAt: string;
   paidAt: string | null;
+  paidVia: "online" | "counter" | null;
   printedAt: string | null;
   expiresAt: string;
   file?: JobFile;

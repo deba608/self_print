@@ -80,6 +80,7 @@ async function initSchema(database: any) {
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
       paid_at TEXT,
+      paid_via TEXT,
       printed_at TEXT
     );
 
@@ -167,7 +168,8 @@ async function ensureJobColumns(database: any) {
     ['margins', "TEXT NOT NULL DEFAULT 'default'"],
     ['scale', "TEXT NOT NULL DEFAULT 'default'"],
     ['duplex', "TEXT NOT NULL DEFAULT 'simplex'"],
-    ['queue_position', 'INTEGER NOT NULL DEFAULT 0']
+    ['queue_position', 'INTEGER NOT NULL DEFAULT 0'],
+    ['paid_via', 'TEXT']
   ];
   for (const [name, definition] of additions) {
     if (!columns.has(name)) {
@@ -247,6 +249,7 @@ function mapJob(row: Record<string, unknown>, expiryMinutes: number = 1440): Job
     createdAt,
     updatedAt: String(row.updated_at),
     paidAt: row.paid_at ? String(row.paid_at) : null,
+    paidVia: row.paid_via ? (row.paid_via as Job['paidVia']) : null,
     printedAt: row.printed_at ? String(row.printed_at) : null,
     expiresAt
   };
