@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
       try {
         const job = await getJobById(jobId);
         if (!job.paidAt) {
-          const { paidAt } = await markJobPaid(job.id);
+          const { paidAt } = await markJobPaid(job.id, "online");
           broadcastSse({ type: "job_update", jobId: job.id, status: job.status, paidAt, token: job.token });
         }
       } catch {

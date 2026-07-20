@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
 
   // Idempotent: if the webhook already marked it paid, treat as success.
   if (!job.paidAt) {
-    const { paidAt } = await markJobPaid(job.id);
+    const { paidAt } = await markJobPaid(job.id, "online");
     broadcastSse({ type: "job_update", jobId: job.id, status: job.status, paidAt, token: job.token });
   }
 
