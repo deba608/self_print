@@ -28,6 +28,7 @@ type Detail = {
     pricePaise: number;
     needsConversion: 0 | 1;
     createdAt: string;
+    paidAt: string | null;
   };
   file: { id: string; originalName: string; mimeType: string; fileKind: string; sizeBytes: number } | null;
   files: Array<{ id: string; originalName: string; mimeType: string; fileKind: string; sizeBytes: number }>;
@@ -140,8 +141,8 @@ export default function JobDetail({ id }: { id: string }) {
 
   function statusBadge(status: string) {
     const map: Record<string, { label: string; cls: string }> = {
-      pending_payment: { label: "Unpaid", cls: "warn" },
-      paid: { label: "Paid", cls: "info" },
+      pending_payment: { label: "Queued", cls: "warn" },
+      paid: { label: "Queued", cls: "warn" }, // legacy rows from before payment was decoupled
       approved: { label: "Ready", cls: "ready" },
       printing: { label: "Printing", cls: "info" },
       printed: { label: "Done", cls: "ok" },
@@ -186,6 +187,11 @@ export default function JobDetail({ id }: { id: string }) {
             <strong>{job.token}</strong>
           </div>
           <span className={`status-badge ${badge.cls}`}>{badge.label}</span>
+          {job.paidAt ? (
+            <span className="status-badge ok">Paid</span>
+          ) : job.status !== "cancelled" && (
+            <span className="status-badge warn">Unpaid</span>
+          )}
           {job.needsConversion === 1 && (
             <span className="conversion-note">Needs conversion</span>
           )}
@@ -342,14 +348,14 @@ function ActionsCard({
     <div className="detail-card">
       <h3 className="card-title">Actions</h3>
       <div className="detail-action-grid">
-        {job.status === "pending_payment" && (
-          <button type="button" className="job-btn paid" onClick={() => setStatus("paid")}>
-            <CreditCard size={16} /> Mark as Paid
-          </button>
-        )}
-        {job.status === "paid" && (
+        {(job.status === "pending_payment" || job.status === "paid") && (
           <button type="button" className="job-btn release" onClick={() => setStatus("approved")}>
             <Printer size={16} /> Release Print
+          </button>
+        )}
+        {!job.paidAt && job.status !== "cancelled" && (
+          <button type="button" className="job-btn paid" onClick={() => setStatus("paid")}>
+            <CreditCard size={16} /> Mark as Paid
           </button>
         )}
         {(job.status === "approved" || job.status === "printing" || job.status === "failed") && (
@@ -362,7 +368,7 @@ function ActionsCard({
             <RotateCcw size={16} /> {job.status === "failed" ? "Retry Print" : "Reprint"}
           </button>
         )}
-        {job.status !== "pending_payment" && job.status !== "cancelled" && (
+        {!["pending_payment", "paid", "cancelled"].includes(job.status) && (
           <button
             type="button"
             className="job-btn manual"
@@ -557,7 +563,7 @@ function ProgressTracker({ job, events }: { job: Detail["job"]; events: Detail["
   const steps = [
     { key: "created", label: "Submitted", icon: FileText, done: true, time: fmt(job.createdAt) },
     { key: "paid", label: "Payment received", icon: IndianRupee,
-      done: ["paid", "approved", "printing", "printed"].includes(s) || types.has("paid"), time: eventTime("paid") },
+      done: Boolean(job.paidAt), time: eventTime("paid") },
     { key: "approved", label: "Released to print", icon: Printer,
       done: ["approved", "printing", "printed"].includes(s) || types.has("approved"), time: eventTime("approved") },
     { key: "downloaded", label: "File downloaded", icon: Upload,
