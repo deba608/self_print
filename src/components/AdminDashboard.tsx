@@ -9,7 +9,6 @@ import {
 } from "lucide-react";
 import { manualPrint } from "@/lib/manualPrint";
 import Link from "next/link";
-import AccountsTab from "./AccountsTab";
 
 type Job = {
   id: string;
