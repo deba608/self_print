@@ -409,10 +409,17 @@ export async function getJobsAhead(job: Job): Promise<number> {
     return mod.getJobsAhead(job);
   }
   const sqlite = await getDbInstance();
+  // queue_position resets daily (see nextQueuePosition), so "ahead" only
+  // makes sense compared against jobs from the same calendar day.
+  const dayStart = new Date(job.createdAt);
+  dayStart.setUTCHours(0, 0, 0, 0);
+  const dayEnd = new Date(dayStart);
+  dayEnd.setUTCDate(dayEnd.getUTCDate() + 1);
   const row = sqlite.prepare(`
     SELECT COUNT(*) as n FROM jobs
     WHERE queue_position < ? AND status NOT IN ('printed', 'cancelled', 'failed')
-  `).get(job.queuePosition) as { n: number };
+      AND created_at >= ? AND created_at < ?
+  `).get(job.queuePosition, dayStart.toISOString(), dayEnd.toISOString()) as { n: number };
   return row.n;
 }
 
@@ -816,14 +823,20 @@ export async function getAgentToken(rawToken: string) {
   return rows.find((row) => verifySecret(rawToken, row.token_hash)) || null;
 }
 
+// Daily-reset serial: #1 is the first job created after UTC midnight, not a
+// global ever-climbing ticket number. Matches the familiar shop-counter feel
+// and keeps the number small/meaningful for staff and customers.
 export async function nextQueuePosition(): Promise<number> {
   if (isSupabase) {
     const mod = await import('./db-supabase');
     return mod.nextQueuePosition();
   }
-  
+
   const sqlite = await getDbInstance();
-  const row = sqlite.prepare('SELECT COALESCE(MAX(queue_position), 0) + 1 as pos FROM jobs').get() as { pos: number };
+  const todayStart = new Date();
+  todayStart.setUTCHours(0, 0, 0, 0);
+  const row = sqlite.prepare('SELECT COALESCE(MAX(queue_position), 0) + 1 as pos FROM jobs WHERE created_at >= ?')
+    .get(todayStart.toISOString()) as { pos: number };
   return row.pos;
 }
 
