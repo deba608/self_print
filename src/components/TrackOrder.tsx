@@ -192,6 +192,9 @@ export default function TrackOrder({ initialToken }: { initialToken?: string }) 
             <div className="result-meta-item">
               <span className="result-meta-label">Queue</span>
               <span className="result-meta-value">#{job.queuePosition}</span>
+              {job.status !== "printed" && !tl.failed && (
+                <span className="track-eta">~{Math.max(1, job.queuePosition) * 3} min</span>
+              )}
             </div>
             <div className="result-meta-divider" aria-hidden="true" />
             <div className="result-meta-item">

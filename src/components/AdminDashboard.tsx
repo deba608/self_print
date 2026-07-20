@@ -1240,6 +1240,61 @@ export default function AdminDashboard() {
   const toastIdRef = useRef(0);
   const esRef = useRef<EventSource | null>(null);
 
+  // New-job chime + tab-title flash so a busy counter notices uploads.
+  const [soundOn, setSoundOn] = useState(false);
+  useEffect(() => {
+    try { setSoundOn(localStorage.getItem("selfprint:admin:sound") === "1"); } catch { /* private mode */ }
+  }, []);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const soundOnRef = useRef(soundOn);
+  useEffect(() => { soundOnRef.current = soundOn; }, [soundOn]);
+
+  const playChime = useCallback(() => {
+    if (!soundOnRef.current) return;
+    try {
+      const ctx = audioCtxRef.current ?? new AudioContext();
+      audioCtxRef.current = ctx;
+      if (ctx.state === "suspended") void ctx.resume();
+      // Two quick ascending tones — friendly "new order" ding.
+      [[880, 0], [1318.5, 0.14]].forEach(([freq, at]) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = "sine";
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0.0001, ctx.currentTime + at);
+        gain.gain.exponentialRampToValueAtTime(0.18, ctx.currentTime + at + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + at + 0.3);
+        osc.connect(gain).connect(ctx.destination);
+        osc.start(ctx.currentTime + at);
+        osc.stop(ctx.currentTime + at + 0.32);
+      });
+    } catch { /* audio unavailable */ }
+  }, []);
+
+  function toggleSound() {
+    const next = !soundOn;
+    setSoundOn(next);
+    soundOnRef.current = next;
+    try { localStorage.setItem("selfprint:admin:sound", next ? "1" : "0"); } catch { /* private mode */ }
+    // The toggle click is a user gesture — create/resume the context now so
+    // later SSE-triggered chimes are allowed to play, and preview the sound.
+    if (next) playChime();
+  }
+
+  // Unseen new jobs while the tab is unfocused → "(2) New orders" title.
+  const [unseen, setUnseen] = useState(0);
+  useEffect(() => {
+    const baseTitle = document.title;
+    if (unseen > 0) document.title = `(${unseen}) New order${unseen > 1 ? "s" : ""} — ${baseTitle.replace(/^\(\d+\)[^—]*— /, "")}`;
+    return () => { document.title = baseTitle.replace(/^\(\d+\)[^—]*— /, ""); };
+  }, [unseen]);
+  useEffect(() => {
+    const clear = () => setUnseen(0);
+    window.addEventListener("focus", clear);
+    document.addEventListener("visibilitychange", clear);
+    return () => { window.removeEventListener("focus", clear); document.removeEventListener("visibilitychange", clear); };
+  }, []);
+
   const pushToast = useCallback((kind: "ok" | "err", msg: string) => {
     const id = ++toastIdRef.current;
     setToasts((prev) => [...prev, { id, kind, msg }]);
@@ -1307,6 +1362,8 @@ export default function AdminDashboard() {
           // Update only the changed job status/paidAt in place
           setJobs((prev) => prev.map((j) => j.id === data.jobId ? { ...j, status: data.status, paidAt: data.paidAt ?? j.paidAt } : j));
         } else if (data.type === "new_job") {
+          playChime();
+          setUnseen((n) => n + 1);
           // Reload to get the new job with full details
           load();
         }
@@ -1561,6 +1618,17 @@ export default function AdminDashboard() {
       {showAccounts && <AccountsTab />}
 
       <StatsBar activeJobs={activeJobs.length} todayRevenue={summary.totalPaise} />
+
+      <button
+        type="button"
+        className={`sound-toggle ${soundOn ? "on" : ""}`}
+        onClick={toggleSound}
+        aria-pressed={soundOn}
+        title="Play a chime when a new order arrives"
+      >
+        <Bell size={14} aria-hidden="true" />
+        {soundOn ? "New-order chime on" : "New-order chime off"}
+      </button>
 
       <FilterTabs
         filters={statusFilters}
