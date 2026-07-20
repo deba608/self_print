@@ -266,14 +266,13 @@ export default function UploadForm() {
   // "Mark Paid" (cash / QR-scan payments) flips this phone to the receipt.
   useEffect(() => {
     if (!result || paidInfo || result.needsConversion) return;
-    const paidStatuses = ["paid", "approved", "printing", "printed"];
     const interval = setInterval(async () => {
       try {
         const res = await fetch(`/api/jobs/${result.token}/status`, { cache: "no-store" });
         if (!res.ok) return;
         const body = await res.json();
-        if (paidStatuses.includes(body.status)) {
-          setPaidInfo({ method: "counter", at: body.paidAt ?? new Date().toISOString() });
+        if (body.paidAt) {
+          setPaidInfo({ method: "counter", at: body.paidAt });
         }
       } catch {
         /* transient network error — next tick retries */

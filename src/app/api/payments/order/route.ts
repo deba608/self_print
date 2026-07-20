@@ -26,9 +26,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Job not found." }, { status: 404 });
   }
 
-  if (job.status !== "pending_payment") {
-    // Already paid / released — nothing to charge.
+  if (job.paidAt) {
+    // Already paid — nothing to charge.
     return NextResponse.json({ error: "This job is already paid.", alreadyPaid: true }, { status: 409 });
+  }
+  if (job.status === "cancelled") {
+    return NextResponse.json({ error: "This job was cancelled." }, { status: 409 });
   }
 
   const amount = Math.round(job.pricePaise);
