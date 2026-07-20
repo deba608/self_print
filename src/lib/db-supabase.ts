@@ -164,11 +164,20 @@ export async function getJobByToken(token: string) {
 // at creation (MAX+1) and never changes — it does NOT shrink as earlier jobs
 // finish, so it's wrong to use directly for a "how many ahead of you" ETA.
 export async function getJobsAhead(job: Job): Promise<number> {
+  // queue_position resets daily (see nextQueuePosition), so "ahead" only
+  // makes sense compared against jobs from the same calendar day.
+  const dayStart = new Date(job.createdAt);
+  dayStart.setUTCHours(0, 0, 0, 0);
+  const dayEnd = new Date(dayStart);
+  dayEnd.setUTCDate(dayEnd.getUTCDate() + 1);
+
   const { count, error } = await supabase
     .from('jobs')
     .select('id', { count: 'exact', head: true })
     .lt('queue_position', job.queuePosition)
-    .not('status', 'in', '("printed","cancelled","failed")');
+    .not('status', 'in', '("printed","cancelled","failed")')
+    .gte('created_at', dayStart.toISOString())
+    .lt('created_at', dayEnd.toISOString());
   if (error) throw error;
   return count ?? 0;
 }
@@ -595,14 +604,21 @@ export async function getAgentToken(rawToken: string) {
   return null;
 }
 
+// Daily-reset serial: #1 is the first job created after UTC midnight, not a
+// global ever-climbing ticket number. Matches the familiar shop-counter feel
+// and keeps the number small/meaningful for staff and customers.
 export async function nextQueuePosition(): Promise<number> {
+  const todayStart = new Date();
+  todayStart.setUTCHours(0, 0, 0, 0);
+
   const { data, error } = await supabase
     .from('jobs')
     .select('queue_position')
+    .gte('created_at', todayStart.toISOString())
     .order('queue_position', { ascending: false })
     .limit(1)
     .single();
-  
+
   if (error && error.code !== 'PGRST116') throw error;
   return data ? Number(data.queue_position) + 1 : 1;
 }
