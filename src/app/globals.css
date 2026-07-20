@@ -6260,3 +6260,154 @@ input[type="number"] {
   from { opacity: 0; transform: translateX(-28px); }
   to { opacity: 1; transform: translateX(0); }
 }
+
+/* === Order tracking (/track) === */
+.track-order { display: flex; flex-direction: column; gap: var(--space-4); }
+
+.track-entry { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 8px 0 4px; }
+.track-hint { font-size: 14px; font-weight: 600; color: var(--muted); margin: 0; }
+
+.token-inputs { display: flex; gap: 8px; }
+.token-digit {
+  width: 46px;
+  height: 56px;
+  text-align: center;
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--accent);
+  background: #fff;
+  border: 2px solid var(--line);
+  border-radius: 12px;
+  transition: border-color var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out);
+}
+.token-digit:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-light);
+  transform: scale(1.05);
+}
+@media (max-width: 380px) {
+  .token-digit { width: 40px; height: 50px; font-size: 20px; }
+}
+
+.track-checking { display: flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 700; color: var(--accent); margin: 0; }
+
+.track-result { display: flex; flex-direction: column; align-items: center; gap: var(--space-4); }
+
+/* Vertical status timeline */
+.track-timeline {
+  list-style: none;
+  margin: 0;
+  padding: 18px 20px;
+  width: 100%;
+  max-width: 340px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.track-step {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 12px 0;
+}
+
+/* Connector line between dots */
+.track-step:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  left: 17px;
+  top: 48px;
+  bottom: -12px;
+  width: 2px;
+  background: var(--line);
+}
+.track-step.done:not(:last-child)::after { background: var(--ok); }
+
+.track-step-dot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--line);
+  color: var(--muted);
+  z-index: 1;
+  transition: background var(--duration-base) var(--ease-out), color var(--duration-base) var(--ease-out);
+}
+
+.track-step.done .track-step-dot { background: var(--ok); color: #fff; animation: badgeBounce 0.45s var(--ease-spring); }
+.track-step.active .track-step-dot {
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 0 0 4px var(--accent-light);
+  animation: stepPulse 2s infinite;
+}
+
+.track-step-text { display: flex; flex-direction: column; gap: 2px; padding-top: 6px; }
+.track-step-label { font-size: 15px; font-weight: 800; color: var(--muted); transition: color var(--duration-base) var(--ease-out); }
+.track-step.done .track-step-label { color: var(--ink); }
+.track-step.active .track-step-label { color: var(--accent); }
+.track-step-sub { font-size: 12.5px; font-weight: 600; color: var(--muted); animation: fadeIn 0.3s var(--ease-out); }
+
+.track-failed {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  width: 100%;
+  max-width: 340px;
+  padding: 16px 18px;
+  background: var(--danger-light);
+  border: 1px solid #f3c6c6;
+  border-radius: 14px;
+  color: var(--danger);
+  text-align: left;
+}
+.track-failed strong { font-size: 14.5px; }
+.track-failed p { margin: 4px 0 0; font-size: 13px; color: var(--ink); }
+
+.track-collect {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--ok);
+  margin: 0;
+}
+
+.track-again { width: fit-content; min-width: 200px; }
+
+/* Entry links on the home upload step */
+.track-link-row { display: flex; flex-direction: column; align-items: center; gap: 8px; margin-top: 4px; }
+.track-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--accent);
+  cursor: pointer;
+}
+.track-link:hover { text-decoration: underline; }
+
+.recent-order-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: var(--accent-light);
+  border: 1px solid #b8ded7;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent-strong);
+  animation: fadeInUp 0.35s var(--ease-out) both;
+}

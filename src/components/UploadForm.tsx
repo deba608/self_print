@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useRef } from "react";
-import { UploadCloud, FileText, Image, ArrowLeft, ArrowRight, Check, Eye, Loader2, File, Settings2, Maximize2, Minimize2, Printer, Smartphone, Copy, QrCode, Store, X } from "lucide-react";
+import { UploadCloud, FileText, Image, ArrowLeft, ArrowRight, Check, Eye, Loader2, File, Settings2, Maximize2, Minimize2, Printer, Smartphone, Copy, QrCode, Store, X, Search } from "lucide-react";
 import { formatRupees, paperSizeLabels, allPaperSizes } from "@/lib/pricing";
 import BillReceipt, { type BillData } from "./BillReceipt";
 import { QRCodeSVG } from "qrcode.react";
@@ -254,6 +254,18 @@ export default function UploadForm() {
       return { isDirectUpload: true, error: err instanceof Error ? err.message : "Upload failed" };
     }
   }
+
+  // Remembered token for the "recent order" chip on the upload step, and
+  // saving the current order's token once it exists — both power /track.
+  const [recentToken, setRecentToken] = useState<string | null>(null);
+  useEffect(() => {
+    try { setRecentToken(localStorage.getItem("selfprint:lastToken")); } catch { /* private mode */ }
+  }, []);
+  useEffect(() => {
+    if (!result?.token) return;
+    try { localStorage.setItem("selfprint:lastToken", result.token); } catch { /* private mode */ }
+    setRecentToken(result.token);
+  }, [result]);
 
   useEffect(() => {
     fetch("/api/pricing")
@@ -1122,6 +1134,9 @@ export default function UploadForm() {
           </div>
         )}
 
+        <a className="btn-secondary upload-another" style={{ marginTop: "0.75rem" }} href={`/track?token=${result.token}`}>
+          <Search size={16} aria-hidden="true" /> Track this order
+        </a>
         <button className="btn-secondary upload-another" style={{ marginTop: "0.75rem" }} onClick={resetForm}>Upload Another</button>
         <div className="thank-you-note">
           <p>Thank you for using Self_Print</p>
@@ -1187,6 +1202,18 @@ export default function UploadForm() {
             <span className="format-badge">PDF</span>
             <span className="format-badge">JPG</span>
             <span className="format-badge">PNG</span>
+          </div>
+          <div className="track-link-row">
+            {recentToken && (
+              <a className="recent-order-chip" href={`/track?token=${recentToken}`}>
+                <Search size={14} aria-hidden="true" />
+                Recent order #{recentToken} — track it
+              </a>
+            )}
+            <a className="track-link" href="/track">
+              <Search size={14} aria-hidden="true" />
+              Check order status
+            </a>
           </div>
           {error && (
             <div className="error-msg" role="alert">
