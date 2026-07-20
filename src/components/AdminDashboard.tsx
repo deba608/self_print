@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import {
-  RefreshCw, Settings, LogOut, Printer, Bell,
+  RefreshCw, Settings, LogOut, Printer, Bell, BellRing,
   CheckSquare, Square, CreditCard, Eye, X, Check, Monitor, Loader2,
   Lock, Eye as EyeIcon, EyeOff, ChevronDown, Zap, TrendingUp, Clock,
   Trash2, ListTodo, Inbox, FileText, BarChart2, ShieldCheck, User, ArrowRight
@@ -249,6 +249,8 @@ function AdminTopbar({
   printerName,
   newJobCount,
   sseConnected,
+  soundOn,
+  onToggleSound,
   onRefresh,
   onOpenPricing,
   onOpenPrinter,
@@ -259,6 +261,8 @@ function AdminTopbar({
   printerName: string;
   newJobCount: number;
   sseConnected: boolean;
+  soundOn: boolean;
+  onToggleSound: () => void;
   onRefresh: () => void;
   onOpenPricing: () => void;
   onOpenPrinter: () => void;
@@ -291,12 +295,22 @@ function AdminTopbar({
       </button>
 
       <div className="topbar-actions">
-        {newJobCount > 0 && (
-          <button type="button" className="action-btn notification" onClick={onRefresh}>
-            <Bell size={18} />
+        <button
+          type="button"
+          className={`action-btn notification ${soundOn ? "chime-on" : ""} ${newJobCount > 0 ? "has-new" : ""}`}
+          onClick={() => {
+            if (newJobCount > 0) onRefresh();
+            onToggleSound();
+          }}
+          title={`Notifications: ${newJobCount} new orders. Chime alert is ${soundOn ? "ON" : "OFF"}. Click to ${newJobCount > 0 ? "refresh & " : ""}toggle chime sound.`}
+          aria-label="Notifications and chime alert settings"
+        >
+          {soundOn ? <BellRing size={18} className="bell-ring-icon" /> : <Bell size={18} />}
+          {newJobCount > 0 && (
             <span className="notif-badge">{newJobCount}</span>
-          </button>
-        )}
+          )}
+          {soundOn && <span className="chime-dot" title="New-order chime active"></span>}
+        </button>
 
         <button type="button" className="action-btn" onClick={onRefresh} title="Refresh" aria-label="Refresh jobs">
           <RefreshCw size={18} />
