@@ -6491,3 +6491,200 @@ input[type="number"] {
   color: var(--accent-strong);
   animation: fadeInUp 0.35s var(--ease-out) both;
 }
+
+/* === Live mini-timeline on the token screen === */
+.mini-track {
+  width: 100%;
+  max-width: 340px;
+  margin: 4px auto 14px;
+  padding: 14px 16px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  animation: fadeInUp 0.4s var(--ease-out) 0.5s both;
+}
+
+.mini-track-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.mini-track-title {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Blinking "live" dot before the title */
+.mini-track-title::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ok);
+  animation: liveBlink 1.6s ease-in-out infinite;
+}
+
+@keyframes liveBlink {
+  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(21, 128, 61, 0.4); }
+  50% { opacity: 0.5; box-shadow: 0 0 0 4px rgba(21, 128, 61, 0); }
+}
+
+.mini-track-eta {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent);
+  background: var(--accent-light);
+  padding: 3px 10px;
+  border-radius: 999px;
+}
+
+.mini-timeline {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.mini-step {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+}
+
+.mini-step-dot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--line);
+  color: var(--muted);
+  z-index: 1;
+  transition: background var(--duration-base) var(--ease-out), color var(--duration-base) var(--ease-out);
+}
+
+.mini-step.done .mini-step-dot { background: var(--ok); color: #fff; animation: badgeBounce 0.45s var(--ease-spring); }
+.mini-step.active .mini-step-dot {
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 0 0 3px var(--accent-light);
+  animation: stepPulse 2s infinite;
+}
+
+/* Printing step gets a gentle wobble while active */
+.mini-step.active .mini-step-dot svg { animation: printWobble 1.2s ease-in-out infinite; }
+
+@keyframes printWobble {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-2px); }
+}
+
+.mini-step-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--muted);
+}
+.mini-step.done .mini-step-label { color: var(--ink); }
+.mini-step.active .mini-step-label { color: var(--accent); }
+
+/* Connector between dots */
+.mini-step-line {
+  position: absolute;
+  top: 14px;
+  left: calc(50% + 17px);
+  right: calc(-50% + 17px);
+  height: 2px;
+  background: var(--line);
+  transition: background var(--duration-slow) var(--ease-out);
+}
+.mini-step-line.filled { background: var(--ok); }
+
+.mini-track-failed {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--danger);
+}
+
+.mini-track .track-collect { margin-top: 10px; justify-content: center; }
+
+/* Scan-to-track QR on the token screen */
+.track-qr {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin: 0 auto 6px;
+  padding: 12px 16px;
+  width: fit-content;
+  background: #fff;
+  border: 1.5px dashed var(--line);
+  border-radius: 14px;
+  animation: fadeIn 0.4s var(--ease-out) 0.6s both;
+}
+
+.track-qr-hint {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--muted);
+  text-align: left;
+  line-height: 1.5;
+}
+
+/* ETA under queue position on /track */
+.track-eta {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--accent);
+  margin-top: 2px;
+}
+
+/* Admin new-order chime toggle */
+.sound-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  width: fit-content;
+  padding: 7px 14px;
+  margin: 2px 0 0;
+  background: #fff;
+  border: 1.5px solid var(--line);
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-out);
+}
+
+.sound-toggle:hover { border-color: var(--accent); color: var(--accent); }
+
+.sound-toggle.on {
+  background: var(--accent-light);
+  border-color: var(--accent);
+  color: var(--accent-strong);
+}
+
+.sound-toggle.on svg { animation: bellRing 0.5s var(--ease-spring); }
+
+@keyframes bellRing {
+  0% { transform: rotate(0); }
+  25% { transform: rotate(18deg); }
+  50% { transform: rotate(-14deg); }
+  75% { transform: rotate(8deg); }
+  100% { transform: rotate(0); }
+}
