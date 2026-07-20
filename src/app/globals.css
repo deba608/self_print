@@ -5651,9 +5651,7 @@ input[type="number"] {
   display: flex;
   flex-direction: column;
   gap: var(--space-5);
-  padding: var(--space-4);
-  max-width: 960px;
-  margin: 0 auto;
+  padding: var(--space-4) 0;
   width: 100%;
 }
 
@@ -5693,7 +5691,7 @@ input[type="number"] {
 }
 
 .acct-range-btn {
-  padding: 6px 14px;
+  padding: 7px 14px;
   font-size: 13px;
   font-weight: 600;
   border: none;
@@ -5984,6 +5982,7 @@ input[type="number"] {
 
 .acct-table .rev-cell {
   font-variant-numeric: tabular-nums;
+  text-align: right;
 }
 
 .acct-table .confirmed-cell {
@@ -6023,7 +6022,11 @@ input[type="number"] {
 
 @media (max-width: 480px) {
   .acct-root {
-    padding: var(--space-3);
+    padding: var(--space-3) 0;
+  }
+
+  .acct-cards {
+    grid-template-columns: 1fr;
   }
 
   .acct-range-summary {
