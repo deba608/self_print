@@ -15,17 +15,19 @@ type TrackData = {
 const TOKEN_LEN = 6;
 const LAST_TOKEN_KEY = "selfprint:lastToken";
 
-// Maps a job status to how far along the 4-step timeline it is.
-// Steps: 0 Submitted, 1 Paid, 2 Printing, 3 Ready.
-function timelineFor(status: string): { current: number; failed: boolean } {
-  switch (status) {
-    case "pending_payment": return { current: 1, failed: false };
-    case "paid": return { current: 2, failed: false };
-    case "approved":
-    case "printing": return { current: 2, failed: false };
-    case "printed": return { current: 4, failed: false };
-    default: return { current: 0, failed: true }; // failed / cancelled / expired
+// Payment and print-progress now advance independently (a shop may release
+// and print before the customer pays at the counter), so each of the 4 steps
+// — Submitted, Paid, Printing, Ready — is tracked as its own done/not-done
+// flag rather than a single linear cursor.
+function timelineFor(job: TrackData): { done: boolean[]; failed: boolean } {
+  if (!["pending_payment", "paid", "approved", "printing", "printed"].includes(job.status)) {
+    return { done: [true, Boolean(job.paidAt), false, false], failed: true }; // failed / cancelled / expired
   }
+  const printingOrBeyond = job.status === "approved" || job.status === "printing" || job.status === "printed";
+  return {
+    done: [true, Boolean(job.paidAt), printingOrBeyond, job.status === "printed"],
+    failed: false,
+  };
 }
 
 export default function TrackOrder({ initialToken }: { initialToken?: string }) {
@@ -74,7 +76,7 @@ export default function TrackOrder({ initialToken }: { initialToken?: string }) 
   // Poll a loaded job every 5s so the timeline moves while the customer watches.
   useEffect(() => {
     if (!activeToken || !job) return;
-    if (job.status === "printed" || timelineFor(job.status).failed) return;
+    if (job.status === "printed" || timelineFor(job).failed) return;
     const iv = setInterval(async () => {
       try {
         const res = await fetch(`/api/jobs/${activeToken}/status`, { cache: "no-store" });
@@ -109,10 +111,11 @@ export default function TrackOrder({ initialToken }: { initialToken?: string }) 
     inputsRef.current[0]?.focus();
   }
 
-  const tl = job ? timelineFor(job.status) : null;
+  const tl = job ? timelineFor(job) : null;
+  const activeIdx = tl ? tl.done.findIndex((d) => !d) : -1;
   const steps = [
     { label: "Submitted", sub: "Order received", icon: <UploadCloud size={18} /> },
-    { label: "Paid", sub: job?.status === "pending_payment" ? "Pay at the counter" : "Payment confirmed", icon: <CreditCard size={18} /> },
+    { label: "Paid", sub: job?.paidAt ? "Payment confirmed" : "Pay at the counter", icon: <CreditCard size={18} /> },
     { label: "Printing", sub: "Your pages are printing", icon: <Printer size={18} /> },
     { label: "Ready", sub: "Collect at the counter", icon: <PackageCheck size={18} /> },
   ];
@@ -176,7 +179,7 @@ export default function TrackOrder({ initialToken }: { initialToken?: string }) 
           ) : (
             <ol className="track-timeline">
               {steps.map((s, i) => {
-                const state = i < tl.current ? "done" : i === tl.current ? "active" : "todo";
+                const state = tl.done[i] ? "done" : i === activeIdx ? "active" : "todo";
                 return (
                   <li key={s.label} className={`track-step ${state}`}>
                     <span className="track-step-dot" aria-hidden="true">
