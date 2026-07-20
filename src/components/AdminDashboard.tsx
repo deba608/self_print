@@ -109,12 +109,8 @@ function AdminLogin({ onLogin }: { onLogin: (username: string, password: string)
     <div className="login-container">
       <div className="login-card">
         <div className="login-header">
-          <div className="login-badge">
-            <ShieldCheck size={13} />
-            <span>Administrator Access</span>
-          </div>
           <div className="login-logo">
-            <Printer size={32} strokeWidth={1.8} />
+            <Printer size={32} strokeWidth={1.5} />
           </div>
           <h1>SelfPrint Admin</h1>
         </div>
