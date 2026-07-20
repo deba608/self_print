@@ -368,7 +368,7 @@ function ActionsCard({
             <RotateCcw size={16} /> {job.status === "failed" ? "Retry Print" : "Reprint"}
           </button>
         )}
-        {!["pending_payment", "paid", "cancelled"].includes(job.status) && (
+        {job.status !== "cancelled" && (
           <button
             type="button"
             className="job-btn manual"

@@ -1175,7 +1175,7 @@ function JobCard({
             <span>{job.status === "failed" ? "Retry" : "Reprint"}</span>
           </button>
         )}
-        {!["pending_payment", "paid", "cancelled"].includes(job.status) && (
+        {job.status !== "cancelled" && (
           <button
             type="button"
             className="job-btn manual"
