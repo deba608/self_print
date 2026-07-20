@@ -596,6 +596,31 @@ function PricingPanel({
               </div>
             </div>
           </section>
+
+          <section className="pricing-section">
+            <h3>Job Expiry</h3>
+            <div className="pricing-grid single">
+              <div className="pricing-field">
+                <label>Expire unpaid jobs after</label>
+                <div className="time-input">
+                  <Clock size={16} className="time-icon" />
+                  <input
+                    type="number"
+                    step="1"
+                    min="1"
+                    value={formData.expiryMinutes}
+                    onChange={(e) => updateField("expiryMinutes", e.target.value, (v) => Math.round(Number(v)))}
+                  />
+                  <span className="time-hint">min</span>
+                </div>
+                <span className="pricing-hint">
+                  {typeof formData.expiryMinutes === "number" && formData.expiryMinutes > 0
+                    ? `${(formData.expiryMinutes / 60).toFixed(1)} hours before an unpaid, unreleased job is removed from the queue`
+                    : ""}
+                </span>
+              </div>
+            </div>
+          </section>
         </div>
 
         {error && <p className="panel-error" role="alert">{error}</p>}
