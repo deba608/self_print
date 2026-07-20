@@ -1013,7 +1013,8 @@ function JobCard({
   onToggleSelect,
   onAction,
   onView,
-  actionLoading
+  actionLoading,
+  onNotify
 }: {
   job: Job;
   isSelected: boolean;
@@ -1022,6 +1023,7 @@ function JobCard({
   onAction: (action: string) => void;
   onView: () => void;
   actionLoading: boolean;
+  onNotify: (kind: "ok" | "err", msg: string) => void;
 }) {
   const statusMap: Record<string, { label: string; class: string }> = {
     pending_payment: { label: "Unpaid", class: "warn" },
@@ -1046,11 +1048,23 @@ function JobCard({
     setPrinting(true);
     const res = await manualPrint(job.id);
     setPrinting(false);
-    if (!res.ok) alert(res.error);
+    if (!res.ok) onNotify("err", res.error ?? "Manual print failed");
   };
 
+  // Flash the card briefly whenever its status changes (SSE or action) so
+  // staff notice updates without watching every row.
+  const [flash, setFlash] = useState(false);
+  const prevStatusRef = useRef(job.status);
+  useEffect(() => {
+    if (prevStatusRef.current === job.status) return;
+    prevStatusRef.current = job.status;
+    setFlash(true);
+    const t = setTimeout(() => setFlash(false), 900);
+    return () => clearTimeout(t);
+  }, [job.status]);
+
   return (
-    <div className={`job-card ${job.status}`} style={{ animationDelay: `${Math.min(index, 8) * 35}ms` }}>
+    <div className={`job-card ${job.status} ${flash ? "flash" : ""}`} style={{ animationDelay: `${Math.min(index, 8) * 35}ms` }}>
       {job.status === "pending_payment" && (
         <button
           className={`job-checkbox ${isSelected ? "selected" : ""}`}
@@ -1568,6 +1582,17 @@ export default function AdminDashboard() {
               {loadingMore ? <><Loader2 size={14} className="spin" /> Loading...</> : "Load more"}
             </button>
           )}
+        </div>
+      )}
+
+      {toasts.length > 0 && (
+        <div className="toast-stack" role="status" aria-live="polite">
+          {toasts.map((t) => (
+            <div key={t.id} className={`toast ${t.kind} ${t.leaving ? "leaving" : ""}`}>
+              {t.kind === "ok" ? <Check size={16} /> : <X size={16} />}
+              <span>{t.msg}</span>
+            </div>
+          ))}
         </div>
       )}
     </main>
