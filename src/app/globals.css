@@ -5783,7 +5783,7 @@ input[type="number"] {
 
 .acct-card {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: var(--space-3);
   padding: var(--space-4);
   background: var(--panel);
@@ -5796,8 +5796,8 @@ input[type="number"] {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
   border-radius: var(--radius-sm);
   flex-shrink: 0;
 }
