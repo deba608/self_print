@@ -5315,7 +5315,7 @@ input[type="number"] {
 
 .acct-card {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: var(--space-3);
   padding: var(--space-4);
   background: var(--panel);
