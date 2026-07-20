@@ -5,7 +5,7 @@ import {
   RefreshCw, Settings, LogOut, Printer, Bell, BellRing,
   CheckSquare, Square, CreditCard, Eye, X, Check, Monitor, Loader2,
   Lock, Eye as EyeIcon, EyeOff, ChevronDown, Zap, TrendingUp, Clock,
-  Trash2, ListTodo, Inbox, FileText, BarChart2, ShieldCheck, User, ArrowRight, MessageCircleWarning
+  Trash2, ListTodo, Inbox, FileText, BarChart2, ShieldCheck, User, ArrowRight, MessageCircleWarning, AlertTriangle
 } from "lucide-react";
 import { manualPrint } from "@/lib/manualPrint";
 import Link from "next/link";
@@ -1315,6 +1315,7 @@ export default function AdminDashboard() {
   const [filterStatus, setFilterStatus] = useState("all");
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [actionError, setActionError] = useState("");
+  const [dismissedFailStreak, setDismissedFailStreak] = useState(0);
   const [jobsLoaded, setJobsLoaded] = useState(false);
   const [toasts, setToasts] = useState<Array<{ id: number; kind: "ok" | "err"; msg: string; leaving?: boolean }>>([]);
   const toastIdRef = useRef(0);
@@ -1658,6 +1659,21 @@ export default function AdminDashboard() {
   const pending = jobs.filter((j) => !j.paidAt && j.status !== "cancelled");
   const activeJobs = jobs.filter((j) => !["printed", "cancelled", "failed"].includes(j.status));
 
+  // Printer trouble signal: there's no ink/paper-level sensor available
+  // through the Windows GDI print path, so this watches for the pattern a
+  // real supply problem actually produces — several print attempts failing
+  // back-to-back — instead of a fake gauge. Counts the leading run of
+  // "failed" among the most recent print attempts (chronological, newest
+  // first, ignoring jobs that haven't reached a print outcome yet).
+  const recentAttempts = [...jobs]
+    .filter((j) => j.status === "printed" || j.status === "failed")
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  let failStreak = 0;
+  for (const j of recentAttempts) {
+    if (j.status === "failed") failStreak++;
+    else break;
+  }
+
   const statusFilters = [
     { value: "all", label: "All" },
     { value: "pending_payment", label: "Queued" },
@@ -1740,6 +1756,19 @@ export default function AdminDashboard() {
           onClose={() => setShowManageOrders(false)}
           onRefresh={load}
         />
+      )}
+
+      {failStreak >= 2 && failStreak > dismissedFailStreak && (
+        <div className="printer-trouble-banner" role="alert">
+          <AlertTriangle size={18} aria-hidden="true" />
+          <div>
+            <strong>{failStreak} prints failed in a row</strong>
+            <p>Check the printer for paper, ink/toner, or a jam before releasing more jobs.</p>
+          </div>
+          <button type="button" onClick={() => setDismissedFailStreak(failStreak)} aria-label="Dismiss">
+            <X size={16} />
+          </button>
+        </div>
       )}
 
       <StatsBar activeJobs={activeJobs.length} todayRevenue={summary.totalPaise} />
