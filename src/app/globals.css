@@ -381,12 +381,27 @@ input, select, button {
   border-radius: 10px;
   color: var(--accent);
   cursor: pointer;
+  max-height: 100px;
+  overflow: hidden;
+  opacity: 1;
+  transition: max-height 260ms var(--ease-out), opacity 220ms var(--ease-out),
+    padding 260ms var(--ease-out), border-width 260ms var(--ease-out), margin 260ms var(--ease-out);
 }
 
 .bulk-file-row.active {
   border-color: var(--accent);
   background: var(--accent-light);
   box-shadow: 0 0 0 1px var(--accent);
+}
+
+/* Row exit — X clicked, collapses out before the array actually shrinks */
+.bulk-file-row.leaving {
+  max-height: 0;
+  opacity: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  border-width: 0;
+  pointer-events: none;
 }
 
 .bulk-file-name {
