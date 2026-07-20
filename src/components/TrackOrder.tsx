@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Check, Loader2, Printer, Search, Store, X, CreditCard, PackageCheck, UploadCloud, Download } from "lucide-react";
+import { Check, Loader2, Printer, Search, Store, X, CreditCard, PackageCheck, UploadCloud, Download, MessageCircleWarning } from "lucide-react";
 import BillReceipt, { type BillData } from "./BillReceipt";
 
 type TrackData = {
@@ -12,6 +12,8 @@ type TrackData = {
   pricePaise: number;
   createdAt: string;
   fileCount: number;
+  issueReportedAt: string | null;
+  issueResolvedAt: string | null;
 };
 
 const TOKEN_LEN = 6;
@@ -48,6 +50,34 @@ export default function TrackOrder({ initialToken }: { initialToken?: string }) 
   const [receipt, setReceipt] = useState<BillData | null>(null);
   const [receiptLoading, setReceiptLoading] = useState(false);
   const [receiptError, setReceiptError] = useState("");
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportMsg, setReportMsg] = useState("");
+  const [reportSending, setReportSending] = useState(false);
+  const [reportError, setReportError] = useState("");
+
+  async function submitReport() {
+    if (!activeToken) return;
+    setReportSending(true);
+    setReportError("");
+    try {
+      const res = await fetch(`/api/jobs/${activeToken}/report`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: reportMsg.trim() }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setReportError(body.error ?? "Could not send the report. Try again.");
+        return;
+      }
+      setJob((j) => (j ? { ...j, issueReportedAt: new Date().toISOString(), issueResolvedAt: null } : j));
+      setReportOpen(false);
+    } catch {
+      setReportError("Network problem — check your connection and try again.");
+    } finally {
+      setReportSending(false);
+    }
+  }
 
   async function loadReceipt() {
     if (!activeToken) return;
@@ -141,6 +171,9 @@ export default function TrackOrder({ initialToken }: { initialToken?: string }) 
     setError("");
     setReceipt(null);
     setReceiptError("");
+    setReportOpen(false);
+    setReportMsg("");
+    setReportError("");
     inputsRef.current[0]?.focus();
   }
 
@@ -205,12 +238,52 @@ export default function TrackOrder({ initialToken }: { initialToken?: string }) 
           </div>
 
           {tl.failed ? (
-            <div className="track-failed" role="alert">
-              <X size={22} aria-hidden="true" />
-              <div>
-                <strong>{job.status === "cancelled" ? "Order cancelled" : "Something went wrong"}</strong>
-                <p>Please ask the shop staff for help with token {activeToken}.</p>
+            <div className="track-failed-wrap">
+              <div className="track-failed" role="alert">
+                <X size={22} aria-hidden="true" />
+                <div>
+                  <strong>{job.status === "cancelled" ? "Order cancelled" : "Something went wrong"}</strong>
+                  <p>Please ask the shop staff for help with token {activeToken}.</p>
+                </div>
               </div>
+
+              {job.issueReportedAt && !job.issueResolvedAt ? (
+                <p className="report-sent">
+                  <MessageCircleWarning size={15} aria-hidden="true" />
+                  Reported to staff — they&apos;ll follow up on token {activeToken}.
+                </p>
+              ) : job.issueResolvedAt ? (
+                <p className="report-sent resolved">
+                  <Check size={15} aria-hidden="true" />
+                  Staff marked this as resolved.
+                </p>
+              ) : reportOpen ? (
+                <div className="report-form">
+                  <textarea
+                    className="report-textarea"
+                    placeholder="What happened? (optional)"
+                    value={reportMsg}
+                    onChange={(e) => setReportMsg(e.target.value.slice(0, 500))}
+                    rows={3}
+                    maxLength={500}
+                  />
+                  {reportError && <div className="error-msg" role="alert">{reportError}</div>}
+                  <div className="report-form-actions">
+                    <button type="button" className="btn-secondary" onClick={() => setReportOpen(false)} disabled={reportSending}>
+                      Cancel
+                    </button>
+                    <button type="button" className="btn-primary" onClick={submitReport} disabled={reportSending}>
+                      {reportSending ? <Loader2 size={16} className="spin" aria-hidden="true" /> : <MessageCircleWarning size={16} aria-hidden="true" />}
+                      Send report
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button type="button" className="btn-secondary report-issue-btn" onClick={() => setReportOpen(true)}>
+                  <MessageCircleWarning size={16} aria-hidden="true" />
+                  Report issue
+                </button>
+              )}
             </div>
           ) : (
             <ol className="track-timeline">

@@ -26,6 +26,8 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ token:
         pricePaise: job.pricePaise,
         createdAt: job.createdAt,
         fileCount: job.fileCount ?? 1,
+        issueReportedAt: job.issueReportedAt,
+        issueResolvedAt: job.issueResolvedAt,
       },
       { headers: { "Cache-Control": "no-store" } }
     );

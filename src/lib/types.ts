@@ -38,6 +38,9 @@ export type Job = {
   paidVia: "online" | "counter" | null;
   printedAt: string | null;
   expiresAt: string;
+  issueReportedAt: string | null;
+  issueNote: string | null;
+  issueResolvedAt: string | null;
   file?: JobFile;
   fileCount?: number;
 };
