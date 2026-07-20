@@ -156,8 +156,11 @@ export default function AccountsTab() {
       {/* ── Header ─────────────────────────────────────────────── */}
       <div className="acct-header">
         <div className="acct-title-row">
-          <BarChart2 size={20} />
-          <h2>Accounts &amp; Daily Data</h2>
+          <div className="acct-title-icon"><BarChart2 size={22} /></div>
+          <div>
+            <h1>Accounts &amp; Daily Data</h1>
+            <p className="acct-title-sub">Revenue, pages, and print mix at a glance</p>
+          </div>
         </div>
         <div className="acct-controls">
           <div className="acct-range-toggle">
