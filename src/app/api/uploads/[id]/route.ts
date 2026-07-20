@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import { NextRequest, NextResponse } from "next/server";
 import { getJobFileById } from "@/lib/db";
-import { createSignedDownloadUrl, readFileBytes } from "@/lib/storage";
+import { createSignedDownloadUrl, readFileStream } from "@/lib/storage";
 import { requireAdminResponse } from "@/lib/security";
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -20,16 +20,16 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   // redirecting to a cross-origin signed URL. Required for the manual-print
   // page, whose browser fetch()/iframe would otherwise be blocked by CORS.
   if (request.nextUrl.searchParams.get("proxy") === "1") {
-    let bytes: Buffer;
+    let stream: ReadableStream;
     try {
-      bytes = await readFileBytes(file.storagePath);
+      stream = await readFileStream(file.storagePath);
     } catch {
       return NextResponse.json({ error: "Stored file missing" }, { status: 404 });
     }
-    return new NextResponse(new Uint8Array(bytes), {
+    return new NextResponse(stream, {
       headers: {
         "Content-Type": file.mimeType,
-        "Content-Length": String(bytes.length),
+        "Content-Length": String(file.sizeBytes),
         "Content-Disposition": `inline; filename="${file.originalName.replaceAll('"', "")}"`
       }
     });

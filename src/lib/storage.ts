@@ -149,6 +149,28 @@ export async function readFileBytes(storagePath: string): Promise<Buffer> {
   return fs.readFile(storagePath);
 }
 
+// Streams a stored file instead of buffering the whole thing into memory
+// first — used by the manual-print proxy so bytes start reaching the browser
+// (and its PDF viewer) as soon as they arrive from storage, instead of
+// waiting for the entire file to download server-side before responding.
+export async function readFileStream(storagePath: string): Promise<ReadableStream> {
+  if (cloudStorageEnabled) {
+    const supabase = getSupabase();
+    if (!supabase) throw new Error('Supabase client not initialized');
+    const { data, error } = await supabase.storage.from(BUCKET).download(toObjectPath(storagePath));
+    if (error) throw error;
+    return data.stream();
+  }
+  if (/^https?:\/\//i.test(storagePath)) {
+    const res = await fetch(storagePath);
+    if (!res.ok || !res.body) throw new Error(`Failed to fetch file: ${res.status}`);
+    return res.body;
+  }
+  const fs = await import('node:fs');
+  const { Readable } = await import('node:stream');
+  return Readable.toWeb(fs.createReadStream(storagePath)) as ReadableStream;
+}
+
 // Saves a buffer (e.g. a converted PDF) using the active storage backend.
 export async function saveBuffer(
   bytes: Buffer,
