@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { manualPrint } from "@/lib/manualPrint";
 import Link from "next/link";
+import AccountsTab from "./AccountsTab";
 
 type Job = {
   id: string;
@@ -1662,8 +1663,6 @@ export default function AdminDashboard() {
           onRefresh={load}
         />
       )}
-
-      {showAccounts && <AccountsTab />}
 
       <StatsBar activeJobs={activeJobs.length} todayRevenue={summary.totalPaise} />
 
