@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useRef } from "react";
-import { UploadCloud, FileText, Image, ArrowLeft, ArrowRight, Check, Eye, Loader2, File, Settings2, Maximize2, Minimize2, Printer, Smartphone, Copy, QrCode, Store, X, Search, CreditCard } from "lucide-react";
+import { UploadCloud, FileText, Image, ArrowLeft, ArrowRight, Check, Eye, Loader2, File, Settings2, Maximize2, Minimize2, Printer, Smartphone, Copy, Store, X, Search, CreditCard } from "lucide-react";
 import { formatRupees, paperSizeLabels, allPaperSizes } from "@/lib/pricing";
 import BillReceipt, { type BillData } from "./BillReceipt";
 import { QRCodeSVG } from "qrcode.react";
@@ -1049,7 +1049,7 @@ export default function UploadForm() {
               showRazorpay ? (
                 <div className="upi-card">
                   <div className="upi-card-top">
-                    <span className="upi-tag"><QrCode size={13} aria-hidden="true" /> Online Payment</span>
+                    <span className="upi-tag"><CreditCard size={13} aria-hidden="true" /> Online Payment</span>
                     <div className="upi-amount">₹{amountRupees}</div>
                     <p className="upi-payee">to {shopName}</p>
                   </div>
@@ -1087,7 +1087,7 @@ export default function UploadForm() {
               ) : (
                 <div className="upi-card">
                   <div className="upi-card-top">
-                    <span className="upi-tag"><QrCode size={13} aria-hidden="true" /> UPI Payment</span>
+                    <span className="upi-tag"><CreditCard size={13} aria-hidden="true" /> UPI Payment</span>
                     <div className="upi-amount">₹{amountRupees}</div>
                     <p className="upi-payee">to {shopName}</p>
                   </div>
@@ -1193,11 +1193,7 @@ export default function UploadForm() {
           );
         })()}
 
-        {/* Scan-to-track QR — survives as a screenshot even if this tab dies */}
-        <div className="track-qr">
-          <QRCodeSVG value={`${typeof window !== "undefined" ? window.location.origin : ""}/track?token=${result.token}`} size={96} level="M" marginSize={2} />
-          <span className="track-qr-hint">Scan to track this order<br />on any phone</span>
-        </div>
+
 
         <a className="btn-secondary upload-another" style={{ marginTop: "0.75rem" }} href={`/track?token=${result.token}`}>
           <Search size={16} aria-hidden="true" /> Track this order
