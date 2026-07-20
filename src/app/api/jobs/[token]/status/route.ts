@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getJobByToken } from "@/lib/db";
+import { getJobByToken, getJobsAhead } from "@/lib/db";
 
 // Public payment-status poll for the customer's token screen. Exposes only
 // the job's status and paid time — nothing else — so the phone can flip to
@@ -12,6 +12,9 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ token:
 
   try {
     const job = await getJobByToken(token);
+    const jobsAhead = ["printed", "cancelled", "failed"].includes(job.status)
+      ? 0
+      : await getJobsAhead(job);
     // Public tracking data only — the token is the sole credential, so no
     // file names or contents are ever exposed here.
     return NextResponse.json(
@@ -19,6 +22,7 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ token:
         status: job.status,
         paidAt: job.paidAt,
         queuePosition: job.queuePosition,
+        jobsAhead,
         pricePaise: job.pricePaise,
         createdAt: job.createdAt,
         fileCount: job.fileCount ?? 1,

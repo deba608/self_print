@@ -278,7 +278,7 @@ export default function UploadForm() {
   // the paid-detection that flips this phone to the receipt. One poll serves
   // both: runs while the token screen is up, stops once the job is printed
   // (or leaves the normal flow — failed/cancelled).
-  const [liveStatus, setLiveStatus] = useState<{ status: string; paidAt: string | null; queuePosition?: number } | null>(null);
+  const [liveStatus, setLiveStatus] = useState<{ status: string; paidAt: string | null; queuePosition?: number; jobsAhead?: number } | null>(null);
   useEffect(() => {
     if (!result || result.needsConversion) return;
     if (liveStatus && (liveStatus.status === "printed" || !["pending_payment", "paid", "approved", "printing"].includes(liveStatus.status))) return;
@@ -287,7 +287,7 @@ export default function UploadForm() {
         const res = await fetch(`/api/jobs/${result.token}/status`, { cache: "no-store" });
         if (!res.ok) return;
         const body = await res.json();
-        setLiveStatus({ status: body.status, paidAt: body.paidAt ?? null, queuePosition: body.queuePosition });
+        setLiveStatus({ status: body.status, paidAt: body.paidAt ?? null, queuePosition: body.queuePosition, jobsAhead: body.jobsAhead });
         if (body.paidAt) {
           setPaidInfo((p) => p ?? { method: "counter", at: body.paidAt });
         }
@@ -1148,7 +1148,10 @@ export default function UploadForm() {
           const failed = !["pending_payment", "paid", "approved", "printing", "printed"].includes(st);
           const done = [true, paid, st === "approved" || st === "printing" || st === "printed", st === "printed"];
           const activeIdx = done.findIndex((d) => !d);
-          const queuePos = liveStatus?.queuePosition ?? result.queuePosition;
+          // jobsAhead is a live count (recomputed every poll) of active jobs
+          // still ahead of this one — unlike queuePosition, a fixed ticket
+          // number assigned at creation that never decreases.
+          const jobsAhead = liveStatus?.jobsAhead ?? Math.max(0, result.queuePosition - 1);
           const miniSteps = [
             { label: "Submitted", icon: <UploadCloud size={15} /> },
             { label: "Paid", icon: <CreditCard size={15} /> },

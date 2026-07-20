@@ -393,6 +393,23 @@ export async function getJobByToken(token: string): Promise<Job> {
   return mapJob(row, pricing.expiryMinutes);
 }
 
+// Live count of active (not yet printed/cancelled/failed) jobs queued ahead
+// of this one. queue_position itself is a fixed ticket number assigned once
+// at creation (MAX+1) and never changes — it does NOT shrink as earlier jobs
+// finish, so it's wrong to use directly for a "how many ahead of you" ETA.
+export async function getJobsAhead(job: Job): Promise<number> {
+  if (isSupabase) {
+    const mod = await import('./db-supabase');
+    return mod.getJobsAhead(job);
+  }
+  const sqlite = await getDbInstance();
+  const row = sqlite.prepare(`
+    SELECT COUNT(*) as n FROM jobs
+    WHERE queue_position < ? AND status NOT IN ('printed', 'cancelled', 'failed')
+  `).get(job.queuePosition) as { n: number };
+  return row.n;
+}
+
 export async function getNextApprovedJob(): Promise<Job | null> {
   if (isSupabase) {
     const mod = await import('./db-supabase');
