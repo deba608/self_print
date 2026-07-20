@@ -770,7 +770,11 @@ function ManageOrdersPanel({
       }
       if (response.ok) {
         setConfirmDelete(null);
-        onRefresh();
+        setLeavingIds((prev) => new Set(prev).add(jobId));
+        setTimeout(() => {
+          onRefresh();
+          setLeavingIds((prev) => { const next = new Set(prev); next.delete(jobId); return next; });
+        }, 260);
       }
     } finally {
       setDeleteLoading(null);
@@ -795,7 +799,11 @@ function ManageOrdersPanel({
       if (response.ok) {
         setSelectedIds(new Set());
         setConfirmBulkDelete(false);
-        onRefresh();
+        setLeavingIds((prev) => { const next = new Set(prev); ids.forEach((id) => next.add(id)); return next; });
+        setTimeout(() => {
+          onRefresh();
+          setLeavingIds((prev) => { const next = new Set(prev); ids.forEach((id) => next.delete(id)); return next; });
+        }, 260);
       }
     } finally {
       setBulkDeleting(false);
@@ -886,7 +894,7 @@ function ManageOrdersPanel({
             </div>
           ) : (
             filteredJobs.map((job) => (
-              <div key={job.id} className="manage-order-item">
+              <div key={job.id} className={`manage-order-item ${leavingIds.has(job.id) ? "leaving" : ""}`}>
                 <button
                   className={`manage-order-checkbox ${selectedIds.has(job.id) ? "selected" : ""}`}
                   onClick={() => toggleSelect(job.id)}

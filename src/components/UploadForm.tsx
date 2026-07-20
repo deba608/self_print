@@ -90,6 +90,9 @@ export default function UploadForm() {
   // used to key the upload promises (see bulkUploadsRef) so storedName↔file
   // alignment survives any removal, independent of positional index.
   const [bulkIds, setBulkIds] = useState<string[]>([]);
+  // Ids currently animating out (X clicked); actual removal happens on
+  // transition-end so the collapse always plays against the correct file.
+  const [leavingBulkIds, setLeavingBulkIds] = useState<Set<string>>(new Set());
   // Sticky: once a 2+ file selection enters bulk, we stay in bulk UI even if
   // the user removes files down to 1 via the ✕ button. Cleared only on reset
   // or an explicit fresh single-file selection — never derived from length.
@@ -1569,26 +1572,40 @@ export default function UploadForm() {
             {isBulk && (
               <>
                 <div className="bulk-file-list">
-                  {bulkFiles.map((f, i) => (
+                  {bulkFiles.map((f, i) => {
+                    const id = bulkIds[i];
+                    const isLeaving = id !== undefined && leavingBulkIds.has(id);
+                    return (
                     <div
-                      className={`bulk-file-row ${i === bulkPreviewIndex ? "active" : ""}`}
-                      key={i}
+                      className={`bulk-file-row ${i === bulkPreviewIndex ? "active" : ""} ${isLeaving ? "leaving" : ""}`}
+                      key={id ?? i}
                       role="button"
                       tabIndex={0}
                       aria-label={`Preview ${f.name}`}
                       aria-pressed={i === bulkPreviewIndex}
                       onClick={() => setBulkPreviewIndex(i)}
                       onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setBulkPreviewIndex(i); } }}
+                      onTransitionEnd={(e) => {
+                        if (e.target !== e.currentTarget || e.propertyName !== "max-height") return;
+                        if (id === undefined || !leavingBulkIds.has(id)) return;
+                        removeBulkFile(bulkIds.indexOf(id));
+                        setLeavingBulkIds((prev) => { const next = new Set(prev); next.delete(id); return next; });
+                      }}
                     >
                       <BulkThumb file={f} grayscale={printType === "bw"} />
                       <span className="bulk-file-name">{f.name}</span>
                       <span className="bulk-file-pages">{bulkPageCounts[i] ?? 1} pg</span>
                       <button type="button" className="bulk-file-remove" aria-label={`Remove ${f.name}`}
-                        onClick={(e) => { e.stopPropagation(); removeBulkFile(i); }}>
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (id === undefined) { removeBulkFile(i); return; }
+                          setLeavingBulkIds((prev) => new Set(prev).add(id));
+                        }}>
                         <X size={16} />
                       </button>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
                 {/* Full print preview of the tapped file — same viewer as single mode */}
                 {bulkFiles[bulkPreviewIndex] && (
