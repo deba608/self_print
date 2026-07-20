@@ -21,6 +21,7 @@ type Job = {
   printType: string;
   paperSize: string;
   copies: number;
+  paidAt?: string | null;
   file: { originalName: string } | null;
   fileCount?: number;
 };

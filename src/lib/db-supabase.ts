@@ -300,6 +300,35 @@ export async function updateJobStatus(id: string, status: string) {
     }]);
 }
 
+// Payment is tracked independently of print-progress status — a job can be
+// released/printed before it's paid (pay-at-counter-after-print flow), so
+// marking paid only ever touches paid_at, never the status column.
+export async function markJobPaid(id: string): Promise<{ paidAt: string }> {
+  const { data: existing, error: selError } = await supabase
+    .from('jobs')
+    .select('paid_at')
+    .eq('id', id)
+    .single();
+  if (selError) throw selError;
+
+  if (existing?.paid_at) {
+    return { paidAt: String(existing.paid_at) };
+  }
+
+  const now = new Date().toISOString();
+  const { error } = await supabase
+    .from('jobs')
+    .update({ paid_at: now, updated_at: now })
+    .eq('id', id);
+  if (error) throw error;
+
+  await supabase
+    .from('print_events')
+    .insert([{ id: crypto.randomUUID(), job_id: id, event_type: 'paid', message: 'Marked as paid.', created_at: now }]);
+
+  return { paidAt: now };
+}
+
 export async function updateJobSettings(id: string, settings: {
   printType: string;
   copies: number;
@@ -730,7 +759,7 @@ export async function getDailyAnalytics(from: string, to: string): Promise<Daily
 
   const { data, error } = await supabase
     .from('jobs')
-    .select('created_at, status, print_type, page_count, price_paise')
+    .select('created_at, status, print_type, page_count, price_paise, paid_at')
     .gte('created_at', fromTs)
     .lte('created_at', toTs)
     .order('created_at', { ascending: true });
@@ -766,7 +795,7 @@ export async function getDailyAnalytics(from: string, to: string): Promise<Daily
     d.totalRevenuePaise += pricePaise;
     d.pagesTotal += pages;
 
-    if (status === 'paid' || status === 'approved' || status === 'printing' || status === 'printed') {
+    if (row.paid_at) {
       d.confirmedRevenuePaise += pricePaise;
     }
     if (status === 'printed')   d.printedJobs++;
