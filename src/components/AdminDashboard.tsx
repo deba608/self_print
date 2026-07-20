@@ -1069,6 +1069,9 @@ function JobCard({
   };
 
   const [printing, setPrinting] = useState(false);
+  // Auto = release to the agent queue; Manual = print via the browser dialog
+  // right now, no agent involved. Sticky per-card while it's on screen.
+  const [printMode, setPrintMode] = useState<"auto" | "manual">("auto");
   const handleManualPrint = async (event: React.MouseEvent) => {
     event.preventDefault();
     event.stopPropagation();
@@ -1148,10 +1151,25 @@ function JobCard({
         <span className={`status-badge ${status.class}`}>{status.label}</span>
 
         {(job.status === "pending_payment" || job.status === "paid") && (
-          <button type="button" className="job-btn release" onClick={() => handleActionClick("approved")} disabled={actionLoading}>
-            {actionLoading ? <Loader2 size={14} className="spin" /> : <Printer size={14} />}
-            <span>Release</span>
-          </button>
+          <div className="print-mode-group">
+            <div className="print-mode-switch" role="group" aria-label="Print mode">
+              <button type="button" className={`print-mode-opt ${printMode === "auto" ? "active" : ""}`} onClick={() => setPrintMode("auto")}>
+                Auto
+              </button>
+              <button type="button" className={`print-mode-opt ${printMode === "manual" ? "active" : ""}`} onClick={() => setPrintMode("manual")}>
+                Manual
+              </button>
+            </div>
+            <button
+              type="button"
+              className="job-btn release"
+              onClick={(e) => printMode === "manual" ? handleManualPrint(e) : handleActionClick("approved")}
+              disabled={printMode === "manual" ? printing : actionLoading}
+            >
+              {(printMode === "manual" ? printing : actionLoading) ? <Loader2 size={14} className="spin" /> : <Printer size={14} />}
+              <span>{printMode === "manual" ? "Manual Print" : "Release"}</span>
+            </button>
+          </div>
         )}
         {(job.status === "approved" || job.status === "printing" || job.status === "failed") && (
           <button type="button" className="job-btn done" onClick={() => handleActionClick("printed")} disabled={actionLoading}>
@@ -1165,7 +1183,7 @@ function JobCard({
             <span>{job.status === "failed" ? "Retry" : "Reprint"}</span>
           </button>
         )}
-        {job.status !== "cancelled" && (
+        {!["pending_payment", "paid", "cancelled"].includes(job.status) && (
           <button
             type="button"
             className="job-btn manual"
