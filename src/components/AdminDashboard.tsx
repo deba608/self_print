@@ -298,63 +298,70 @@ function AdminTopbar({
       </button>
 
       <div className="topbar-actions">
-        <button
-          type="button"
-          className={`action-btn notification ${soundOn ? "chime-on" : ""} ${newJobCount > 0 ? "has-new" : ""}`}
-          onClick={() => {
-            if (newJobCount > 0) onRefresh();
-            onToggleSound();
-          }}
-          title={`Notifications: ${newJobCount} new orders. Chime alert is ${soundOn ? "ON" : "OFF"}. Click to ${newJobCount > 0 ? "refresh & " : ""}toggle chime sound.`}
-          aria-label="Notifications and chime alert settings"
-        >
-          {soundOn ? <BellRing size={18} className="bell-ring-icon" /> : <Bell size={18} />}
-          {newJobCount > 0 && (
-            <span className="notif-badge">{newJobCount}</span>
-          )}
-          {soundOn && <span className="chime-dot" title="New-order chime active"></span>}
-        </button>
+        <div className="action-group">
+          <button
+            type="button"
+            className={`action-btn notification ${soundOn ? "chime-on" : ""} ${newJobCount > 0 ? "has-new" : ""}`}
+            onClick={() => {
+              if (newJobCount > 0) onRefresh();
+              onToggleSound();
+            }}
+            title={`Notifications: ${newJobCount} new orders. Chime alert is ${soundOn ? "ON" : "OFF"}. Click to ${newJobCount > 0 ? "refresh & " : ""}toggle chime sound.`}
+            aria-label="Notifications and chime alert settings"
+          >
+            {soundOn ? <BellRing size={18} className="bell-ring-icon" /> : <Bell size={18} />}
+            {newJobCount > 0 && (
+              <span className="notif-badge">{newJobCount}</span>
+            )}
+            {soundOn && <span className="chime-dot" title="New-order chime active"></span>}
+          </button>
 
-        <button type="button" className="action-btn" onClick={onRefresh} title="Refresh" aria-label="Refresh jobs">
-          <RefreshCw size={18} />
-        </button>
+          <button type="button" className="action-btn" onClick={onRefresh} title="Refresh" aria-label="Refresh jobs">
+            <RefreshCw size={18} />
+          </button>
 
-        <button
-          type="button"
-          className="action-btn"
-          onClick={onOpenManageOrders}
-          title="Manage Orders"
-          aria-label="Manage orders"
-        >
-          <ListTodo size={18} />
-        </button>
+          <button
+            type="button"
+            className="action-btn"
+            onClick={onOpenManageOrders}
+            title="Manage Orders"
+            aria-label="Manage orders"
+          >
+            <ListTodo size={18} />
+          </button>
 
-        <Link
-          href="/admin/accounts"
-          className="action-btn"
-          title="Accounts & Daily Data"
-          aria-label="Accounts and daily data"
-        >
-          <BarChart2 size={18} />
-        </Link>
+          <Link
+            href="/admin/accounts"
+            className="action-btn"
+            title="Accounts & Daily Data"
+            aria-label="Accounts and daily data"
+          >
+            <BarChart2 size={18} />
+          </Link>
 
-        <button
-          type="button"
-          className={`action-btn ${showPricing ? "active" : ""}`}
-          onClick={onOpenPricing}
-          title="Pricing Settings"
-          aria-label="Pricing settings"
-        >
-          <Settings size={18} />
-        </button>
-
-        <div className="sse-indicator" title={sseConnected ? "Live updates active" : "Connecting..."}>
-          <span className={`sse-dot ${sseConnected ? "connected" : ""}`}></span>
+          <button
+            type="button"
+            className={`action-btn ${showPricing ? "active" : ""}`}
+            onClick={onOpenPricing}
+            title="Pricing Settings"
+            aria-label="Pricing settings"
+          >
+            <Settings size={18} />
+          </button>
         </div>
 
-        <button type="button" className="action-btn danger" onClick={onLogout} title="Logout" aria-label="Logout">
-          <LogOut size={18} />
-        </button>
+        <div className="topbar-divider" aria-hidden="true" />
+
+        <div className="action-group">
+          <div className="sse-indicator" title={sseConnected ? "Live updates active" : "Connecting..."}>
+            <span className={`sse-dot ${sseConnected ? "connected" : ""}`}></span>
+            <span className="sse-label">{sseConnected ? "Live" : "Offline"}</span>
+          </div>
+
+          <button type="button" className="action-btn danger" onClick={onLogout} title="Logout" aria-label="Logout">
+            <LogOut size={18} />
+          </button>
+        </div>
       </div>
     </header>
   );
