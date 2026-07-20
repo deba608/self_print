@@ -1,10 +1,10 @@
 import crypto from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
-import { getJobById, updateJobStatus, sseClients } from "@/lib/db";
+import { getJobById, updateJobStatus, markJobPaid, sseClients } from "@/lib/db";
 import { requireAdminResponse } from "@/lib/security";
 import type { JobStatus } from "@/lib/types";
 
-const allowed: JobStatus[] = ["paid", "approved", "printed", "cancelled"];
+const allowed: (JobStatus | "paid")[] = ["paid", "approved", "printed", "cancelled"];
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const unauthorized = await requireAdminResponse();
@@ -14,25 +14,34 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return NextResponse.json({ error: "Unsupported status action" }, { status: 400 });
   }
   const { id } = await params;
-  
+
   let job;
   try {
     job = await getJobById(id);
   } catch {
     return NextResponse.json({ error: "Job not found" }, { status: 404 });
   }
-  
-  const invalid = invalidTransition(job.status, status);
-  if (invalid) return NextResponse.json({ error: invalid }, { status: 400 });
-  if (status === "approved" && job.needsConversion) {
-    return NextResponse.json({ error: "DOC/DOCX jobs need conversion before release" }, { status: 400 });
+
+  // "paid" is not a status transition — payment is tracked independently of
+  // print progress (jobs can be released/printed before they're paid), so it
+  // only ever touches paid_at.
+  if (status === "paid") {
+    if (job.status === "cancelled") {
+      return NextResponse.json({ error: "Cancelled jobs can't be marked paid." }, { status: 400 });
+    }
+    await markJobPaid(id);
+  } else {
+    const invalid = invalidTransition(job.status, status);
+    if (invalid) return NextResponse.json({ error: invalid }, { status: 400 });
+    if (status === "approved" && job.needsConversion) {
+      return NextResponse.json({ error: "DOC/DOCX jobs need conversion before release" }, { status: 400 });
+    }
+    await updateJobStatus(id, status);
   }
-  
-  await updateJobStatus(id, status);
-  
-  broadcast({ type: "job_update", jobId: id, status, token: job.token });
-  
+
   const updated = await getJobById(id);
+  broadcast({ type: "job_update", jobId: id, status: updated.status, paidAt: updated.paidAt, token: job.token });
+
   return NextResponse.json({ ok: true, job: updated });
 }
 
@@ -40,11 +49,10 @@ function invalidTransition(current: JobStatus, next: JobStatus) {
   if (next === "cancelled") {
     return ["printed", "cancelled"].includes(current) ? "This job can no longer be cancelled." : "";
   }
-  if (next === "paid" && current !== "pending_payment") {
-    return "Only unpaid jobs can be marked paid.";
-  }
-  if (next === "approved" && current !== "paid") {
-    return "Mark the job paid before release.";
+  // "paid" is a legacy status value from before payment was decoupled from
+  // print progress — treat it the same as pending_payment (not yet released).
+  if (next === "approved" && current !== "pending_payment" && current !== "paid") {
+    return "Only queued jobs can be released.";
   }
   if (next === "printed" && !["approved", "printing", "failed"].includes(current)) {
     return "Only released, printing, or failed jobs can be marked done.";

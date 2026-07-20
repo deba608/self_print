@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { broadcastSse, getJobById, updateJobStatus } from "@/lib/db";
+import { broadcastSse, getJobById, markJobPaid } from "@/lib/db";
 import { verifyWebhookSignature } from "@/lib/razorpay";
 
 // Backup confirmation: Razorpay calls this on payment.captured. Marks the job
@@ -25,9 +25,9 @@ export async function POST(request: NextRequest) {
     if (jobId) {
       try {
         const job = await getJobById(jobId);
-        if (job.status === "pending_payment") {
-          await updateJobStatus(job.id, "paid");
-          broadcastSse({ type: "job_update", jobId: job.id, status: "paid", token: job.token });
+        if (!job.paidAt) {
+          const { paidAt } = await markJobPaid(job.id);
+          broadcastSse({ type: "job_update", jobId: job.id, status: job.status, paidAt, token: job.token });
         }
       } catch {
         // Unknown / already-removed job — ack anyway so Razorpay stops retrying.
