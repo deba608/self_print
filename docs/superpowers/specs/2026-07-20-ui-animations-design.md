@@ -30,3 +30,23 @@ Toasts are purely presentational; failures still surface via existing `actionErr
 
 ## Testing
 `npm run typecheck` + `npm run build`; visual verification in dev preview.
+
+## Progress
+
+All 10 items implemented and wired (CSS in `globals.css`, markup/state in `UploadForm.tsx` / `AdminDashboard.tsx`). `npm run typecheck` passes.
+
+Customer:
+1. Upload progress shimmer — done (`.upload-progress-fill::after`, `shimmer` keyframes)
+2. Drag-over dropzone — done (`dragOver` state, `onDragOver`/`onDrop`, `.upload-zone.drag-over`)
+3. Success check draw — done (`.check-draw` polyline, stroke-dashoffset animation)
+4. Price pop — done (`key={estimate}` re-mount + `.price-pop`)
+5. Bulk file row entrance — done (`.bulk-file-row` fadeInUp)
+6. Queue number pulse — done (`.queue-pulse` on result screen)
+
+Admin:
+7. Job card entrance — done (pre-existing `animationDelay` stagger, kept)
+8. Status change flash — done (`flash` state on `JobCard`, `.job-card.flash`)
+9. Skeleton loaders — done (`jobsLoaded` state, `.job-skeleton` cards)
+10. Toast notifications — done (`pushToast`, `.toast-stack`, old `alert()` removed)
+
+Remaining: `npm run build` not yet run this session; visual dev-preview pass not yet done.
