@@ -5775,7 +5775,7 @@ input[type="number"] {
   gap: var(--space-3);
 }
 
-@media (min-width: 720px) {
+@media (min-width: 1024px) {
   .acct-cards {
     grid-template-columns: repeat(4, 1fr);
   }
@@ -5817,6 +5817,7 @@ input[type="number"] {
 .acct-card-label {
   font-size: 12px;
   font-weight: 600;
+  line-height: 1.25;
   color: var(--muted);
 }
 
