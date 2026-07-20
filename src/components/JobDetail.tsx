@@ -336,6 +336,9 @@ function ActionsCard({
   reprint: () => void;
 }) {
   const [printing, setPrinting] = useState(false);
+  // Auto = release to the agent queue; Manual = print via the browser dialog
+  // right now, no agent involved.
+  const [printMode, setPrintMode] = useState<"auto" | "manual">("auto");
 
   async function handleManualPrint() {
     setPrinting(true);
@@ -349,9 +352,25 @@ function ActionsCard({
       <h3 className="card-title">Actions</h3>
       <div className="detail-action-grid">
         {(job.status === "pending_payment" || job.status === "paid") && (
-          <button type="button" className="job-btn release" onClick={() => setStatus("approved")}>
-            <Printer size={16} /> Release Print
-          </button>
+          <div className="print-mode-group">
+            <div className="print-mode-switch" role="group" aria-label="Print mode">
+              <button type="button" className={`print-mode-opt ${printMode === "auto" ? "active" : ""}`} onClick={() => setPrintMode("auto")}>
+                Auto
+              </button>
+              <button type="button" className={`print-mode-opt ${printMode === "manual" ? "active" : ""}`} onClick={() => setPrintMode("manual")}>
+                Manual
+              </button>
+            </div>
+            <button
+              type="button"
+              className="job-btn release"
+              onClick={() => printMode === "manual" ? handleManualPrint() : setStatus("approved")}
+              disabled={printMode === "manual" ? printing : false}
+            >
+              {(printMode === "manual" && printing) ? <Loader2 size={16} className="spin" /> : <Printer size={16} />}
+              {printMode === "manual" ? "Manual Print" : "Release Print"}
+            </button>
+          </div>
         )}
         {!job.paidAt && job.status !== "cancelled" && (
           <button type="button" className="job-btn paid" onClick={() => setStatus("paid")}>
@@ -368,7 +387,7 @@ function ActionsCard({
             <RotateCcw size={16} /> {job.status === "failed" ? "Retry Print" : "Reprint"}
           </button>
         )}
-        {job.status !== "cancelled" && (
+        {!["pending_payment", "paid", "cancelled"].includes(job.status) && (
           <button
             type="button"
             className="job-btn manual"
