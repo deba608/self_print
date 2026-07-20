@@ -1264,18 +1264,14 @@ export default function UploadForm() {
             <span className="format-badge">JPG</span>
             <span className="format-badge">PNG</span>
           </div>
-          <div className="track-link-row">
-            {recentToken && (
+          {recentToken && (
+            <div className="track-link-row">
               <a className="recent-order-chip" href={`/track?token=${recentToken}`}>
                 <Search size={14} aria-hidden="true" />
                 Recent order #{recentToken} — track it
               </a>
-            )}
-            <a className="track-link" href="/track">
-              <Search size={14} aria-hidden="true" />
-              Check order status
-            </a>
-          </div>
+            </div>
+          )}
           {error && (
             <div className="error-msg" role="alert">
               {error}

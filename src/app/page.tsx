@@ -1,15 +1,10 @@
 import UploadForm from "@/components/UploadForm";
-import { Printer } from "lucide-react";
+import ShopHeader from "@/components/ShopHeader";
 
 export default function CustomerPage() {
   return (
     <main className="customer-shell">
-      <header className="shop-header">
-        <div className="shop-logo">
-          <Printer size={28} />
-          <span>Self_Print</span>
-        </div>
-      </header>
+      <ShopHeader />
       <section className="panel stack">
         <div className="intro">
           <h1>Print Your Files</h1>

@@ -106,8 +106,41 @@ input, select, button {
 /* Customer Shell */
 .customer-shell { width: 100%; max-width: 520px; margin: 0 auto; padding: var(--space-5) var(--space-4) 112px; }
 .shell { width: min(1120px, calc(100% - 32px)); margin: 0 auto; padding: var(--space-6) 0; }
-.shop-header { display: flex; justify-content: center; padding: var(--space-2) 0 var(--space-3); }
-.shop-logo { display: flex; align-items: center; gap: var(--space-2); color: var(--accent); font-weight: 800; font-size: 20px; letter-spacing: -0.3px; }
+.shop-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) 2px var(--space-3);
+}
+.shop-logo { display: flex; align-items: center; gap: var(--space-2); color: var(--accent); font-weight: 800; font-size: 19px; letter-spacing: -0.3px; }
+
+.shop-nav {
+  display: inline-flex;
+  padding: 3px;
+  border-radius: var(--radius-full);
+  background: var(--accent-bg);
+  border: 1px solid rgba(13, 122, 116, 0.1);
+  gap: 2px;
+}
+.shop-nav-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 12px;
+  border-radius: var(--radius-full);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  transition: all var(--duration-base) var(--ease-out);
+}
+.shop-nav-tab.active {
+  background: var(--panel);
+  color: var(--accent);
+  box-shadow: 0 1px 4px rgba(13, 122, 116, 0.12);
+}
+.shop-nav-tab:not(.active):hover { color: var(--accent); }
+.shop-nav-tab svg { flex-shrink: 0; }
 .intro { text-align: center; margin-bottom: var(--space-5); }
 .intro h1 { font-size: 22px; margin: 0 0 var(--space-1); color: var(--ink); letter-spacing: -0.3px; }
 .intro p { font-size: 13px; margin: 0; color: var(--muted); }
@@ -2502,6 +2535,9 @@ input[type="number"] {
 
 /* === Admin Topbar === */
 .admin-topbar {
+  position: sticky;
+  top: 10px;
+  z-index: 20;
   display: flex;
   align-items: center;
   gap: 14px;
@@ -2514,9 +2550,17 @@ input[type="number"] {
   border-radius: 16px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02), 0 4px 16px rgba(13, 122, 116, 0.04);
   flex-wrap: wrap;
-  position: sticky;
-  top: 10px;
-  z-index: 20;
+}
+
+.admin-topbar::after {
+  content: '';
+  position: absolute;
+  left: 18px;
+  right: 18px;
+  bottom: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(13, 122, 116, 0.35), transparent);
+  border-radius: 2px;
 }
 
 .topbar-brand {
@@ -2630,8 +2674,21 @@ input[type="number"] {
 .topbar-actions {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 10px;
   margin-left: auto;
+}
+
+.action-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.topbar-divider {
+  width: 1px;
+  height: 24px;
+  background: rgba(13, 122, 116, 0.12);
+  flex-shrink: 0;
 }
 
 .action-btn {
@@ -2764,14 +2821,28 @@ input[type="number"] {
 .sse-indicator {
   display: flex;
   align-items: center;
-  padding: 0 4px;
+  gap: 6px;
+  padding: 0 10px;
+  height: 40px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid rgba(13, 122, 116, 0.08);
+}
+
+.sse-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
 }
 
 .sse-dot {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   background: #ccc;
+  flex-shrink: 0;
   transition: background var(--duration-base);
 }
 
@@ -5222,7 +5293,20 @@ input[type="number"] {
 
   .topbar-actions {
     width: 100%;
-    justify-content: space-between;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .topbar-divider {
+    display: none;
+  }
+
+  .sse-label {
+    display: none;
+  }
+
+  .sse-indicator {
+    padding: 0 8px;
   }
 
   .job-header {
@@ -5431,6 +5515,15 @@ input[type="number"] {
 @media (max-width: 360px) {
   .step-label {
     display: none;
+  }
+
+  .shop-nav-tab {
+    font-size: 0;
+    padding: 8px 10px;
+    gap: 0;
+  }
+  .shop-logo span {
+    font-size: 17px;
   }
 }
 
