@@ -1337,15 +1337,17 @@ export default function AdminDashboard() {
     return () => { window.removeEventListener("focus", clear); document.removeEventListener("visibilitychange", clear); };
   }, []);
 
-  // Fallback when SSE is down (dev, proxies, serverless): poll the job list
-  // every 15s and treat unknown ids as new arrivals — chime + title flash +
-  // list refresh still work without a live event stream.
+  // Auto-refresh baseline: poll the job list every 5s regardless of SSE state
+  // (serverless/proxied deployments can silently drop or never establish the
+  // long-lived SSE connection, so relying on it alone leaves the dashboard
+  // stale). SSE still delivers instant updates when it's actually connected;
+  // this poll guarantees new orders never take longer than 5s to show up.
   const knownIdsRef = useRef<Set<string>>(new Set());
   useEffect(() => {
     knownIdsRef.current = new Set(jobs.map((j) => j.id));
   }, [jobs]);
   useEffect(() => {
-    if (!loggedIn || sseConnected) return;
+    if (!loggedIn) return;
     const iv = setInterval(async () => {
       try {
         const res = await fetch("/api/admin/jobs", { credentials: "include" });
@@ -1361,10 +1363,12 @@ export default function AdminDashboard() {
         setCursor(body.cursor ?? null);
         setHasMore(!!body.cursor);
         setTotal(body.total ?? 0);
+        const summaryRes = await fetch("/api/admin/summary", { credentials: "include" });
+        if (summaryRes.ok) setSummary(await summaryRes.json());
       } catch { /* transient — next tick retries */ }
-    }, 15000);
+    }, 5000);
     return () => clearInterval(iv);
-  }, [loggedIn, sseConnected, playChime]);
+  }, [loggedIn, playChime]);
 
   const pushToast = useCallback((kind: "ok" | "err", msg: string) => {
     const id = ++toastIdRef.current;
