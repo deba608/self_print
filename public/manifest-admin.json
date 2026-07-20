@@ -1,0 +1,17 @@
+{
+  "name": "Self_Print Admin",
+  "short_name": "SP Admin",
+  "description": "Shop dashboard — print queue, payments, and printer control",
+  "start_url": "/admin",
+  "scope": "/admin",
+  "display": "standalone",
+  "background_color": "#f4f6f8",
+  "theme_color": "#0d7a74",
+  "orientation": "portrait-primary",
+  "icons": [
+    { "src": "/web-app-manifest-192x192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/web-app-manifest-192x192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "/web-app-manifest-512x512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/web-app-manifest-512x512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

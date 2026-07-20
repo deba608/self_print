@@ -169,7 +169,10 @@ async function ensureJobColumns(database: any) {
     ['scale', "TEXT NOT NULL DEFAULT 'default'"],
     ['duplex', "TEXT NOT NULL DEFAULT 'simplex'"],
     ['queue_position', 'INTEGER NOT NULL DEFAULT 0'],
-    ['paid_via', 'TEXT']
+    ['paid_via', 'TEXT'],
+    ['issue_reported_at', 'TEXT'],
+    ['issue_note', 'TEXT'],
+    ['issue_resolved_at', 'TEXT']
   ];
   for (const [name, definition] of additions) {
     if (!columns.has(name)) {
@@ -251,7 +254,10 @@ function mapJob(row: Record<string, unknown>, expiryMinutes: number = 1440): Job
     paidAt: row.paid_at ? String(row.paid_at) : null,
     paidVia: row.paid_via ? (row.paid_via as Job['paidVia']) : null,
     printedAt: row.printed_at ? String(row.printed_at) : null,
-    expiresAt
+    expiresAt,
+    issueReportedAt: row.issue_reported_at ? String(row.issue_reported_at) : null,
+    issueNote: row.issue_note ? String(row.issue_note) : null,
+    issueResolvedAt: row.issue_resolved_at ? String(row.issue_resolved_at) : null
   };
 }
 
@@ -566,6 +572,39 @@ export async function updateJobStatus(id: string, status: string): Promise<void>
   
   sqlite.prepare("INSERT INTO print_events (id, job_id, event_type, message, created_at) VALUES (?, ?, ?, ?, ?)")
     .run(crypto.randomUUID(), id, status, `Admin set status to ${status}.`, now);
+}
+
+// Customer-facing: flags a job for staff attention from the public /track
+// page (failed/cancelled state only — enforced by the API route, not here).
+// Idempotent — a second report just refreshes the note rather than stacking.
+export async function reportJobIssue(token: string, note: string): Promise<void> {
+  if (isSupabase) {
+    const mod = await import('./db-supabase');
+    return mod.reportJobIssue(token, note);
+  }
+  const crypto = await import('node:crypto');
+  const sqlite = await getDbInstance();
+  const job = sqlite.prepare('SELECT id FROM jobs WHERE token = ?').get(token) as { id: string } | undefined;
+  if (!job) throw new Error('Job not found');
+  const now = new Date().toISOString();
+  sqlite.prepare(`UPDATE jobs SET issue_reported_at = ?, issue_note = ?, issue_resolved_at = NULL, updated_at = ? WHERE id = ?`)
+    .run(now, note, now, job.id);
+  sqlite.prepare("INSERT INTO print_events (id, job_id, event_type, message, created_at) VALUES (?, ?, 'customer_report', ?, ?)")
+    .run(crypto.randomUUID(), job.id, note, now);
+}
+
+// Admin: clears the flag once staff has dealt with it.
+export async function resolveJobIssue(id: string): Promise<void> {
+  if (isSupabase) {
+    const mod = await import('./db-supabase');
+    return mod.resolveJobIssue(id);
+  }
+  const crypto = await import('node:crypto');
+  const sqlite = await getDbInstance();
+  const now = new Date().toISOString();
+  sqlite.prepare(`UPDATE jobs SET issue_resolved_at = ?, updated_at = ? WHERE id = ?`).run(now, now, id);
+  sqlite.prepare("INSERT INTO print_events (id, job_id, event_type, message, created_at) VALUES (?, ?, 'issue_resolved', 'Staff resolved the reported issue.', ?)")
+    .run(crypto.randomUUID(), id, now);
 }
 
 // Payment is tracked independently of print-progress status — a job can be

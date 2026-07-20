@@ -40,7 +40,10 @@ function mapJob(row: any, expiryMinutes: number = 1440): Job {
     paidAt: row.paid_at ? String(row.paid_at) : null,
     paidVia: row.paid_via ? (row.paid_via as Job['paidVia']) : null,
     printedAt: row.printed_at ? String(row.printed_at) : null,
-    expiresAt
+    expiresAt,
+    issueReportedAt: row.issue_reported_at ? String(row.issue_reported_at) : null,
+    issueNote: row.issue_note ? String(row.issue_note) : null,
+    issueResolvedAt: row.issue_resolved_at ? String(row.issue_resolved_at) : null
   };
 }
 
@@ -313,6 +316,39 @@ export async function updateJobStatus(id: string, status: string) {
       message: `Admin set status to ${status}.`,
       created_at: now
     }]);
+}
+
+export async function reportJobIssue(token: string, note: string): Promise<void> {
+  const { data: job, error: selError } = await supabase
+    .from('jobs')
+    .select('id')
+    .eq('token', token)
+    .single();
+  if (selError || !job) throw new Error('Job not found');
+
+  const now = new Date().toISOString();
+  const { error } = await supabase
+    .from('jobs')
+    .update({ issue_reported_at: now, issue_note: note, issue_resolved_at: null, updated_at: now })
+    .eq('id', job.id);
+  if (error) throw error;
+
+  await supabase
+    .from('print_events')
+    .insert([{ id: crypto.randomUUID(), job_id: job.id, event_type: 'customer_report', message: note, created_at: now }]);
+}
+
+export async function resolveJobIssue(id: string): Promise<void> {
+  const now = new Date().toISOString();
+  const { error } = await supabase
+    .from('jobs')
+    .update({ issue_resolved_at: now, updated_at: now })
+    .eq('id', id);
+  if (error) throw error;
+
+  await supabase
+    .from('print_events')
+    .insert([{ id: crypto.randomUUID(), job_id: id, event_type: 'issue_resolved', message: 'Staff resolved the reported issue.', created_at: now }]);
 }
 
 // Payment is tracked independently of print-progress status — a job can be

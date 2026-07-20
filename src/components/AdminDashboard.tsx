@@ -5,7 +5,7 @@ import {
   RefreshCw, Settings, LogOut, Printer, Bell, BellRing,
   CheckSquare, Square, CreditCard, Eye, X, Check, Monitor, Loader2,
   Lock, Eye as EyeIcon, EyeOff, ChevronDown, Zap, TrendingUp, Clock,
-  Trash2, ListTodo, Inbox, FileText, BarChart2, ShieldCheck, User, ArrowRight
+  Trash2, ListTodo, Inbox, FileText, BarChart2, ShieldCheck, User, ArrowRight, MessageCircleWarning
 } from "lucide-react";
 import { manualPrint } from "@/lib/manualPrint";
 import Link from "next/link";
@@ -22,6 +22,9 @@ type Job = {
   paperSize: string;
   copies: number;
   paidAt?: string | null;
+  issueReportedAt?: string | null;
+  issueNote?: string | null;
+  issueResolvedAt?: string | null;
   file: { originalName: string } | null;
   fileCount?: number;
 };
@@ -1150,6 +1153,22 @@ function JobCard({
             Needs conversion before printing
           </div>
         )}
+
+        {/* Customer-reported issue from /track — surfaced until staff resolves it. */}
+        {job.issueReportedAt && !job.issueResolvedAt && (
+          <div className="job-issue-flag" role="alert">
+            <MessageCircleWarning size={14} aria-hidden="true" />
+            <span className="job-issue-note" title={job.issueNote ?? undefined}>{job.issueNote || "Customer reported an issue"}</span>
+            <button
+              type="button"
+              className="job-issue-resolve"
+              onClick={(e) => { e.stopPropagation(); onAction("resolve_issue"); }}
+              disabled={actionLoading}
+            >
+              Resolve
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="job-side">
@@ -1441,6 +1460,10 @@ export default function AdminDashboard() {
           setUnseen((n) => n + 1);
           // Reload to get the new job with full details
           load();
+        } else if (data.type === "issue_reported") {
+          playChime();
+          setUnseen((n) => n + 1);
+          load();
         }
       } catch {
         // If SSE message is malformed, do a full reload
@@ -1507,12 +1530,15 @@ export default function AdminDashboard() {
         ? `/api/admin/jobs/${jobId}/convert`
         : action === "reprint"
           ? `/api/admin/jobs/${jobId}/reprint`
-          : `/api/admin/jobs/${jobId}/status`;
+          : action === "resolve_issue"
+            ? `/api/admin/jobs/${jobId}/resolve-issue`
+            : `/api/admin/jobs/${jobId}/status`;
+      const noBodyActions = ["reprint", "convert", "resolve_issue"];
       const response = await fetch(endpoint, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: action === "reprint" || action === "convert" ? undefined : JSON.stringify({ status: action })
+        body: noBodyActions.includes(action) ? undefined : JSON.stringify({ status: action })
       });
       const body = await response.json().catch(() => ({}));
       if (response.status === 401) {
@@ -1534,6 +1560,7 @@ export default function AdminDashboard() {
         reprint: "Reprint queued",
         cancelled: "Job cancelled",
         convert: "Conversion started",
+        resolve_issue: "Issue marked resolved",
       };
       pushToast("ok", toastMsg[action] ?? "Job updated");
       const summaryResponse = await fetch("/api/admin/summary", { credentials: "include" });
