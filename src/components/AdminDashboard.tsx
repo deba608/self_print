@@ -1061,9 +1061,11 @@ function JobCard({
   actionLoading: boolean;
   onNotify: (kind: "ok" | "err", msg: string) => void;
 }) {
+  // Print-progress status only — payment is tracked separately via job.paidAt
+  // (see the paid pill below) so a job can be released/printed before it's paid.
   const statusMap: Record<string, { label: string; class: string }> = {
-    pending_payment: { label: "Unpaid", class: "warn" },
-    paid: { label: "Paid", class: "info" },
+    pending_payment: { label: "Queued", class: "warn" },
+    paid: { label: "Queued", class: "warn" }, // legacy rows from before payment was decoupled
     approved: { label: "Ready", class: "ready" },
     printing: { label: "Printing", class: "info" },
     printed: { label: "Done", class: "ok" },
@@ -1101,7 +1103,7 @@ function JobCard({
 
   return (
     <div className={`job-card ${job.status} ${flash ? "flash" : ""}`} style={{ animationDelay: `${Math.min(index, 8) * 35}ms` }}>
-      {job.status === "pending_payment" && (
+      {!job.paidAt && job.status !== "cancelled" && (
         <button
           className={`job-checkbox ${isSelected ? "selected" : ""}`}
           onClick={(e) => { e.stopPropagation(); onToggleSelect(); }}
@@ -1122,6 +1124,11 @@ function JobCard({
           </div>
           <div className="job-meta">
             <span className={`status-badge ${status.class}`}>{status.label}</span>
+            {job.paidAt ? (
+              <span className="status-badge ok">Paid</span>
+            ) : job.status !== "cancelled" && (
+              <span className="status-badge warn">Unpaid</span>
+            )}
             <span className="job-price">{formatRupees(job.pricePaise)}</span>
           </div>
         </div>
@@ -1155,16 +1162,16 @@ function JobCard({
 
       <div className="job-actions">
 
-        {job.status === "pending_payment" && (
-          <button type="button" className="job-btn paid" onClick={() => handleActionClick("paid")} disabled={actionLoading}>
-            {actionLoading ? <Loader2 size={14} className="spin" /> : <CreditCard size={14} />}
-            <span>Mark as Paid</span>
-          </button>
-        )}
-        {job.status === "paid" && (
+        {(job.status === "pending_payment" || job.status === "paid") && (
           <button type="button" className="job-btn release" onClick={() => handleActionClick("approved")} disabled={actionLoading}>
             {actionLoading ? <Loader2 size={14} className="spin" /> : <Printer size={14} />}
             <span>Release</span>
+          </button>
+        )}
+        {!job.paidAt && job.status !== "cancelled" && (
+          <button type="button" className="job-btn paid" onClick={() => handleActionClick("paid")} disabled={actionLoading}>
+            {actionLoading ? <Loader2 size={14} className="spin" /> : <CreditCard size={14} />}
+            <span>Mark as Paid</span>
           </button>
         )}
         {(job.status === "approved" || job.status === "printing" || job.status === "failed") && (
@@ -1179,7 +1186,7 @@ function JobCard({
             <span>{job.status === "failed" ? "Retry" : "Reprint"}</span>
           </button>
         )}
-        {job.status !== "pending_payment" && job.status !== "cancelled" && (
+        {!["pending_payment", "paid", "cancelled"].includes(job.status) && (
           <button
             type="button"
             className="job-btn manual"
@@ -1308,8 +1315,8 @@ export default function AdminDashboard() {
       try {
         const data = JSON.parse(event.data);
         if (data.type === "job_update") {
-          // Update only the changed job status in place
-          setJobs((prev) => prev.map((j) => j.id === data.jobId ? { ...j, status: data.status } : j));
+          // Update only the changed job status/paidAt in place
+          setJobs((prev) => prev.map((j) => j.id === data.jobId ? { ...j, status: data.status, paidAt: data.paidAt ?? j.paidAt } : j));
         } else if (data.type === "new_job") {
           // Reload to get the new job with full details
           load();
@@ -1461,26 +1468,40 @@ export default function AdminDashboard() {
   }
 
   function selectAll() {
-    const pending = filteredJobs.filter((j) => j.status === "pending_payment").map((j) => j.id);
-    const allSelected = selectedJobs.size === pending.length && pending.length > 0;
-    setSelectedJobs(allSelected ? new Set() : new Set(pending));
+    const unpaid = filteredJobs.filter((j) => !j.paidAt && j.status !== "cancelled").map((j) => j.id);
+    const allSelected = selectedJobs.size === unpaid.length && unpaid.length > 0;
+    setSelectedJobs(allSelected ? new Set() : new Set(unpaid));
   }
 
-  const filteredJobs = filterStatus === "all" ? jobs : jobs.filter((j) => j.status === filterStatus);
-  const pending = jobs.filter((j) => j.status === "pending_payment");
+  // "pending_payment" tab also covers the legacy "paid" status value (jobs
+  // released before payment was decoupled from print progress).
+  const filteredJobs = filterStatus === "all"
+    ? jobs
+    : filterStatus === "unpaid"
+      ? jobs.filter((j) => !j.paidAt && j.status !== "cancelled")
+      : filterStatus === "pending_payment"
+        ? jobs.filter((j) => j.status === "pending_payment" || j.status === "paid")
+        : jobs.filter((j) => j.status === filterStatus);
+  const pending = jobs.filter((j) => !j.paidAt && j.status !== "cancelled");
   const activeJobs = jobs.filter((j) => !["printed", "cancelled", "failed"].includes(j.status));
 
   const statusFilters = [
     { value: "all", label: "All" },
-    { value: "pending_payment", label: "Unpaid" },
-    { value: "paid", label: "Paid" },
+    { value: "pending_payment", label: "Queued" },
+    { value: "unpaid", label: "Unpaid" },
     { value: "approved", label: "Ready" },
     { value: "printing", label: "Printing" },
     { value: "printed", label: "Done" },
   ];
 
   const counts = statusFilters.reduce((acc, f) => {
-    acc[f.value] = f.value === "all" ? jobs.length : jobs.filter((j) => j.status === f.value).length;
+    acc[f.value] = f.value === "all"
+      ? jobs.length
+      : f.value === "unpaid"
+        ? jobs.filter((j) => !j.paidAt && j.status !== "cancelled").length
+        : f.value === "pending_payment"
+          ? jobs.filter((j) => j.status === "pending_payment" || j.status === "paid").length
+          : jobs.filter((j) => j.status === f.value).length;
     return acc;
   }, {} as Record<string, number>);
 
