@@ -72,6 +72,7 @@ export default function UploadForm() {
   const [payError, setPayError] = useState("");
   const [payMethod, setPayMethod] = useState<"online" | "offline" | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [dragOver, setDragOver] = useState(false);
   const [filePageCount, setFilePageCount] = useState<number | null>(null);
   const [bulkFiles, setBulkFiles] = useState<File[]>([]);
   const [bulkPageCounts, setBulkPageCounts] = useState<number[]>([]);
@@ -948,7 +949,11 @@ export default function UploadForm() {
     return (
       <div className="result-screen result-success" role="status" aria-live="polite">
         <div className="success-animation">
-          <div className="success-icon" aria-hidden="true"><Check size={48} /></div>
+          <div className="success-icon" aria-hidden="true">
+            <svg width="48" height="48" viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline className="check-draw" points="10 25 20 35 38 14" />
+            </svg>
+          </div>
           <div className="success-burst"></div>
         </div>
         <h2 className="success-title">Print Job Submitted</h2>
@@ -962,7 +967,7 @@ export default function UploadForm() {
           <div className="result-meta-divider" aria-hidden="true" />
           <div className="result-meta-item">
             <span className="result-meta-label">Queue</span>
-            <span className="result-meta-value">#{result.queuePosition}</span>
+            <span className="result-meta-value queue-pulse">#{result.queuePosition}</span>
           </div>
         </div>
 
@@ -1139,7 +1144,19 @@ export default function UploadForm() {
       {/* Step 1: Upload */}
       {step === "upload" && (
         <div className="step-content fade-in">
-          <div className={`upload-zone ${file ? "has-file" : ""}`}>
+          <div
+            className={`upload-zone ${file ? "has-file" : ""} ${dragOver ? "drag-over" : ""}`}
+            onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setDragOver(false);
+              const dropped = e.dataTransfer?.files;
+              if (dropped?.length) {
+                handleFileChange({ target: { files: dropped } } as unknown as React.ChangeEvent<HTMLInputElement>);
+              }
+            }}
+          >
             <input
               ref={fileInputRef}
               type="file"
@@ -1489,7 +1506,7 @@ export default function UploadForm() {
           <div className="price-box">
             <div className="price-header">
               <span className="price-label">Estimated Price</span>
-              <span className="price-value">{pricing ? `₹${estimate.toFixed(2)}` : "…"}</span>
+              <span key={estimate} className="price-value price-pop">{pricing ? `₹${estimate.toFixed(2)}` : "…"}</span>
             </div>
             <div className="price-breakdown">
               <span className="breakdown-item">{isBulk ? `${bulkFiles.length} files, ${bulkTotalPages} pages` : pageInfo}</span>

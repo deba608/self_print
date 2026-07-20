@@ -1189,7 +1189,17 @@ export default function AdminDashboard() {
   const [filterStatus, setFilterStatus] = useState("all");
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [actionError, setActionError] = useState("");
+  const [jobsLoaded, setJobsLoaded] = useState(false);
+  const [toasts, setToasts] = useState<Array<{ id: number; kind: "ok" | "err"; msg: string; leaving?: boolean }>>([]);
+  const toastIdRef = useRef(0);
   const esRef = useRef<EventSource | null>(null);
+
+  const pushToast = useCallback((kind: "ok" | "err", msg: string) => {
+    const id = ++toastIdRef.current;
+    setToasts((prev) => [...prev, { id, kind, msg }]);
+    setTimeout(() => setToasts((prev) => prev.map((t) => t.id === id ? { ...t, leaving: true } : t)), 3200);
+    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 3500);
+  }, []);
 
   const load = useCallback(async () => {
     const response = await fetch("/api/admin/jobs", { credentials: "include" });
@@ -1200,6 +1210,7 @@ export default function AdminDashboard() {
     setHasMore(!!body.cursor);
     setTotal(body.total ?? 0);
     setNewJobCount(0);
+    setJobsLoaded(true);
     setLoggedIn(true);
     const summaryResponse = await fetch("/api/admin/summary", { credentials: "include" });
     setSummary(await summaryResponse.json());
@@ -1338,10 +1349,21 @@ export default function AdminDashboard() {
       } else {
         await load();
       }
+      const toastMsg: Record<string, string> = {
+        paid: "Marked as paid",
+        approved: "Print released",
+        printed: "Marked as done",
+        reprint: "Reprint queued",
+        cancelled: "Job cancelled",
+        convert: "Conversion started",
+      };
+      pushToast("ok", toastMsg[action] ?? "Job updated");
       const summaryResponse = await fetch("/api/admin/summary", { credentials: "include" });
       if (summaryResponse.ok) setSummary(await summaryResponse.json());
     } catch (error) {
-      setActionError(error instanceof Error ? error.message : "Unable to update this order.");
+      const msg = error instanceof Error ? error.message : "Unable to update this order.";
+      setActionError(msg);
+      pushToast("err", msg);
     } finally {
       setActionLoading(null);
     }
@@ -1506,7 +1528,17 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {filteredJobs.length === 0 ? (
+      {!jobsLoaded ? (
+        <div className="job-list" aria-hidden="true">
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className="job-skeleton">
+              <div className="sk-line w60" />
+              <div className="sk-line w40" />
+              <div className="sk-line w80" />
+            </div>
+          ))}
+        </div>
+      ) : filteredJobs.length === 0 ? (
         <EmptyState
           message={filterStatus === "all" ? "Waiting for customer uploads..." : `No ${filterStatus} jobs`}
         />
@@ -1522,6 +1554,7 @@ export default function AdminDashboard() {
               onAction={(action) => jobAction(job.id, action)}
               onView={() => window.location.href = `/admin/jobs/${job.id}`}
               actionLoading={actionLoading === job.id}
+              onNotify={pushToast}
             />
           ))}
         </div>
