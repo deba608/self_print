@@ -1126,16 +1126,6 @@ function JobCard({
             )}
             {job.file?.originalName || "No file"}
           </span>
-          {/* Payment info lives on its own row so print-status (row 1) and
-              money (row 2) never compete for attention. */}
-          <div className="job-pay-row">
-            {job.paidAt ? (
-              <span className="status-badge ok">Paid</span>
-            ) : job.status !== "cancelled" && (
-              <span className="status-badge warn">Unpaid</span>
-            )}
-            <span className="job-price">{formatRupees(job.pricePaise)}</span>
-          </div>
           <div className="job-time">
             <span>{new Date(job.createdAt).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "2-digit" })} at {new Date(job.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
           </div>
@@ -1153,18 +1143,13 @@ function JobCard({
         )}
       </div>
 
+      <div className="job-side">
       <div className="job-actions">
 
         {(job.status === "pending_payment" || job.status === "paid") && (
           <button type="button" className="job-btn release" onClick={() => handleActionClick("approved")} disabled={actionLoading}>
             {actionLoading ? <Loader2 size={14} className="spin" /> : <Printer size={14} />}
             <span>Release</span>
-          </button>
-        )}
-        {!job.paidAt && job.status !== "cancelled" && (
-          <button type="button" className="job-btn paid" onClick={() => handleActionClick("paid")} disabled={actionLoading}>
-            {actionLoading ? <Loader2 size={14} className="spin" /> : <CreditCard size={14} />}
-            <span>Mark as Paid</span>
           </button>
         )}
         {(job.status === "approved" || job.status === "printing" || job.status === "failed") && (
@@ -1200,6 +1185,24 @@ function JobCard({
             <X size={14} />
           </button>
         )}
+      </div>
+
+      {/* Payment strip: right-aligned under the action row — amount, then
+          payment status, then the pay action. One glance, one place. */}
+      <div className="job-pay-row">
+        <span className="job-price">{formatRupees(job.pricePaise)}</span>
+        {job.paidAt ? (
+          <span className="status-badge ok"><Check size={12} aria-hidden="true" /> Paid</span>
+        ) : job.status !== "cancelled" ? (
+          <span className="status-badge warn">Unpaid</span>
+        ) : null}
+        {!job.paidAt && job.status !== "cancelled" && (
+          <button type="button" className="job-btn paid" onClick={() => handleActionClick("paid")} disabled={actionLoading}>
+            {actionLoading ? <Loader2 size={14} className="spin" /> : <CreditCard size={14} />}
+            <span>Mark as Paid</span>
+          </button>
+        )}
+      </div>
       </div>
     </div>
   );
