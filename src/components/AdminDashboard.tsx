@@ -8,7 +8,7 @@ import {
   Trash2, ListTodo, Inbox, FileText, BarChart2, ShieldCheck, User, ArrowRight
 } from "lucide-react";
 import { manualPrint } from "@/lib/manualPrint";
-import AccountsTab from "./AccountsTab";
+import Link from "next/link";
 
 type Job = {
   id: string;
@@ -253,10 +253,8 @@ function AdminTopbar({
   onOpenPricing,
   onOpenPrinter,
   onOpenManageOrders,
-  onOpenAccounts,
   onLogout,
-  showPricing,
-  showAccounts
+  showPricing
 }: {
   printerName: string;
   newJobCount: number;
@@ -265,10 +263,8 @@ function AdminTopbar({
   onOpenPricing: () => void;
   onOpenPrinter: () => void;
   onOpenManageOrders: () => void;
-  onOpenAccounts: () => void;
   onLogout: () => void;
   showPricing: boolean;
-  showAccounts: boolean;
 }) {
   return (
     <header className="admin-topbar">
@@ -316,15 +312,14 @@ function AdminTopbar({
           <ListTodo size={18} />
         </button>
 
-        <button
-          type="button"
-          className={`action-btn ${showAccounts ? "active" : ""}`}
-          onClick={onOpenAccounts}
+        <Link
+          href="/admin/accounts"
+          className="action-btn"
           title="Accounts & Daily Data"
           aria-label="Accounts and daily data"
         >
           <BarChart2 size={18} />
-        </button>
+        </Link>
 
         <button
           type="button"
@@ -1252,7 +1247,6 @@ export default function AdminDashboard() {
   const [showSettings, setShowSettings] = useState(false);
   const [showPrinter, setShowPrinter] = useState(false);
   const [showManageOrders, setShowManageOrders] = useState(false);
-  const [showAccounts, setShowAccounts] = useState(false);
   const [pricing, setPricing] = useState<Pricing | null>(null);
   const [printers, setPrinters] = useState<PrinterOption[]>([]);
   const [printerName, setPrinterName] = useState("");
@@ -1622,13 +1616,11 @@ export default function AdminDashboard() {
         newJobCount={newJobCount}
         sseConnected={sseConnected}
         onRefresh={load}
-        onOpenPricing={() => { setShowSettings(true); setShowPrinter(false); setShowManageOrders(false); setShowAccounts(false); }}
-        onOpenPrinter={() => { setShowPrinter(true); setShowSettings(false); setShowManageOrders(false); setShowAccounts(false); }}
-        onOpenManageOrders={() => { setShowManageOrders(true); setShowSettings(false); setShowPrinter(false); setShowAccounts(false); }}
-        onOpenAccounts={() => { setShowAccounts(prev => !prev); setShowSettings(false); setShowPrinter(false); setShowManageOrders(false); }}
+        onOpenPricing={() => { setShowSettings(true); setShowPrinter(false); setShowManageOrders(false); }}
+        onOpenPrinter={() => { setShowPrinter(true); setShowSettings(false); setShowManageOrders(false); }}
+        onOpenManageOrders={() => { setShowManageOrders(true); setShowSettings(false); setShowPrinter(false); }}
         onLogout={logout}
         showPricing={showSettings}
-        showAccounts={showAccounts}
       />
 
       {showSettings && pricing && (
