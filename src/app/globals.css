@@ -157,6 +157,25 @@ input, select, button {
   transform: scale(0.98);
 }
 
+/* Drag-over state — file hovering over the dropzone */
+.upload-zone.drag-over {
+  border-style: solid;
+  border-color: var(--accent-strong);
+  background: var(--accent-light);
+  transform: scale(1.02);
+  box-shadow: 0 0 0 6px rgba(13, 122, 116, 0.12);
+}
+
+.upload-zone.drag-over .upload-icon {
+  transform: scale(1.15) translateY(-4px);
+  animation: dropBounce 0.6s var(--ease-spring) infinite alternate;
+}
+
+@keyframes dropBounce {
+  from { transform: scale(1.15) translateY(-2px); }
+  to { transform: scale(1.15) translateY(-8px); }
+}
+
 .upload-zone input[type="file"] {
   position: absolute;
   inset: 0;
@@ -285,6 +304,18 @@ input, select, button {
   border-radius: 999px;
   background: var(--accent);
   transition: width 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Moving highlight sweep so a slow upload still visibly "works" */
+.upload-progress-fill::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.45) 50%, transparent 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s linear infinite;
 }
 
 .upload-progress-label {
@@ -340,6 +371,7 @@ input, select, button {
 }
 
 .bulk-file-row {
+  animation: fadeInUp 0.3s var(--ease-out) both;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -879,6 +911,18 @@ input, select, button {
   font-size: 28px;
   font-weight: 800;
   color: var(--accent);
+  display: inline-block;
+}
+
+/* Re-applied (via React key change) whenever the estimate changes */
+.price-pop {
+  animation: pricePop 0.35s var(--ease-spring);
+}
+
+@keyframes pricePop {
+  0% { transform: scale(0.9); color: var(--accent-strong); }
+  55% { transform: scale(1.12); }
+  100% { transform: scale(1); }
 }
 
 .price-breakdown {
@@ -1629,6 +1673,16 @@ input, select, button {
   font-weight: 800;
   color: var(--ink);
   line-height: 1;
+}
+
+/* Gentle attention pulse on the queue position */
+.queue-pulse {
+  animation: queuePulse 2.4s ease-in-out infinite;
+}
+
+@keyframes queuePulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.72; transform: scale(1.05); }
 }
 
 .result-meta-value.token-value {
