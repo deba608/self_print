@@ -1307,24 +1307,6 @@ export default function UploadForm() {
             <span className="format-badge">PNG</span>
           </div>
 
-          {/* Cost preview — know the rate before committing to an upload */}
-          {pricing && (
-            <div className="cost-preview" aria-label="Pricing">
-              <div className="cost-preview-item">
-                <span className="cost-preview-label">Black &amp; White</span>
-                <span className="cost-preview-value">{formatRupees(pricing.bwPerPagePaise)}<span className="cost-preview-unit">/page</span></span>
-              </div>
-              <div className="cost-preview-item">
-                <span className="cost-preview-label">Color</span>
-                <span className="cost-preview-value">{formatRupees(pricing.colorPerPagePaise)}<span className="cost-preview-unit">/page</span></span>
-              </div>
-              <div className="cost-preview-item">
-                <span className="cost-preview-label">Photo Print</span>
-                <span className="cost-preview-value">{formatRupees(pricing.photoPrintPaise)}<span className="cost-preview-unit">/print</span></span>
-              </div>
-            </div>
-          )}
-
           {recentToken && (
             <div className="track-link-row">
               <a className="recent-order-chip" href={`/track?token=${recentToken}`}>

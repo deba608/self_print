@@ -7040,47 +7040,6 @@ input[type="number"] {
   text-overflow: ellipsis;
 }
 
-/* Cost preview on the upload step — the rate table before committing */
-.cost-preview {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-  margin-top: 4px;
-}
-
-.cost-preview-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 3px;
-  padding: 10px 6px;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  text-align: center;
-}
-
-.cost-preview-label {
-  font-size: 10.5px;
-  font-weight: 700;
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
-}
-
-.cost-preview-value {
-  font-size: 15px;
-  font-weight: 800;
-  color: var(--accent);
-}
-
-.cost-preview-unit {
-  font-size: 10px;
-  font-weight: 600;
-  color: var(--muted);
-  margin-left: 1px;
-}
-
 /* Printer trouble banner — a failure streak stands in for a real ink/paper
    sensor, which the Windows GDI print path doesn't expose. */
 .printer-trouble-banner {
