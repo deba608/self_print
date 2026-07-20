@@ -739,6 +739,7 @@ function ManageOrdersPanel({
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
   const [filterStatus, setFilterStatus] = useState("all");
+  const [leavingIds, setLeavingIds] = useState<Set<string>>(new Set());
 
   const filteredJobs = filterStatus === "all" ? jobs : jobs.filter((j) => j.status === filterStatus);
 
