@@ -1151,20 +1151,6 @@ function JobCard({
 
       <div className="job-actions">
 
-        {/* Auto Release: cash handed over → one tap marks paid AND releases.
-            Shown only while the job is both unpaid and unreleased. */}
-        {!job.paidAt && (job.status === "pending_payment" || job.status === "paid") && job.needsConversion !== 1 && (
-          <button
-            type="button"
-            className="job-btn auto-release"
-            onClick={() => handleActionClick("auto_release")}
-            disabled={actionLoading}
-            title="Mark paid and release to the printer in one tap"
-          >
-            {actionLoading ? <Loader2 size={14} className="spin" /> : <Zap size={14} />}
-            <span>Auto Release</span>
-          </button>
-        )}
         {(job.status === "pending_payment" || job.status === "paid") && (
           <button type="button" className="job-btn release" onClick={() => handleActionClick("approved")} disabled={actionLoading}>
             {actionLoading ? <Loader2 size={14} className="spin" /> : <Printer size={14} />}
@@ -1471,29 +1457,24 @@ export default function AdminDashboard() {
     setActionLoading(jobId);
     setActionError("");
     try {
-      // "auto_release" is the counter's one-tap flow: mark paid, then release.
-      const sequence = action === "auto_release" ? ["paid", "approved"] : [action];
-      let body: { error?: string; job?: Partial<Job> } = {};
-      for (const step of sequence) {
-        const endpoint = step === "convert"
-          ? `/api/admin/jobs/${jobId}/convert`
-          : step === "reprint"
-            ? `/api/admin/jobs/${jobId}/reprint`
-            : `/api/admin/jobs/${jobId}/status`;
-        const response = await fetch(endpoint, {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: step === "reprint" || step === "convert" ? undefined : JSON.stringify({ status: step })
-        });
-        body = await response.json().catch(() => ({}));
-        if (response.status === 401) {
-          setLoggedIn(false);
-          return;
-        }
-        if (!response.ok) {
-          throw new Error(body.error ?? "Unable to update this order.");
-        }
+      const endpoint = action === "convert"
+        ? `/api/admin/jobs/${jobId}/convert`
+        : action === "reprint"
+          ? `/api/admin/jobs/${jobId}/reprint`
+          : `/api/admin/jobs/${jobId}/status`;
+      const response = await fetch(endpoint, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: action === "reprint" || action === "convert" ? undefined : JSON.stringify({ status: action })
+      });
+      const body = await response.json().catch(() => ({}));
+      if (response.status === 401) {
+        setLoggedIn(false);
+        return;
+      }
+      if (!response.ok) {
+        throw new Error(body.error ?? "Unable to update this order.");
       }
       if (body.job) {
         setJobs((prev) => prev.map((job) => job.id === jobId ? { ...job, ...body.job } : job));
@@ -1507,7 +1488,6 @@ export default function AdminDashboard() {
         reprint: "Reprint queued",
         cancelled: "Job cancelled",
         convert: "Conversion started",
-        auto_release: "Paid & released to printer",
       };
       pushToast("ok", toastMsg[action] ?? "Job updated");
       const summaryResponse = await fetch("/api/admin/summary", { credentials: "include" });
