@@ -22,7 +22,6 @@ Add feedback-focused animations across customer upload flow and admin dashboard.
 10. **Toast notifications** — dashboard-level toast stack (slide in from bottom-right, auto-dismiss 3.5s). Job actions push success toasts; manual-print error `alert()` replaced with error toast. `actionError` banner kept for persistent errors.
 
 ## Non-goals
-- Row exit collapse animation (needs deferred-removal bookkeeping; low value vs complexity).
 - Animation libraries (auto-animate etc.).
 
 ## Error handling
@@ -49,4 +48,11 @@ Admin:
 9. Skeleton loaders — done (`jobsLoaded` state, `.job-skeleton` cards)
 10. Toast notifications — done (`pushToast`, `.toast-stack`, old `alert()` removed)
 
-Remaining: `npm run build` not yet run this session; visual dev-preview pass not yet done.
+Follow-up round — row exit + hover-lift (was Non-goal, revisited):
+11. **Row exit collapse (ManageOrdersPanel)** — done. `leavingIds` set marks deleted job(s) leaving; `.manage-order-item.leaving` collapses max-height/opacity/padding/border to 0 over 260ms before `onRefresh()` actually drops the row (single delete + bulk delete both wired).
+12. **Bulk-file-row exit** — done. Row keyed by stable `bulkIds[i]` (was index); ✕ click marks id leaving, `.bulk-file-row.leaving` collapses via CSS transition, real array splice fires on `onTransitionEnd` (id-based lookup, not stale index — safe under rapid multi-remove).
+13. **Job-card hover-lift** — was already implemented (`.job-card:hover` had `translateY(-1px)` + shadow); confirmed, no change needed.
+
+`npm run build` run: compiles + typechecks clean. One pre-existing `PageNotFoundError: /_document` during page-data collection, unrelated to these changes (App Router project, no `pages/` dir).
+
+Remaining: visual dev-preview pass not yet done this session.
