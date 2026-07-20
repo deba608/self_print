@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { broadcastSse, getJobByToken, updateJobStatus } from "@/lib/db";
+import { broadcastSse, getJobByToken, markJobPaid } from "@/lib/db";
 import { verifyPaymentSignature } from "@/lib/razorpay";
 
 // Client-side confirmation: the browser posts the Checkout success payload right
@@ -30,9 +30,9 @@ export async function POST(request: NextRequest) {
   }
 
   // Idempotent: if the webhook already marked it paid, treat as success.
-  if (job.status === "pending_payment") {
-    await updateJobStatus(job.id, "paid");
-    broadcastSse({ type: "job_update", jobId: job.id, status: "paid", token: job.token });
+  if (!job.paidAt) {
+    const { paidAt } = await markJobPaid(job.id);
+    broadcastSse({ type: "job_update", jobId: job.id, status: job.status, paidAt, token: job.token });
   }
 
   return NextResponse.json({ ok: true, status: "paid" });
