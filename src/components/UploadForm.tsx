@@ -73,6 +73,16 @@ export default function UploadForm() {
   const [payMethod, setPayMethod] = useState<"online" | "offline" | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
+  // Direction-aware step transition: forward navigation slides in from the
+  // right, backward from the left. Keyed on `step` so the animation replays.
+  const stepAnimRef = useRef("fade-in");
+  const prevStepRef = useRef<Step>("upload");
+  if (prevStepRef.current !== step) {
+    const order: Record<Step, number> = { upload: 0, "docx-warning": 0, settings: 1, preview: 2, converting: 3, done: 3 };
+    stepAnimRef.current = order[step] >= order[prevStepRef.current] ? "slide-fwd" : "slide-back";
+    prevStepRef.current = step;
+  }
+  const stepAnim = stepAnimRef.current;
   const [filePageCount, setFilePageCount] = useState<number | null>(null);
   const [bulkFiles, setBulkFiles] = useState<File[]>([]);
   const [bulkPageCounts, setBulkPageCounts] = useState<number[]>([]);
@@ -1143,7 +1153,7 @@ export default function UploadForm() {
 
       {/* Step 1: Upload */}
       {step === "upload" && (
-        <div className="step-content fade-in">
+        <div className={`step-content ${stepAnim}`} key={step}>
           <div
             className={`upload-zone ${file ? "has-file" : ""} ${dragOver ? "drag-over" : ""}`}
             onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
@@ -1186,7 +1196,7 @@ export default function UploadForm() {
 
       {/* Step 1.5: DOCX Warning */}
       {step === "docx-warning" && (
-        <div className="step-content fade-in">
+        <div className={`step-content ${stepAnim}`} key={step}>
           <div className="warning-card" style={{ padding: "2rem", textAlign: "center", border: "2px solid var(--border-color)", borderRadius: "var(--radius-lg)", background: "var(--bg-card)" }}>
             <FileText size={48} style={{ color: "var(--primary-color)", margin: "0 auto 1rem" }} />
             <h3 style={{ marginBottom: "1rem", fontSize: "1.25rem" }}>For Perfect Printing, Please Convert to PDF</h3>
@@ -1217,7 +1227,7 @@ export default function UploadForm() {
 
       {/* Step 2: Settings */}
       {step === "settings" && (
-        <div className="step-content fade-in">
+        <div className={`step-content ${stepAnim}`} key={step}>
           {/* File summary */}
           {isBulk ? (
             <button className="file-summary" onClick={() => setStep("upload")} aria-label="Change files">
@@ -1551,7 +1561,7 @@ export default function UploadForm() {
 
       {/* Step 3: Preview */}
       {step === "preview" && (
-        <div className="step-content fade-in">
+        <div className={`step-content ${stepAnim}`} key={step}>
           <h3 className="preview-title">Review Your Print Job</h3>
 
           {/* Preview area — grayscale simulation when printing B&W */}
