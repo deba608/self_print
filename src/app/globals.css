@@ -1300,6 +1300,7 @@ input, select, button {
   color: var(--ink);
   background: #fff;
   padding: 0;
+  appearance: textfield;
   -moz-appearance: textfield;
   transition: all var(--duration-fast);
 }
@@ -5574,8 +5575,6 @@ input[type="number"] {
 }
 
 /* Today's Cards */
-.acct-today-section {}
-
 .acct-cards {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
