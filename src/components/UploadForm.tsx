@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useRef } from "react";
-import { UploadCloud, FileText, Image, ArrowLeft, ArrowRight, Check, Eye, Loader2, File, Settings2, Maximize2, Minimize2, Printer, Smartphone, Copy, QrCode, Store, X, Search } from "lucide-react";
+import { UploadCloud, FileText, Image, ArrowLeft, ArrowRight, Check, Eye, Loader2, File, Settings2, Maximize2, Minimize2, Printer, Smartphone, Copy, QrCode, Store, X, Search, CreditCard } from "lucide-react";
 import { formatRupees, paperSizeLabels, allPaperSizes } from "@/lib/pricing";
 import BillReceipt, { type BillData } from "./BillReceipt";
 import { QRCodeSVG } from "qrcode.react";
@@ -274,24 +274,29 @@ export default function UploadForm() {
       .catch(() => {});
   }, []);
 
-  // While the token screen shows an unpaid job, poll its status so a staff
-  // "Mark Paid" (cash / QR-scan payments) flips this phone to the receipt.
+  // Live status for the mini-timeline at the bottom of the token screen, and
+  // the paid-detection that flips this phone to the receipt. One poll serves
+  // both: runs while the token screen is up, stops once the job is printed
+  // (or leaves the normal flow — failed/cancelled).
+  const [liveStatus, setLiveStatus] = useState<{ status: string; paidAt: string | null; queuePosition?: number } | null>(null);
   useEffect(() => {
-    if (!result || paidInfo || result.needsConversion) return;
+    if (!result || result.needsConversion) return;
+    if (liveStatus && (liveStatus.status === "printed" || !["pending_payment", "paid", "approved", "printing"].includes(liveStatus.status))) return;
     const interval = setInterval(async () => {
       try {
         const res = await fetch(`/api/jobs/${result.token}/status`, { cache: "no-store" });
         if (!res.ok) return;
         const body = await res.json();
+        setLiveStatus({ status: body.status, paidAt: body.paidAt ?? null, queuePosition: body.queuePosition });
         if (body.paidAt) {
-          setPaidInfo({ method: "counter", at: body.paidAt });
+          setPaidInfo((p) => p ?? { method: "counter", at: body.paidAt });
         }
       } catch {
         /* transient network error — next tick retries */
       }
     }, 5000);
     return () => clearInterval(interval);
-  }, [result, paidInfo]);
+  }, [result, liveStatus]);
 
   const effectivePageRange = useMemo(() => {
     if (pageRangeMode === "all") return "";
@@ -802,6 +807,7 @@ export default function UploadForm() {
     setBulkMode(false);
     setBulkUploading(false);
     setResult(null);
+    setLiveStatus(null);
     setError("");
     setPayState("idle");
     setPaidInfo(null);
@@ -1133,6 +1139,62 @@ export default function UploadForm() {
             </ol>
           </div>
         )}
+
+        {/* Live status of this token — polls every 5s, animates as staff
+            move the job through the queue. */}
+        {!result.needsConversion && (() => {
+          const st = liveStatus?.status ?? "pending_payment";
+          const paid = Boolean(liveStatus?.paidAt) || Boolean(paidInfo);
+          const failed = !["pending_payment", "paid", "approved", "printing", "printed"].includes(st);
+          const done = [true, paid, st === "approved" || st === "printing" || st === "printed", st === "printed"];
+          const activeIdx = done.findIndex((d) => !d);
+          const queuePos = liveStatus?.queuePosition ?? result.queuePosition;
+          const miniSteps = [
+            { label: "Submitted", icon: <UploadCloud size={15} /> },
+            { label: "Paid", icon: <CreditCard size={15} /> },
+            { label: "Printing", icon: <Printer size={15} /> },
+            { label: "Ready", icon: <Check size={15} /> },
+          ];
+          return (
+            <div className="mini-track" aria-live="polite">
+              <div className="mini-track-head">
+                <span className="mini-track-title">Live status</span>
+                {st !== "printed" && !failed && (
+                  <span className="mini-track-eta">~{Math.max(1, queuePos) * 3} min wait</span>
+                )}
+              </div>
+              {failed ? (
+                <p className="mini-track-failed" role="alert">
+                  <X size={15} aria-hidden="true" /> Order {st === "cancelled" ? "cancelled" : "needs attention"} — ask staff with token {result.token}
+                </p>
+              ) : (
+                <div className="mini-timeline">
+                  {miniSteps.map((s, i) => {
+                    const state = done[i] ? "done" : i === activeIdx ? "active" : "todo";
+                    return (
+                      <div key={s.label} className={`mini-step ${state}`}>
+                        <span className="mini-step-dot" aria-hidden="true">
+                          {state === "done" ? <Check size={13} strokeWidth={3.5} /> : s.icon}
+                        </span>
+                        <span className="mini-step-label">{s.label}</span>
+                        {i < miniSteps.length - 1 && <span className={`mini-step-line ${done[i] ? "filled" : ""}`} aria-hidden="true" />}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              {st === "printed" && (
+                <p className="track-collect"><Store size={14} aria-hidden="true" /> Ready — collect at the counter!</p>
+              )}
+            </div>
+          );
+        })()}
+
+        {/* Scan-to-track QR — survives as a screenshot even if this tab dies */}
+        <div className="track-qr">
+          <QRCodeSVG value={`${typeof window !== "undefined" ? window.location.origin : ""}/track?token=${result.token}`} size={96} level="M" marginSize={2} />
+          <span className="track-qr-hint">Scan to track this order<br />on any phone</span>
+        </div>
 
         <a className="btn-secondary upload-another" style={{ marginTop: "0.75rem" }} href={`/track?token=${result.token}`}>
           <Search size={16} aria-hidden="true" /> Track this order
