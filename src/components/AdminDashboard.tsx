@@ -1113,12 +1113,6 @@ function JobCard({
           </div>
           <div className="job-meta">
             <span className={`status-badge ${status.class}`}>{status.label}</span>
-            {job.paidAt ? (
-              <span className="status-badge ok">Paid</span>
-            ) : job.status !== "cancelled" && (
-              <span className="status-badge warn">Unpaid</span>
-            )}
-            <span className="job-price">{formatRupees(job.pricePaise)}</span>
           </div>
         </div>
 
@@ -1132,6 +1126,16 @@ function JobCard({
             )}
             {job.file?.originalName || "No file"}
           </span>
+          {/* Payment info lives on its own row so print-status (row 1) and
+              money (row 2) never compete for attention. */}
+          <div className="job-pay-row">
+            {job.paidAt ? (
+              <span className="status-badge ok">Paid</span>
+            ) : job.status !== "cancelled" && (
+              <span className="status-badge warn">Unpaid</span>
+            )}
+            <span className="job-price">{formatRupees(job.pricePaise)}</span>
+          </div>
           <div className="job-time">
             <span>{new Date(job.createdAt).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "2-digit" })} at {new Date(job.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
           </div>
@@ -1187,14 +1191,15 @@ function JobCard({
             {printing ? <Loader2 size={14} className="spin" /> : <Printer size={14} />}
           </button>
         )}
+        <button type="button" className="job-btn view" onClick={(event) => { event.preventDefault(); event.stopPropagation(); onView(); }} aria-label="Open job details">
+          <Eye size={14} />
+        </button>
+        {/* Destructive action sits last, visually separated in red. */}
         {job.status !== "printed" && job.status !== "cancelled" && (
           <button type="button" className="job-btn cancel" onClick={() => handleActionClick("cancelled")} disabled={actionLoading} aria-label="Cancel job">
             <X size={14} />
           </button>
         )}
-        <button type="button" className="job-btn view" onClick={(event) => { event.preventDefault(); event.stopPropagation(); onView(); }} aria-label="Open job details">
-          <Eye size={14} />
-        </button>
       </div>
     </div>
   );
