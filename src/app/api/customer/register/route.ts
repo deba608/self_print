@@ -23,6 +23,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: error?.message ?? "Unable to create account" }, { status: 400 });
   }
 
+  // With email confirmation enabled, signUp() for an email that already has a
+  // confirmed account returns success with an obfuscated user that has no
+  // identities, rather than an error (this is Supabase's anti-enumeration
+  // behavior). Don't attempt to insert a profile for it — there is no real
+  // new user — and respond exactly like a fresh signup so the response can't
+  // be used to probe which emails are registered.
+  if (data.user.identities?.length === 0) {
+    return NextResponse.json({ ok: true, needsEmailConfirmation: true });
+  }
+
   // signUp() does not establish a session until the account's email is
   // confirmed (locked project decision: email confirmation is required), so
   // the cookie-bound client has no auth.uid() to satisfy the "customers can
@@ -38,6 +48,13 @@ export async function POST(request: NextRequest) {
   });
 
   if (insertError) {
+    // Duplicate key (23505) means a profile row already exists for this id —
+    // this is the retry-after-unconfirmed-signup case, not a real failure.
+    // Respond the same as a fresh signup so this path can't be used to
+    // enumerate which emails are already registered.
+    if (insertError.code === "23505") {
+      return NextResponse.json({ ok: true, needsEmailConfirmation: true });
+    }
     return NextResponse.json(
       { error: "Account created, but failed to save profile" },
       { status: 500 }
