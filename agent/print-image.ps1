@@ -57,6 +57,22 @@ if ($Duplex -ne "simplex") {
   $doc.PrinterSettings.Duplex = [System.Drawing.Printing.Duplex]::Simplex
 }
 
+# Some host-based/GDI drivers (e.g. KONICA MINOLTA 205i) ignore the per-document
+# DEVMODE duplex above and always use the print queue's default preference. Force
+# the queue default to match this job via the Windows print-management layer; the
+# agent prints jobs one at a time, so mutating the queue default is safe. Failure
+# is non-fatal — drivers that honor DEVMODE don't need it.
+$queueDuplex = switch ($Duplex) {
+  "short-edge" { "TwoSidedShortEdge" }
+  "long-edge"  { "TwoSidedLongEdge" }
+  default      { "OneSided" }
+}
+try {
+  Set-PrintConfiguration -PrinterName $Printer -DuplexingMode $queueDuplex -ErrorAction Stop
+} catch {
+  Write-Output ("WARN: could not set queue duplex mode ($queueDuplex): " + $_.Exception.Message)
+}
+
 if ($PagesPerSheet -lt 1) { $PagesPerSheet = 1 }
 
 # Group source images into physical sheets of $PagesPerSheet each.
