@@ -43,7 +43,13 @@ function mapJob(row: any, expiryMinutes: number = 1440): Job {
     expiresAt,
     issueReportedAt: row.issue_reported_at ? String(row.issue_reported_at) : null,
     issueNote: row.issue_note ? String(row.issue_note) : null,
-    issueResolvedAt: row.issue_resolved_at ? String(row.issue_resolved_at) : null
+    issueResolvedAt: row.issue_resolved_at ? String(row.issue_resolved_at) : null,
+    deliveryMethod: (row.delivery_method ?? 'pickup') as Job['deliveryMethod'],
+    customerName: row.customer_name ? String(row.customer_name) : null,
+    customerPhone: row.customer_phone ? String(row.customer_phone) : null,
+    deliveryAddress: row.delivery_address ? String(row.delivery_address) : null,
+    deliveryFeePaise: Number(row.delivery_fee_paise ?? 0),
+    deliveryStatus: row.delivery_status ? (row.delivery_status as Job['deliveryStatus']) : null
   };
 }
 
@@ -447,6 +453,7 @@ const PRICING_DEFAULTS: PricingConfig = {
   photoMultiplier: 1.0,
   duplexBwPerPagePaise: 100,
   expiryMinutes: 1440,
+  deliveryFeePaise: 0,
 };
 
 export async function getPricing(): Promise<PricingConfig> {
@@ -476,6 +483,7 @@ export async function getPricing(): Promise<PricingConfig> {
     photoMultiplier: data.photo_multiplier ?? PRICING_DEFAULTS.photoMultiplier,
     duplexBwPerPagePaise: data.duplex_bw_per_page_paise ?? PRICING_DEFAULTS.duplexBwPerPagePaise,
     expiryMinutes: data.expiry_minutes ?? PRICING_DEFAULTS.expiryMinutes,
+    deliveryFeePaise: data.delivery_fee_paise ?? PRICING_DEFAULTS.deliveryFeePaise,
   };
 }
 
@@ -497,10 +505,11 @@ export async function updatePricing(pricing: PricingConfig) {
       photo_multiplier: pricing.photoMultiplier,
       duplex_bw_per_page_paise: pricing.duplexBwPerPagePaise,
       expiry_minutes: pricing.expiryMinutes,
+      delivery_fee_paise: pricing.deliveryFeePaise,
       updated_at: now
     })
     .eq('id', 1);
-  
+
   if (error) throw error;
 }
 
