@@ -36,7 +36,7 @@ export default function StaffPage() {
         <div className="accounts-locked">
           <Lock size={28} aria-hidden="true" />
           <p>Your admin session has expired.</p>
-          <Link href="/admin" className="btn-primary">Log in again</Link>
+          <Link href="/login" className="btn-primary">Log in again</Link>
         </div>
       ) : (
         <StaffManagement currentStaff={currentStaff} />
