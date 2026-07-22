@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getAuthRedirectUrl } from "@/lib/site-url";
 
 export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => null);
@@ -17,7 +18,13 @@ export async function POST(request: NextRequest) {
   }
 
   const supabase = await createClient();
-  const { data, error } = await supabase.auth.signUp({ email, password });
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      emailRedirectTo: getAuthRedirectUrl("/customer-login"),
+    },
+  });
 
   if (error || !data.user) {
     return NextResponse.json({ error: error?.message ?? "Unable to create account" }, { status: 400 });

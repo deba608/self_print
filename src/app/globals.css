@@ -1651,6 +1651,27 @@ input, select, button {
   gap: 10px;
 }
 
+.delivery-pay-note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--info-light);
+  color: var(--info);
+  font-size: 12px;
+  font-weight: 600;
+}
+.delivery-pay-note svg { flex-shrink: 0; }
+
+.delivery-field-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  margin-bottom: -4px;
+}
+
 .delivery-input {
   padding: 14px 16px;
   border: 2px solid var(--line);
@@ -7373,4 +7394,117 @@ input[type="number"] {
   color: var(--danger);
   cursor: pointer;
   padding: 2px;
+}
+
+/* ---------- Phase 4: /my-jobs + /track polish ---------- */
+
+/* Account bar (logged-in identity + logout) */
+.jobs-account-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-light);
+  border-radius: var(--radius-md);
+}
+.jobs-account-id {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--accent-strong);
+  font-size: 13px;
+  font-weight: 600;
+  min-width: 0;
+}
+.jobs-account-email {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.jobs-logout-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: #fff;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out);
+}
+.jobs-logout-btn:hover { color: var(--danger); border-color: var(--danger-light); }
+
+/* Filter chips: All / Active / Done */
+.jobs-filter-chips {
+  display: flex;
+  gap: var(--space-2);
+}
+.jobs-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-full);
+  background: #fff;
+  color: var(--muted);
+  font-size: 13.5px;
+  font-weight: 700;
+  text-decoration: none;
+  transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out);
+}
+.jobs-filter-chip:hover { border-color: var(--accent); color: var(--accent-strong); }
+.jobs-filter-chip.is-active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+/* Job card badge column + tabular prices */
+.jobs-card-badges {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-1);
+}
+.jobs-price { font-variant-numeric: tabular-nums; }
+
+/* Skeleton job cards while the list streams in */
+.jobs-skeleton-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.jobs-skeleton-lines {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* Empty-state CTA link sized as a touch target */
+.jobs-empty-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  text-decoration: none;
+}
+
+/* "Updated Xs ago" under the tracking timeline */
+.track-updated {
+  margin: 0;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
 }

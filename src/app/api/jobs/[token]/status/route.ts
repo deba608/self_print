@@ -28,6 +28,8 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ token:
         fileCount: job.fileCount ?? 1,
         issueReportedAt: job.issueReportedAt,
         issueResolvedAt: job.issueResolvedAt,
+        deliveryMethod: job.deliveryMethod,
+        deliveryStatus: job.deliveryStatus,
       },
       { headers: { "Cache-Control": "no-store" } }
     );
