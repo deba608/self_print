@@ -2726,7 +2726,20 @@ input[type="number"] {
 }
 
 .login-footer {
+  margin-top: 20px;
   color: var(--muted);
+  font-size: 13px;
+  text-align: center;
+  line-height: 1.7;
+}
+
+.login-footer a {
+  color: var(--accent-strong);
+  font-weight: 700;
+}
+
+.login-footer a:hover {
+  text-decoration: underline;
 }
 
 /* === Stats Bar === */

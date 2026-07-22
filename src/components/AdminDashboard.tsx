@@ -6,9 +6,12 @@ import {
   RefreshCw, Settings, LogOut, Printer, Bell, BellRing,
   CheckSquare, Square, CreditCard, Eye, X, Check, Monitor, Loader2,
   ChevronDown, Zap, TrendingUp, Clock,
-  Trash2, ListTodo, Inbox, FileText, BarChart2, ShieldCheck, MessageCircleWarning, AlertTriangle, Users
+  Trash2, ListTodo, Inbox, FileText, BarChart2, ShieldCheck, MessageCircleWarning, AlertTriangle, Users, Truck
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { manualPrint } from "@/lib/manualPrint";
+import Badge, { type BadgeVariant } from "@/components/ui/Badge";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import Link from "next/link";
 import type { StaffProfile } from "@/lib/types";
 
@@ -879,47 +882,29 @@ function ManageOrdersPanel({
                   {deleteLoading === job.id ? <Loader2 size={14} className="spin" /> : <Trash2 size={14} />}
                 </button>
 
-                {confirmDelete === job.id && (
-                  <div className="manage-delete-confirm">
-                    <p>Delete this order permanently?</p>
-                    <div className="manage-confirm-actions">
-                      <button type="button" onClick={() => setConfirmDelete(null)}>Cancel</button>
-                      <button type="button" className="confirm-delete" onClick={() => deleteJob(job.id)}>
-                        Delete
-                      </button>
-                    </div>
-                  </div>
-                )}
               </div>
             ))
           )}
         </div>
 
-        {confirmBulkDelete && (
-          <div className="manage-bulk-confirm-overlay" onClick={() => setConfirmBulkDelete(false)}>
-            <div className="manage-bulk-confirm" onClick={(e) => e.stopPropagation()}>
-              <Trash2 size={32} className="confirm-icon" />
-              <h3>Delete {selectedIds.size} orders?</h3>
-              <p>This action cannot be undone. All files and records will be permanently removed.</p>
-              <div className="confirm-actions">
-                <button type="button" onClick={() => setConfirmBulkDelete(false)}>Cancel</button>
-                <button type="button" className="confirm-delete" onClick={bulkDelete} disabled={bulkDeleting}>
-                  {bulkDeleting ? (
-                    <>
-                      <Loader2 size={16} className="spin" />
-                      Deleting...
-                    </>
-                  ) : (
-                    <>
-                      <Trash2 size={16} />
-                      Delete All
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+        <ConfirmDialog
+          open={confirmDelete !== null}
+          title="Delete order?"
+          message="This order and its files will be permanently removed. This cannot be undone."
+          confirmLabel="Delete"
+          danger
+          onConfirm={() => { if (confirmDelete) deleteJob(confirmDelete); }}
+          onCancel={() => setConfirmDelete(null)}
+        />
+        <ConfirmDialog
+          open={confirmBulkDelete}
+          title={`Delete ${selectedIds.size} order${selectedIds.size === 1 ? "" : "s"}?`}
+          message="This action cannot be undone. All files and records will be permanently removed."
+          confirmLabel={bulkDeleting ? "Deleting..." : "Delete All"}
+          danger
+          onConfirm={() => { if (!bulkDeleting) bulkDelete(); }}
+          onCancel={() => setConfirmBulkDelete(false)}
+        />
       </div>
     </div>
   );
