@@ -1,7 +1,22 @@
+import Link from "next/link";
 import UploadForm from "@/components/UploadForm";
 import ShopHeader from "@/components/ShopHeader";
+import { createClient } from "@/lib/supabase/server";
 
-export default function CustomerPage() {
+export default async function CustomerPage() {
+  // Any failure (e.g. Supabase env not configured in pure-SQLite local dev)
+  // is swallowed and treated as a guest, so the homepage still renders.
+  let user = null;
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user: authUser },
+    } = await supabase.auth.getUser();
+    user = authUser;
+  } catch {
+    user = null;
+  }
+
   return (
     <main className="customer-shell">
       <ShopHeader />
@@ -9,6 +24,13 @@ export default function CustomerPage() {
         <div className="intro">
           <h1>Print Your Files</h1>
           <p className="muted">Upload from your phone, get a token, pay at the counter, and collect your print.</p>
+          <p className="muted" style={{ fontSize: "0.85em" }}>
+            {user ? (
+              <Link href="/my-jobs">My Jobs</Link>
+            ) : (
+              <>Have an account? <Link href="/customer-login">Log in</Link></>
+            )}
+          </p>
         </div>
         <UploadForm />
       </section>

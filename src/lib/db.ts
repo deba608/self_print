@@ -33,20 +33,20 @@ async function getDbModule() {
 
 async function getDbInstance() {
   if (!dbInstance) {
-    const { DB_PATH, DEFAULT_ADMIN_PASSWORD, DEFAULT_ADMIN_USERNAME, DEFAULT_AGENT_TOKEN } = await import('./config');
-    const { hashSecret } = await import('./security');
+    const { DB_PATH, DEFAULT_AGENT_TOKEN } = await import('./config');
+    const { hashToken } = await import('./token-hash');
     const fs = await import('node:fs');
     const path = await import('node:path');
-    
+
     const Database = await getDbModule();
-    
+
     fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
     dbInstance = new Database(DB_PATH);
     dbInstance.pragma('journal_mode = WAL');
     dbInstance.pragma('foreign_keys = ON');
-    
+
     await initSchema(dbInstance);
-    await seedDefaults(dbInstance, DEFAULT_ADMIN_USERNAME, DEFAULT_ADMIN_PASSWORD, DEFAULT_AGENT_TOKEN, hashSecret);
+    await seedDefaults(dbInstance, DEFAULT_AGENT_TOKEN, hashToken);
   }
   return dbInstance;
 }
@@ -124,13 +124,6 @@ async function initSchema(database: any) {
       seen_at TEXT NOT NULL
     );
 
-    CREATE TABLE IF NOT EXISTS admin_users (
-      id TEXT PRIMARY KEY,
-      username TEXT NOT NULL UNIQUE,
-      password_hash TEXT NOT NULL,
-      created_at TEXT NOT NULL
-    );
-
     CREATE TABLE IF NOT EXISTS agent_tokens (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
@@ -178,7 +171,8 @@ async function ensureJobColumns(database: any) {
     ['customer_phone', 'TEXT'],
     ['delivery_address', 'TEXT'],
     ['delivery_fee_paise', 'INTEGER NOT NULL DEFAULT 0'],
-    ['delivery_status', 'TEXT']
+    ['delivery_status', 'TEXT'],
+    ['customer_user_id', 'TEXT']
   ];
   for (const [name, definition] of additions) {
     if (!columns.has(name)) {
@@ -209,7 +203,7 @@ async function ensurePricingColumns(database: any) {
   }
 }
 
-async function seedDefaults(database: any, username: string, password: string, agentToken: string, hashSecret: (s: string) => string) {
+async function seedDefaults(database: any, agentToken: string, hashToken: (s: string) => string) {
   const now = new Date().toISOString();
   database.prepare(`
     INSERT OR IGNORE INTO pricing_config (
@@ -225,14 +219,9 @@ async function seedDefaults(database: any, username: string, password: string, a
   `).run(now);
 
   database.prepare(`
-    INSERT OR IGNORE INTO admin_users (id, username, password_hash, created_at)
-    VALUES ('default-admin', ?, ?, ?)
-  `).run(username, hashSecret(password), now);
-
-  database.prepare(`
     INSERT OR IGNORE INTO agent_tokens (id, name, token_hash, created_at)
     VALUES ('default-agent', 'Shop PC Agent', ?, ?)
-  `).run(hashSecret(agentToken), now);
+  `).run(hashToken(agentToken), now);
 }
 
 // Helper to convert SQLite row to Job type
@@ -506,6 +495,7 @@ export async function createJobWithFiles(
 
   const j = {
     token: jobData.token,
+    customerUserId: jobData.customer_user_id ?? jobData.customerUserId ?? null,
     printType: jobData.printType ?? jobData.print_type,
     copies: jobData.copies,
     pageRange: jobData.pageRange ?? jobData.page_range ?? null,
@@ -530,9 +520,9 @@ export async function createJobWithFiles(
 
   sqlite.transaction(() => {
     sqlite.prepare(`
-      INSERT INTO jobs (id, token, status, print_type, copies, page_range, paper_size, layout, pages_per_sheet, margins, scale, duplex, page_count, price_paise, needs_conversion, queue_position, delivery_method, customer_name, customer_phone, delivery_address, delivery_fee_paise, created_at, updated_at)
-      VALUES (?, ?, 'pending_payment', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(jobId, j.token, j.printType, j.copies, j.pageRange, j.paperSize, j.layout, j.pagesPerSheet, j.margins, j.scale, j.duplex, j.pageCount, j.pricePaise, j.needsConversion, j.queuePosition, j.deliveryMethod, j.customerName, j.customerPhone, j.deliveryAddress, j.deliveryFeePaise, now, now);
+      INSERT INTO jobs (id, token, status, customer_user_id, print_type, copies, page_range, paper_size, layout, pages_per_sheet, margins, scale, duplex, page_count, price_paise, needs_conversion, queue_position, delivery_method, customer_name, customer_phone, delivery_address, delivery_fee_paise, created_at, updated_at)
+      VALUES (?, ?, 'pending_payment', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(jobId, j.token, j.customerUserId, j.printType, j.copies, j.pageRange, j.paperSize, j.layout, j.pagesPerSheet, j.margins, j.scale, j.duplex, j.pageCount, j.pricePaise, j.needsConversion, j.queuePosition, j.deliveryMethod, j.customerName, j.customerPhone, j.deliveryAddress, j.deliveryFeePaise, now, now);
 
     const insertFile = sqlite.prepare(`
       INSERT INTO job_files (id, job_id, original_name, stored_name, mime_type, size_bytes, file_kind, storage_path, created_at)
@@ -838,26 +828,16 @@ export async function getAgentPrinters(): Promise<PrinterOption[]> {
   }));
 }
 
-export async function getAdminUser(username: string) {
-  if (isSupabase) {
-    const mod = await import('./db-supabase');
-    return mod.getAdminUser(username);
-  }
-  
-  const sqlite = await getDbInstance();
-  return sqlite.prepare('SELECT username, password_hash FROM admin_users WHERE username = ?').get(username);
-}
-
 export async function getAgentToken(rawToken: string) {
   if (isSupabase) {
     const mod = await import('./db-supabase');
     return mod.getAgentToken(rawToken);
   }
-  
+
   const sqlite = await getDbInstance();
-  const { verifySecret } = await import('./security');
+  const { verifyToken } = await import('./token-hash');
   const rows = sqlite.prepare('SELECT token_hash FROM agent_tokens').all() as Array<{ token_hash: string }>;
-  return rows.find((row) => verifySecret(rawToken, row.token_hash)) || null;
+  return rows.find((row) => verifyToken(rawToken, row.token_hash)) || null;
 }
 
 // Daily-reset serial: #1 is the first job created after UTC midnight, not a
