@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useRef } from "react";
-import { UploadCloud, FileText, Image, ArrowLeft, ArrowRight, Check, Eye, Loader2, File, Settings2, Maximize2, Minimize2, Printer, Smartphone, Copy, Store, X, Search, CreditCard, RefreshCw } from "lucide-react";
+import { UploadCloud, FileText, Image, ArrowLeft, ArrowRight, Check, Eye, Loader2, File, Settings2, Maximize2, Minimize2, Printer, Smartphone, Copy, Store, X, Search, CreditCard, RefreshCw, Info } from "lucide-react";
 import { formatRupees, paperSizeLabels, allPaperSizes } from "@/lib/pricing";
 import BillReceipt, { type BillData } from "./BillReceipt";
 import { QRCodeSVG } from "qrcode.react";
@@ -1500,26 +1500,40 @@ export default function UploadForm() {
 
               {deliveryMethod === "delivery" && (
                 <div className="delivery-contact-fields">
+                  <p className="delivery-pay-note">
+                    <Info size={14} aria-hidden="true" />
+                    Home delivery orders are paid online before printing.
+                  </p>
+                  <label className="delivery-field-label" htmlFor="delivery-name">Full name</label>
                   <input
+                    id="delivery-name"
                     type="text"
                     placeholder="Full name"
                     value={customerName}
                     onChange={(e) => setCustomerName(e.target.value)}
                     className="delivery-input"
+                    autoComplete="name"
                   />
+                  <label className="delivery-field-label" htmlFor="delivery-phone">Phone</label>
                   <input
+                    id="delivery-phone"
                     type="tel"
+                    inputMode="numeric"
                     placeholder="10-digit phone number"
                     value={customerPhone}
                     onChange={(e) => setCustomerPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
                     className="delivery-input"
+                    autoComplete="tel-national"
                   />
+                  <label className="delivery-field-label" htmlFor="delivery-address">Delivery address</label>
                   <textarea
-                    placeholder="Full delivery address"
+                    id="delivery-address"
+                    placeholder="House/flat, street, area, landmark"
                     value={deliveryAddress}
                     onChange={(e) => setDeliveryAddress(e.target.value)}
                     className="delivery-input delivery-address-input"
                     rows={2}
+                    autoComplete="street-address"
                   />
                 </div>
               )}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Check, Loader2, Printer, Search, Store, X, CreditCard, PackageCheck, UploadCloud, Download, MessageCircleWarning } from "lucide-react";
+import { BadgeCheck, Check, Loader2, Printer, Search, Store, Truck, X, PackageCheck, UploadCloud, Download, MessageCircleWarning } from "lucide-react";
 import BillReceipt, { type BillData } from "./BillReceipt";
 
 type TrackData = {
@@ -14,22 +14,37 @@ type TrackData = {
   fileCount: number;
   issueReportedAt: string | null;
   issueResolvedAt: string | null;
+  // Optional — the public status endpoint may not include delivery fields
+  // yet; absence is treated as a pickup order.
+  deliveryMethod?: "pickup" | "delivery" | null;
+  deliveryStatus?: "pending" | "out_for_delivery" | "delivered" | null;
 };
 
 const TOKEN_LEN = 6;
 const LAST_TOKEN_KEY = "selfprint:lastToken";
 
-// Payment and print-progress now advance independently (a shop may release
-// and print before the customer pays at the counter), so each of the 4 steps
-// — Submitted, Paid, Printing, Ready — is tracked as its own done/not-done
-// flag rather than a single linear cursor.
+// Print progress timeline: Uploaded → Approved → Printed, then branching by
+// fulfilment — delivery orders continue to Out for delivery → Delivered,
+// pickup orders end with Ready for pickup. Payment is decoupled from print
+// progress and is shown separately (receipt button), not as a timeline step.
 function timelineFor(job: TrackData): { done: boolean[]; failed: boolean } {
+  const isDelivery = job.deliveryMethod === "delivery";
+  const stepCount = isDelivery ? 5 : 4;
   if (!["pending_payment", "paid", "approved", "printing", "printed"].includes(job.status)) {
-    return { done: [true, Boolean(job.paidAt), false, false], failed: true }; // failed / cancelled / expired
+    // failed / cancelled / expired
+    return { done: [true, ...Array.from({ length: stepCount - 1 }, () => false)], failed: true };
   }
-  const printingOrBeyond = job.status === "approved" || job.status === "printing" || job.status === "printed";
+  const approvedOrBeyond = job.status === "approved" || job.status === "printing" || job.status === "printed";
+  const printed = job.status === "printed";
+  if (isDelivery) {
+    const outForDelivery = job.deliveryStatus === "out_for_delivery" || job.deliveryStatus === "delivered";
+    return {
+      done: [true, approvedOrBeyond, printed, outForDelivery, job.deliveryStatus === "delivered"],
+      failed: false,
+    };
+  }
   return {
-    done: [true, Boolean(job.paidAt), printingOrBeyond, job.status === "printed"],
+    done: [true, approvedOrBeyond, printed, printed],
     failed: false,
   };
 }
@@ -54,6 +69,16 @@ export default function TrackOrder({ initialToken }: { initialToken?: string }) 
   const [reportMsg, setReportMsg] = useState("");
   const [reportSending, setReportSending] = useState(false);
   const [reportError, setReportError] = useState("");
+  // "Updated Xs ago" indicator — timestamp of the last successful status
+  // fetch, plus a 1s ticker so the label counts up between polls.
+  const [lastUpdatedAt, setLastUpdatedAt] = useState<number | null>(null);
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (!lastUpdatedAt) return;
+    const iv = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(iv);
+  }, [lastUpdatedAt]);
 
   async function submitReport() {
     if (!activeToken) return;
@@ -113,6 +138,7 @@ export default function TrackOrder({ initialToken }: { initialToken?: string }) 
       }
       const body = (await res.json()) as TrackData;
       setJob(body);
+      setLastUpdatedAt(Date.now());
       setActiveToken(token);
       try { localStorage.setItem(LAST_TOKEN_KEY, token); } catch { /* private mode */ }
     } catch {
@@ -140,7 +166,10 @@ export default function TrackOrder({ initialToken }: { initialToken?: string }) 
     const iv = setInterval(async () => {
       try {
         const res = await fetch(`/api/jobs/${activeToken}/status`, { cache: "no-store" });
-        if (res.ok) setJob(await res.json());
+        if (res.ok) {
+          setJob(await res.json());
+          setLastUpdatedAt(Date.now());
+        }
       } catch { /* transient — next tick retries */ }
     }, 5000);
     return () => clearInterval(iv);
@@ -174,16 +203,23 @@ export default function TrackOrder({ initialToken }: { initialToken?: string }) 
     setReportOpen(false);
     setReportMsg("");
     setReportError("");
+    setLastUpdatedAt(null);
     inputsRef.current[0]?.focus();
   }
 
   const tl = job ? timelineFor(job) : null;
   const activeIdx = tl ? tl.done.findIndex((d) => !d) : -1;
+  const isDelivery = job?.deliveryMethod === "delivery";
   const steps = [
-    { label: "Submitted", sub: "Order received", icon: <UploadCloud size={18} /> },
-    { label: "Paid", sub: job?.paidAt ? "Payment confirmed" : "Pay at the counter", icon: <CreditCard size={18} /> },
-    { label: "Printing", sub: "Your pages are printing", icon: <Printer size={18} /> },
-    { label: "Ready", sub: "Collect at the counter", icon: <PackageCheck size={18} /> },
+    { label: "Uploaded", sub: "Order received", icon: <UploadCloud size={18} /> },
+    { label: "Approved", sub: "Released by the shop", icon: <BadgeCheck size={18} /> },
+    { label: "Printed", sub: "Your pages are printing", icon: <Printer size={18} /> },
+    ...(isDelivery
+      ? [
+          { label: "Out for delivery", sub: "On its way to you", icon: <Truck size={18} /> },
+          { label: "Delivered", sub: "Handed over", icon: <PackageCheck size={18} /> },
+        ]
+      : [{ label: "Ready for pickup", sub: "Collect at the counter", icon: <Store size={18} /> }]),
   ];
 
   return (
@@ -305,7 +341,13 @@ export default function TrackOrder({ initialToken }: { initialToken?: string }) 
             </ol>
           )}
 
-          {job.status === "printed" && (
+          {lastUpdatedAt && !tl.failed && job.status !== "printed" && (
+            <p className="track-updated" aria-live="off">
+              Updated {Math.max(0, Math.round((now - lastUpdatedAt) / 1000))}s ago
+            </p>
+          )}
+
+          {job.status === "printed" && !isDelivery && (
             <p className="track-collect"><Store size={15} aria-hidden="true" /> Your print is ready — show this token at the counter.</p>
           )}
 

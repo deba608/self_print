@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin, requireAdminResponse } from "@/lib/security";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getAuthRedirectUrl } from "@/lib/site-url";
 import type { StaffRole } from "@/lib/types";
 
 const VALID_ROLES: StaffRole[] = ["super_admin", "admin"];
@@ -58,9 +59,8 @@ export async function POST(request: NextRequest) {
   // Inviting a user requires the service-role key (auth.admin.* is
   // privileged and unavailable to the cookie-bound client).
   const adminClient = createAdminClient();
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
   const { data: invited, error: inviteError } = await adminClient.auth.admin.inviteUserByEmail(email, {
-    redirectTo: `${siteUrl}/staff/accept-invite`,
+    redirectTo: getAuthRedirectUrl("/staff/accept-invite"),
   });
 
   if (inviteError || !invited?.user) {
@@ -88,6 +88,9 @@ export async function POST(request: NextRequest) {
     .single();
 
   if (insertError || !profile) {
+    // Do not leave an unusable Auth user behind when profile creation fails;
+    // otherwise a retry reports that the email is already registered.
+    await adminClient.auth.admin.deleteUser(invited.user.id);
     return NextResponse.json({ error: insertError?.message ?? "Invited, but failed to create staff profile" }, { status: 500 });
   }
 
