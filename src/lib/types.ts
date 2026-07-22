@@ -15,24 +15,8 @@ export type PrintScale = "default" | "fit" | "shrink" | "noscale";
 export type PrintDuplex = "simplex" | "long-edge" | "short-edge";
 export type FileKind = "pdf" | "image" | "document";
 
-export type StaffRole = "super_admin" | "admin";
-
-export type StaffProfile = {
-  id: string;
-  email: string;
-  displayName: string | null;
-  role: StaffRole;
-  invitedBy: string | null;
-  createdAt: string;
-};
-
-export type CustomerProfile = {
-  id: string;
-  email: string;
-  displayName: string | null;
-  phone: string;
-  createdAt: string;
-};
+export type DeliveryMethod = "pickup" | "delivery";
+export type DeliveryStatus = "pending" | "out_for_delivery" | "delivered";
 
 export type Job = {
   id: string;
@@ -61,6 +45,12 @@ export type Job = {
   issueReportedAt: string | null;
   issueNote: string | null;
   issueResolvedAt: string | null;
+  deliveryMethod: DeliveryMethod;
+  customerName: string | null;
+  customerPhone: string | null;
+  deliveryAddress: string | null;
+  deliveryFeePaise: number;
+  deliveryStatus: DeliveryStatus | null;
   file?: JobFile;
   fileCount?: number;
 };
@@ -91,6 +81,7 @@ export type PricingConfig = {
   photoMultiplier: number;
   duplexBwPerPagePaise: number;
   expiryMinutes: number;
+  deliveryFeePaise: number;
 };
 
 export type SseClient = {

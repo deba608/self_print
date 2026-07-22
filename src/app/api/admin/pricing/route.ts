@@ -37,7 +37,8 @@ export async function PUT(request: NextRequest) {
       legalMultiplier: body.legalMultiplier,
       photoMultiplier: body.photoMultiplier,
       duplexBwPerPagePaise: body.duplexBwPerPagePaise,
-      expiryMinutes: body.expiryMinutes
+      expiryMinutes: body.expiryMinutes,
+      deliveryFeePaise: typeof body.deliveryFeePaise === "number" ? body.deliveryFeePaise : (await getPricing()).deliveryFeePaise
     });
 
     return NextResponse.json(await getPricing());
