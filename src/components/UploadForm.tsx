@@ -375,6 +375,29 @@ export default function UploadForm() {
     if (!canDuplex && duplex !== "simplex") setDuplex("simplex");
   }, [canDuplex, duplex]);
 
+  // DOC/DOCX files need conversion before printing, and converted jobs can't
+  // pay online (see result.needsConversion gating below) — but delivery orders
+  // require online payment. So delivery is never offered for a doc/docx file.
+  const isDocFile = Boolean(file && (file.name.toLowerCase().endsWith(".doc") || file.name.toLowerCase().endsWith(".docx")));
+
+  // Without a UPI link or a Razorpay key configured there is no online payment
+  // rail at all, so a delivery order (which must pay online) could never be
+  // settled — hide the delivery option entirely in that case.
+  const onlinePaymentRailAvailable = Boolean(
+    (pricing?.shopUpiId ?? "").trim() || (pricing?.shopUpiQr ?? "").trim() || (pricing?.razorpayKeyId ?? "").trim()
+  );
+
+  const deliveryOfferable = !isBulk && !isDocFile && onlinePaymentRailAvailable;
+
+  useEffect(() => {
+    if (!deliveryOfferable && deliveryMethod === "delivery") {
+      setDeliveryMethod("pickup");
+      setCustomerName("");
+      setCustomerPhone("");
+      setDeliveryAddress("");
+    }
+  }, [deliveryOfferable, deliveryMethod]);
+
   const estimate = useMemo(() => {
     if (!pricing) return 0;
     // Bulk mode has no page-range selector — price off the summed page count
@@ -529,6 +552,14 @@ export default function UploadForm() {
       URL.revokeObjectURL(previewUrl);
       setPreviewUrl(null);
     }
+
+    // Bulk mode hides the delivery toggle entirely — reset to pickup so no
+    // stale delivery fee/contact fields leak into the bulk estimate or block
+    // goToPreview on now-hidden fields.
+    setDeliveryMethod("pickup");
+    setCustomerName("");
+    setCustomerPhone("");
+    setDeliveryAddress("");
 
     const ids = selected.map(() => crypto.randomUUID());
     setBulkFiles(selected);
@@ -872,7 +903,7 @@ export default function UploadForm() {
       setError("Double-sided printing requires at least 2 pages.");
       return;
     }
-    if (deliveryMethod === "delivery" && (!customerName.trim() || !/^\d{10}$/.test(customerPhone) || !deliveryAddress.trim())) {
+    if (!isBulk && deliveryMethod === "delivery" && (!customerName.trim() || !/^\d{10}$/.test(customerPhone) || !deliveryAddress.trim())) {
       setError("Enter your name, a 10-digit phone number, and delivery address.");
       return;
     }
@@ -1440,7 +1471,7 @@ export default function UploadForm() {
             </button>
           )}
 
-          {!isBulk && (
+          {deliveryOfferable && (
             <div className="delivery-method-section">
               <h4 className="delivery-method-title">How will you get your prints?</h4>
               <div className="delivery-method-toggle" role="group" aria-label="Pickup or delivery">

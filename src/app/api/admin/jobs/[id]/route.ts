@@ -78,7 +78,9 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     return NextResponse.json({ error: "Double-sided printing requires a document with at least 2 pages." }, { status: 400 });
   }
   const pricing = await getPricing();
-  const pricePaise = calculatePrice({ printType, copies, pageRange, paperSize, pageCount, pricing, duplex });
+  const pricePaise =
+    calculatePrice({ printType, copies, pageRange, paperSize, pageCount, pricing, duplex }) +
+    (existing.deliveryMethod === "delivery" ? existing.deliveryFeePaise : 0);
   const now = new Date().toISOString();
 
   await updateJobSettings(id, {

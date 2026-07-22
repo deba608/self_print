@@ -155,6 +155,13 @@ export async function POST(request: NextRequest) {
       needsConversion = kind === "document" ? 1 : 0;
     }
 
+    if (deliveryMethod === "delivery" && needsConversion) {
+      return NextResponse.json(
+        { error: "Home delivery is not available for DOC/DOCX files — please upload a PDF" },
+        { status: 400 }
+      );
+    }
+
     const pricing = await getPricing();
     // Duplex requires the document itself to have 2+ pages — copies don't count
     // (each copy prints as its own separate stack, so a 1-page doc can't duplex).
