@@ -7521,3 +7521,18 @@ input[type="number"] {
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
+
+/* Delivery filter chip: count of orders currently out for delivery */
+.delivery-filter-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--warn-light);
+  color: var(--warn);
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}

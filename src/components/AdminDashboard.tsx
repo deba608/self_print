@@ -945,13 +945,15 @@ function BatchBar({
   totalUnpaid,
   onSelectAll,
   onBatchPaid,
-  onClear
+  onClear,
+  loading
 }: {
   selectedCount: number;
   totalUnpaid: number;
   onSelectAll: () => void;
   onBatchPaid: () => void;
   onClear: () => void;
+  loading: boolean;
 }) {
   const allSelected = selectedCount === totalUnpaid && totalUnpaid > 0;
 
@@ -964,8 +966,8 @@ function BatchBar({
 
       {selectedCount > 0 && (
         <div className="batch-actions">
-          <button type="button" className="batch-btn paid" onClick={onBatchPaid}>
-            <CreditCard size={16} />
+          <button type="button" className="batch-btn paid" onClick={onBatchPaid} disabled={loading}>
+            {loading ? <Loader2 size={16} className="spin" /> : <CreditCard size={16} />}
             Mark {selectedCount} paid
           </button>
           <button type="button" className="batch-btn clear" onClick={onClear}>
@@ -999,17 +1001,18 @@ function JobCard({
 }) {
   // Print-progress status only — payment is tracked separately via job.paidAt
   // (see the paid pill below) so a job can be released/printed before it's paid.
-  const statusMap: Record<string, { label: string; class: string }> = {
-    pending_payment: { label: "Queued", class: "warn" },
-    paid: { label: "Queued", class: "warn" }, // legacy rows from before payment was decoupled
-    approved: { label: "Ready", class: "ready" },
-    printing: { label: "Printing", class: "info" },
-    printed: { label: "Done", class: "ok" },
-    failed: { label: "Failed", class: "danger" },
-    cancelled: { label: "Cancelled", class: "danger" },
+  // Variant mapping follows docs/UI_UX_PLAN.md §1.2.
+  const statusMap: Record<string, { label: string; variant: BadgeVariant; icon: LucideIcon }> = {
+    pending_payment: { label: "Queued", variant: "info", icon: Clock },
+    paid: { label: "Queued", variant: "info", icon: Clock }, // legacy rows from before payment was decoupled
+    approved: { label: "Ready", variant: "primary", icon: Check },
+    printing: { label: "Printing", variant: "primary", icon: Printer },
+    printed: { label: "Done", variant: "success", icon: Check },
+    failed: { label: "Failed", variant: "danger", icon: AlertTriangle },
+    cancelled: { label: "Cancelled", variant: "neutral", icon: X },
   };
 
-  const status = statusMap[job.status] || { label: job.status, class: "" };
+  const status = statusMap[job.status] || { label: job.status, variant: "neutral" as BadgeVariant, icon: Clock };
   const formatRupees = (paise: number) => `₹${(paise / 100).toFixed(2)}`;
   const handleActionClick = (action: string) => {
     onAction(action);
@@ -1100,6 +1103,7 @@ function JobCard({
               onClick={(e) => { e.stopPropagation(); onAction("resolve_issue"); }}
               disabled={actionLoading}
             >
+              {actionLoading ? <Loader2 size={12} className="spin" /> : null}
               Resolve
             </button>
           </div>
@@ -1107,7 +1111,13 @@ function JobCard({
 
         {job.deliveryMethod === "delivery" && (
           <div className="job-delivery-info">
-            <span className="job-delivery-tag">Delivery</span>
+            {job.deliveryStatus === "out_for_delivery" ? (
+              <Badge variant="warning" icon={Truck}>Out for delivery</Badge>
+            ) : job.deliveryStatus === "delivered" ? (
+              <Badge variant="success" icon={Truck}>Delivered</Badge>
+            ) : (
+              <Badge variant="info" icon={Truck}>Delivery</Badge>
+            )}
             <span>{job.customerName} · {job.customerPhone}</span>
             <span className="job-delivery-address">{job.deliveryAddress}</span>
           </div>
@@ -1119,7 +1129,7 @@ function JobCard({
 
         {/* Print status leads the control row — state and its actions read
             together as one line. */}
-        <span className={`status-badge ${status.class}`}>{status.label}</span>
+        <Badge variant={status.variant} icon={status.icon}>{status.label}</Badge>
 
         {(job.status === "pending_payment" || job.status === "paid") && (
           <div className="print-mode-group">
@@ -1184,7 +1194,7 @@ function JobCard({
         {/* Destructive action sits last, visually separated in red. */}
         {job.status !== "printed" && job.status !== "cancelled" && (
           <button type="button" className="job-btn cancel" onClick={() => handleActionClick("cancelled")} disabled={actionLoading} aria-label="Cancel job">
-            <X size={14} />
+            {actionLoading ? <Loader2 size={14} className="spin" /> : <X size={14} />}
           </button>
         )}
       </div>
@@ -1194,9 +1204,9 @@ function JobCard({
       <div className="job-pay-row">
         <span className="job-price">{formatRupees(job.pricePaise)}</span>
         {job.paidAt ? (
-          <span className="status-badge ok"><Check size={12} aria-hidden="true" /> Paid</span>
+          <Badge variant="success" icon={Check}>Paid</Badge>
         ) : job.status !== "cancelled" ? (
-          <span className="status-badge warn">Unpaid</span>
+          <Badge variant="warning" icon={CreditCard}>Unpaid</Badge>
         ) : null}
         {!job.paidAt && job.status !== "cancelled" && (
           <button type="button" className="job-btn paid" onClick={() => handleActionClick("paid")} disabled={actionLoading}>
@@ -1246,6 +1256,9 @@ export default function AdminDashboard() {
   const [deliveryFilter, setDeliveryFilter] = useState<"all" | "pickup" | "delivery">("all");
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [actionError, setActionError] = useState("");
+  // Shared confirm state for destructive / hard-to-reverse job actions.
+  const [confirmAction, setConfirmAction] = useState<{ action: "cancelled" | "delivered"; jobId: string } | null>(null);
+  const [batchLoading, setBatchLoading] = useState(false);
   const [dismissedFailStreak, setDismissedFailStreak] = useState(0);
   const [jobsLoaded, setJobsLoaded] = useState(false);
   const [toasts, setToasts] = useState<Array<{ id: number; kind: "ok" | "err"; msg: string; leaving?: boolean }>>([]);
@@ -1543,6 +1556,8 @@ export default function AdminDashboard() {
 
   async function batchAction() {
     const ids = Array.from(selectedJobs);
+    if (ids.length === 0) return;
+    setBatchLoading(true);
     setActionError("");
     try {
       const responses = await Promise.all(ids.map(async (id) => {
@@ -1574,6 +1589,7 @@ export default function AdminDashboard() {
       setActionError(error instanceof Error ? error.message : "Unable to update selected orders.");
     } finally {
       await load();
+      setBatchLoading(false);
     }
   }
 
@@ -1602,6 +1618,7 @@ export default function AdminDashboard() {
         ? methodFilteredJobs.filter((j) => j.status === "pending_payment" || j.status === "paid")
         : methodFilteredJobs.filter((j) => j.status === filterStatus);
   const pending = jobs.filter((j) => !j.paidAt && j.status !== "cancelled");
+  const outForDeliveryCount = jobs.filter((j) => j.deliveryStatus === "out_for_delivery").length;
   const activeJobs = jobs.filter((j) => !["printed", "cancelled", "failed"].includes(j.status));
 
   // Printer trouble signal: there's no ink/paper-level sensor available
@@ -1724,6 +1741,12 @@ export default function AdminDashboard() {
             aria-pressed={deliveryFilter === f}
           >
             {f === "all" ? "All Orders" : f === "pickup" ? "Pickup" : "Delivery"}
+            {f === "delivery" && outForDeliveryCount > 0 && (
+              <span className="delivery-filter-count" title={`${outForDeliveryCount} out for delivery`}>
+                <Truck size={12} aria-hidden="true" />
+                {outForDeliveryCount}
+              </span>
+            )}
           </button>
         ))}
       </div>
@@ -1742,6 +1765,7 @@ export default function AdminDashboard() {
           onSelectAll={selectAll}
           onBatchPaid={batchAction}
           onClear={() => setSelectedJobs(new Set())}
+          loading={batchLoading}
         />
       )}
 
@@ -1777,7 +1801,11 @@ export default function AdminDashboard() {
               isSelected={selectedJobs.has(job.id)}
               index={index}
               onToggleSelect={() => toggleSelect(job.id)}
-              onAction={(action) => jobAction(job.id, action)}
+              onAction={(action) =>
+                action === "cancelled" || action === "delivered"
+                  ? setConfirmAction({ action, jobId: job.id })
+                  : jobAction(job.id, action)
+              }
               onView={() => window.location.href = `/admin/jobs/${job.id}`}
               actionLoading={actionLoading === job.id}
               onNotify={pushToast}
@@ -1796,6 +1824,24 @@ export default function AdminDashboard() {
           )}
         </div>
       )}
+
+      <ConfirmDialog
+        open={confirmAction !== null}
+        title={confirmAction?.action === "cancelled" ? "Cancel this job?" : "Mark as delivered?"}
+        message={
+          confirmAction?.action === "cancelled"
+            ? "The job will be cancelled and removed from the active queue. This cannot be undone."
+            : "Confirm the order was handed to the customer. This completes the delivery."
+        }
+        confirmLabel={confirmAction?.action === "cancelled" ? "Cancel job" : "Mark delivered"}
+        danger={confirmAction?.action === "cancelled"}
+        onConfirm={() => {
+          const pendingConfirm = confirmAction;
+          setConfirmAction(null);
+          if (pendingConfirm) jobAction(pendingConfirm.jobId, pendingConfirm.action);
+        }}
+        onCancel={() => setConfirmAction(null)}
+      />
 
       {toasts.length > 0 && (
         <div className="toast-stack" role="status" aria-live="polite">
