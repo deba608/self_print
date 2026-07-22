@@ -6,7 +6,7 @@ import {
   RefreshCw, Settings, LogOut, Printer, Bell, BellRing,
   CheckSquare, Square, CreditCard, Eye, X, Check, Monitor, Loader2,
   ChevronDown, Zap, TrendingUp, Clock,
-  Trash2, ListTodo, Inbox, FileText, BarChart2, ShieldCheck, MessageCircleWarning, AlertTriangle
+  Trash2, ListTodo, Inbox, FileText, BarChart2, ShieldCheck, MessageCircleWarning, AlertTriangle, Users
 } from "lucide-react";
 import { manualPrint } from "@/lib/manualPrint";
 import Link from "next/link";
@@ -230,6 +230,15 @@ function AdminTopbar({
             aria-label="Accounts and daily data"
           >
             <BarChart2 size={18} />
+          </Link>
+
+          <Link
+            href="/admin/staff"
+            className="action-btn"
+            title="Staff Management"
+            aria-label="Staff management"
+          >
+            <Users size={18} />
           </Link>
 
           <button
