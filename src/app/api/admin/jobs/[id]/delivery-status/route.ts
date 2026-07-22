@@ -7,8 +7,9 @@ const allowed = ["out_for_delivery", "delivered"] as const;
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const unauthorized = await requireAdminResponse();
   if (unauthorized) return unauthorized;
-  const { deliveryStatus } = await request.json();
-  if (!allowed.includes(deliveryStatus)) {
+  const body = await request.json().catch(() => null);
+  const deliveryStatus = body?.deliveryStatus;
+  if (!body || !allowed.includes(deliveryStatus)) {
     return NextResponse.json({ error: "Unsupported delivery status" }, { status: 400 });
   }
   const { id } = await params;
