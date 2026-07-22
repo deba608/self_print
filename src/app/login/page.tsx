@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Printer, Lock, Mail, Eye, EyeOff, ArrowRight, Loader2 } from "lucide-react";
 
 export default function LoginPage() {
@@ -120,6 +121,10 @@ export default function LoginPage() {
                 </>
               )}
             </button>
+
+            <p className="login-footer">
+              <Link href="/forgot-password?from=admin">Forgot password?</Link>
+            </p>
           </form>
         </div>
       </div>
