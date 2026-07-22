@@ -1998,6 +1998,7 @@ function PdfCanvasPreview({ file, fallbackPageCount, sim }: { file: File; fallba
     let disposed = false;
 
     async function renderSheet() {
+      console.log("[dbg] renderSheet enter", { hasPdf: !!pdfRef.current, hasCanvas: !!canvasRef.current, pageNumber, pdfVersion });
       if (!pdfRef.current || !canvasRef.current) return;
       setLoading(true);
       try {
@@ -2056,9 +2057,11 @@ function PdfCanvasPreview({ file, fallbackPageCount, sim }: { file: File; fallba
           off.height = Math.max(1, Math.floor(vp.height));
           const offCtx = off.getContext("2d");
           if (!offCtx) continue;
+          console.log("[dbg] render page start", pageIdx);
           const renderTask = page.render({ canvasContext: offCtx, viewport: vp });
           renderTaskRef.current = renderTask;
           await renderTask.promise;
+          console.log("[dbg] render page done", pageIdx);
           if (disposed) return;
 
           const drawW = vp.width / pixelRatio, drawH = vp.height / pixelRatio;
@@ -2073,6 +2076,7 @@ function PdfCanvasPreview({ file, fallbackPageCount, sim }: { file: File; fallba
           }
         }
       } catch (err) {
+        console.log("[dbg] renderSheet error", err);
         if (!disposed && !(err instanceof Error && err.name === "RenderingCancelledException")) {
           setError("Unable to render this PDF page.");
         }
