@@ -50,7 +50,11 @@ export async function manualPrint(jobId: string): Promise<Result> {
       try {
         if (!win) throw new Error("no frame window");
         win.focus();
-        win.print();
+        // Chrome's PDF viewer fires the iframe's load event once its shell is up,
+        // before the PDF itself has painted. Printing immediately opens the native
+        // dialog with its preview pane stuck blank/"Loading preview...". Give it a
+        // moment to paint first (matches the fix in ManualPrint.tsx).
+        setTimeout(() => win.print(), 500);
         cleanup();
         resolve({ ok: true });
       } catch {
