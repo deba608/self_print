@@ -17,6 +17,16 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
   }
 
   const adminClient = createAdminClient();
+  // staff_profiles.invited_by references auth.users(id) without ON DELETE SET
+  // NULL, so deleting an inviter would be rejected by Postgres while rows still
+  // point at them. Detach those references first.
+  const { error: detachError } = await adminClient
+    .from("staff_profiles")
+    .update({ invited_by: null })
+    .eq("invited_by", id);
+  if (detachError) {
+    return NextResponse.json({ error: detachError.message }, { status: 500 });
+  }
   const { error } = await adminClient.auth.admin.deleteUser(id);
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });

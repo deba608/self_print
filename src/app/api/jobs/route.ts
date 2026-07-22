@@ -18,7 +18,16 @@ async function getCustomerUserId(): Promise<string | null> {
   try {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
-    return user?.id ?? null;
+    if (!user) return null;
+    // Only stamp jobs for actual customer accounts. A staff member (or any
+    // non-customer session) uploading via the public form stays a guest job —
+    // otherwise their jobs would surface under /my-jobs for that account.
+    const { data: profile } = await supabase
+      .from("customer_profiles")
+      .select("id")
+      .eq("id", user.id)
+      .maybeSingle();
+    return profile ? user.id : null;
   } catch {
     return null;
   }
