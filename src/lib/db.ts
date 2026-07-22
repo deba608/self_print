@@ -519,15 +519,20 @@ export async function createJobWithFiles(
     pricePaise: jobData.pricePaise ?? jobData.price_paise,
     needsConversion: jobData.needsConversion ?? jobData.needs_conversion,
     queuePosition: jobData.queuePosition ?? jobData.queue_position,
+    deliveryMethod: jobData.deliveryMethod ?? jobData.delivery_method ?? 'pickup',
+    customerName: jobData.customerName ?? jobData.customer_name ?? null,
+    customerPhone: jobData.customerPhone ?? jobData.customer_phone ?? null,
+    deliveryAddress: jobData.deliveryAddress ?? jobData.delivery_address ?? null,
+    deliveryFeePaise: jobData.deliveryFeePaise ?? jobData.delivery_fee_paise ?? 0,
   };
 
   const firstKind = filesData[0]?.fileKind ?? filesData[0]?.file_kind;
 
   sqlite.transaction(() => {
     sqlite.prepare(`
-      INSERT INTO jobs (id, token, status, print_type, copies, page_range, paper_size, layout, pages_per_sheet, margins, scale, duplex, page_count, price_paise, needs_conversion, queue_position, created_at, updated_at)
-      VALUES (?, ?, 'pending_payment', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(jobId, j.token, j.printType, j.copies, j.pageRange, j.paperSize, j.layout, j.pagesPerSheet, j.margins, j.scale, j.duplex, j.pageCount, j.pricePaise, j.needsConversion, j.queuePosition, now, now);
+      INSERT INTO jobs (id, token, status, print_type, copies, page_range, paper_size, layout, pages_per_sheet, margins, scale, duplex, page_count, price_paise, needs_conversion, queue_position, delivery_method, customer_name, customer_phone, delivery_address, delivery_fee_paise, created_at, updated_at)
+      VALUES (?, ?, 'pending_payment', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(jobId, j.token, j.printType, j.copies, j.pageRange, j.paperSize, j.layout, j.pagesPerSheet, j.margins, j.scale, j.duplex, j.pageCount, j.pricePaise, j.needsConversion, j.queuePosition, j.deliveryMethod, j.customerName, j.customerPhone, j.deliveryAddress, j.deliveryFeePaise, now, now);
 
     const insertFile = sqlite.prepare(`
       INSERT INTO job_files (id, job_id, original_name, stored_name, mime_type, size_bytes, file_kind, storage_path, created_at)
@@ -593,6 +598,23 @@ export async function updateJobStatus(id: string, status: string): Promise<void>
   
   sqlite.prepare("INSERT INTO print_events (id, job_id, event_type, message, created_at) VALUES (?, ?, ?, ?, ?)")
     .run(crypto.randomUUID(), id, status, `Admin set status to ${status}.`, now);
+}
+
+// Delivery hand-off status, tracked independently of the print-progress
+// `status` column — mirrors how `paidAt` is decoupled from `status`. Only
+// ever set on delivery-method jobs; the API route enforces that.
+export async function updateDeliveryStatus(id: string, deliveryStatus: "out_for_delivery" | "delivered"): Promise<void> {
+  if (isSupabase) {
+    const mod = await import('./db-supabase');
+    return mod.updateDeliveryStatus(id, deliveryStatus);
+  }
+
+  const crypto = await import('node:crypto');
+  const sqlite = await getDbInstance();
+  const now = new Date().toISOString();
+  sqlite.prepare(`UPDATE jobs SET delivery_status = ?, updated_at = ? WHERE id = ?`).run(deliveryStatus, now, id);
+  sqlite.prepare("INSERT INTO print_events (id, job_id, event_type, message, created_at) VALUES (?, ?, ?, ?, ?)")
+    .run(crypto.randomUUID(), id, deliveryStatus, `Delivery status set to ${deliveryStatus}.`, now);
 }
 
 // Customer-facing: flags a job for staff attention from the public /track

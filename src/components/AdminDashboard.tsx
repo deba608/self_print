@@ -27,6 +27,11 @@ type Job = {
   issueResolvedAt?: string | null;
   file: { originalName: string } | null;
   fileCount?: number;
+  deliveryMethod?: "pickup" | "delivery";
+  customerName?: string | null;
+  customerPhone?: string | null;
+  deliveryAddress?: string | null;
+  deliveryStatus?: "pending" | "out_for_delivery" | "delivered" | null;
 };
 
 type Pricing = {
@@ -43,6 +48,7 @@ type Pricing = {
   photoMultiplier: number;
   duplexBwPerPagePaise: number;
   expiryMinutes: number;
+  deliveryFeePaise: number;
 };
 
 type PricingDraft = {
@@ -70,6 +76,7 @@ const defaultPricing: Pricing = {
   photoMultiplier: 1.5,
   duplexBwPerPagePaise: 100,
   expiryMinutes: 1440,
+  deliveryFeePaise: 0,
 };
 
 function normalizePricingDraft(draft: PricingDraft): Pricing | null {
@@ -378,6 +385,7 @@ function PricingPanel({
     colorPerPagePaise: formatPaiseInput((pricing || defaultPricing).colorPerPagePaise),
     photoPrintPaise: formatPaiseInput((pricing || defaultPricing).photoPrintPaise),
     duplexBwPerPagePaise: formatPaiseInput((pricing || defaultPricing).duplexBwPerPagePaise),
+    deliveryFeePaise: formatPaiseInput((pricing || defaultPricing).deliveryFeePaise),
   });
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -391,6 +399,7 @@ function PricingPanel({
       colorPerPagePaise: formatPaiseInput(nextPricing.colorPerPagePaise),
       photoPrintPaise: formatPaiseInput(nextPricing.photoPrintPaise),
       duplexBwPerPagePaise: formatPaiseInput(nextPricing.duplexBwPerPagePaise),
+      deliveryFeePaise: formatPaiseInput(nextPricing.deliveryFeePaise),
     });
   }, [pricing]);
 
@@ -405,7 +414,7 @@ function PricingPanel({
     setError("");
   };
 
-  const updatePriceField = (field: "bwPerPagePaise" | "colorPerPagePaise" | "photoPrintPaise" | "duplexBwPerPagePaise", rawValue: string) => {
+  const updatePriceField = (field: "bwPerPagePaise" | "colorPerPagePaise" | "photoPrintPaise" | "duplexBwPerPagePaise" | "deliveryFeePaise", rawValue: string) => {
     setPriceInputs(prev => ({ ...prev, [field]: rawValue }));
     if (rawValue === "") {
       setFormData(prev => ({ ...prev, [field]: "" }));
@@ -507,6 +516,17 @@ function PricingPanel({
                     onChange={(e) => updatePriceField("duplexBwPerPagePaise", e.target.value)}
                   />
                 </div>
+              </div>
+              <div className="pricing-field">
+                <label>Delivery Fee (flat, ₹)</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={priceInputs.deliveryFeePaise}
+                  onChange={(e) => updatePriceField("deliveryFeePaise", e.target.value)}
+                />
+                <span className="pricing-hint">Added once per home-delivery order, on top of the print cost.</span>
               </div>
             </div>
           </section>
@@ -1196,6 +1216,14 @@ function JobCard({
             </button>
           </div>
         )}
+
+        {job.deliveryMethod === "delivery" && (
+          <div className="job-delivery-info">
+            <span className="job-delivery-tag">Delivery</span>
+            <span>{job.customerName} · {job.customerPhone}</span>
+            <span className="job-delivery-address">{job.deliveryAddress}</span>
+          </div>
+        )}
       </div>
 
       <div className="job-side">
@@ -1230,6 +1258,18 @@ function JobCard({
           <button type="button" className="job-btn done" onClick={() => handleActionClick("printed")} disabled={actionLoading}>
             {actionLoading ? <Loader2 size={14} className="spin" /> : <Check size={14} />}
             <span>Done</span>
+          </button>
+        )}
+        {job.deliveryMethod === "delivery" && job.status === "printed" && job.deliveryStatus !== "out_for_delivery" && job.deliveryStatus !== "delivered" && (
+          <button type="button" className="job-btn release" onClick={() => handleActionClick("out_for_delivery")} disabled={actionLoading}>
+            {actionLoading ? <Loader2 size={14} className="spin" /> : <Printer size={14} />}
+            <span>Out for Delivery</span>
+          </button>
+        )}
+        {job.deliveryMethod === "delivery" && job.deliveryStatus === "out_for_delivery" && (
+          <button type="button" className="job-btn done" onClick={() => handleActionClick("delivered")} disabled={actionLoading}>
+            {actionLoading ? <Loader2 size={14} className="spin" /> : <Check size={14} />}
+            <span>Delivered</span>
           </button>
         )}
         {(job.status === "printed" || job.status === "failed") && (
@@ -1313,6 +1353,7 @@ export default function AdminDashboard() {
   const [newJobCount, setNewJobCount] = useState(0);
   const [selectedJobs, setSelectedJobs] = useState<Set<string>>(new Set());
   const [filterStatus, setFilterStatus] = useState("all");
+  const [deliveryFilter, setDeliveryFilter] = useState<"all" | "pickup" | "delivery">("all");
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [actionError, setActionError] = useState("");
   const [dismissedFailStreak, setDismissedFailStreak] = useState(0);
@@ -1552,19 +1593,24 @@ export default function AdminDashboard() {
     setActionLoading(jobId);
     setActionError("");
     try {
+      const isDeliveryAction = action === "out_for_delivery" || action === "delivered";
       const endpoint = action === "convert"
         ? `/api/admin/jobs/${jobId}/convert`
         : action === "reprint"
           ? `/api/admin/jobs/${jobId}/reprint`
           : action === "resolve_issue"
             ? `/api/admin/jobs/${jobId}/resolve-issue`
-            : `/api/admin/jobs/${jobId}/status`;
+            : isDeliveryAction
+              ? `/api/admin/jobs/${jobId}/delivery-status`
+              : `/api/admin/jobs/${jobId}/status`;
       const noBodyActions = ["reprint", "convert", "resolve_issue"];
       const response = await fetch(endpoint, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: noBodyActions.includes(action) ? undefined : JSON.stringify({ status: action })
+        body: noBodyActions.includes(action)
+          ? undefined
+          : JSON.stringify(isDeliveryAction ? { deliveryStatus: action } : { status: action })
       });
       const body = await response.json().catch(() => ({}));
       if (response.status === 401) {
@@ -1587,6 +1633,8 @@ export default function AdminDashboard() {
         cancelled: "Job cancelled",
         convert: "Conversion started",
         resolve_issue: "Issue marked resolved",
+        out_for_delivery: "Marked out for delivery",
+        delivered: "Marked delivered",
       };
       pushToast("ok", toastMsg[action] ?? "Job updated");
       const summaryResponse = await fetch("/api/admin/summary", { credentials: "include" });
@@ -1649,13 +1697,16 @@ export default function AdminDashboard() {
 
   // "pending_payment" tab also covers the legacy "paid" status value (jobs
   // released before payment was decoupled from print progress).
-  const filteredJobs = filterStatus === "all"
+  const methodFilteredJobs = deliveryFilter === "all"
     ? jobs
+    : jobs.filter((j) => (j.deliveryMethod ?? "pickup") === deliveryFilter);
+  const filteredJobs = filterStatus === "all"
+    ? methodFilteredJobs
     : filterStatus === "unpaid"
-      ? jobs.filter((j) => !j.paidAt && j.status !== "cancelled")
+      ? methodFilteredJobs.filter((j) => !j.paidAt && j.status !== "cancelled")
       : filterStatus === "pending_payment"
-        ? jobs.filter((j) => j.status === "pending_payment" || j.status === "paid")
-        : jobs.filter((j) => j.status === filterStatus);
+        ? methodFilteredJobs.filter((j) => j.status === "pending_payment" || j.status === "paid")
+        : methodFilteredJobs.filter((j) => j.status === filterStatus);
   const pending = jobs.filter((j) => !j.paidAt && j.status !== "cancelled");
   const activeJobs = jobs.filter((j) => !["printed", "cancelled", "failed"].includes(j.status));
 
@@ -1772,6 +1823,20 @@ export default function AdminDashboard() {
       )}
 
       <StatsBar activeJobs={activeJobs.length} todayRevenue={summary.totalPaise} />
+
+      <div className="delivery-filter-toggle" role="group" aria-label="Filter by fulfillment method">
+        {(["all", "pickup", "delivery"] as const).map((f) => (
+          <button
+            type="button"
+            key={f}
+            className={`delivery-filter-btn ${deliveryFilter === f ? "active" : ""}`}
+            onClick={() => setDeliveryFilter(f)}
+            aria-pressed={deliveryFilter === f}
+          >
+            {f === "all" ? "All Orders" : f === "pickup" ? "Pickup" : "Delivery"}
+          </button>
+        ))}
+      </div>
 
       <FilterTabs
         filters={statusFilters}
