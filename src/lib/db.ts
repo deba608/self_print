@@ -171,7 +171,8 @@ async function ensureJobColumns(database: any) {
     ['customer_phone', 'TEXT'],
     ['delivery_address', 'TEXT'],
     ['delivery_fee_paise', 'INTEGER NOT NULL DEFAULT 0'],
-    ['delivery_status', 'TEXT']
+    ['delivery_status', 'TEXT'],
+    ['customer_user_id', 'TEXT']
   ];
   for (const [name, definition] of additions) {
     if (!columns.has(name)) {
