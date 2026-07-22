@@ -172,7 +172,8 @@ async function ensureJobColumns(database: any) {
     ['paid_via', 'TEXT'],
     ['issue_reported_at', 'TEXT'],
     ['issue_note', 'TEXT'],
-    ['issue_resolved_at', 'TEXT']
+    ['issue_resolved_at', 'TEXT'],
+    ['customer_user_id', 'TEXT']
   ];
   for (const [name, definition] of additions) {
     if (!columns.has(name)) {
@@ -235,6 +236,7 @@ function mapJob(row: Record<string, unknown>, expiryMinutes: number = 1440): Job
   return {
     id: String(row.id),
     token: String(row.token),
+    customerUserId: row.customer_user_id ? String(row.customer_user_id) : null,
     status: row.status as Job['status'],
     printType: row.print_type as Job['printType'],
     copies: Number(row.copies),

@@ -15,9 +15,29 @@ export type PrintScale = "default" | "fit" | "shrink" | "noscale";
 export type PrintDuplex = "simplex" | "long-edge" | "short-edge";
 export type FileKind = "pdf" | "image" | "document";
 
+export type StaffRole = "super_admin" | "admin";
+
+export type StaffProfile = {
+  id: string;
+  email: string;
+  displayName: string | null;
+  role: StaffRole;
+  invitedBy: string | null;
+  createdAt: string;
+};
+
+export type CustomerProfile = {
+  id: string;
+  email: string;
+  displayName: string | null;
+  phone: string;
+  createdAt: string;
+};
+
 export type Job = {
   id: string;
   token: string;
+  customerUserId: string | null;
   status: JobStatus;
   printType: PrintType;
   copies: number;
