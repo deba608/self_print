@@ -556,10 +556,15 @@ async function renderPdfToPngs(pdfPath: string, job: SupabaseJob): Promise<strin
   try {
     const doc = await library.loadDocument(new Uint8Array(buff));
     try {
+      // B/W jobs render at lower DPI and as grayscale: ~half the pixel data and
+      // far smaller PNGs, which cuts rasterise + spool time on host-based
+      // printers. Colour jobs keep full quality.
+      const isBw = job.print_type !== "color";
+      const scale = renderDpiFor(job) / 72;
       let i = 0;
       for (const page of doc.pages()) {
         const rendered = await page.render({
-          scale: 3, // ~216 DPI for A4 — sharp enough for text and images
+          scale,
           render: async ({ data, width, height }) => {
             // PDFium outputs BGRA; swap B<->R so colours are correct as RGBA.
             const buf = Buffer.from(data);
@@ -568,7 +573,9 @@ async function renderPdfToPngs(pdfPath: string, job: SupabaseJob): Promise<strin
               buf[p] = buf[p + 2];
               buf[p + 2] = b;
             }
-            return await sharp(buf, { raw: { width, height, channels: 4 } }).png().toBuffer();
+            let img = sharp(buf, { raw: { width, height, channels: 4 } });
+            if (isBw) img = img.grayscale();
+            return await img.png().toBuffer();
           }
         });
         const pngPath = path.resolve(config.tempDir, `${job.token}-p${i}.png`);
@@ -617,6 +624,12 @@ function parsePageRange(range: string, total: number): number[] {
   return [...pages].sort((a, b) => a - b);
 }
 
+// B/W jobs render at 180 DPI (plenty for text, ~30% fewer pixels), colour at
+// 216 DPI. Shared by the rasteriser and the print script's actual-size math.
+function renderDpiFor(job: SupabaseJob) {
+  return job.print_type !== "color" ? 180 : 216;
+}
+
 function printImagesGDI(images: string[], job: SupabaseJob, printer: string) {
   const scriptPath = path.resolve("agent/print-image.ps1");
   if (!existsSync(scriptPath)) {
@@ -639,7 +652,8 @@ function printImagesGDI(images: string[], job: SupabaseJob, printer: string) {
           "-Margins", job.margins || "default",
           "-PagesPerSheet", String(job.pages_per_sheet || 1),
           "-Duplex", job.duplex || "simplex",
-          "-Collate", "true"
+          "-Collate", "true",
+          "-RenderDpi", String(renderDpiFor(job))
         ];
         log(`Printing ${images.length} page(s) via GDI to ${printer}...`);
 
