@@ -893,7 +893,7 @@ function ManageOrdersPanel({
           message="This order and its files will be permanently removed. This cannot be undone."
           confirmLabel="Delete"
           danger
-          onConfirm={() => { if (confirmDelete) deleteJob(confirmDelete); }}
+          onConfirm={() => { const id = confirmDelete; setConfirmDelete(null); if (id) deleteJob(id); }}
           onCancel={() => setConfirmDelete(null)}
         />
         <ConfirmDialog
