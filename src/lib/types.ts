@@ -80,7 +80,7 @@ export type PricingConfig = {
   photoMultiplier: number;
   duplexBwPerPagePaise: number;
   expiryMinutes: number;
-  deliveryFeePaise?: number;
+  deliveryFeePaise: number;
 };
 
 export type SseClient = {
