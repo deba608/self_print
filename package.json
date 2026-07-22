@@ -15,7 +15,6 @@
   },
   "dependencies": {
     "@hyzyla/pdfium": "^2.1.13",
-    "@supabase/ssr": "^0.12.3",
     "@supabase/supabase-js": "^2.106.0",
     "lucide-react": "^0.468.0",
     "next": "^15.1.3",

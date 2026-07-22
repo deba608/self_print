@@ -21,7 +21,6 @@ function mapJob(row: any, expiryMinutes: number = 1440): Job {
   return {
     id: String(row.id),
     token: String(row.token),
-    customerUserId: row.customer_user_id ? String(row.customer_user_id) : null,
     status: row.status,
     printType: row.print_type,
     copies: Number(row.copies),
