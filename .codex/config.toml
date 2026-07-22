@@ -1,6 +1,7 @@
 approval_policy = "on-request"
 sandbox_mode = "workspace-write"
 web_search = "live"
+mcp_oauth_credentials_store = "file"
 
 [mcp_servers.github]
 command = "npx"

@@ -41,14 +41,15 @@ export async function POST(_: NextRequest, { params }: { params: Promise<{ id: s
     const saved = await saveBuffer(pdf, ".pdf", "document", "application/pdf");
     const pageCount = estimatePageCount("pdf", pdf);
     const pricing = await getPricing();
-    const pricePaise = calculatePrice({
-      printType: job.printType,
-      copies: job.copies,
-      pageRange: job.pageRange,
-      paperSize: job.paperSize,
-      pageCount,
-      pricing
-    });
+    const pricePaise =
+      calculatePrice({
+        printType: job.printType,
+        copies: job.copies,
+        pageRange: job.pageRange,
+        paperSize: job.paperSize,
+        pageCount,
+        pricing
+      }) + (job.deliveryMethod === "delivery" ? job.deliveryFeePaise : 0);
 
     await markJobConverted(id, file.id, {
       storedName: saved.storedName,
