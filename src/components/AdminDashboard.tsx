@@ -43,6 +43,7 @@ type Pricing = {
   photoMultiplier: number;
   duplexBwPerPagePaise: number;
   expiryMinutes: number;
+  deliveryFeePaise: number;
 };
 
 type PricingDraft = {
@@ -70,6 +71,7 @@ const defaultPricing: Pricing = {
   photoMultiplier: 1.5,
   duplexBwPerPagePaise: 100,
   expiryMinutes: 1440,
+  deliveryFeePaise: 0,
 };
 
 function normalizePricingDraft(draft: PricingDraft): Pricing | null {
@@ -378,6 +380,7 @@ function PricingPanel({
     colorPerPagePaise: formatPaiseInput((pricing || defaultPricing).colorPerPagePaise),
     photoPrintPaise: formatPaiseInput((pricing || defaultPricing).photoPrintPaise),
     duplexBwPerPagePaise: formatPaiseInput((pricing || defaultPricing).duplexBwPerPagePaise),
+    deliveryFeePaise: formatPaiseInput((pricing || defaultPricing).deliveryFeePaise),
   });
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -391,6 +394,7 @@ function PricingPanel({
       colorPerPagePaise: formatPaiseInput(nextPricing.colorPerPagePaise),
       photoPrintPaise: formatPaiseInput(nextPricing.photoPrintPaise),
       duplexBwPerPagePaise: formatPaiseInput(nextPricing.duplexBwPerPagePaise),
+      deliveryFeePaise: formatPaiseInput(nextPricing.deliveryFeePaise),
     });
   }, [pricing]);
 
@@ -405,7 +409,7 @@ function PricingPanel({
     setError("");
   };
 
-  const updatePriceField = (field: "bwPerPagePaise" | "colorPerPagePaise" | "photoPrintPaise" | "duplexBwPerPagePaise", rawValue: string) => {
+  const updatePriceField = (field: "bwPerPagePaise" | "colorPerPagePaise" | "photoPrintPaise" | "duplexBwPerPagePaise" | "deliveryFeePaise", rawValue: string) => {
     setPriceInputs(prev => ({ ...prev, [field]: rawValue }));
     if (rawValue === "") {
       setFormData(prev => ({ ...prev, [field]: "" }));
@@ -507,6 +511,17 @@ function PricingPanel({
                     onChange={(e) => updatePriceField("duplexBwPerPagePaise", e.target.value)}
                   />
                 </div>
+              </div>
+              <div className="pricing-field">
+                <label>Delivery Fee (flat, ₹)</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={priceInputs.deliveryFeePaise}
+                  onChange={(e) => updatePriceField("deliveryFeePaise", e.target.value)}
+                />
+                <span className="pricing-hint">Added once per home-delivery order, on top of the print cost.</span>
               </div>
             </div>
           </section>
