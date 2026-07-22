@@ -494,6 +494,7 @@ export async function createJobWithFiles(
 
   const j = {
     token: jobData.token,
+    customerUserId: jobData.customer_user_id ?? jobData.customerUserId ?? null,
     printType: jobData.printType ?? jobData.print_type,
     copies: jobData.copies,
     pageRange: jobData.pageRange ?? jobData.page_range ?? null,
@@ -513,9 +514,9 @@ export async function createJobWithFiles(
 
   sqlite.transaction(() => {
     sqlite.prepare(`
-      INSERT INTO jobs (id, token, status, print_type, copies, page_range, paper_size, layout, pages_per_sheet, margins, scale, duplex, page_count, price_paise, needs_conversion, queue_position, created_at, updated_at)
-      VALUES (?, ?, 'pending_payment', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(jobId, j.token, j.printType, j.copies, j.pageRange, j.paperSize, j.layout, j.pagesPerSheet, j.margins, j.scale, j.duplex, j.pageCount, j.pricePaise, j.needsConversion, j.queuePosition, now, now);
+      INSERT INTO jobs (id, token, status, customer_user_id, print_type, copies, page_range, paper_size, layout, pages_per_sheet, margins, scale, duplex, page_count, price_paise, needs_conversion, queue_position, created_at, updated_at)
+      VALUES (?, ?, 'pending_payment', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(jobId, j.token, j.customerUserId, j.printType, j.copies, j.pageRange, j.paperSize, j.layout, j.pagesPerSheet, j.margins, j.scale, j.duplex, j.pageCount, j.pricePaise, j.needsConversion, j.queuePosition, now, now);
 
     const insertFile = sqlite.prepare(`
       INSERT INTO job_files (id, job_id, original_name, stored_name, mime_type, size_bytes, file_kind, storage_path, created_at)

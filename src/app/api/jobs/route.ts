@@ -7,7 +7,22 @@ import { estimatePageCount, saveUpload, validateUpload } from "@/lib/files";
 import { bucketPathFor, isValidStoredName, verifyStoredNameSig } from "@/lib/storage";
 import { clientIp, isRateLimited } from "@/lib/ratelimit";
 import { calculatePrice, selectedPageCount } from "@/lib/pricing";
+import { createClient } from "@/lib/supabase/server";
 import type { PaperSize, PrintDuplex, PrintLayout, PrintMargins, PrintScale, PrintType } from "@/lib/types";
+
+// Best-effort lookup of the logged-in customer's id from the session cookie.
+// Unauthenticated requests (guests) resolve to `{ user: null }` with no error,
+// so this is safe to call unconditionally; any failure (e.g. Supabase env not
+// configured in pure-SQLite local dev) is swallowed and treated as a guest.
+async function getCustomerUserId(): Promise<string | null> {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    return user?.id ?? null;
+  } catch {
+    return null;
+  }
+}
 
 const printTypes: PrintType[] = ["bw", "color"];
 const paperSizes: PaperSize[] = ["A3", "A4", "A5", "A6", "B5", "Letter", "Legal", "Photo"];
@@ -26,9 +41,10 @@ export async function POST(request: NextRequest) {
     }
 
     const form = await request.formData();
+    const customerUserId = await getCustomerUserId();
 
     if (form.get("bulk") === "true") {
-      return await handleBulk(form);
+      return await handleBulk(form, customerUserId);
     }
 
     const printType = String(form.get("printType") ?? "bw") as PrintType;
@@ -145,6 +161,7 @@ export async function POST(request: NextRequest) {
 
     const jobData = {
       token,
+      customer_user_id: customerUserId,
       print_type: printType,
       copies,
       page_range: pageRange,
@@ -179,7 +196,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-async function handleBulk(form: FormData): Promise<NextResponse> {
+async function handleBulk(form: FormData, customerUserId: string | null): Promise<NextResponse> {
   // Shared settings (page range intentionally omitted for bulk).
   const printType = String(form.get("printType") ?? "bw") as PrintType;
   const copies = Math.max(1, Math.floor(Number(form.get("copies") ?? 1)));
@@ -298,6 +315,7 @@ async function handleBulk(form: FormData): Promise<NextResponse> {
 
   const jobData = {
     token,
+    customer_user_id: customerUserId,
     print_type: printType,
     copies,
     page_range: null,

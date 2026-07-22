@@ -234,6 +234,7 @@ export async function createJobWithFiles(jobData: any, filesData: any[]) {
   const normalizedJobData = {
     token: jobData.token,
     status: jobData.status ?? 'pending_payment',
+    customer_user_id: jobData.customer_user_id ?? jobData.customerUserId ?? null,
     print_type: jobData.print_type ?? jobData.printType,
     copies: jobData.copies,
     page_range: jobData.page_range ?? jobData.pageRange ?? null,
