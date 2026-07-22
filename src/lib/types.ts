@@ -21,6 +21,7 @@ export type DeliveryStatus = "pending" | "out_for_delivery" | "delivered";
 export type Job = {
   id: string;
   token: string;
+  customerUserId: string | null;
   status: JobStatus;
   printType: PrintType;
   copies: number;
