@@ -64,7 +64,19 @@ export default function ResetPasswordPage() {
         setLoading(false);
         return;
       }
-      router.push("/customer-login");
+      // Staff accounts land on the admin login; RLS lets a staff user see
+      // only their own staff_profiles row, so this read doubles as the check.
+      const { data: userData } = await supabase.auth.getUser();
+      let isStaff = false;
+      if (userData.user) {
+        const { data: profile } = await supabase
+          .from("staff_profiles")
+          .select("id")
+          .eq("id", userData.user.id)
+          .maybeSingle();
+        isStaff = !!profile;
+      }
+      router.push(isStaff ? "/login" : "/customer-login");
     } catch {
       setError("Connection error. Please try again.");
       setLoading(false);

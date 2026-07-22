@@ -1,10 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Printer, Mail, ArrowRight, Loader2, MailCheck } from "lucide-react";
 
-export default function ForgotPasswordPage() {
+function ForgotPasswordForm() {
+  const searchParams = useSearchParams();
+  const loginHref = searchParams.get("from") === "admin" ? "/login" : "/customer-login";
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -55,7 +58,7 @@ export default function ForgotPasswordPage() {
                 <span>If an account exists for that email, a reset link has been sent.</span>
               </div>
               <p className="login-footer">
-                <Link href="/customer-login">Back to log in</Link>
+                <Link href={loginHref}>Back to log in</Link>
               </p>
             </div>
           ) : (
@@ -104,12 +107,20 @@ export default function ForgotPasswordPage() {
               </button>
 
               <p className="login-footer">
-                <Link href="/customer-login">Back to log in</Link>
+                <Link href={loginHref}>Back to log in</Link>
               </p>
             </form>
           )}
         </div>
       </div>
     </main>
+  );
+}
+
+export default function ForgotPasswordPage() {
+  return (
+    <Suspense fallback={null}>
+      <ForgotPasswordForm />
+    </Suspense>
   );
 }
