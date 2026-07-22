@@ -580,17 +580,6 @@ export async function getAgentPrinters(): Promise<PrinterOption[]> {
   }));
 }
 
-export async function getAdminUser(username: string) {
-  const { data, error } = await supabase
-    .from('admin_users')
-    .select('*')
-    .eq('username', username)
-    .single();
-  
-  if (error && error.code !== 'PGRST116') throw error;
-  return data || null;
-}
-
 export async function getAgentToken(rawToken: string) {
   const { data, error } = await supabase
     .from('agent_tokens')
@@ -599,9 +588,9 @@ export async function getAgentToken(rawToken: string) {
   if (error) throw error;
   if (!data || data.length === 0) return null;
 
-  const { verifySecret } = await import('./security');
+  const { verifyToken } = await import('./token-hash');
   for (const row of data) {
-    if (verifySecret(rawToken, row.token_hash)) return row;
+    if (verifyToken(rawToken, row.token_hash)) return row;
   }
   return null;
 }

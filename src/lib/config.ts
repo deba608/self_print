@@ -13,10 +13,9 @@ export const ORIGINALS_DIR = path.join(UPLOAD_ROOT, "originals");
 export const CONVERTED_DIR = path.join(UPLOAD_ROOT, "converted");
 export const MAX_UPLOAD_MB = Number(process.env.MAX_UPLOAD_MB ?? 25);
 export const MAX_UPLOAD_BYTES = MAX_UPLOAD_MB * 1024 * 1024;
-export const SESSION_COOKIE = "selfprint_session";
+// Used for upload-signing (src/lib/storage.ts: signStoredName/verifyStoredNameSig),
+// unrelated to admin sessions (those are Supabase Auth now).
 export const SESSION_SECRET = process.env.SESSION_SECRET ?? "dev-session-secret-change-me";
-export const DEFAULT_ADMIN_USERNAME = process.env.ADMIN_USERNAME ?? "admin";
-export const DEFAULT_ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? "1234";
 // No hardcoded token default — AGENT_TOKEN must be set via env (.env locally,
 // Vercel env vars in production). Empty default fails closed: verifyAgentToken
 // rejects empty/missing bearer tokens, so no guessable secret ships in the repo.
