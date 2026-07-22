@@ -253,6 +253,11 @@ export async function createJobWithFiles(jobData: any, filesData: any[]) {
     price_paise: jobData.price_paise ?? jobData.pricePaise,
     needs_conversion: jobData.needs_conversion ?? jobData.needsConversion,
     queue_position: jobData.queue_position ?? jobData.queuePosition,
+    delivery_method: jobData.delivery_method ?? jobData.deliveryMethod ?? 'pickup',
+    customer_name: jobData.customer_name ?? jobData.customerName ?? null,
+    customer_phone: jobData.customer_phone ?? jobData.customerPhone ?? null,
+    delivery_address: jobData.delivery_address ?? jobData.deliveryAddress ?? null,
+    delivery_fee_paise: jobData.delivery_fee_paise ?? jobData.deliveryFeePaise ?? 0,
   };
 
   const { error: jobError } = await supabase
@@ -332,6 +337,19 @@ export async function updateJobStatus(id: string, status: string) {
       message: `Admin set status to ${status}.`,
       created_at: now
     }]);
+}
+
+export async function updateDeliveryStatus(id: string, deliveryStatus: 'out_for_delivery' | 'delivered'): Promise<void> {
+  const now = new Date().toISOString();
+  const { error } = await supabase
+    .from('jobs')
+    .update({ delivery_status: deliveryStatus, updated_at: now })
+    .eq('id', id);
+  if (error) throw error;
+
+  await supabase
+    .from('print_events')
+    .insert([{ id: crypto.randomUUID(), job_id: id, event_type: deliveryStatus, message: `Delivery status set to ${deliveryStatus}.`, created_at: now }]);
 }
 
 export async function reportJobIssue(token: string, note: string): Promise<void> {

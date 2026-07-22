@@ -29,6 +29,11 @@ type Detail = {
     needsConversion: 0 | 1;
     createdAt: string;
     paidAt: string | null;
+    deliveryMethod?: "pickup" | "delivery";
+    customerName?: string | null;
+    customerPhone?: string | null;
+    deliveryAddress?: string | null;
+    deliveryStatus?: "pending" | "out_for_delivery" | "delivered" | null;
   };
   file: { id: string; originalName: string; mimeType: string; fileKind: string; sizeBytes: number } | null;
   files: Array<{ id: string; originalName: string; mimeType: string; fileKind: string; sizeBytes: number }>;
@@ -97,6 +102,22 @@ export default function JobDetail({ id }: { id: string }) {
       credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status })
+    });
+    const body = await response.json();
+    if (!response.ok) {
+      setError(body.error ?? "Action failed");
+      return;
+    }
+    await load();
+  }
+
+  async function setDeliveryStatus(deliveryStatus: string) {
+    setError("");
+    const response = await fetch(`/api/admin/jobs/${id}/delivery-status`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ deliveryStatus })
     });
     const body = await response.json();
     if (!response.ok) {
@@ -228,7 +249,8 @@ export default function JobDetail({ id }: { id: string }) {
         <section className={`detail-pane detail-pane-details ${activeTab === "details" ? "active" : ""}`}>
           <FileCard files={files} />
           <SummaryCard job={job} files={files} />
-          <ActionsCard job={job} setStatus={setStatus} reprint={reprint} />
+          <DeliveryCard job={job} />
+          <ActionsCard job={job} setStatus={setStatus} setDeliveryStatus={setDeliveryStatus} reprint={reprint} />
         </section>
 
         <section className={`detail-pane detail-pane-preview ${activeTab === "preview" ? "active" : ""}`}>
@@ -326,13 +348,36 @@ function SummaryCard({ job, files }: { job: Detail["job"]; files: Detail["files"
   );
 }
 
+function DeliveryCard({ job }: { job: Detail["job"] }) {
+  if (job.deliveryMethod !== "delivery") return null;
+  return (
+    <div className="detail-card">
+      <h3 className="card-title">Delivery Details</h3>
+      <div className="summary-list">
+        <div className="summary-row"><span>Name</span><strong>{job.customerName ?? "—"}</strong></div>
+        <div className="summary-row"><span>Phone</span><strong>{job.customerPhone ?? "—"}</strong></div>
+        <div className="summary-row"><span>Address</span><strong>{job.deliveryAddress ?? "—"}</strong></div>
+        <div className="summary-row"><span>Status</span><strong>{deliveryStatusLabel(job.deliveryStatus)}</strong></div>
+      </div>
+    </div>
+  );
+}
+
+function deliveryStatusLabel(status?: string | null) {
+  if (status === "out_for_delivery") return "Out for Delivery";
+  if (status === "delivered") return "Delivered";
+  return "Pending";
+}
+
 function ActionsCard({
   job,
   setStatus,
+  setDeliveryStatus,
   reprint
 }: {
   job: Detail["job"];
   setStatus: (status: string) => void;
+  setDeliveryStatus: (status: string) => void;
   reprint: () => void;
 }) {
   const [printing, setPrinting] = useState(false);
@@ -380,6 +425,16 @@ function ActionsCard({
         {(job.status === "approved" || job.status === "printing" || job.status === "failed") && (
           <button type="button" className="job-btn done" onClick={() => setStatus("printed")}>
             <CheckCircle2 size={16} /> Mark Done
+          </button>
+        )}
+        {job.deliveryMethod === "delivery" && job.status === "printed" && job.deliveryStatus !== "out_for_delivery" && job.deliveryStatus !== "delivered" && (
+          <button type="button" className="job-btn release" onClick={() => setDeliveryStatus("out_for_delivery")}>
+            <Printer size={16} /> Out for Delivery
+          </button>
+        )}
+        {job.deliveryMethod === "delivery" && job.deliveryStatus === "out_for_delivery" && (
+          <button type="button" className="job-btn done" onClick={() => setDeliveryStatus("delivered")}>
+            <CheckCircle2 size={16} /> Delivered
           </button>
         )}
         {(job.status === "printed" || job.status === "failed") && (
