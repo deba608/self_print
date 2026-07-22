@@ -16,7 +16,8 @@ export async function PUT(request: NextRequest) {
     const required = [
       "bwPerPagePaise", "colorPerPagePaise", "photoPrintPaise", "copyMultiplier",
       "a3Multiplier", "a4Multiplier", "a5Multiplier", "a6Multiplier", "b5Multiplier",
-      "legalMultiplier", "photoMultiplier", "duplexBwPerPagePaise", "expiryMinutes"
+      "legalMultiplier", "photoMultiplier", "duplexBwPerPagePaise", "expiryMinutes",
+      "deliveryFeePaise"
     ];
     for (const key of required) {
       if (typeof body[key] !== "number" || body[key] < 0) {
@@ -38,7 +39,7 @@ export async function PUT(request: NextRequest) {
       photoMultiplier: body.photoMultiplier,
       duplexBwPerPagePaise: body.duplexBwPerPagePaise,
       expiryMinutes: body.expiryMinutes,
-      deliveryFeePaise: typeof body.deliveryFeePaise === "number" ? body.deliveryFeePaise : (await getPricing()).deliveryFeePaise
+      deliveryFeePaise: body.deliveryFeePaise
     });
 
     return NextResponse.json(await getPricing());
