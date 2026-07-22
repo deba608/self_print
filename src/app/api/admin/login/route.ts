@@ -1,21 +1,32 @@
 import { NextRequest, NextResponse } from "next/server";
-import { SESSION_COOKIE } from "@/lib/config";
-import { getAdminUser } from "@/lib/db";
-import { makeSession, verifySecret } from "@/lib/security";
+import { createClient } from "@/lib/supabase/server";
 
 export async function POST(request: NextRequest) {
-  const { username, password } = await request.json();
-  const user = await getAdminUser(username);
-  if (!user || !verifySecret(String(password ?? ""), user.password_hash)) {
-    return NextResponse.json({ error: "Invalid username or password" }, { status: 401 });
+  const body = await request.json().catch(() => null);
+  const email = typeof body?.email === "string" ? body.email.trim() : "";
+  const password = typeof body?.password === "string" ? body.password : "";
+
+  if (!email || !password) {
+    return NextResponse.json({ error: "Email and password are required" }, { status: 400 });
   }
-  const response = NextResponse.json({ ok: true });
-  response.cookies.set(SESSION_COOKIE, makeSession(user.username), {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    path: "/",
-    maxAge: 60 * 60 * 12
-  });
-  return response;
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+
+  if (error || !data.user) {
+    return NextResponse.json({ error: "Invalid email or password" }, { status: 401 });
+  }
+
+  const { data: profile, error: profileError } = await supabase
+    .from("staff_profiles")
+    .select("id")
+    .eq("id", data.user.id)
+    .single();
+
+  if (profileError || !profile) {
+    await supabase.auth.signOut();
+    return NextResponse.json({ error: "This account does not have admin access" }, { status: 403 });
+  }
+
+  return NextResponse.json({ ok: true });
 }

@@ -93,8 +93,8 @@ function formatPaiseInput(value: number | "") {
 }
 
 // Login Component
-function AdminLogin({ onLogin }: { onLogin: (username: string, password: string) => Promise<{ success: boolean; error?: string }> }) {
-  const [username, setUsername] = useState("admin");
+function AdminLogin({ onLogin }: { onLogin: (email: string, password: string) => Promise<{ success: boolean; error?: string }> }) {
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -102,13 +102,13 @@ function AdminLogin({ onLogin }: { onLogin: (username: string, password: string)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!username || !password) {
-      setError("Please enter username and password");
+    if (!email || !password) {
+      setError("Please enter email and password");
       return;
     }
     setLoading(true);
     setError("");
-    const result = await onLogin(username, password);
+    const result = await onLogin(email, password);
     if (!result.success) {
       setError(result.error || "Invalid credentials");
     }
@@ -127,18 +127,18 @@ function AdminLogin({ onLogin }: { onLogin: (username: string, password: string)
 
         <form className="login-form" onSubmit={handleSubmit}>
           <div className="input-group">
-            <label htmlFor="username">Username</label>
+            <label htmlFor="email">Email</label>
             <div className="input-wrapper">
               <span className="input-icon">
                 <User size={18} strokeWidth={2} />
               </span>
               <input
-                id="username"
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="Enter username"
-                autoComplete="username"
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Enter email"
+                autoComplete="email"
                 disabled={loading}
               />
             </div>
@@ -1551,16 +1551,17 @@ export default function AdminDashboard() {
 
   useEffect(() => { load(); }, [load]);
 
-  async function login(username: string, password: string): Promise<{ success: boolean; error?: string }> {
+  async function login(email: string, password: string): Promise<{ success: boolean; error?: string }> {
     try {
       const response = await fetch("/api/admin/login", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password })
+        body: JSON.stringify({ email, password })
       });
       if (!response.ok) {
-        return { success: false, error: "Invalid username or password" };
+        const body = await response.json().catch(() => null);
+        return { success: false, error: body?.error ?? "Unable to sign in" };
       }
       await load();
       return { success: true };
