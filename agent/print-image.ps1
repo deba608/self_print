@@ -9,7 +9,8 @@ param(
   [string]$Margins = "default",       # default | none | minimum
   [int]$PagesPerSheet = 1,
   [string]$Duplex = "simplex",        # simplex | long-edge | short-edge
-  [string]$Collate = "true"           # true | false — collate multi-copy output
+  [string]$Collate = "true",          # true | false — collate multi-copy output
+  [int]$RenderDpi = 216               # DPI the agent rasterised PDF pages at
 )
 
 $ErrorActionPreference = "Stop"
@@ -82,10 +83,8 @@ for ($i = 0; $i -lt $files.Count; $i += $PagesPerSheet) {
   [void]$sheets.Add(@($files[$i..$end]))
 }
 
-# DPI the PDF rasteriser renders at (scale:3 in agent/src/index.ts => ~216 DPI
-# for A4). Needed to convert pixel dimensions back to real-world inches for
-# "shrink" / "noscale".
-$RenderDpi = 216
+# $RenderDpi (param) is the DPI the agent's PDF rasteriser rendered at; needed to
+# convert pixel dimensions back to real-world inches for "shrink" / "noscale".
 
 # State held in a hashtable captured by closure (.GetNewClosure). Hashtables are
 # reference types, so mutating $state.idx inside the event handler is reliable
