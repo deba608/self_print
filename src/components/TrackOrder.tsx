@@ -341,7 +341,7 @@ export default function TrackOrder({ initialToken }: { initialToken?: string }) 
             </ol>
           )}
 
-          {lastUpdatedAt && !tl.failed && job.status !== "printed" && (
+          {lastUpdatedAt && !tl.failed && !(job.status === "printed" && (!isDelivery || job.deliveryStatus === "delivered")) && (
             <p className="track-updated" aria-live="off">
               Updated {Math.max(0, Math.round((now - lastUpdatedAt) / 1000))}s ago
             </p>
