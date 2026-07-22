@@ -19,6 +19,7 @@ type Pricing = {
   legalMultiplier: number;
   photoMultiplier: number;
   duplexBwPerPagePaise: number;
+  deliveryFeePaise: number;
   shopUpiId?: string;
   shopUpiQr?: string;
   shopName?: string;
@@ -71,6 +72,10 @@ export default function UploadForm() {
   const [paidInfo, setPaidInfo] = useState<{ method: "online" | "counter"; at: string } | null>(null);
   const [payError, setPayError] = useState("");
   const [payMethod, setPayMethod] = useState<"online" | "offline" | null>(null);
+  const [deliveryMethod, setDeliveryMethod] = useState<"pickup" | "delivery">("pickup");
+  const [customerName, setCustomerName] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
+  const [deliveryAddress, setDeliveryAddress] = useState("");
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
   // Direction-aware step transition: forward navigation slides in from the
@@ -378,7 +383,7 @@ export default function UploadForm() {
     if (paperSize === "Photo") {
       // Round to whole paise exactly like the server (calculatePrice) so the
       // estimate never drifts a paisa from the final charged amount.
-      return Math.round(pricing.photoPrintPaise * copies) / 100;
+      return Math.round(pricing.photoPrintPaise * copies) / 100 + (deliveryMethod === "delivery" ? pricing.deliveryFeePaise / 100 : 0);
     }
     const isDuplex = duplex !== "simplex";
     const baseSimplex = printType === "bw" ? pricing.bwPerPagePaise : pricing.colorPerPagePaise;
@@ -406,8 +411,10 @@ export default function UploadForm() {
     }
     // Round to whole paise exactly like the server (calculatePrice) so the
     // estimate never drifts a paisa from the final charged amount.
-    return Math.round(pageCostSum * copies * paperMultiplier * pricing.copyMultiplier) / 100;
-  }, [copies, selectedPages, paperSize, printType, pricing, duplex, isBulk, bulkTotalPages]);
+    const printCost = Math.round(pageCostSum * copies * paperMultiplier * pricing.copyMultiplier) / 100;
+    const deliveryFee = deliveryMethod === "delivery" ? pricing.deliveryFeePaise / 100 : 0;
+    return printCost + deliveryFee;
+  }, [copies, selectedPages, paperSize, printType, pricing, duplex, isBulk, bulkTotalPages, deliveryMethod]);
 
   // Physical sheets of paper per copy: pages are grouped pagesPerSheet-per-side,
   // and duplex halves the sheet count (rounded up for a trailing odd side).
@@ -800,6 +807,12 @@ export default function UploadForm() {
     form.set("margins", margins);
     form.set("pagesPerSheet", String(pagesPerSheet));
     form.set("duplex", duplex);
+    form.set("deliveryMethod", deliveryMethod);
+    if (deliveryMethod === "delivery") {
+      form.set("customerName", customerName.trim());
+      form.set("customerPhone", customerPhone);
+      form.set("deliveryAddress", deliveryAddress.trim());
+    }
 
     const controller = new AbortController();
     const timeoutId = window.setTimeout(() => controller.abort(), 60000);
@@ -859,6 +872,10 @@ export default function UploadForm() {
       setError("Double-sided printing requires at least 2 pages.");
       return;
     }
+    if (deliveryMethod === "delivery" && (!customerName.trim() || !/^\d{10}$/.test(customerPhone) || !deliveryAddress.trim())) {
+      setError("Enter your name, a 10-digit phone number, and delivery address.");
+      return;
+    }
     setStep("preview");
   }
 
@@ -885,6 +902,10 @@ export default function UploadForm() {
     setPaidInfo(null);
     setPayError("");
     setPayMethod(null);
+    setDeliveryMethod("pickup");
+    setCustomerName("");
+    setCustomerPhone("");
+    setDeliveryAddress("");
     if (previewUrl) {
       URL.revokeObjectURL(previewUrl);
       setPreviewUrl(null);
@@ -964,7 +985,10 @@ export default function UploadForm() {
 
     const razorpayKeyId = (pricing?.razorpayKeyId ?? "").trim();
     const showRazorpay = Boolean(razorpayKeyId) && !result.needsConversion && result.pricePaise >= 100;
-    // Online payment (UPI QR or Razorpay) is offered as a choice alongside cash.
+    // Online payment (UPI QR or Razorpay) is offered as a choice alongside cash
+    // for pickup orders. Delivery orders skip the counter entirely, so they
+    // must pay online — no cash choice, no counter fallback.
+    const isDeliveryOrder = deliveryMethod === "delivery";
     const onlineAvailable = !result.needsConversion && (Boolean(upiLink) || showRazorpay);
 
     async function startRazorpayPayment() {
@@ -1090,34 +1114,36 @@ export default function UploadForm() {
         ) : onlineAvailable ? (
           <>
             {/* Payment method chooser */}
-            <div className="pay-choice" role="group" aria-label="Choose how to pay">
-              <button
-                type="button"
-                className={`pay-choice-btn ${payMethod === "online" ? "active" : ""}`}
-                onClick={() => setPayMethod("online")}
-                aria-pressed={payMethod === "online"}
-              >
-                <Smartphone size={22} aria-hidden="true" />
-                <span className="pay-choice-title">Pay Online</span>
-                <span className="pay-choice-sub">UPI / QR</span>
-              </button>
-              <button
-                type="button"
-                className={`pay-choice-btn ${payMethod === "offline" ? "active" : ""}`}
-                onClick={() => setPayMethod("offline")}
-                aria-pressed={payMethod === "offline"}
-              >
-                <Store size={22} aria-hidden="true" />
-                <span className="pay-choice-title">Pay Cash</span>
-                <span className="pay-choice-sub">At counter</span>
-              </button>
-            </div>
+            {!isDeliveryOrder && (
+              <div className="pay-choice" role="group" aria-label="Choose how to pay">
+                <button
+                  type="button"
+                  className={`pay-choice-btn ${payMethod === "online" ? "active" : ""}`}
+                  onClick={() => setPayMethod("online")}
+                  aria-pressed={payMethod === "online"}
+                >
+                  <Smartphone size={22} aria-hidden="true" />
+                  <span className="pay-choice-title">Pay Online</span>
+                  <span className="pay-choice-sub">UPI / QR</span>
+                </button>
+                <button
+                  type="button"
+                  className={`pay-choice-btn ${payMethod === "offline" ? "active" : ""}`}
+                  onClick={() => setPayMethod("offline")}
+                  aria-pressed={payMethod === "offline"}
+                >
+                  <Store size={22} aria-hidden="true" />
+                  <span className="pay-choice-title">Pay Cash</span>
+                  <span className="pay-choice-sub">At counter</span>
+                </button>
+              </div>
+            )}
 
-            {payMethod === null && (
+            {!isDeliveryOrder && payMethod === null && (
               <p className="pay-hint">Select a payment method above</p>
             )}
 
-            {payMethod === "online" && (
+            {(payMethod === "online" || isDeliveryOrder) && (
               showRazorpay ? (
                 <div className="upi-card">
                   <div className="upi-card-top">
@@ -1412,6 +1438,61 @@ export default function UploadForm() {
               </span>
               <span className="change-link">Change</span>
             </button>
+          )}
+
+          {!isBulk && (
+            <div className="delivery-method-section">
+              <h4 className="delivery-method-title">How will you get your prints?</h4>
+              <div className="delivery-method-toggle" role="group" aria-label="Pickup or delivery">
+                <button
+                  type="button"
+                  className={`delivery-method-btn ${deliveryMethod === "pickup" ? "active" : ""}`}
+                  onClick={() => setDeliveryMethod("pickup")}
+                  aria-pressed={deliveryMethod === "pickup"}
+                >
+                  <Store size={18} aria-hidden="true" />
+                  Shop Pickup
+                </button>
+                <button
+                  type="button"
+                  className={`delivery-method-btn ${deliveryMethod === "delivery" ? "active" : ""}`}
+                  onClick={() => setDeliveryMethod("delivery")}
+                  aria-pressed={deliveryMethod === "delivery"}
+                >
+                  <UploadCloud size={18} aria-hidden="true" />
+                  Home Delivery
+                  {pricing && pricing.deliveryFeePaise > 0 && (
+                    <span className="delivery-fee-tag">+{formatRupees(pricing.deliveryFeePaise)}</span>
+                  )}
+                </button>
+              </div>
+
+              {deliveryMethod === "delivery" && (
+                <div className="delivery-contact-fields">
+                  <input
+                    type="text"
+                    placeholder="Full name"
+                    value={customerName}
+                    onChange={(e) => setCustomerName(e.target.value)}
+                    className="delivery-input"
+                  />
+                  <input
+                    type="tel"
+                    placeholder="10-digit phone number"
+                    value={customerPhone}
+                    onChange={(e) => setCustomerPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                    className="delivery-input"
+                  />
+                  <textarea
+                    placeholder="Full delivery address"
+                    value={deliveryAddress}
+                    onChange={(e) => setDeliveryAddress(e.target.value)}
+                    className="delivery-input delivery-address-input"
+                    rows={2}
+                  />
+                </div>
+              )}
+            </div>
           )}
 
           {/* Add more PDFs to this job (converts a single PDF into a batch).
@@ -1850,10 +1931,27 @@ export default function UploadForm() {
           </div>
 
           {/* Total price */}
-          <div className="total-price">
-            <span>Total</span>
-            <strong>{pricing ? `₹${estimate.toFixed(2)}` : "…"}</strong>
-          </div>
+          {deliveryMethod === "delivery" && pricing ? (
+            <div className="total-price-breakdown">
+              <div className="total-price-row">
+                <span>Printing</span>
+                <span>₹{(estimate - pricing.deliveryFeePaise / 100).toFixed(2)}</span>
+              </div>
+              <div className="total-price-row">
+                <span>Delivery</span>
+                <span>₹{(pricing.deliveryFeePaise / 100).toFixed(2)}</span>
+              </div>
+              <div className="total-price">
+                <span>Total</span>
+                <strong>₹{estimate.toFixed(2)}</strong>
+              </div>
+            </div>
+          ) : (
+            <div className="total-price">
+              <span>Total</span>
+              <strong>{pricing ? `₹${estimate.toFixed(2)}` : "…"}</strong>
+            </div>
+          )}
 
           {/* Submit errors must be visible HERE — Confirm lives on this step,
               and the settings-step error block is not rendered here. */}
