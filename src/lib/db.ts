@@ -33,20 +33,20 @@ async function getDbModule() {
 
 async function getDbInstance() {
   if (!dbInstance) {
-    const { DB_PATH, DEFAULT_ADMIN_PASSWORD, DEFAULT_ADMIN_USERNAME, DEFAULT_AGENT_TOKEN } = await import('./config');
-    const { hashSecret } = await import('./security');
+    const { DB_PATH, DEFAULT_AGENT_TOKEN } = await import('./config');
+    const { hashToken } = await import('./token-hash');
     const fs = await import('node:fs');
     const path = await import('node:path');
-    
+
     const Database = await getDbModule();
-    
+
     fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
     dbInstance = new Database(DB_PATH);
     dbInstance.pragma('journal_mode = WAL');
     dbInstance.pragma('foreign_keys = ON');
-    
+
     await initSchema(dbInstance);
-    await seedDefaults(dbInstance, DEFAULT_ADMIN_USERNAME, DEFAULT_ADMIN_PASSWORD, DEFAULT_AGENT_TOKEN, hashSecret);
+    await seedDefaults(dbInstance, DEFAULT_AGENT_TOKEN, hashToken);
   }
   return dbInstance;
 }
@@ -124,13 +124,6 @@ async function initSchema(database: any) {
       seen_at TEXT NOT NULL
     );
 
-    CREATE TABLE IF NOT EXISTS admin_users (
-      id TEXT PRIMARY KEY,
-      username TEXT NOT NULL UNIQUE,
-      password_hash TEXT NOT NULL,
-      created_at TEXT NOT NULL
-    );
-
     CREATE TABLE IF NOT EXISTS agent_tokens (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
@@ -203,7 +196,7 @@ async function ensurePricingColumns(database: any) {
   }
 }
 
-async function seedDefaults(database: any, username: string, password: string, agentToken: string, hashSecret: (s: string) => string) {
+async function seedDefaults(database: any, agentToken: string, hashToken: (s: string) => string) {
   const now = new Date().toISOString();
   database.prepare(`
     INSERT OR IGNORE INTO pricing_config (
@@ -219,14 +212,9 @@ async function seedDefaults(database: any, username: string, password: string, a
   `).run(now);
 
   database.prepare(`
-    INSERT OR IGNORE INTO admin_users (id, username, password_hash, created_at)
-    VALUES ('default-admin', ?, ?, ?)
-  `).run(username, hashSecret(password), now);
-
-  database.prepare(`
     INSERT OR IGNORE INTO agent_tokens (id, name, token_hash, created_at)
     VALUES ('default-agent', 'Shop PC Agent', ?, ?)
-  `).run(hashSecret(agentToken), now);
+  `).run(hashToken(agentToken), now);
 }
 
 // Helper to convert SQLite row to Job type
@@ -804,26 +792,16 @@ export async function getAgentPrinters(): Promise<PrinterOption[]> {
   }));
 }
 
-export async function getAdminUser(username: string) {
-  if (isSupabase) {
-    const mod = await import('./db-supabase');
-    return mod.getAdminUser(username);
-  }
-  
-  const sqlite = await getDbInstance();
-  return sqlite.prepare('SELECT username, password_hash FROM admin_users WHERE username = ?').get(username);
-}
-
 export async function getAgentToken(rawToken: string) {
   if (isSupabase) {
     const mod = await import('./db-supabase');
     return mod.getAgentToken(rawToken);
   }
-  
+
   const sqlite = await getDbInstance();
-  const { verifySecret } = await import('./security');
+  const { verifyToken } = await import('./token-hash');
   const rows = sqlite.prepare('SELECT token_hash FROM agent_tokens').all() as Array<{ token_hash: string }>;
-  return rows.find((row) => verifySecret(rawToken, row.token_hash)) || null;
+  return rows.find((row) => verifyToken(rawToken, row.token_hash)) || null;
 }
 
 // Daily-reset serial: #1 is the first job created after UTC midnight, not a
