@@ -1651,6 +1651,27 @@ input, select, button {
   gap: 10px;
 }
 
+.delivery-pay-note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--info-light);
+  color: var(--info);
+  font-size: 12px;
+  font-weight: 600;
+}
+.delivery-pay-note svg { flex-shrink: 0; }
+
+.delivery-field-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  margin-bottom: -4px;
+}
+
 .delivery-input {
   padding: 14px 16px;
   border: 2px solid var(--line);
@@ -2531,6 +2552,141 @@ input[type="number"] {
   20%, 80% { transform: translate3d(2px, 0, 0); }
   30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
   40%, 60% { transform: translate3d(4px, 0, 0); }
+}
+
+.login-error svg,
+.login-notice svg { flex-shrink: 0; }
+
+/* Informational banner (email sent, confirmation notices) — teal, not red */
+.login-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 16px;
+  background: var(--accent-bg);
+  border: 1px solid rgba(13, 122, 116, 0.25);
+  border-radius: 12px;
+  font-size: 13px;
+  color: var(--accent-strong);
+  font-weight: 600;
+}
+.login-notice svg { margin-top: 1px; }
+
+.login-subtitle {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+  display: block !important;
+}
+
+/* Live password requirement hint — ticks green once satisfied */
+.password-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: -8px 0 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  transition: color var(--duration-base) var(--ease-out);
+}
+.password-hint svg { opacity: 0.35; transition: opacity var(--duration-base) var(--ease-out); }
+.password-hint.met { color: var(--ok); }
+.password-hint.met svg { opacity: 1; }
+
+/* === Shared UI primitives === */
+.ui-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+.ui-badge svg { flex-shrink: 0; }
+.ui-badge--neutral { background: #eef1f5; color: var(--muted); }
+.ui-badge--primary { background: var(--accent-light); color: var(--accent-strong); }
+.ui-badge--success { background: var(--ok-light); color: var(--ok); }
+.ui-badge--danger  { background: var(--danger-light); color: var(--danger); }
+.ui-badge--warning { background: var(--warn-light); color: var(--warn); }
+.ui-badge--info    { background: var(--info-light); color: var(--info); }
+
+.ui-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-6) var(--space-4);
+  text-align: center;
+  color: var(--muted);
+}
+.ui-empty svg { color: var(--muted); opacity: 0.7; }
+.ui-empty h3 { margin: 0; font-size: 16px; color: var(--ink); }
+.ui-empty p { margin: 0; font-size: 13px; max-width: 320px; }
+
+.ui-skeleton {
+  background: linear-gradient(90deg, #e9edf2 25%, #f4f6f8 50%, #e9edf2 75%);
+  background-size: 200% 100%;
+  animation: ui-shimmer 1.4s ease-in-out infinite;
+  border-radius: var(--radius-sm);
+}
+@keyframes ui-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ui-skeleton { animation: none; background: #e9edf2; }
+}
+
+.ui-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+  background: rgba(15, 23, 42, 0.5);
+  animation: fadeIn var(--duration-fast) var(--ease-out);
+}
+.ui-dialog {
+  width: 100%;
+  max-width: 380px;
+  background: var(--panel);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  padding: var(--space-5);
+  animation: dialogIn var(--duration-base) var(--ease-out);
+}
+.ui-dialog h3 { margin: 0 0 var(--space-2); font-size: 17px; }
+.ui-dialog p { margin: 0 0 var(--space-5); font-size: 14px; color: var(--muted); }
+.ui-dialog-actions { display: flex; gap: var(--space-2); justify-content: flex-end; }
+.ui-dialog-actions button {
+  min-height: 44px;
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--ink);
+  transition: all var(--duration-base) var(--ease-out);
+}
+.ui-dialog-actions .ui-dialog-confirm {
+  border: none;
+  background: var(--accent);
+  color: #fff;
+}
+.ui-dialog-actions .ui-dialog-confirm.danger { background: var(--danger); }
+.ui-dialog-actions button:hover { filter: brightness(0.96); }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes dialogIn { from { opacity: 0; transform: translateY(8px) scale(0.98); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .ui-dialog-backdrop, .ui-dialog { animation: none; }
 }
 
 /* White Glassmorphism Glowing Primary Button */
@@ -7238,4 +7394,117 @@ input[type="number"] {
   color: var(--danger);
   cursor: pointer;
   padding: 2px;
+}
+
+/* ---------- Phase 4: /my-jobs + /track polish ---------- */
+
+/* Account bar (logged-in identity + logout) */
+.jobs-account-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-light);
+  border-radius: var(--radius-md);
+}
+.jobs-account-id {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--accent-strong);
+  font-size: 13px;
+  font-weight: 600;
+  min-width: 0;
+}
+.jobs-account-email {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.jobs-logout-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: #fff;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out);
+}
+.jobs-logout-btn:hover { color: var(--danger); border-color: var(--danger-light); }
+
+/* Filter chips: All / Active / Done */
+.jobs-filter-chips {
+  display: flex;
+  gap: var(--space-2);
+}
+.jobs-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-full);
+  background: #fff;
+  color: var(--muted);
+  font-size: 13.5px;
+  font-weight: 700;
+  text-decoration: none;
+  transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out);
+}
+.jobs-filter-chip:hover { border-color: var(--accent); color: var(--accent-strong); }
+.jobs-filter-chip.is-active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+/* Job card badge column + tabular prices */
+.jobs-card-badges {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-1);
+}
+.jobs-price { font-variant-numeric: tabular-nums; }
+
+/* Skeleton job cards while the list streams in */
+.jobs-skeleton-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.jobs-skeleton-lines {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* Empty-state CTA link sized as a touch target */
+.jobs-empty-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  text-decoration: none;
+}
+
+/* "Updated Xs ago" under the tracking timeline */
+.track-updated {
+  margin: 0;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
 }

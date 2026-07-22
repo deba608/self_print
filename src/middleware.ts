@@ -36,10 +36,10 @@ export async function middleware(request: NextRequest) {
   });
 
   // Do not run code between createServerClient and this call.
-  // Calling getUser() (not getSession()) revalidates the token against
-  // the Supabase Auth server, which is required for middleware to
-  // safely trust the session.
-  await supabase.auth.getUser();
+  // Verify the access token before downstream Server Components and Route
+  // Handlers read the refreshed cookies. getSession() alone is not suitable
+  // for authorization because its cookie payload is not independently checked.
+  await supabase.auth.getClaims();
 
   return response;
 }
