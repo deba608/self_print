@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import { SESSION_COOKIE } from "@/lib/config";
+import { createClient } from "@/lib/supabase/server";
 
 export async function POST() {
-  const response = NextResponse.json({ ok: true });
-  response.cookies.delete(SESSION_COOKIE);
-  return response;
+  const supabase = await createClient();
+  await supabase.auth.signOut();
+  return NextResponse.json({ ok: true });
 }
 
 export async function GET() {
