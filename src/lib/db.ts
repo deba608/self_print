@@ -172,7 +172,13 @@ async function ensureJobColumns(database: any) {
     ['paid_via', 'TEXT'],
     ['issue_reported_at', 'TEXT'],
     ['issue_note', 'TEXT'],
-    ['issue_resolved_at', 'TEXT']
+    ['issue_resolved_at', 'TEXT'],
+    ['delivery_method', "TEXT NOT NULL DEFAULT 'pickup'"],
+    ['customer_name', 'TEXT'],
+    ['customer_phone', 'TEXT'],
+    ['delivery_address', 'TEXT'],
+    ['delivery_fee_paise', 'INTEGER NOT NULL DEFAULT 0'],
+    ['delivery_status', 'TEXT']
   ];
   for (const [name, definition] of additions) {
     if (!columns.has(name)) {
@@ -193,7 +199,8 @@ async function ensurePricingColumns(database: any) {
     ['a5_multiplier', 'REAL NOT NULL DEFAULT 0.7'],
     ['a6_multiplier', 'REAL NOT NULL DEFAULT 0.5'],
     ['b5_multiplier', 'REAL NOT NULL DEFAULT 0.9'],
-    ['duplex_bw_per_page_paise', 'INTEGER NOT NULL DEFAULT 100']
+    ['duplex_bw_per_page_paise', 'INTEGER NOT NULL DEFAULT 100'],
+    ['delivery_fee_paise', 'INTEGER NOT NULL DEFAULT 0']
   ];
   for (const [name, definition] of additions) {
     if (!columns.has(name)) {
@@ -208,8 +215,8 @@ async function seedDefaults(database: any, username: string, password: string, a
     INSERT OR IGNORE INTO pricing_config (
       id, bw_per_page_paise, color_per_page_paise, photo_print_paise, copy_multiplier,
       a3_multiplier, a4_multiplier, a5_multiplier, a6_multiplier, b5_multiplier,
-      legal_multiplier, photo_multiplier, duplex_bw_per_page_paise, expiry_minutes, updated_at
-    ) VALUES (1, 100, 1000, 3000, 1, 2.5, 1, 0.7, 0.5, 0.9, 1.25, 1, 100, 1440, ?)
+      legal_multiplier, photo_multiplier, duplex_bw_per_page_paise, expiry_minutes, delivery_fee_paise, updated_at
+    ) VALUES (1, 100, 1000, 3000, 1, 2.5, 1, 0.7, 0.5, 0.9, 1.25, 1, 100, 1440, 0, ?)
   `).run(now);
 
   database.prepare(`
@@ -257,7 +264,13 @@ function mapJob(row: Record<string, unknown>, expiryMinutes: number = 1440): Job
     expiresAt,
     issueReportedAt: row.issue_reported_at ? String(row.issue_reported_at) : null,
     issueNote: row.issue_note ? String(row.issue_note) : null,
-    issueResolvedAt: row.issue_resolved_at ? String(row.issue_resolved_at) : null
+    issueResolvedAt: row.issue_resolved_at ? String(row.issue_resolved_at) : null,
+    deliveryMethod: (row.delivery_method ?? 'pickup') as Job['deliveryMethod'],
+    customerName: row.customer_name ? String(row.customer_name) : null,
+    customerPhone: row.customer_phone ? String(row.customer_phone) : null,
+    deliveryAddress: row.delivery_address ? String(row.delivery_address) : null,
+    deliveryFeePaise: Number(row.delivery_fee_paise ?? 0),
+    deliveryStatus: row.delivery_status ? (row.delivery_status as Job['deliveryStatus']) : null
   };
 }
 
@@ -692,7 +705,8 @@ export async function getPricing(): Promise<PricingConfig> {
     legalMultiplier: row.legal_multiplier ?? 1.25,
     photoMultiplier: row.photo_multiplier ?? 1,
     duplexBwPerPagePaise: row.duplex_bw_per_page_paise ?? 100,
-    expiryMinutes: row.expiry_minutes ?? 1440
+    expiryMinutes: row.expiry_minutes ?? 1440,
+    deliveryFeePaise: row.delivery_fee_paise ?? 0
   };
   return pricingCache;
 }
@@ -712,13 +726,13 @@ export async function updatePricing(pricing: PricingConfig): Promise<void> {
       bw_per_page_paise = ?, color_per_page_paise = ?, photo_print_paise = ?,
       copy_multiplier = ?, a3_multiplier = ?, a4_multiplier = ?, a5_multiplier = ?,
       a6_multiplier = ?, b5_multiplier = ?, legal_multiplier = ?, photo_multiplier = ?,
-      duplex_bw_per_page_paise = ?, expiry_minutes = ?, updated_at = ?
+      duplex_bw_per_page_paise = ?, expiry_minutes = ?, delivery_fee_paise = ?, updated_at = ?
     WHERE id = 1
   `).run(
     pricing.bwPerPagePaise, pricing.colorPerPagePaise, pricing.photoPrintPaise,
     pricing.copyMultiplier, pricing.a3Multiplier, pricing.a4Multiplier, pricing.a5Multiplier,
     pricing.a6Multiplier, pricing.b5Multiplier, pricing.legalMultiplier, pricing.photoMultiplier,
-    pricing.duplexBwPerPagePaise, pricing.expiryMinutes, now
+    pricing.duplexBwPerPagePaise, pricing.expiryMinutes, pricing.deliveryFeePaise, now
   );
 }
 
