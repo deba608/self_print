@@ -687,17 +687,25 @@ export async function cleanupOldJobs(): Promise<{ deleted: number; storagePaths:
     .lt('updated_at', leaseCutoff);
 
   // Find jobs to remove: finished, or unpaid past expiry.
-  const { data: finished, error: finErr } = await supabase
+  // Printed delivery jobs awaiting hand-off (delivery_status not yet 'delivered')
+  // must survive cleanup — only cancelled/failed/delivered delivery jobs clean up.
+  const { data: finishedRaw, error: finErr } = await supabase
     .from('jobs')
-    .select('id')
+    .select('id, delivery_method, status, delivery_status')
     .in('status', ['printed', 'cancelled', 'failed']);
   if (finErr) throw finErr;
+  const finished = (finishedRaw || []).filter((r) => {
+    const isUndeliveredDelivery =
+      r.delivery_method === 'delivery' && r.status === 'printed' && r.delivery_status !== 'delivered';
+    return !isUndeliveredDelivery;
+  });
 
   const { data: expired, error: expErr } = await supabase
     .from('jobs')
     .select('id')
     .eq('status', 'pending_payment')
-    .lt('created_at', cutoff);
+    .lt('created_at', cutoff)
+    .is('paid_at', null);
   if (expErr) throw expErr;
 
   const ids = Array.from(new Set([...(finished || []), ...(expired || [])].map((r) => String(r.id))));
