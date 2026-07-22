@@ -455,6 +455,36 @@ export default function UploadForm() {
     return pages.size > 0;
   }, [pageRangeMode, customPageRange, filePageCount]);
 
+  // Actual page numbers the print will include (1-based, sorted), mirroring the
+  // agent's parsePageRange. null = all pages — also while a custom range is
+  // empty or invalid, so the preview never goes blank mid-typing.
+  const selectedPageList = useMemo<number[] | null>(() => {
+    const total = filePageCount ?? 0;
+    if (!total || pageRangeMode === "all") return null;
+    if (pageRangeMode === "even") {
+      const out: number[] = [];
+      for (let n = 2; n <= total; n += 2) out.push(n);
+      return out.length ? out : null;
+    }
+    if (pageRangeMode === "odd") {
+      const out: number[] = [];
+      for (let n = 1; n <= total; n += 2) out.push(n);
+      return out;
+    }
+    if (!customPageRange.trim() || !isValidPageRange) return null;
+    const pages = new Set<number>();
+    for (const part of customPageRange.split(",")) {
+      const trimmed = part.trim();
+      if (!trimmed) continue;
+      const [startRaw, endRaw] = trimmed.split("-");
+      const start = parseInt(startRaw, 10);
+      const end = endRaw ? parseInt(endRaw, 10) : start;
+      if (isNaN(start) || isNaN(end)) continue;
+      for (let p = Math.max(1, start); p <= Math.min(total, end); p++) pages.add(p);
+    }
+    return pages.size ? [...pages].sort((a, b) => a - b) : null;
+  }, [filePageCount, pageRangeMode, customPageRange, isValidPageRange]);
+
   const pageRangeValidationMessage = useMemo(() => {
     if (pageRangeMode !== "custom" || !customPageRange.trim() || !filePageCount) return null;
     if (!isValidPageRange) {
@@ -1757,7 +1787,7 @@ export default function UploadForm() {
               <PdfCanvasPreview
                 file={file}
                 fallbackPageCount={filePageCount ?? 1}
-                sim={{ pagesPerSheet, layout, paperSize, margins }}
+                sim={{ pagesPerSheet, layout, paperSize, margins, pages: selectedPageList }}
               />
             )}
             {file && file.type.startsWith("image/") && previewUrl && (
@@ -1887,6 +1917,7 @@ type PreviewSim = {
   layout: string;      // portrait | landscape
   paperSize: string;   // A3..Photo
   margins: string;     // default | minimum | none
+  pages?: number[] | null; // 1-based page numbers to include; null/absent = all
 };
 
 function PdfCanvasPreview({ file, fallbackPageCount, sim }: { file: File; fallbackPageCount: number; sim?: PreviewSim }) {
@@ -1951,7 +1982,17 @@ function PdfCanvasPreview({ file, fallbackPageCount, sim }: { file: File; fallba
   // Pages-per-sheet grid: same layout math as agent/print-image.ps1 — cols is
   // the ceiling square root, pages fill row-major, each page fits its cell.
   const pps = Math.max(1, sim?.pagesPerSheet ?? 1);
-  const sheetCount = Math.max(1, Math.ceil(pageCount / pps));
+
+  // Page-range selection: only the chosen pages appear on preview sheets, in
+  // the same order the agent prints them. Key ties the render effect to the
+  // selection without array-identity churn.
+  const pagesKey = sim?.pages?.join(",") ?? "";
+  const pageList = useMemo(() => {
+    const selected = (sim?.pages ?? []).filter((p) => p >= 1 && p <= pageCount);
+    return selected.length ? selected : Array.from({ length: pageCount }, (_, i) => i + 1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pagesKey, pageCount]);
+  const sheetCount = Math.max(1, Math.ceil(pageList.length / pps));
 
   useEffect(() => {
     let disposed = false;
@@ -1999,10 +2040,10 @@ function PdfCanvasPreview({ file, fallbackPageCount, sim }: { file: File; fallba
         const rows = Math.ceil(pps / cols);
         const cellW = areaW / cols, cellH = areaH / rows;
 
-        const firstPage = (pageNumber - 1) * pps + 1;
+        const firstIdx = (pageNumber - 1) * pps;
         for (let n = 0; n < pps; n++) {
-          const pageIdx = firstPage + n;
-          if (pageIdx > pageCount) break;
+          const pageIdx = pageList[firstIdx + n];
+          if (!pageIdx) break;
           const page = await pdfRef.current.getPage(pageIdx);
           if (disposed) return;
 
@@ -2046,7 +2087,7 @@ function PdfCanvasPreview({ file, fallbackPageCount, sim }: { file: File; fallba
       disposed = true;
       renderTaskRef.current?.cancel();
     };
-  }, [pageNumber, pdfVersion, fitMode, pps, sim?.layout, sim?.paperSize, sim?.margins, pageCount]);
+  }, [pageNumber, pdfVersion, fitMode, pps, sim?.layout, sim?.paperSize, sim?.margins, pageCount, pageList]);
 
   // Keep the sheet cursor valid when pages-per-sheet (and thus sheet count) changes.
   useEffect(() => {
