@@ -1,21 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
-import { SESSION_COOKIE } from "@/lib/config";
-import { getAdminUser } from "@/lib/db";
-import { makeSession, verifySecret } from "@/lib/security";
+import { createClient } from "@/lib/supabase/server";
 
 export async function POST(request: NextRequest) {
-  const { username, password } = await request.json();
-  const user = await getAdminUser(username);
-  if (!user || !verifySecret(String(password ?? ""), user.password_hash)) {
-    return NextResponse.json({ error: "Invalid username or password" }, { status: 401 });
-  }
-  const response = NextResponse.json({ ok: true });
-  response.cookies.set(SESSION_COOKIE, makeSession(user.username), {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    path: "/",
-    maxAge: 60 * 60 * 12
+  const { email, password } = await request.json();
+  const supabase = await createClient();
+
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email: String(email ?? ""),
+    password: String(password ?? ""),
   });
-  return response;
+
+  if (error || !data.user) {
+    return NextResponse.json({ error: "Invalid email or password" }, { status: 401 });
+  }
+
+  const { data: profile } = await supabase
+    .from("staff_profiles")
+    .select("id")
+    .eq("id", data.user.id)
+    .single();
+
+  if (!profile) {
+    await supabase.auth.signOut();
+    return NextResponse.json({ error: "This account is not a staff account" }, { status: 403 });
+  }
+
+  return NextResponse.json({ ok: true });
 }

@@ -1,14 +1,16 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import {
   RefreshCw, Settings, LogOut, Printer, Bell, BellRing,
   CheckSquare, Square, CreditCard, Eye, X, Check, Monitor, Loader2,
-  Lock, Eye as EyeIcon, EyeOff, ChevronDown, Zap, TrendingUp, Clock,
-  Trash2, ListTodo, Inbox, FileText, BarChart2, ShieldCheck, User, ArrowRight, MessageCircleWarning, AlertTriangle
+  ChevronDown, Zap, TrendingUp, Clock,
+  Trash2, ListTodo, Inbox, FileText, BarChart2, ShieldCheck, MessageCircleWarning, AlertTriangle
 } from "lucide-react";
 import { manualPrint } from "@/lib/manualPrint";
 import Link from "next/link";
+import type { StaffProfile } from "@/lib/types";
 
 type Job = {
   id: string;
@@ -83,114 +85,6 @@ function normalizePricingDraft(draft: PricingDraft): Pricing | null {
 
 function formatPaiseInput(value: number | "") {
   return value === "" ? "" : String(value / 100);
-}
-
-// Login Component
-function AdminLogin({ onLogin }: { onLogin: (username: string, password: string) => Promise<{ success: boolean; error?: string }> }) {
-  const [username, setUsername] = useState("admin");
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!username || !password) {
-      setError("Please enter username and password");
-      return;
-    }
-    setLoading(true);
-    setError("");
-    const result = await onLogin(username, password);
-    if (!result.success) {
-      setError(result.error || "Invalid credentials");
-    }
-    setLoading(false);
-  };
-
-  return (
-    <div className="login-container">
-      <div className="login-card">
-        <div className="login-header">
-          <div className="login-logo">
-            <Printer size={32} strokeWidth={1.5} />
-          </div>
-          <h1>SelfPrint Admin</h1>
-        </div>
-
-        <form className="login-form" onSubmit={handleSubmit}>
-          <div className="input-group">
-            <label htmlFor="username">Username</label>
-            <div className="input-wrapper">
-              <span className="input-icon">
-                <User size={18} strokeWidth={2} />
-              </span>
-              <input
-                id="username"
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="Enter username"
-                autoComplete="username"
-                disabled={loading}
-              />
-            </div>
-          </div>
-
-          <div className="input-group">
-            <label htmlFor="password">Password</label>
-            <div className="input-wrapper">
-              <span className="input-icon">
-                <Lock size={18} strokeWidth={2} />
-              </span>
-              <input
-                id="password"
-                type={showPassword ? "text" : "password"}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter password"
-                autoComplete="current-password"
-                disabled={loading}
-              />
-              <button
-                type="button"
-                className="password-toggle"
-                onClick={() => setShowPassword(!showPassword)}
-                aria-label={showPassword ? "Hide password" : "Show password"}
-              >
-                {showPassword ? <EyeOff size={18} /> : <EyeIcon size={18} />}
-              </button>
-            </div>
-          </div>
-
-          {error && (
-            <div className="login-error">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="12" r="10"></circle>
-                <line x1="15" y1="9" x2="9" y2="15"></line>
-                <line x1="9" y1="9" x2="15" y2="15"></line>
-              </svg>
-              {error}
-            </div>
-          )}
-
-          <button type="submit" className="login-btn" disabled={loading}>
-            {loading ? (
-              <>
-                <Loader2 size={18} className="spin" />
-                Signing in...
-              </>
-            ) : (
-              <>
-                <span>Sign In</span>
-                <ArrowRight size={18} />
-              </>
-            )}
-          </button>
-        </form>
-      </div>
-    </div>
-  );
 }
 
 // Stats Cards Component
@@ -1297,7 +1191,9 @@ function EmptyState({ message }: { message: string }) {
 
 // Main Dashboard Component
 export default function AdminDashboard() {
+  const router = useRouter();
   const [loggedIn, setLoggedIn] = useState(false);
+  const [currentStaff, setCurrentStaff] = useState<StaffProfile | null>(null);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(false);
@@ -1425,7 +1321,7 @@ export default function AdminDashboard() {
 
   const load = useCallback(async () => {
     const response = await fetch("/api/admin/jobs", { credentials: "include" });
-    if (response.status === 401) { setLoggedIn(false); return; }
+    if (response.status === 401) { setLoggedIn(false); router.push("/login"); return; }
     const body = await response.json();
     setJobs(body.jobs ?? []);
     setCursor(body.cursor ?? null);
@@ -1438,7 +1334,7 @@ export default function AdminDashboard() {
     setSummary(await summaryResponse.json());
     loadPricing();
     loadPrinter();
-  }, []);
+  }, [router]);
 
   async function loadPricing() {
     const res = await fetch("/api/admin/pricing", { credentials: "include" });
@@ -1510,27 +1406,29 @@ export default function AdminDashboard() {
 
   useEffect(() => { load(); }, [load]);
 
-  async function login(username: string, password: string): Promise<{ success: boolean; error?: string }> {
-    try {
-      const response = await fetch("/api/admin/login", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password })
-      });
-      if (!response.ok) {
-        return { success: false, error: "Invalid username or password" };
+  // Auth check: the dashboard itself no longer renders a login form — it
+  // relies on a Supabase session having already been established via /login.
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch("/api/admin/me", { credentials: "include" });
+        if (res.status === 401) {
+          router.push("/login");
+          return;
+        }
+        if (res.ok) {
+          setCurrentStaff(await res.json());
+        }
+      } catch {
+        // transient — the periodic job poll / actions will surface a 401 if the session is truly gone
       }
-      await load();
-      return { success: true };
-    } catch {
-      return { success: false, error: "Connection error. Please try again." };
-    }
-  }
+    })();
+  }, [router]);
 
   async function logout() {
     await fetch("/api/admin/logout", { method: "POST", credentials: "include" });
     setLoggedIn(false);
+    router.push("/login");
   }
 
   async function savePricing(data: Pricing) {
@@ -1569,6 +1467,7 @@ export default function AdminDashboard() {
       const body = await response.json().catch(() => ({}));
       if (response.status === 401) {
         setLoggedIn(false);
+        router.push("/login");
         return;
       }
       if (!response.ok) {
@@ -1617,6 +1516,7 @@ export default function AdminDashboard() {
       const unauthorized = responses.some(({ response }) => response.status === 401);
       if (unauthorized) {
         setLoggedIn(false);
+        router.push("/login");
         return;
       }
       const failed = responses.find(({ response }) => !response.ok);
@@ -1695,11 +1595,7 @@ export default function AdminDashboard() {
   }, {} as Record<string, number>);
 
   if (!loggedIn) {
-    return (
-      <main className="admin-login-shell">
-        <AdminLogin onLogin={login} />
-      </main>
-    );
+    return null;
   }
 
   return (
