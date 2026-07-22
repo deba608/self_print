@@ -27,13 +27,23 @@ function formatDate(iso: string) {
 }
 
 export default async function MyJobsPage() {
-  const supabase = await createClient();
+  // Any failure (e.g. Supabase env not configured in pure-SQLite local dev)
+  // is treated the same as an unauthenticated visitor: redirect to login
+  // instead of letting the page 500.
+  let user = null;
+  let supabase: Awaited<ReturnType<typeof createClient>> | null = null;
+  try {
+    supabase = await createClient();
+    const {
+      data: { user: authUser },
+    } = await supabase.auth.getUser();
+    user = authUser;
+  } catch {
+    user = null;
+    supabase = null;
+  }
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
+  if (!user || !supabase) {
     redirect("/customer-login");
   }
 

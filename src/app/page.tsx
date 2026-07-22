@@ -4,10 +4,18 @@ import ShopHeader from "@/components/ShopHeader";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function CustomerPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Any failure (e.g. Supabase env not configured in pure-SQLite local dev)
+  // is swallowed and treated as a guest, so the homepage still renders.
+  let user = null;
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user: authUser },
+    } = await supabase.auth.getUser();
+    user = authUser;
+  } catch {
+    user = null;
+  }
 
   return (
     <main className="customer-shell">
