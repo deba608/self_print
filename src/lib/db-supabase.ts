@@ -44,7 +44,13 @@ function mapJob(row: any, expiryMinutes: number = 1440): Job {
     expiresAt,
     issueReportedAt: row.issue_reported_at ? String(row.issue_reported_at) : null,
     issueNote: row.issue_note ? String(row.issue_note) : null,
-    issueResolvedAt: row.issue_resolved_at ? String(row.issue_resolved_at) : null
+    issueResolvedAt: row.issue_resolved_at ? String(row.issue_resolved_at) : null,
+    deliveryMethod: (row.delivery_method ?? 'pickup') as Job['deliveryMethod'],
+    customerName: row.customer_name ? String(row.customer_name) : null,
+    customerPhone: row.customer_phone ? String(row.customer_phone) : null,
+    deliveryAddress: row.delivery_address ? String(row.delivery_address) : null,
+    deliveryFeePaise: Number(row.delivery_fee_paise ?? 0),
+    deliveryStatus: row.delivery_status ? (row.delivery_status as Job['deliveryStatus']) : null
   };
 }
 
@@ -248,6 +254,11 @@ export async function createJobWithFiles(jobData: any, filesData: any[]) {
     price_paise: jobData.price_paise ?? jobData.pricePaise,
     needs_conversion: jobData.needs_conversion ?? jobData.needsConversion,
     queue_position: jobData.queue_position ?? jobData.queuePosition,
+    delivery_method: jobData.delivery_method ?? jobData.deliveryMethod ?? 'pickup',
+    customer_name: jobData.customer_name ?? jobData.customerName ?? null,
+    customer_phone: jobData.customer_phone ?? jobData.customerPhone ?? null,
+    delivery_address: jobData.delivery_address ?? jobData.deliveryAddress ?? null,
+    delivery_fee_paise: jobData.delivery_fee_paise ?? jobData.deliveryFeePaise ?? 0,
   };
 
   const { error: jobError } = await supabase
@@ -327,6 +338,19 @@ export async function updateJobStatus(id: string, status: string) {
       message: `Admin set status to ${status}.`,
       created_at: now
     }]);
+}
+
+export async function updateDeliveryStatus(id: string, deliveryStatus: 'out_for_delivery' | 'delivered'): Promise<void> {
+  const now = new Date().toISOString();
+  const { error } = await supabase
+    .from('jobs')
+    .update({ delivery_status: deliveryStatus, updated_at: now })
+    .eq('id', id);
+  if (error) throw error;
+
+  await supabase
+    .from('print_events')
+    .insert([{ id: crypto.randomUUID(), job_id: id, event_type: deliveryStatus, message: `Delivery status set to ${deliveryStatus}.`, created_at: now }]);
 }
 
 export async function reportJobIssue(token: string, note: string): Promise<void> {
@@ -449,6 +473,7 @@ const PRICING_DEFAULTS: PricingConfig = {
   photoMultiplier: 1.0,
   duplexBwPerPagePaise: 100,
   expiryMinutes: 1440,
+  deliveryFeePaise: 0,
 };
 
 export async function getPricing(): Promise<PricingConfig> {
@@ -478,6 +503,7 @@ export async function getPricing(): Promise<PricingConfig> {
     photoMultiplier: data.photo_multiplier ?? PRICING_DEFAULTS.photoMultiplier,
     duplexBwPerPagePaise: data.duplex_bw_per_page_paise ?? PRICING_DEFAULTS.duplexBwPerPagePaise,
     expiryMinutes: data.expiry_minutes ?? PRICING_DEFAULTS.expiryMinutes,
+    deliveryFeePaise: data.delivery_fee_paise ?? PRICING_DEFAULTS.deliveryFeePaise,
   };
 }
 
@@ -499,10 +525,11 @@ export async function updatePricing(pricing: PricingConfig) {
       photo_multiplier: pricing.photoMultiplier,
       duplex_bw_per_page_paise: pricing.duplexBwPerPagePaise,
       expiry_minutes: pricing.expiryMinutes,
+      delivery_fee_paise: pricing.deliveryFeePaise,
       updated_at: now
     })
     .eq('id', 1);
-  
+
   if (error) throw error;
 }
 

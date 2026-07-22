@@ -166,7 +166,12 @@ async function ensureJobColumns(database: any) {
     ['issue_reported_at', 'TEXT'],
     ['issue_note', 'TEXT'],
     ['issue_resolved_at', 'TEXT'],
-    ['customer_user_id', 'TEXT']
+    ['delivery_method', "TEXT NOT NULL DEFAULT 'pickup'"],
+    ['customer_name', 'TEXT'],
+    ['customer_phone', 'TEXT'],
+    ['delivery_address', 'TEXT'],
+    ['delivery_fee_paise', 'INTEGER NOT NULL DEFAULT 0'],
+    ['delivery_status', 'TEXT']
   ];
   for (const [name, definition] of additions) {
     if (!columns.has(name)) {
@@ -187,7 +192,8 @@ async function ensurePricingColumns(database: any) {
     ['a5_multiplier', 'REAL NOT NULL DEFAULT 0.7'],
     ['a6_multiplier', 'REAL NOT NULL DEFAULT 0.5'],
     ['b5_multiplier', 'REAL NOT NULL DEFAULT 0.9'],
-    ['duplex_bw_per_page_paise', 'INTEGER NOT NULL DEFAULT 100']
+    ['duplex_bw_per_page_paise', 'INTEGER NOT NULL DEFAULT 100'],
+    ['delivery_fee_paise', 'INTEGER NOT NULL DEFAULT 0']
   ];
   for (const [name, definition] of additions) {
     if (!columns.has(name)) {
@@ -202,8 +208,8 @@ async function seedDefaults(database: any, agentToken: string, hashToken: (s: st
     INSERT OR IGNORE INTO pricing_config (
       id, bw_per_page_paise, color_per_page_paise, photo_print_paise, copy_multiplier,
       a3_multiplier, a4_multiplier, a5_multiplier, a6_multiplier, b5_multiplier,
-      legal_multiplier, photo_multiplier, duplex_bw_per_page_paise, expiry_minutes, updated_at
-    ) VALUES (1, 100, 1000, 3000, 1, 2.5, 1, 0.7, 0.5, 0.9, 1.25, 1, 100, 1440, ?)
+      legal_multiplier, photo_multiplier, duplex_bw_per_page_paise, expiry_minutes, delivery_fee_paise, updated_at
+    ) VALUES (1, 100, 1000, 3000, 1, 2.5, 1, 0.7, 0.5, 0.9, 1.25, 1, 100, 1440, 0, ?)
   `).run(now);
 
   database.prepare(`
@@ -247,7 +253,13 @@ function mapJob(row: Record<string, unknown>, expiryMinutes: number = 1440): Job
     expiresAt,
     issueReportedAt: row.issue_reported_at ? String(row.issue_reported_at) : null,
     issueNote: row.issue_note ? String(row.issue_note) : null,
-    issueResolvedAt: row.issue_resolved_at ? String(row.issue_resolved_at) : null
+    issueResolvedAt: row.issue_resolved_at ? String(row.issue_resolved_at) : null,
+    deliveryMethod: (row.delivery_method ?? 'pickup') as Job['deliveryMethod'],
+    customerName: row.customer_name ? String(row.customer_name) : null,
+    customerPhone: row.customer_phone ? String(row.customer_phone) : null,
+    deliveryAddress: row.delivery_address ? String(row.delivery_address) : null,
+    deliveryFeePaise: Number(row.delivery_fee_paise ?? 0),
+    deliveryStatus: row.delivery_status ? (row.delivery_status as Job['deliveryStatus']) : null
   };
 }
 
@@ -496,15 +508,20 @@ export async function createJobWithFiles(
     pricePaise: jobData.pricePaise ?? jobData.price_paise,
     needsConversion: jobData.needsConversion ?? jobData.needs_conversion,
     queuePosition: jobData.queuePosition ?? jobData.queue_position,
+    deliveryMethod: jobData.deliveryMethod ?? jobData.delivery_method ?? 'pickup',
+    customerName: jobData.customerName ?? jobData.customer_name ?? null,
+    customerPhone: jobData.customerPhone ?? jobData.customer_phone ?? null,
+    deliveryAddress: jobData.deliveryAddress ?? jobData.delivery_address ?? null,
+    deliveryFeePaise: jobData.deliveryFeePaise ?? jobData.delivery_fee_paise ?? 0,
   };
 
   const firstKind = filesData[0]?.fileKind ?? filesData[0]?.file_kind;
 
   sqlite.transaction(() => {
     sqlite.prepare(`
-      INSERT INTO jobs (id, token, status, customer_user_id, print_type, copies, page_range, paper_size, layout, pages_per_sheet, margins, scale, duplex, page_count, price_paise, needs_conversion, queue_position, created_at, updated_at)
-      VALUES (?, ?, 'pending_payment', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(jobId, j.token, j.customerUserId, j.printType, j.copies, j.pageRange, j.paperSize, j.layout, j.pagesPerSheet, j.margins, j.scale, j.duplex, j.pageCount, j.pricePaise, j.needsConversion, j.queuePosition, now, now);
+      INSERT INTO jobs (id, token, status, customer_user_id, print_type, copies, page_range, paper_size, layout, pages_per_sheet, margins, scale, duplex, page_count, price_paise, needs_conversion, queue_position, delivery_method, customer_name, customer_phone, delivery_address, delivery_fee_paise, created_at, updated_at)
+      VALUES (?, ?, 'pending_payment', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(jobId, j.token, j.customerUserId, j.printType, j.copies, j.pageRange, j.paperSize, j.layout, j.pagesPerSheet, j.margins, j.scale, j.duplex, j.pageCount, j.pricePaise, j.needsConversion, j.queuePosition, j.deliveryMethod, j.customerName, j.customerPhone, j.deliveryAddress, j.deliveryFeePaise, now, now);
 
     const insertFile = sqlite.prepare(`
       INSERT INTO job_files (id, job_id, original_name, stored_name, mime_type, size_bytes, file_kind, storage_path, created_at)
@@ -570,6 +587,23 @@ export async function updateJobStatus(id: string, status: string): Promise<void>
   
   sqlite.prepare("INSERT INTO print_events (id, job_id, event_type, message, created_at) VALUES (?, ?, ?, ?, ?)")
     .run(crypto.randomUUID(), id, status, `Admin set status to ${status}.`, now);
+}
+
+// Delivery hand-off status, tracked independently of the print-progress
+// `status` column — mirrors how `paidAt` is decoupled from `status`. Only
+// ever set on delivery-method jobs; the API route enforces that.
+export async function updateDeliveryStatus(id: string, deliveryStatus: "out_for_delivery" | "delivered"): Promise<void> {
+  if (isSupabase) {
+    const mod = await import('./db-supabase');
+    return mod.updateDeliveryStatus(id, deliveryStatus);
+  }
+
+  const crypto = await import('node:crypto');
+  const sqlite = await getDbInstance();
+  const now = new Date().toISOString();
+  sqlite.prepare(`UPDATE jobs SET delivery_status = ?, updated_at = ? WHERE id = ?`).run(deliveryStatus, now, id);
+  sqlite.prepare("INSERT INTO print_events (id, job_id, event_type, message, created_at) VALUES (?, ?, ?, ?, ?)")
+    .run(crypto.randomUUID(), id, deliveryStatus, `Delivery status set to ${deliveryStatus}.`, now);
 }
 
 // Customer-facing: flags a job for staff attention from the public /track
@@ -683,7 +717,8 @@ export async function getPricing(): Promise<PricingConfig> {
     legalMultiplier: row.legal_multiplier ?? 1.25,
     photoMultiplier: row.photo_multiplier ?? 1,
     duplexBwPerPagePaise: row.duplex_bw_per_page_paise ?? 100,
-    expiryMinutes: row.expiry_minutes ?? 1440
+    expiryMinutes: row.expiry_minutes ?? 1440,
+    deliveryFeePaise: row.delivery_fee_paise ?? 0
   };
   return pricingCache;
 }
@@ -703,13 +738,13 @@ export async function updatePricing(pricing: PricingConfig): Promise<void> {
       bw_per_page_paise = ?, color_per_page_paise = ?, photo_print_paise = ?,
       copy_multiplier = ?, a3_multiplier = ?, a4_multiplier = ?, a5_multiplier = ?,
       a6_multiplier = ?, b5_multiplier = ?, legal_multiplier = ?, photo_multiplier = ?,
-      duplex_bw_per_page_paise = ?, expiry_minutes = ?, updated_at = ?
+      duplex_bw_per_page_paise = ?, expiry_minutes = ?, delivery_fee_paise = ?, updated_at = ?
     WHERE id = 1
   `).run(
     pricing.bwPerPagePaise, pricing.colorPerPagePaise, pricing.photoPrintPaise,
     pricing.copyMultiplier, pricing.a3Multiplier, pricing.a4Multiplier, pricing.a5Multiplier,
     pricing.a6Multiplier, pricing.b5Multiplier, pricing.legalMultiplier, pricing.photoMultiplier,
-    pricing.duplexBwPerPagePaise, pricing.expiryMinutes, now
+    pricing.duplexBwPerPagePaise, pricing.expiryMinutes, pricing.deliveryFeePaise, now
   );
 }
 

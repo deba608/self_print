@@ -1560,6 +1560,118 @@ input, select, button {
   font-weight: 800;
 }
 
+/* Price breakdown (printing + delivery) shown ahead of the total on the
+   preview step for delivery orders. */
+.total-price-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.total-price-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 16px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+/* Pickup / delivery toggle */
+.delivery-method-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.delivery-method-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+  margin: 0;
+}
+
+.delivery-method-toggle {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+}
+
+.delivery-method-btn {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  flex: 1;
+  padding: 16px 10px;
+  background: #fff;
+  border: 2px solid var(--line);
+  border-radius: 16px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--muted);
+  transition: border-color 140ms ease, background 140ms ease, transform 120ms ease, color 140ms ease;
+}
+
+.delivery-method-btn:hover {
+  border-color: #b8ded7;
+}
+
+.delivery-method-btn:active {
+  transform: scale(0.98);
+}
+
+.delivery-method-btn.active {
+  border-color: var(--accent);
+  background: var(--accent-light);
+  color: var(--accent);
+}
+
+.delivery-fee-tag {
+  position: absolute;
+  top: -8px;
+  right: -6px;
+  padding: 2px 7px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 800;
+  border-radius: var(--radius-full);
+}
+
+.delivery-contact-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.delivery-input {
+  padding: 14px 16px;
+  border: 2px solid var(--line);
+  border-radius: 12px;
+  font-size: 16px;
+  font-family: inherit;
+  background: #fff;
+  width: 100%;
+  color: var(--ink);
+}
+
+.delivery-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.delivery-address-input {
+  resize: vertical;
+  min-height: 56px;
+}
+
 /* === Result Screen === */
 .result-screen {
   text-align: center;
@@ -7011,6 +7123,66 @@ input[type="number"] {
   cursor: pointer;
 }
 .job-issue-flag .job-issue-resolve:hover { background: var(--danger); color: #fff; }
+
+/* === Admin: pickup/delivery filter toggle === */
+.delivery-filter-toggle {
+  display: flex;
+  gap: 8px;
+  margin: 0 0 12px;
+}
+.delivery-filter-btn {
+  padding: 8px 16px;
+  border: 1px solid rgba(13, 122, 116, 0.15);
+  border-radius: 999px;
+  background: #ffffff;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--duration-base) var(--ease-out);
+}
+.delivery-filter-btn:hover {
+  border-color: rgba(13, 122, 116, 0.3);
+  color: var(--accent);
+}
+.delivery-filter-btn.active {
+  background: var(--accent-light);
+  border-color: var(--accent);
+  color: var(--accent-strong);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+/* === Admin: delivery contact info on job cards === */
+.job-delivery-info {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 8px 10px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--ink);
+  background: var(--accent-light);
+  border-radius: 10px;
+  border-left: 3px solid var(--accent);
+}
+.job-delivery-tag {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--accent-strong);
+  background: #ffffff;
+  border-radius: 999px;
+}
+.job-delivery-address {
+  flex-basis: 100%;
+  color: var(--muted);
+}
+
 /* Repeat-print chip — one tap re-applies the customer's last job settings */
 .repeat-settings-chip {
   display: flex;
