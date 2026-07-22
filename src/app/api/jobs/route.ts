@@ -64,6 +64,28 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid print settings" }, { status: 400 });
     }
 
+    const deliveryMethod = String(form.get("deliveryMethod") ?? "pickup") as "pickup" | "delivery";
+    if (deliveryMethod !== "pickup" && deliveryMethod !== "delivery") {
+      return NextResponse.json({ error: "Invalid delivery method" }, { status: 400 });
+    }
+    let customerName: string | null = null;
+    let customerPhone: string | null = null;
+    let deliveryAddress: string | null = null;
+    if (deliveryMethod === "delivery") {
+      customerName = String(form.get("customerName") ?? "").trim();
+      customerPhone = String(form.get("customerPhone") ?? "").trim();
+      deliveryAddress = String(form.get("deliveryAddress") ?? "").trim();
+      if (!customerName) {
+        return NextResponse.json({ error: "Name is required for home delivery" }, { status: 400 });
+      }
+      if (!/^\d{10}$/.test(customerPhone)) {
+        return NextResponse.json({ error: "Enter a valid 10-digit phone number" }, { status: 400 });
+      }
+      if (!deliveryAddress) {
+        return NextResponse.json({ error: "Address is required for home delivery" }, { status: 400 });
+      }
+    }
+
     const isDirectUpload = form.get("isDirectUpload") === "true";
     let storedName = "";
     let storagePath = "";
@@ -139,7 +161,9 @@ export async function POST(request: NextRequest) {
     if (duplex !== "simplex" && selectedPageCount(pageCount, pageRange) < 2) {
       return NextResponse.json({ error: "Double-sided printing requires a document with at least 2 pages." }, { status: 400 });
     }
-    const pricePaise = calculatePrice({ printType, copies, pageRange, paperSize, pageCount: Math.max(pageCount, 1), pricing, duplex });
+    const printPricePaise = calculatePrice({ printType, copies, pageRange, paperSize, pageCount: Math.max(pageCount, 1), pricing, duplex });
+    const deliveryFeePaise = deliveryMethod === "delivery" ? pricing.deliveryFeePaise : 0;
+    const pricePaise = printPricePaise + deliveryFeePaise;
     const token = randomToken();
     const queuePos = await nextQueuePosition();
 
@@ -157,7 +181,12 @@ export async function POST(request: NextRequest) {
       page_count: pageCount,
       price_paise: pricePaise,
       needs_conversion: needsConversion,
-      queue_position: queuePos
+      queue_position: queuePos,
+      delivery_method: deliveryMethod,
+      customer_name: customerName,
+      customer_phone: customerPhone,
+      delivery_address: deliveryAddress,
+      delivery_fee_paise: deliveryFeePaise
     };
 
     const fileData = {
@@ -173,7 +202,7 @@ export async function POST(request: NextRequest) {
 
     broadcast({ type: "new_job", jobId, token, queuePosition: queuePos });
 
-    return NextResponse.json({ jobId, token, pricePaise, needsConversion: Boolean(needsConversion), pageCount, queuePosition: queuePos });
+    return NextResponse.json({ jobId, token, pricePaise, deliveryFeePaise, needsConversion: Boolean(needsConversion), pageCount, queuePosition: queuePos });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Upload failed" }, { status: 400 });
   }
