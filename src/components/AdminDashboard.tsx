@@ -1521,8 +1521,8 @@ export default function AdminDashboard() {
       try {
         const data = JSON.parse(event.data);
         if (data.type === "job_update") {
-          // Update only the changed job status/paidAt in place
-          setJobs((prev) => prev.map((j) => j.id === data.jobId ? { ...j, status: data.status, paidAt: data.paidAt ?? j.paidAt } : j));
+          // Update only the changed job status/paidAt/deliveryStatus in place
+          setJobs((prev) => prev.map((j) => j.id === data.jobId ? { ...j, status: data.status, paidAt: data.paidAt ?? j.paidAt, deliveryStatus: data.deliveryStatus ?? j.deliveryStatus } : j));
         } else if (data.type === "new_job") {
           playChime();
           setUnseen((n) => n + 1);

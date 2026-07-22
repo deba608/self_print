@@ -935,8 +935,14 @@ export async function cleanupOldJobs(): Promise<{ deleted: number; storagePaths:
 
   const targets = sqlite.prepare(`
     SELECT id FROM jobs
-    WHERE status IN ('printed', 'cancelled', 'failed')
-       OR (status = 'pending_payment' AND created_at < ?)
+    WHERE (
+      status IN ('printed', 'cancelled', 'failed')
+      AND NOT (
+        delivery_method = 'delivery' AND status = 'printed'
+        AND (delivery_status IS NULL OR delivery_status <> 'delivered')
+      )
+    )
+       OR (status = 'pending_payment' AND created_at < ? AND paid_at IS NULL)
   `).all(cutoff) as Array<{ id: string }>;
   const ids = targets.map((t) => t.id);
   if (ids.length === 0) return { deleted: 0, storagePaths: [] };
