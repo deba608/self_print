@@ -2558,6 +2558,116 @@ input[type="number"] {
   display: block !important;
 }
 
+/* Live password requirement hint — ticks green once satisfied */
+.password-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: -8px 0 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  transition: color var(--duration-base) var(--ease-out);
+}
+.password-hint svg { opacity: 0.35; transition: opacity var(--duration-base) var(--ease-out); }
+.password-hint.met { color: var(--ok); }
+.password-hint.met svg { opacity: 1; }
+
+/* === Shared UI primitives === */
+.ui-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+.ui-badge svg { flex-shrink: 0; }
+.ui-badge--neutral { background: #eef1f5; color: var(--muted); }
+.ui-badge--primary { background: var(--accent-light); color: var(--accent-strong); }
+.ui-badge--success { background: var(--ok-light); color: var(--ok); }
+.ui-badge--danger  { background: var(--danger-light); color: var(--danger); }
+.ui-badge--warning { background: var(--warn-light); color: var(--warn); }
+.ui-badge--info    { background: var(--info-light); color: var(--info); }
+
+.ui-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-6) var(--space-4);
+  text-align: center;
+  color: var(--muted);
+}
+.ui-empty svg { color: var(--muted); opacity: 0.7; }
+.ui-empty h3 { margin: 0; font-size: 16px; color: var(--ink); }
+.ui-empty p { margin: 0; font-size: 13px; max-width: 320px; }
+
+.ui-skeleton {
+  background: linear-gradient(90deg, #e9edf2 25%, #f4f6f8 50%, #e9edf2 75%);
+  background-size: 200% 100%;
+  animation: ui-shimmer 1.4s ease-in-out infinite;
+  border-radius: var(--radius-sm);
+}
+@keyframes ui-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ui-skeleton { animation: none; background: #e9edf2; }
+}
+
+.ui-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+  background: rgba(15, 23, 42, 0.5);
+  animation: fadeIn var(--duration-fast) var(--ease-out);
+}
+.ui-dialog {
+  width: 100%;
+  max-width: 380px;
+  background: var(--panel);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  padding: var(--space-5);
+  animation: dialogIn var(--duration-base) var(--ease-out);
+}
+.ui-dialog h3 { margin: 0 0 var(--space-2); font-size: 17px; }
+.ui-dialog p { margin: 0 0 var(--space-5); font-size: 14px; color: var(--muted); }
+.ui-dialog-actions { display: flex; gap: var(--space-2); justify-content: flex-end; }
+.ui-dialog-actions button {
+  min-height: 44px;
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--ink);
+  transition: all var(--duration-base) var(--ease-out);
+}
+.ui-dialog-actions .ui-dialog-confirm {
+  border: none;
+  background: var(--accent);
+  color: #fff;
+}
+.ui-dialog-actions .ui-dialog-confirm.danger { background: var(--danger); }
+.ui-dialog-actions button:hover { filter: brightness(0.96); }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes dialogIn { from { opacity: 0; transform: translateY(8px) scale(0.98); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .ui-dialog-backdrop, .ui-dialog { animation: none; }
+}
+
 /* White Glassmorphism Glowing Primary Button */
 .login-btn {
   display: flex;
