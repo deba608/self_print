@@ -68,10 +68,25 @@ $queueDuplex = switch ($Duplex) {
   "long-edge"  { "TwoSidedLongEdge" }
   default      { "OneSided" }
 }
+
+# Set-PrintConfiguration rewrites the queue's stored DEVMODE. On host-based drivers
+# that ignore per-job DEVMODE (see above), this rewrite is what actually takes effect
+# printer-side -- so PaperSize must be included here too, or the queue silently falls
+# back to its own default paper (often Letter), printing smaller than the requested A4.
+$queuePaperSize = $null
 try {
-  Set-PrintConfiguration -PrinterName $Printer -DuplexingMode $queueDuplex -ErrorAction Stop
+  $queuePaperSize = [Microsoft.PowerShell.Cmdletization.GeneratedTypes.PrintConfiguration.PaperSizeEnum]$PaperName
 } catch {
-  Write-Output ("WARN: could not set queue duplex mode ($queueDuplex): " + $_.Exception.Message)
+  # Unmapped paper name (e.g. driver-specific): skip, let the queue keep its own default.
+}
+try {
+  if ($queuePaperSize) {
+    Set-PrintConfiguration -PrinterName $Printer -DuplexingMode $queueDuplex -PaperSize $queuePaperSize -ErrorAction Stop
+  } else {
+    Set-PrintConfiguration -PrinterName $Printer -DuplexingMode $queueDuplex -ErrorAction Stop
+  }
+} catch {
+  Write-Output ("WARN: could not set queue duplex/paper mode ($queueDuplex, $PaperName): " + $_.Exception.Message)
 }
 
 if ($PagesPerSheet -lt 1) { $PagesPerSheet = 1 }

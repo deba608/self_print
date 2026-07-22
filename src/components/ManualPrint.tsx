@@ -123,7 +123,11 @@ export default function ManualPrint({ id }: { id: string }) {
     }
     try {
       win.focus();
-      win.print();
+      // Chrome's built-in PDF viewer fires the iframe's load event once its shell is
+      // up, before the PDF itself has painted. Calling print() immediately can open
+      // the native dialog before rendering finishes, leaving its preview pane stuck
+      // on "Loading preview..." forever. Give it a moment to paint first.
+      setTimeout(() => win.print(), 500);
     } catch {
       // Fallback: open the file in a new tab so the operator can Ctrl+P.
       if (fileUrl) window.open(fileUrl, "_blank");
