@@ -162,6 +162,8 @@ function AdminTopbar({
   onOpenPrinter,
   onOpenManageOrders,
   onLogout,
+  loggingOut,
+  staffName,
   showPricing
 }: {
   printerName: string;
@@ -172,7 +174,9 @@ function AdminTopbar({
   onOpenPricing: () => void;
   onOpenPrinter: () => void;
   onOpenManageOrders: () => void;
-  onLogout: () => void;
+  onLogout: () => Promise<void>;
+  loggingOut: boolean;
+  staffName?: string;
   showPricing: boolean;
 }) {
   return (
@@ -265,8 +269,20 @@ function AdminTopbar({
         <div className="topbar-divider" aria-hidden="true" />
 
         <div className="action-group">
-          <button type="button" className="action-btn danger" onClick={onLogout} title="Logout" aria-label="Logout">
-            <LogOut size={18} />
+          <button
+            type="button"
+            className="action-btn danger logout-action"
+            onClick={onLogout}
+            title={staffName ? `Log out ${staffName}` : "Log out"}
+            aria-label={staffName ? `Log out ${staffName}` : "Log out"}
+            disabled={loggingOut}
+          >
+            {loggingOut ? (
+              <Loader2 size={18} className="spin" aria-hidden="true" />
+            ) : (
+              <LogOut size={18} aria-hidden="true" />
+            )}
+            <span className="logout-label">{loggingOut ? "Signing out..." : "Log out"}</span>
           </button>
         </div>
       </div>
@@ -1238,6 +1254,7 @@ export default function AdminDashboard() {
   const router = useRouter();
   const [loggedIn, setLoggedIn] = useState(false);
   const [currentStaff, setCurrentStaff] = useState<StaffProfile | null>(null);
+  const [loggingOut, setLoggingOut] = useState(false);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(false);
@@ -1474,9 +1491,20 @@ export default function AdminDashboard() {
   }, [router]);
 
   async function logout() {
-    await fetch("/api/admin/logout", { method: "POST", credentials: "include" });
-    setLoggedIn(false);
-    router.push("/admin");
+    if (loggingOut) return;
+    setLoggingOut(true);
+    try {
+      const response = await fetch("/api/admin/logout", { method: "POST", credentials: "include" });
+      if (!response.ok) {
+        throw new Error("We could not sign you out. Please try again.");
+      }
+      setLoggedIn(false);
+      router.push("/admin");
+      router.refresh();
+    } catch (error) {
+      pushToast("err", error instanceof Error ? error.message : "Unable to sign out.");
+      setLoggingOut(false);
+    }
   }
 
   async function savePricing(data: Pricing) {
@@ -1672,6 +1700,8 @@ export default function AdminDashboard() {
         onOpenPrinter={() => { setShowPrinter(true); setShowSettings(false); setShowManageOrders(false); }}
         onOpenManageOrders={() => { setShowManageOrders(true); setShowSettings(false); setShowPrinter(false); }}
         onLogout={logout}
+        loggingOut={loggingOut}
+        staffName={currentStaff?.displayName || currentStaff?.email}
         showPricing={showSettings}
       />
       <main className="admin-shell">

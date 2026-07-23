@@ -53,12 +53,12 @@ Thumbs.db
 graphify-out/
 GRAPHIFY_GUIDE.md
 
-# Agent skills cache
+# AI agent / assistant files
 .agents/
 skills-lock.json
-
-# Claude session files
 .claude/
+.codex/
+AGENTS.md
 CLAUDE.md
 capsules/
 cookies.txt
