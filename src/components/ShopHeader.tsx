@@ -32,7 +32,9 @@ export default function ShopHeader() {
       </Link>
 
       <div className="shop-auth">
-        {email === undefined ? null : email ? (
+        {email === undefined ? (
+          <span className="shop-auth-skeleton" aria-hidden="true" />
+        ) : email ? (
           <Link href="/my-jobs" className="shop-auth-btn">
             <PackageSearch size={15} aria-hidden="true" />
             My Jobs
