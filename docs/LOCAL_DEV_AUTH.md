@@ -1,6 +1,6 @@
 # Local Dev: Supabase Auth (Local Stack)
 
-Self_Print's admin/staff and customer login runs on Supabase Auth (migrated off the old
+Self_Print's staff and user login runs on Supabase Auth (migrated off the old
 hardcoded admin login). Most local development does **not** need this — only work that
 touches login, register, staff management, or customer accounts does.
 
