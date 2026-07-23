@@ -1475,8 +1475,10 @@ export default function UploadForm() {
   return (
     <div className="upload-form">
       {/* Step indicator — hidden in the desktop one-page workspace, where
-          there are no steps to indicate. */}
-      {!onePage && (
+          there are no steps to indicate — on desktop the flow is just
+          "pick a file → everything on one screen", so the 3-step wizard
+          indicator would be lying even on the upload screen. */}
+      {!isDesktop && (
       <nav className="step-indicator" aria-label="Upload progress">
         <div className={`step ${step === "upload" || step === "settings" || step === "preview" ? "active" : step === "done" ? "done" : ""}`} aria-current={step === "upload" ? "step" : undefined}>
           <span className="step-num" aria-hidden="true">1</span>
