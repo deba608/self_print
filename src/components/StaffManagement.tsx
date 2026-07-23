@@ -148,7 +148,7 @@ export default function StaffManagement({ currentStaff }: { currentStaff: StaffP
         </div>
         <div className="staff-summary-card">
           <span className="staff-summary-icon owners"><ShieldCheck size={20} aria-hidden="true" /></span>
-          <span><strong>{loading ? "—" : superAdminCount}</strong><small>Super admins</small></span>
+          <span><strong>{loading ? "—" : superAdminCount}</strong><small>Owners</small></span>
         </div>
       </section>
 
@@ -189,7 +189,7 @@ export default function StaffManagement({ currentStaff }: { currentStaff: StaffP
                 disabled={inviting}
               >
                 <option value="admin">Admin</option>
-                <option value="super_admin">Super admin</option>
+                <option value="super_admin">Owner</option>
               </select>
             </div>
 
@@ -202,7 +202,7 @@ export default function StaffManagement({ currentStaff }: { currentStaff: StaffP
           <p className="staff-role-help">
             {role === "admin"
               ? "Admins can manage print jobs, pricing, accounts, and view staff."
-              : "Super admins can do everything an admin can, plus invite and remove staff."}
+              : "Owners can do everything an admin can, plus invite and remove staff."}
           </p>
 
           {inviteOk && (
@@ -278,7 +278,7 @@ export default function StaffManagement({ currentStaff }: { currentStaff: StaffP
                   <div className="staff-member-meta">
                     <span className={`staff-role-badge ${member.role}`}>
                       <ShieldCheck size={13} aria-hidden="true" />
-                      {member.role === "super_admin" ? "Super admin" : "Admin"}
+                      {member.role === "super_admin" ? "Owner" : "Admin"}
                     </span>
                     <span className="staff-joined-date">
                       <CalendarDays size={14} aria-hidden="true" />
