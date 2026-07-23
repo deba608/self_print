@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Lock, Mail } from "lucide-react";
 import { AuthShell, AuthInput, AuthError, AuthSubmit } from "@/components/ui/Auth";
+import { createClient } from "@/lib/supabase/client";
 
 export default function UserLoginPage() {
   const router = useRouter();
@@ -34,6 +35,11 @@ export default function UserLoginPage() {
         setLoading(false);
         return;
       }
+      // Also sign in with the browser Supabase client so onAuthStateChange
+      // fires a SIGNED_IN event — this makes the navbar update instantly
+      // without requiring a full page reload.
+      const supabase = createClient();
+      await supabase.auth.signInWithPassword({ email, password });
       router.push("/my-jobs");
     } catch {
       setError("Connection error. Please try again.");
