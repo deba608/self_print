@@ -70,8 +70,27 @@ export type Job = {
   deliveryAddress: string | null;
   deliveryFeePaise: number;
   deliveryStatus: DeliveryStatus | null;
+  deliveryLatitude: number | null;
+  deliveryLongitude: number | null;
+  deliveryAccuracyMeters: number | null;
+  deliveryLocationCapturedAt: string | null;
   file?: JobFile;
   fileCount?: number;
+};
+
+export type CustomerManagementRow = {
+  id: string;
+  displayName: string;
+  email: string | null;
+  phone: string | null;
+  registeredAt: string | null;
+  totalOrders: number;
+  activeOrders: number;
+  deliveryOrders: number;
+  deliveredOrders: number;
+  totalSpentPaise: number;
+  lastOrderAt: string | null;
+  latestAddress: string | null;
 };
 
 export type JobFile = {

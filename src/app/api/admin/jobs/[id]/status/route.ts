@@ -36,6 +36,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (status === "approved" && job.needsConversion) {
       return NextResponse.json({ error: "DOC/DOCX jobs need conversion before release" }, { status: 400 });
     }
+    // Pickup orders may print before payment (pay-at-counter flow), but a
+    // delivery order has no counter step — online payment is its only
+    // settlement, so it must be paid before it's released for printing.
+    if (status === "approved" && job.deliveryMethod === "delivery" && !job.paidAt) {
+      return NextResponse.json({ error: "Delivery orders must be paid online before release." }, { status: 400 });
+    }
     await updateJobStatus(id, status);
   }
 
