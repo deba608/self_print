@@ -14,6 +14,8 @@ const navItems = [
 
 export default function UserNavbar() {
   const pathname = usePathname();
+  // undefined = auth state not resolved yet; null = signed out; "" = signed
+  // in with no usable name; string = signed in with a first name.
   const [displayName, setDisplayName] = useState<string | null | undefined>(undefined);
   const [loggingOut, setLoggingOut] = useState(false);
 
@@ -22,23 +24,26 @@ export default function UserNavbar() {
     const supabase = createClient();
 
     /** Return only the first name from the registration display_name */
-    const resolveName = (user: import("@supabase/supabase-js").User | null | undefined) => {
-      if (!user) return null;
+    const resolveName = (user: import("@supabase/supabase-js").User) => {
       const meta = user.user_metadata as Record<string, unknown> | undefined;
       const fullName =
         (typeof meta?.display_name === "string" && meta.display_name) ||
         (typeof meta?.full_name === "string" && meta.full_name) ||
         (typeof meta?.name === "string" && meta.name) ||
         "";
+      // Accounts created before the register route stopped falling back to
+      // email still carry the email in display_name — treat that as no name.
+      if (fullName.includes("@")) return "";
       // Take only the first word (first name) — trim whitespace first
-      const firstName = fullName.trim().split(/\s+/)[0];
-      return firstName || null;
+      return fullName.trim().split(/\s+/)[0] || "";
     };
 
     // Subscribe to auth changes — fires immediately with the current session,
-    // so the navbar updates the moment the user logs in or out.
+    // so the navbar updates the moment the user logs in or out. A signed-in
+    // user with no usable name is still signed in ("") — never fall through
+    // to the logged-out null branch, which would show Log in/Sign up.
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (mounted) setDisplayName(resolveName(session?.user));
+      if (mounted) setDisplayName(session?.user ? resolveName(session.user) : null);
     });
 
     return () => {
@@ -87,12 +92,14 @@ export default function UserNavbar() {
           <div className="user-navbar-user">
             {displayName === undefined ? (
               <span className="user-navbar-skeleton" aria-hidden="true" />
-            ) : displayName ? (
+            ) : displayName !== null ? (
               <>
-                <span className="user-navbar-email" title={displayName}>
-                  <UserRound size={14} aria-hidden="true" />
-                  <span>{displayName}</span>
-                </span>
+                {displayName && (
+                  <span className="user-navbar-email" title={displayName}>
+                    <UserRound size={14} aria-hidden="true" />
+                    <span>{displayName}</span>
+                  </span>
+                )}
                 <button
                   type="button"
                   className="user-navbar-logout"
