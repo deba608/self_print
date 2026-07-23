@@ -73,7 +73,7 @@ export default function AdminLogin() {
           disabled={loading}
         />
         <AuthError>{error}</AuthError>
-        <AuthSubmit loading={loading} loadingLabel="Signing in..." label="Sign In" />
+        <AuthSubmit loading={loading} loadingLabel="Signing in..." label="Log in" />
         <p className="login-footer">
           <Link href="/forgot-password?from=admin">Forgot password?</Link>
         </p>

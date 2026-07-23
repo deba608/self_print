@@ -9,7 +9,6 @@ import {
   Truck,
   PackageCheck,
   Inbox,
-  LogOut,
   UserRound,
   UploadCloud,
 } from "lucide-react";
@@ -19,6 +18,7 @@ import ShopHeader from "@/components/ShopHeader";
 import Badge, { type BadgeVariant } from "@/components/ui/Badge";
 import EmptyState from "@/components/ui/EmptyState";
 import Skeleton from "@/components/ui/Skeleton";
+import CustomerLogoutButton from "@/components/CustomerLogoutButton";
 
 // Status → badge mapping per docs/UI_UX_PLAN.md §1.2 — icon + text, never color alone.
 const statusMap: Record<string, { label: string; variant: BadgeVariant; icon: LucideIcon }> = {
@@ -123,9 +123,7 @@ async function JobsList({ filter }: { filter: Filter }) {
           <span className="jobs-account-email">{user.email}</span>
         </span>
         <form action={logout}>
-          <button type="submit" className="jobs-logout-btn">
-            <LogOut size={15} aria-hidden="true" /> Log out
-          </button>
+          <CustomerLogoutButton />
         </form>
       </div>
 
