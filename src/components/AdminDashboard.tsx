@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import {
   RefreshCw, Settings, LogOut, Printer, Bell, BellRing,
   CheckSquare, Square, CreditCard, Eye, X, Check, Monitor, Loader2,
-  ChevronDown, Zap, TrendingUp, Clock,
-  Trash2, ListTodo, Inbox, FileText, BarChart2, ShieldCheck, MessageCircleWarning, AlertTriangle, Users, Truck
+    ChevronDown, Zap, TrendingUp, Clock,
+    Trash2, ListTodo, Inbox, FileText, BarChart2, ShieldCheck, MessageCircleWarning, AlertTriangle, Users, UsersRound, Truck
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { manualPrint } from "@/lib/manualPrint";
@@ -231,11 +231,29 @@ function AdminTopbar({
             type="button"
             className="action-btn"
             onClick={onOpenManageOrders}
-            title="Manage Orders"
-            aria-label="Manage orders"
+            title="Quick order list"
+            aria-label="Open quick order list"
+          >
+            <Inbox size={18} />
+          </button>
+
+          <Link
+            href="/admin/orders"
+            className="action-btn"
+            title="Order Management"
+            aria-label="Order management"
           >
             <ListTodo size={18} />
-          </button>
+          </Link>
+
+          <Link
+            href="/admin/customers"
+            className="action-btn"
+            title="User Management"
+            aria-label="User management"
+          >
+            <UsersRound size={18} />
+          </Link>
 
           <Link
             href="/admin/accounts"
