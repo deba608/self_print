@@ -199,26 +199,28 @@ export default function OrderManagementPage() {
                     placeholder="Search token, customer, phone, address or file"
                   />
                 </label>
-                <div className="management-segmented" role="group" aria-label="Fulfilment filter">
-                  {(["all", "pickup", "delivery"] as const).map((value) => (
-                    <button
-                      key={value}
-                      type="button"
-                      className={fulfilment === value ? "active" : ""}
-                      onClick={() => setFulfilment(value)}
-                    >
-                      {value === "all" ? "All" : value === "pickup" ? "Pickup" : "Delivery"}
-                    </button>
-                  ))}
-                </div>
-                <label className="management-select">
-                  <span className="sr-only">Filter by stage</span>
-                  <select value={stage} onChange={(event) => setStage(event.target.value as StageFilter)}>
-                    {stageOptions.map((option) => (
-                      <option key={option.value} value={option.value}>{option.label}</option>
+                <div className="management-filter-group">
+                  <div className="management-segmented" role="group" aria-label="Fulfilment filter">
+                    {(["all", "pickup", "delivery"] as const).map((value) => (
+                      <button
+                        key={value}
+                        type="button"
+                        className={fulfilment === value ? "active" : ""}
+                        onClick={() => setFulfilment(value)}
+                      >
+                        {value === "all" ? "All" : value === "pickup" ? "Pickup" : "Delivery"}
+                      </button>
                     ))}
-                  </select>
-                </label>
+                  </div>
+                  <label className="management-select">
+                    <span className="sr-only">Filter by stage</span>
+                    <select value={stage} onChange={(event) => setStage(event.target.value as StageFilter)}>
+                      {stageOptions.map((option) => (
+                        <option key={option.value} value={option.value}>{option.label}</option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
               </div>
 
               {error && <div className="management-error" role="alert">{error}</div>}
