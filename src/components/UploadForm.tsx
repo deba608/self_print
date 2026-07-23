@@ -827,7 +827,6 @@ export default function UploadForm() {
   }
 
   function swapBulkFiles(from: number, to: number) {
-    if (from === to) return;
     setBulkFiles((prev) => { const arr = [...prev]; [arr[from], arr[to]] = [arr[to], arr[from]]; return arr; });
     setBulkPageCounts((prev) => { const arr = [...prev]; [arr[from], arr[to]] = [arr[to], arr[from]]; return arr; });
     setBulkIds((prev) => { const arr = [...prev]; [arr[from], arr[to]] = [arr[to], arr[from]]; return arr; });

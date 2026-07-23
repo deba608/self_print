@@ -494,7 +494,25 @@ input, select, button {
 .flow-grid .fs-file-zone { grid-area: file; }
 .flow-grid .fs-settings { grid-area: settings; }
 .flow-grid .fs-fulfil { grid-area: fulfil; }
-.flow-grid .preview-pane { grid-area: preview; }
+.flow-grid .preview-pane {
+  grid-area: preview;
+  gap: 10px;
+}
+.flow-grid .preview-title {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--ink);
+  margin: 0;
+  line-height: 1.3;
+  min-height: 22px;
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+}
+.flow-grid .file-zone-title {
+  line-height: 1.3;
+  min-height: 22px;
+}
 /* Cap the viewer so the right column stays balanced with the left; the
    canvas scrolls inside its own box instead. */
 .flow-grid .preview-pane .preview-area {
