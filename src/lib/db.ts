@@ -58,6 +58,29 @@ export async function ensureDatabase(): Promise<void> {
   await getDbInstance();
 }
 
+function addJobToCustomerSummary(
+  summary: CustomerManagementRow,
+  job: {
+    status: string;
+    pricePaise: number;
+    paidAt: string | null;
+    createdAt: string;
+    deliveryMethod: string;
+    deliveryStatus: string | null;
+    deliveryAddress: string | null;
+  }
+) {
+  summary.totalOrders += 1;
+  if (!["printed", "cancelled", "failed"].includes(job.status)) summary.activeOrders += 1;
+  if (job.deliveryMethod === "delivery") summary.deliveryOrders += 1;
+  if (job.deliveryStatus === "delivered") summary.deliveredOrders += 1;
+  if (job.paidAt) summary.totalSpentPaise += job.pricePaise;
+  if (!summary.lastOrderAt || job.createdAt > summary.lastOrderAt) {
+    summary.lastOrderAt = job.createdAt;
+    if (job.deliveryAddress) summary.latestAddress = job.deliveryAddress;
+  }
+}
+
 async function initSchema(database: any) {
   database.exec(`
     CREATE TABLE IF NOT EXISTS jobs (
@@ -301,6 +324,56 @@ export async function getJobs(): Promise<Job[]> {
   const pricing = await getPricing();
   const rows = sqlite.prepare('SELECT * FROM jobs ORDER BY created_at DESC').all() as Record<string, unknown>[];
   return rows.map(row => mapJob(row, pricing.expiryMinutes));
+}
+
+export async function getCustomerManagementRows(): Promise<CustomerManagementRow[]> {
+  if (isSupabase) {
+    const mod = await import('./db-supabase');
+    return mod.getCustomerManagementRows();
+  }
+
+  const sqlite = await getDbInstance();
+  const rows = sqlite.prepare(`
+    SELECT customer_user_id, customer_name, customer_phone, delivery_address,
+      delivery_method, delivery_status, status, price_paise, paid_at, created_at
+    FROM jobs
+    WHERE customer_user_id IS NOT NULL OR customer_phone IS NOT NULL
+    ORDER BY created_at DESC
+  `).all() as Record<string, unknown>[];
+
+  const customers = new Map<string, CustomerManagementRow>();
+  for (const row of rows) {
+    const userId = row.customer_user_id ? String(row.customer_user_id) : null;
+    const phone = row.customer_phone ? String(row.customer_phone) : null;
+    const id = userId ?? `guest:${phone}`;
+    if (!customers.has(id)) {
+      customers.set(id, {
+        id,
+        displayName: row.customer_name ? String(row.customer_name) : "Guest customer",
+        email: null,
+        phone,
+        registeredAt: null,
+        totalOrders: 0,
+        activeOrders: 0,
+        deliveryOrders: 0,
+        deliveredOrders: 0,
+        totalSpentPaise: 0,
+        lastOrderAt: null,
+        latestAddress: row.delivery_address ? String(row.delivery_address) : null,
+      });
+    }
+    addJobToCustomerSummary(customers.get(id)!, {
+      status: String(row.status),
+      pricePaise: Number(row.price_paise),
+      paidAt: row.paid_at ? String(row.paid_at) : null,
+      createdAt: String(row.created_at),
+      deliveryMethod: String(row.delivery_method ?? "pickup"),
+      deliveryStatus: row.delivery_status ? String(row.delivery_status) : null,
+      deliveryAddress: row.delivery_address ? String(row.delivery_address) : null,
+    });
+  }
+
+  return [...customers.values()].sort((a, b) => (b.lastOrderAt ?? "").localeCompare(a.lastOrderAt ?? ""));
 }
 
 // Paginated jobs. Avoids loading the entire table into memory.

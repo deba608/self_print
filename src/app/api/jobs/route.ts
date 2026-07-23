@@ -43,6 +43,62 @@ const duplexOptions: PrintDuplex[] = ["simplex", "long-edge", "short-edge"];
 const JOBS_RATE_WINDOW_MS = 60 * 1000;
 const JOBS_MAX_PER_WINDOW = 10; // 10 job creations per minute per IP
 
+function parseDeliveryDetails(form: FormData, deliveryMethod: "pickup" | "delivery") {
+  if (deliveryMethod === "pickup") {
+    return {
+      customerName: null,
+      customerPhone: null,
+      deliveryAddress: null,
+      deliveryLatitude: null,
+      deliveryLongitude: null,
+      deliveryAccuracyMeters: null,
+      deliveryLocationCapturedAt: null,
+    };
+  }
+
+  const customerName = String(form.get("customerName") ?? "").trim();
+  const customerPhone = String(form.get("customerPhone") ?? "").trim();
+  const deliveryAddress = String(form.get("deliveryAddress") ?? "").trim();
+  if (!customerName) return { error: "Name is required for home delivery" } as const;
+  if (!/^\d{10}$/.test(customerPhone)) return { error: "Enter a valid 10-digit phone number" } as const;
+  if (!deliveryAddress) return { error: "Address is required for home delivery" } as const;
+
+  const latitudeRaw = String(form.get("deliveryLatitude") ?? "").trim();
+  const longitudeRaw = String(form.get("deliveryLongitude") ?? "").trim();
+  const accuracyRaw = String(form.get("deliveryAccuracyMeters") ?? "").trim();
+  let deliveryLatitude: number | null = null;
+  let deliveryLongitude: number | null = null;
+  let deliveryAccuracyMeters: number | null = null;
+
+  if (latitudeRaw || longitudeRaw) {
+    deliveryLatitude = Number(latitudeRaw);
+    deliveryLongitude = Number(longitudeRaw);
+    deliveryAccuracyMeters = accuracyRaw ? Number(accuracyRaw) : null;
+    if (
+      !Number.isFinite(deliveryLatitude) ||
+      !Number.isFinite(deliveryLongitude) ||
+      deliveryLatitude < -90 ||
+      deliveryLatitude > 90 ||
+      deliveryLongitude < -180 ||
+      deliveryLongitude > 180 ||
+      (deliveryAccuracyMeters !== null &&
+        (!Number.isFinite(deliveryAccuracyMeters) || deliveryAccuracyMeters < 0 || deliveryAccuracyMeters > 100000))
+    ) {
+      return { error: "Invalid delivery location coordinates" } as const;
+    }
+  }
+
+  return {
+    customerName,
+    customerPhone,
+    deliveryAddress,
+    deliveryLatitude,
+    deliveryLongitude,
+    deliveryAccuracyMeters,
+    deliveryLocationCapturedAt: deliveryLatitude === null ? null : new Date().toISOString(),
+  };
+}
+
 export async function POST(request: NextRequest) {
   try {
     if (isRateLimited("jobs-create", clientIp(request.headers), JOBS_MAX_PER_WINDOW, JOBS_RATE_WINDOW_MS)) {
@@ -93,22 +149,9 @@ export async function POST(request: NextRequest) {
     if (deliveryMethod !== "pickup" && deliveryMethod !== "delivery") {
       return NextResponse.json({ error: "Invalid delivery method" }, { status: 400 });
     }
-    let customerName: string | null = null;
-    let customerPhone: string | null = null;
-    let deliveryAddress: string | null = null;
-    if (deliveryMethod === "delivery") {
-      customerName = String(form.get("customerName") ?? "").trim();
-      customerPhone = String(form.get("customerPhone") ?? "").trim();
-      deliveryAddress = String(form.get("deliveryAddress") ?? "").trim();
-      if (!customerName) {
-        return NextResponse.json({ error: "Name is required for home delivery" }, { status: 400 });
-      }
-      if (!/^\d{10}$/.test(customerPhone)) {
-        return NextResponse.json({ error: "Enter a valid 10-digit phone number" }, { status: 400 });
-      }
-      if (!deliveryAddress) {
-        return NextResponse.json({ error: "Address is required for home delivery" }, { status: 400 });
-      }
+    const deliveryDetails = parseDeliveryDetails(form, deliveryMethod);
+    if ("error" in deliveryDetails) {
+      return NextResponse.json({ error: deliveryDetails.error }, { status: 400 });
     }
 
     const isDirectUpload = form.get("isDirectUpload") === "true";
@@ -216,10 +259,14 @@ export async function POST(request: NextRequest) {
       needs_conversion: needsConversion,
       queue_position: queuePos,
       delivery_method: deliveryMethod,
-      customer_name: customerName,
-      customer_phone: customerPhone,
-      delivery_address: deliveryAddress,
-      delivery_fee_paise: deliveryFeePaise
+      customer_name: deliveryDetails.customerName,
+      customer_phone: deliveryDetails.customerPhone,
+      delivery_address: deliveryDetails.deliveryAddress,
+      delivery_fee_paise: deliveryFeePaise,
+      delivery_latitude: deliveryDetails.deliveryLatitude,
+      delivery_longitude: deliveryDetails.deliveryLongitude,
+      delivery_accuracy_meters: deliveryDetails.deliveryAccuracyMeters,
+      delivery_location_captured_at: deliveryDetails.deliveryLocationCapturedAt,
     };
 
     const fileData = {
@@ -263,6 +310,15 @@ async function handleBulk(form: FormData, customerUserId: string | null): Promis
     !duplexOptions.includes(duplex)
   ) {
     return NextResponse.json({ error: "Invalid print settings" }, { status: 400 });
+  }
+
+  const deliveryMethod = String(form.get("deliveryMethod") ?? "pickup") as "pickup" | "delivery";
+  if (deliveryMethod !== "pickup" && deliveryMethod !== "delivery") {
+    return NextResponse.json({ error: "Invalid delivery method" }, { status: 400 });
+  }
+  const deliveryDetails = parseDeliveryDetails(form, deliveryMethod);
+  if ("error" in deliveryDetails) {
+    return NextResponse.json({ error: deliveryDetails.error }, { status: 400 });
   }
 
   // Two upload sources: direct-to-storage (filesJson metadata) when the browser
@@ -354,7 +410,9 @@ async function handleBulk(form: FormData, customerUserId: string | null): Promis
   if (duplex !== "simplex" && pageCount < 2) {
     return NextResponse.json({ error: "Double-sided printing requires at least 2 pages." }, { status: 400 });
   }
-  const pricePaise = calculatePrice({ printType, copies, pageRange: null, paperSize, pageCount: Math.max(pageCount, 1), pricing, duplex });
+  const printPricePaise = calculatePrice({ printType, copies, pageRange: null, paperSize, pageCount: Math.max(pageCount, 1), pricing, duplex });
+  const deliveryFeePaise = deliveryMethod === "delivery" ? pricing.deliveryFeePaise : 0;
+  const pricePaise = printPricePaise + deliveryFeePaise;
   const token = randomToken();
   const queuePos = await nextQueuePosition();
 
@@ -374,12 +432,21 @@ async function handleBulk(form: FormData, customerUserId: string | null): Promis
     price_paise: pricePaise,
     needs_conversion: 0,
     queue_position: queuePos,
+    delivery_method: deliveryMethod,
+    customer_name: deliveryDetails.customerName,
+    customer_phone: deliveryDetails.customerPhone,
+    delivery_address: deliveryDetails.deliveryAddress,
+    delivery_fee_paise: deliveryFeePaise,
+    delivery_latitude: deliveryDetails.deliveryLatitude,
+    delivery_longitude: deliveryDetails.deliveryLongitude,
+    delivery_accuracy_meters: deliveryDetails.deliveryAccuracyMeters,
+    delivery_location_captured_at: deliveryDetails.deliveryLocationCapturedAt,
   };
 
   const { jobId } = await createJobWithFiles(jobData, filesData);
   broadcast({ type: "new_job", jobId, token, queuePosition: queuePos });
 
-  return NextResponse.json({ jobId, token, pricePaise, needsConversion: false, pageCount, queuePosition: queuePos });
+  return NextResponse.json({ jobId, token, pricePaise, deliveryFeePaise, needsConversion: false, pageCount, queuePosition: queuePos });
 }
 
 function randomToken() {

@@ -112,6 +112,76 @@ export async function getJobs() {
   return (data || []).map(row => mapJob(row, pricing.expiryMinutes));
 }
 
+export async function getCustomerManagementRows(): Promise<CustomerManagementRow[]> {
+  const [{ data: profiles, error: profileError }, { data: jobs, error: jobsError }] = await Promise.all([
+    supabase
+      .from('customer_profiles')
+      .select('id, email, display_name, phone, created_at')
+      .order('created_at', { ascending: false }),
+    supabase
+      .from('jobs')
+      .select('customer_user_id, customer_name, customer_phone, delivery_address, delivery_method, delivery_status, status, price_paise, paid_at, created_at')
+      .order('created_at', { ascending: false })
+      .limit(2000),
+  ]);
+  if (profileError) throw profileError;
+  if (jobsError) throw jobsError;
+
+  const customers = new Map<string, CustomerManagementRow>();
+  for (const profile of profiles ?? []) {
+    customers.set(String(profile.id), {
+      id: String(profile.id),
+      displayName: profile.display_name ? String(profile.display_name) : String(profile.email),
+      email: String(profile.email),
+      phone: profile.phone ? String(profile.phone) : null,
+      registeredAt: String(profile.created_at),
+      totalOrders: 0,
+      activeOrders: 0,
+      deliveryOrders: 0,
+      deliveredOrders: 0,
+      totalSpentPaise: 0,
+      lastOrderAt: null,
+      latestAddress: null,
+    });
+  }
+
+  for (const row of jobs ?? []) {
+    const userId = row.customer_user_id ? String(row.customer_user_id) : null;
+    const phone = row.customer_phone ? String(row.customer_phone) : null;
+    if (!userId && !phone) continue;
+    const id = userId ?? `guest:${phone}`;
+    if (!customers.has(id)) {
+      customers.set(id, {
+        id,
+        displayName: row.customer_name ? String(row.customer_name) : "Guest customer",
+        email: null,
+        phone,
+        registeredAt: null,
+        totalOrders: 0,
+        activeOrders: 0,
+        deliveryOrders: 0,
+        deliveredOrders: 0,
+        totalSpentPaise: 0,
+        lastOrderAt: null,
+        latestAddress: row.delivery_address ? String(row.delivery_address) : null,
+      });
+    }
+    const customer = customers.get(id)!;
+    customer.totalOrders += 1;
+    if (!["printed", "cancelled", "failed"].includes(String(row.status))) customer.activeOrders += 1;
+    if (row.delivery_method === "delivery") customer.deliveryOrders += 1;
+    if (row.delivery_status === "delivered") customer.deliveredOrders += 1;
+    if (row.paid_at) customer.totalSpentPaise += Number(row.price_paise);
+    const createdAt = String(row.created_at);
+    if (!customer.lastOrderAt || createdAt > customer.lastOrderAt) {
+      customer.lastOrderAt = createdAt;
+      if (row.delivery_address) customer.latestAddress = String(row.delivery_address);
+    }
+  }
+
+  return [...customers.values()].sort((a, b) => (b.lastOrderAt ?? b.registeredAt ?? "").localeCompare(a.lastOrderAt ?? a.registeredAt ?? ""));
+}
+
 export async function getJobsPage(limit: number, cursor?: string | null): Promise<{ jobs: Job[]; total: number }> {
   let query = supabase
     .from('jobs')
