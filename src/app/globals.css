@@ -8159,53 +8159,6 @@ input[type="number"] {
 /* ---------- Phase 4: /my-jobs + /track polish ---------- */
 
 /* Account bar (logged-in identity + logout) */
-.jobs-account-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  padding: var(--space-2) var(--space-3);
-  background: var(--accent-bg);
-  border: 1px solid var(--accent-light);
-  border-radius: var(--radius-md);
-}
-.jobs-account-id {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  color: var(--accent-strong);
-  font-size: 13px;
-  font-weight: 600;
-  min-width: 0;
-}
-.jobs-account-email {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.jobs-logout-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-height: 44px;
-  padding: 0 var(--space-3);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-  background: #fff;
-  color: var(--muted);
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out);
-}
-.jobs-logout-btn:hover { color: var(--danger); border-color: var(--danger-light); }
-.jobs-logout-btn:active:not(:disabled) { transform: translateY(1px); }
-.jobs-logout-btn:disabled {
-  cursor: wait;
-  color: var(--muted);
-  opacity: 0.7;
-}
-
 /* Filter chips: All / Active / Done */
 .jobs-filter-chips {
   display: flex;
