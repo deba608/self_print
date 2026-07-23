@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { ChevronLeft, Lock } from "lucide-react";
+import { Lock } from "lucide-react";
 import { useEffect, useState } from "react";
 import AccountsTab from "./AccountsTab";
+import AdminManagementNav from "./AdminManagementNav";
 
 export default function AccountsPage() {
   // A lightweight auth probe so an expired/missing admin session shows a
@@ -17,21 +18,19 @@ export default function AccountsPage() {
   }, []);
 
   return (
-    <main className="admin-shell accounts-shell">
-      <Link href="/admin" className="back-link">
-        <ChevronLeft size={18} />
-        <span>Back to Queue</span>
-      </Link>
-
-      {authState === "unauthorized" ? (
-        <div className="accounts-locked">
-          <Lock size={28} aria-hidden="true" />
-          <p>Your admin session has expired.</p>
-          <Link href="/admin" className="btn-primary">Log in again</Link>
-        </div>
-      ) : (
-        <AccountsTab />
-      )}
-    </main>
+    <div className="management-page-shell">
+      <AdminManagementNav />
+      <main className="admin-shell accounts-shell">
+        {authState === "unauthorized" ? (
+          <div className="accounts-locked">
+            <Lock size={28} aria-hidden="true" />
+            <p>Your admin session has expired.</p>
+            <Link href="/admin" className="btn-primary">Log in again</Link>
+          </div>
+        ) : (
+          <AccountsTab />
+        )}
+      </main>
+    </div>
   );
 }
