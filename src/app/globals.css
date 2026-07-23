@@ -353,7 +353,7 @@ input, select, button {
   animation: shimmer 1.5s ease-in-out infinite;
 }
 @media (max-width: 599px) {
-  .user-navbar-email span { display: none; }
+  .user-navbar-email span { display: inline; max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .user-navbar-email { max-width: none; }
   .user-navbar-logout span { display: none; }
   .user-navbar-logout {
@@ -378,12 +378,9 @@ input, select, button {
 @media (min-width: 900px) {
   .user-navbar-skeleton { width: 140px; }
 }
-@media (min-width: 1040px) {
-  .user-navbar-email { display: inline-flex; }
-}
 @media (min-width: 600px) and (max-width: 1039px) {
-  .user-navbar-email span { display: none; }
-  .user-navbar-email { max-width: none; }
+  .user-navbar-email span { display: inline; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .user-navbar-email { display: inline-flex; max-width: none; }
 }
 @media (max-width: 370px) {
   .user-navbar-inner { width: calc(100% - 16px); gap: 6px; }
