@@ -9,16 +9,14 @@ import {
   Truck,
   PackageCheck,
   Inbox,
-  UserRound,
   UploadCloud,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import ShopHeader from "@/components/ShopHeader";
+import UserNavbar from "@/components/UserNavbar";
 import Badge, { type BadgeVariant } from "@/components/ui/Badge";
 import EmptyState from "@/components/ui/EmptyState";
 import Skeleton from "@/components/ui/Skeleton";
-import CustomerLogoutButton from "@/components/CustomerLogoutButton";
 
 // Status → badge mapping per docs/UI_UX_PLAN.md §1.2 — icon + text, never color alone.
 const statusMap: Record<string, { label: string; variant: BadgeVariant; icon: LucideIcon }> = {
@@ -102,31 +100,8 @@ async function JobsList({ filter }: { filter: Filter }) {
     return true;
   });
 
-  async function logout() {
-    "use server";
-    // Same sign-out the POST /api/user/logout route performs, done
-    // server-side so this page needs no client bundle.
-    try {
-      const sb = await createClient();
-      await sb.auth.signOut();
-    } catch {
-      /* already signed out / env missing — redirect regardless */
-    }
-    redirect("/login");
-  }
-
   return (
     <>
-      <div className="jobs-account-bar">
-        <span className="jobs-account-id">
-          <UserRound size={15} aria-hidden="true" />
-          <span className="jobs-account-email">{user.email}</span>
-        </span>
-        <form action={logout}>
-          <CustomerLogoutButton />
-        </form>
-      </div>
-
       <nav className="jobs-filter-chips" aria-label="Filter orders">
         {(
           [
@@ -242,7 +217,7 @@ export default async function MyJobsPage({
 
   return (
     <main className="customer-shell">
-      <ShopHeader />
+      <UserNavbar />
       <section className="panel stack">
         <div className="intro">
           <h1>My Jobs</h1>

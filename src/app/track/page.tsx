@@ -1,11 +1,11 @@
 import TrackOrder from "@/components/TrackOrder";
-import ShopHeader from "@/components/ShopHeader";
+import UserNavbar from "@/components/UserNavbar";
 
 export default async function TrackPage({ searchParams }: { searchParams: Promise<{ token?: string }> }) {
   const { token } = await searchParams;
   return (
     <main className="customer-shell">
-      <ShopHeader />
+      <UserNavbar />
       <section className="panel stack">
         <div className="intro">
           <h1>Track Your Order</h1>
