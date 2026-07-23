@@ -4,7 +4,7 @@ import { useState, type ReactNode } from "react";
 import { Printer, Eye, EyeOff, ArrowRight, Loader2, AlertCircle, type LucideIcon } from "lucide-react";
 
 /**
- * Shared building blocks for every auth screen (/login, /customer-login,
+ * Shared building blocks for every auth screen (/login, /admin,
  * /register, /forgot-password, /reset-password, /staff/accept-invite).
  * All markup/classes match the existing login-* styles in globals.css.
  */

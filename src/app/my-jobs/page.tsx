@@ -83,7 +83,7 @@ async function JobsList({ filter }: { filter: Filter }) {
   }
 
   if (!user || !supabase) {
-    redirect("/customer-login");
+    redirect("/login");
   }
 
   // Defense-in-depth alongside RLS's "customers can view own jobs" policy.
@@ -112,7 +112,7 @@ async function JobsList({ filter }: { filter: Filter }) {
     } catch {
       /* already signed out / env missing — redirect regardless */
     }
-    redirect("/customer-login");
+    redirect("/login");
   }
 
   return (

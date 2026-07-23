@@ -108,6 +108,7 @@ input, select, button {
 .shell { width: min(1120px, calc(100% - 32px)); margin: 0 auto; padding: var(--space-6) 0; }
 .shop-header {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
@@ -115,8 +116,45 @@ input, select, button {
 }
 .shop-logo { display: flex; align-items: center; gap: var(--space-2); color: var(--accent); font-weight: 800; font-size: 19px; letter-spacing: -0.3px; }
 
-.shop-nav {
+/* Auth cluster — top-right corner */
+.shop-auth {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+}
+.shop-auth-link {
+  padding: 8px 10px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent-strong);
+  border-radius: var(--radius-full);
+  transition: background var(--duration-base) var(--ease-out);
+}
+.shop-auth-link:hover { background: rgba(13, 122, 116, 0.08); }
+.shop-auth-btn {
   display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: var(--radius-full);
+  font-size: 13px;
+  font-weight: 700;
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(13, 122, 116, 0.25);
+  transition: filter var(--duration-base) var(--ease-out), box-shadow var(--duration-base) var(--ease-out);
+}
+.shop-auth-btn:hover {
+  filter: brightness(1.08);
+  box-shadow: 0 4px 12px rgba(13, 122, 116, 0.35);
+}
+.shop-auth-btn svg { flex-shrink: 0; }
+
+/* Nav drops to its own full-width row under logo + auth */
+.shop-nav {
+  display: flex;
+  width: 100%;
   padding: 3px;
   border-radius: var(--radius-full);
   background: var(--accent-bg);
@@ -124,12 +162,14 @@ input, select, button {
   gap: 2px;
 }
 .shop-nav-tab {
+  flex: 1;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 5px;
-  padding: 7px 12px;
+  padding: 8px 12px;
   border-radius: var(--radius-full);
-  font-size: 12px;
+  font-size: 12.5px;
   font-weight: 700;
   color: var(--muted);
   transition: all var(--duration-base) var(--ease-out);
@@ -144,6 +184,7 @@ input, select, button {
 .intro { text-align: center; margin-bottom: var(--space-5); }
 .intro h1 { font-size: 22px; margin: 0 0 var(--space-1); color: var(--ink); letter-spacing: -0.3px; }
 .intro p { font-size: 13px; margin: 0; color: var(--muted); }
+
 .upload-form { display: flex; flex-direction: column; gap: var(--space-5); }
 .step-content { display: grid; gap: var(--space-4); }
 
@@ -2726,7 +2767,20 @@ input[type="number"] {
 }
 
 .login-footer {
+  margin-top: 20px;
   color: var(--muted);
+  font-size: 13px;
+  text-align: center;
+  line-height: 1.7;
+}
+
+.login-footer a {
+  color: var(--accent-strong);
+  font-weight: 700;
+}
+
+.login-footer a:hover {
+  text-decoration: underline;
 }
 
 /* === Stats Bar === */
@@ -7506,5 +7560,20 @@ input[type="number"] {
   font-size: 12px;
   font-weight: 600;
   color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Delivery filter chip: count of orders currently out for delivery */
+.delivery-filter-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--warn-light);
+  color: var(--warn);
+  font-size: 11px;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
 }

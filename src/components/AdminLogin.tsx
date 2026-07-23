@@ -6,7 +6,12 @@ import Link from "next/link";
 import { Lock, Mail } from "lucide-react";
 import { AuthShell, AuthInput, AuthError, AuthSubmit } from "@/components/ui/Auth";
 
-export default function CustomerLoginPage() {
+/**
+ * Staff sign-in form shown at /admin when no staff session exists.
+ * On success the admin cookie is set; router.refresh() re-runs the server
+ * component, which then renders the dashboard in place.
+ */
+export default function AdminLogin() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -22,7 +27,7 @@ export default function CustomerLoginPage() {
     setLoading(true);
     setError("");
     try {
-      const response = await fetch("/api/customer/login", {
+      const response = await fetch("/api/admin/login", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -34,7 +39,7 @@ export default function CustomerLoginPage() {
         setLoading(false);
         return;
       }
-      router.push("/my-jobs");
+      router.refresh();
     } catch {
       setError("Connection error. Please try again.");
       setLoading(false);
@@ -42,7 +47,7 @@ export default function CustomerLoginPage() {
   };
 
   return (
-    <AuthShell title="Customer Login" subtitle="Track your print orders">
+    <AuthShell title="SelfPrint Admin" subtitle="Staff sign in">
       <form className="login-form" onSubmit={handleSubmit}>
         <AuthInput
           id="email"
@@ -70,9 +75,7 @@ export default function CustomerLoginPage() {
         <AuthError>{error}</AuthError>
         <AuthSubmit loading={loading} loadingLabel="Signing in..." label="Sign In" />
         <p className="login-footer">
-          <Link href="/forgot-password">Forgot password?</Link>
-          {" · "}
-          Need an account? <Link href="/register">Sign up</Link>
+          <Link href="/forgot-password?from=admin">Forgot password?</Link>
         </p>
       </form>
     </AuthShell>
