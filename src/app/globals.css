@@ -2798,6 +2798,27 @@ input[type="number"] {
   text-decoration: underline;
 }
 
+.auth-link-button {
+  align-self: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--accent-strong);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.auth-link-button:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
+.auth-link-button:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
 /* === Stats Bar === */
 .stats-bar {
   display: flex;

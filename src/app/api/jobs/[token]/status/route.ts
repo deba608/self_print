@@ -14,7 +14,6 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   // Generous enough for legitimate polling (every few seconds from one
   // device) while still capping how fast the 6-digit token space (900k
   // combos) can be brute-forced from a single source.
-  console.log("DEBUG clientIp:", clientIp(request.headers), "xff:", request.headers.get("x-forwarded-for"));
   if (isRateLimited("job-status", clientIp(request.headers), 60, 60 * 1000)) {
     return NextResponse.json({ error: "Too many requests. Please try again later." }, { status: 429 });
   }
