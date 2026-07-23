@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Printer, Upload, PackageSearch, Search, LogOut, UserRound, Loader2 } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 
 const navItems = [
   { href: "/", label: "New Print", icon: Upload },
