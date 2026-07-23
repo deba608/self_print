@@ -45,10 +45,26 @@ function loadRazorpayCheckout(): Promise<boolean> {
   return razorpayScriptPromise;
 }
 
+// Desktop gets a single merged workspace (settings + live preview side by
+// side) instead of the mobile 3-step wizard. Starts false so SSR/hydration
+// always match; flips right after mount.
+function useIsDesktop() {
+  const [isDesktop, setIsDesktop] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1024px)");
+    const update = () => setIsDesktop(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+  return isDesktop;
+}
+
 type Step = "upload" | "settings" | "preview" | "converting" | "done" | "docx-warning";
 type PageRangeMode = "all" | "even" | "odd" | "custom";
 
 export default function UploadForm() {
+  const isDesktop = useIsDesktop();
   const [step, setStep] = useState<Step>("upload");
   const [pricing, setPricing] = useState<Pricing | null>(null);
   const [file, setFile] = useState<File | null>(null);
@@ -960,17 +976,41 @@ export default function UploadForm() {
     }
   }
 
-  function goToPreview() {
+  // Shared pre-submit validation: mobile runs it before entering the Preview
+  // step, desktop runs it right before submitting from the merged workspace.
+  function validateSettings(): boolean {
     if (isDuplexInvalid) {
       setError("Double-sided printing requires at least 2 pages.");
-      return;
+      return false;
+    }
+    if (!isBulk && pageRangeMode === "custom" && customPageRange.trim() && !isValidPageRange) {
+      setError("Please enter valid page numbers within the PDF range.");
+      return false;
     }
     if (deliveryMethod === "delivery" && (!customerName.trim() || !/^\d{10}$/.test(customerPhone) || !deliveryAddress.trim())) {
       setError("Enter your name, a 10-digit phone number, and delivery address.");
-      return;
+      return false;
     }
+    return true;
+  }
+
+  function goToPreview() {
+    if (!validateSettings()) return;
     setStep("preview");
   }
+
+  // Desktop workspace confirm: preview is already on screen, so validation
+  // passes straight into submit — no intermediate step.
+  async function confirmFromWorkspace() {
+    if (!validateSettings()) return;
+    await handleSubmit();
+  }
+
+  // The separate Preview step doesn't exist on desktop — if the viewport
+  // crosses into desktop while on it, collapse back into the merged workspace.
+  useEffect(() => {
+    if (isDesktop && step === "preview") setStep("settings");
+  }, [isDesktop, step]);
 
   function resetForm() {
     setStep("upload");
@@ -1449,9 +1489,116 @@ export default function UploadForm() {
 
 
 
+  // Live print preview — used by the mobile Preview step AND the desktop
+  // merged workspace pane, so it stays a single source of truth.
+  const previewArea = (
+    <div className={`preview-area ${printType === "bw" ? "bw-sim" : ""}`}>
+      {isBulk && (
+        <>
+          <div className="bulk-file-list">
+            {bulkFiles.map((f, i) => {
+              const id = bulkIds[i];
+              const isLeaving = id !== undefined && leavingBulkIds.has(id);
+              return (
+              <div
+                className={`bulk-file-row ${i === bulkPreviewIndex ? "active" : ""} ${isLeaving ? "leaving" : ""}`}
+                key={id ?? i}
+                role="button"
+                tabIndex={0}
+                aria-label={`Preview ${f.name}`}
+                aria-pressed={i === bulkPreviewIndex}
+                onClick={() => setBulkPreviewIndex(i)}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setBulkPreviewIndex(i); } }}
+                onTransitionEnd={(e) => {
+                  if (e.target !== e.currentTarget || e.propertyName !== "max-height") return;
+                  if (id === undefined || !leavingBulkIds.has(id)) return;
+                  removeBulkFile(bulkIds.indexOf(id));
+                  setLeavingBulkIds((prev) => { const next = new Set(prev); next.delete(id); return next; });
+                }}
+              >
+                <BulkThumb file={f} grayscale={printType === "bw"} />
+                <span className="bulk-file-name">{f.name}</span>
+                <span className="bulk-file-pages">{bulkPageCounts[i] ?? 1} pg</span>
+                <button type="button" className="bulk-file-remove" aria-label={`Remove ${f.name}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (id === undefined) { removeBulkFile(i); return; }
+                    setLeavingBulkIds((prev) => new Set(prev).add(id));
+                  }}>
+                  <X size={16} />
+                </button>
+              </div>
+              );
+            })}
+          </div>
+          {/* Full print preview of the tapped file — same viewer as single mode */}
+          {bulkFiles[bulkPreviewIndex] && (
+            <PdfCanvasPreview
+              key={bulkIds[bulkPreviewIndex] ?? bulkPreviewIndex}
+              file={bulkFiles[bulkPreviewIndex]}
+              fallbackPageCount={bulkPageCounts[bulkPreviewIndex] ?? 1}
+              sim={{ pagesPerSheet, layout, paperSize, margins }}
+            />
+          )}
+        </>
+      )}
+      {file && file.type === "application/pdf" && (
+        <PdfCanvasPreview
+          file={file}
+          fallbackPageCount={filePageCount ?? 1}
+          sim={{ pagesPerSheet, layout, paperSize, margins, pages: selectedPageList }}
+        />
+      )}
+      {file && file.type.startsWith("image/") && previewUrl && (
+        <img src={previewUrl} alt="Image Preview" className="preview-image" />
+      )}
+      {file && (file.name.endsWith(".doc") || file.name.endsWith(".docx")) && (
+        <div className="doc-preview">
+          <File size={48} aria-hidden="true" />
+          <p>Word document preview not available</p>
+          <span className="muted">File will be reviewed at the shop</span>
+        </div>
+      )}
+    </div>
+  );
+
+  const totalPriceBlock = deliveryMethod === "delivery" && pricing ? (
+    <div className="total-price-breakdown">
+      <div className="total-price-row">
+        <span>Printing</span>
+        <span>₹{(estimate - pricing.deliveryFeePaise / 100).toFixed(2)}</span>
+      </div>
+      <div className="total-price-row">
+        <span>Delivery</span>
+        <span>{pricing.deliveryFeePaise > 0 ? `₹${(pricing.deliveryFeePaise / 100).toFixed(2)}` : "Free"}</span>
+      </div>
+      <div className="total-price">
+        <span>Total</span>
+        <strong>₹{estimate.toFixed(2)}</strong>
+      </div>
+    </div>
+  ) : (
+    <div className="total-price">
+      <span>Total</span>
+      <strong>{pricing ? `₹${estimate.toFixed(2)}` : "…"}</strong>
+    </div>
+  );
+
+  const submitButtonLabel = busy ? (
+    <><Loader2 size={20} className="spin" aria-hidden="true" /> Processing...</>
+  ) : isBulk && bulkUploading ? (
+    <><Loader2 size={20} className="spin" aria-hidden="true" /> Uploading files...</>
+  ) : (
+    deliveryMethod === "delivery"
+      ? <><CreditCard size={20} aria-hidden="true" /> Continue to Payment</>
+      : <><Check size={20} aria-hidden="true" /> Confirm Print</>
+  );
+
   return (
     <div className="upload-form">
-      {/* Step indicator */}
+      {/* Step indicator — mobile only; desktop merges steps 2+3 into one
+          workspace so a 3-step rail would lie about the flow. */}
+      {!isDesktop && (
       <nav className="step-indicator" aria-label="Upload progress">
         <div className={`step ${step === "upload" || step === "docx-warning" ? "current" : "completed"}`} aria-current={step === "upload" || step === "docx-warning" ? "step" : undefined}>
           <span className="step-num" aria-hidden="true">
@@ -2234,12 +2381,6 @@ export default function UploadForm() {
         </div>
       )}
 
-      {/* Help text */}
-      {step !== "done" && (
-        <p className="help-text">
-          Need help? Ask the shop staff for assistance.
-        </p>
-      )}
     </div>
   );
 }
