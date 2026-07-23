@@ -18,16 +18,35 @@ export default function UserNavbar() {
   const [loggingOut, setLoggingOut] = useState(false);
 
   useEffect(() => {
-    try {
-      const supabase = createClient();
-      supabase.auth.getUser().then(({ data }) => {
-        const meta = data.user?.user_metadata as Record<string, unknown> | undefined;
-        const metaName = typeof meta?.display_name === "string" ? meta.display_name : null;
-        setDisplayName(metaName ?? data.user?.email ?? null);
-      });
-    } catch {
-      setDisplayName(null);
-    }
+    let mounted = true;
+    const supabase = createClient();
+
+    /** Derive a display name from a Supabase User object */
+    const resolveName = (user: import("@supabase/supabase-js").User | null | undefined) => {
+      if (!user) return null;
+      const meta = user.user_metadata as Record<string, unknown> | undefined;
+      // Prefer explicit name fields over email
+      const name =
+        (typeof meta?.full_name === "string" && meta.full_name) ||
+        (typeof meta?.name === "string" && meta.name) ||
+        (typeof meta?.display_name === "string" && meta.display_name) ||
+        null;
+      if (name) return name;
+      // Last resort: use the local part of the email (before @)
+      const email = user.email ?? "";
+      return email.includes("@") ? email.split("@")[0] : email || null;
+    };
+
+    // Subscribe to auth changes — fires immediately with the current session,
+    // so the navbar updates the moment the user logs in or out.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (mounted) setDisplayName(resolveName(session?.user));
+    });
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const handleLogout = async () => {
