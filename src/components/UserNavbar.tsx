@@ -22,7 +22,10 @@ export default function UserNavbar() {
       const supabase = createClient();
       supabase.auth.getUser().then(async ({ data }) => {
         const email = data.user?.email ?? null;
-        if (data.user?.id) {
+        const metaName = data.user?.user_metadata?.display_name as string | undefined;
+        if (metaName) {
+          setDisplayName(metaName);
+        } else if (data.user?.id) {
           const { data: profile } = await supabase
             .from("customer_profiles")
             .select("display_name")
