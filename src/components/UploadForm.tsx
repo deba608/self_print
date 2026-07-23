@@ -1194,7 +1194,18 @@ export default function UploadForm() {
         </div>
 
         {paidInfo ? (
-          <BillReceipt bill={billData} />
+          <>
+            <BillReceipt bill={billData} />
+            {isDeliveryOrder && (
+              <div className="delivery-paid-note">
+                <Truck size={18} aria-hidden="true" />
+                <div>
+                  <strong>Payment received</strong>
+                  <p>The shop will print your order and update delivery progress here.</p>
+                </div>
+              </div>
+            )}
+          </>
         ) : result.needsConversion ? (
           <div className="counter-card">
             <span className="upi-tag"><Store size={13} aria-hidden="true" /> Pay at Counter</span>
@@ -1251,7 +1262,11 @@ export default function UploadForm() {
                   {payState === "paid" ? (
                     <div className="pay-done" role="status">
                       <Check size={20} aria-hidden="true" />
-                      <span>Payment received — show this screen to staff.</span>
+                      <span>
+                        {isDeliveryOrder
+                          ? "Payment received — your order will now be prepared for delivery."
+                          : "Payment received — show this screen to staff."}
+                      </span>
                     </div>
                   ) : (
                     <>
@@ -1274,8 +1289,8 @@ export default function UploadForm() {
 
                   <ol className="upi-steps">
                     <li><span className="upi-step-num">1</span> Tap Pay and complete payment</li>
-                    <li><span className="upi-step-num">2</span> Show this screen to staff</li>
-                    <li><span className="upi-step-num">3</span> Collect your print</li>
+                    <li><span className="upi-step-num">2</span> {isDeliveryOrder ? "The shop prepares your prints" : "Show this screen to staff"}</li>
+                    <li><span className="upi-step-num">3</span> {isDeliveryOrder ? "Track dispatch and delivery here" : "Collect your print"}</li>
                   </ol>
                 </div>
               ) : (
@@ -1301,8 +1316,8 @@ export default function UploadForm() {
 
                   <ol className="upi-steps">
                     <li><span className="upi-step-num">1</span> On this phone? Screenshot the QR, then scan it from gallery in your UPI app</li>
-                    <li><span className="upi-step-num">2</span> Pay ₹{amountRupees} and show this screen to staff</li>
-                    <li><span className="upi-step-num">3</span> Collect your print</li>
+                    <li><span className="upi-step-num">2</span> Pay ₹{amountRupees}{isDeliveryOrder ? "" : " and show this screen to staff"}</li>
+                    <li><span className="upi-step-num">3</span> {isDeliveryOrder ? "Track preparation and delivery here" : "Collect your print"}</li>
                   </ol>
                 </div>
               )
@@ -1321,6 +1336,14 @@ export default function UploadForm() {
               </div>
             )}
           </>
+        ) : isDeliveryOrder ? (
+          <div className="counter-card">
+            <span className="upi-tag"><CreditCard size={13} aria-hidden="true" /> Online Payment Required</span>
+            <div className="upi-amount">₹{amountRupees}</div>
+            <p className="counter-msg">
+              Online payment is temporarily unavailable. Your order is saved; retry from this page or contact the shop before delivery.
+            </p>
+          </div>
         ) : (
           <div className="counter-card">
             <span className="upi-tag"><Store size={13} aria-hidden="true" /> Pay at Counter</span>
@@ -1340,18 +1363,32 @@ export default function UploadForm() {
           const st = liveStatus?.status ?? "pending_payment";
           const paid = Boolean(liveStatus?.paidAt) || Boolean(paidInfo);
           const failed = !["pending_payment", "paid", "approved", "printing", "printed"].includes(st);
-          const done = [true, paid, st === "approved" || st === "printing" || st === "printed", st === "printed"];
+          const printStarted = st === "approved" || st === "printing" || st === "printed";
+          const printComplete = st === "printed";
+          const dispatched = liveStatus?.deliveryStatus === "out_for_delivery" || liveStatus?.deliveryStatus === "delivered";
+          const delivered = liveStatus?.deliveryStatus === "delivered";
+          const done = isDeliveryOrder
+            ? [true, paid, printComplete, dispatched, delivered]
+            : [true, paid, printStarted, printComplete];
           const activeIdx = done.findIndex((d) => !d);
           // jobsAhead is a live count (recomputed every poll) of active jobs
           // still ahead of this one — unlike queuePosition, a fixed ticket
           // number assigned at creation that never decreases.
           const jobsAhead = liveStatus?.jobsAhead ?? Math.max(0, result.queuePosition - 1);
-          const miniSteps = [
-            { label: "Submitted", icon: <UploadCloud size={15} /> },
-            { label: "Paid", icon: <CreditCard size={15} /> },
-            { label: "Printing", icon: <Printer size={15} /> },
-            { label: "Ready", icon: <Check size={15} /> },
-          ];
+          const miniSteps = isDeliveryOrder
+            ? [
+                { label: "Submitted", icon: <UploadCloud size={15} /> },
+                { label: "Paid", icon: <CreditCard size={15} /> },
+                { label: "Printed", icon: <Printer size={15} /> },
+                { label: "Dispatch", icon: <Truck size={15} /> },
+                { label: "Delivered", icon: <Check size={15} /> },
+              ]
+            : [
+                { label: "Submitted", icon: <UploadCloud size={15} /> },
+                { label: "Paid", icon: <CreditCard size={15} /> },
+                { label: "Printing", icon: <Printer size={15} /> },
+                { label: "Ready", icon: <Check size={15} /> },
+              ];
           return (
             <div className="mini-track" aria-live="polite">
               <div className="mini-track-head">
@@ -1380,7 +1417,16 @@ export default function UploadForm() {
                   })}
                 </div>
               )}
-              {st === "printed" && (
+              {st === "printed" && isDeliveryOrder && delivered && (
+                <p className="track-collect"><Check size={14} aria-hidden="true" /> Delivered successfully</p>
+              )}
+              {st === "printed" && isDeliveryOrder && dispatched && !delivered && (
+                <p className="track-collect"><Truck size={14} aria-hidden="true" /> Your order is out for delivery</p>
+              )}
+              {st === "printed" && isDeliveryOrder && !dispatched && (
+                <p className="track-collect"><Truck size={14} aria-hidden="true" /> Printed and waiting for dispatch</p>
+              )}
+              {st === "printed" && !isDeliveryOrder && (
                 <p className="track-collect"><Store size={14} aria-hidden="true" /> Ready — collect at the counter!</p>
               )}
             </div>
