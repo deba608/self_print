@@ -104,7 +104,7 @@ async function JobsList({ filter }: { filter: Filter }) {
 
   async function logout() {
     "use server";
-    // Same sign-out the POST /api/customer/logout route performs, done
+    // Same sign-out the POST /api/user/logout route performs, done
     // server-side so this page needs no client bundle.
     try {
       const sb = await createClient();
