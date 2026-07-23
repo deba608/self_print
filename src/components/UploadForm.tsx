@@ -1633,8 +1633,12 @@ export default function UploadForm() {
                     placeholder="10-digit phone number"
                     value={customerPhone}
                     onChange={(e) => setCustomerPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
-                    className="delivery-input"
+                    className={`delivery-input ${customerPhone.length > 0 && customerPhone.length < 10 ? "delivery-input-invalid" : ""}`}
                     autoComplete="tel-national"
+                    maxLength={10}
+                    minLength={10}
+                    pattern="[0-9]{10}"
+                    title="Enter exactly 10 digits"
                   />
                   <label className="delivery-field-label" htmlFor="delivery-address">Delivery address</label>
                   <textarea

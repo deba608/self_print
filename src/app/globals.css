@@ -1964,11 +1964,11 @@ input, select, button {
   gap: 6px;
   margin: 0;
   padding: 8px 12px;
-  border-radius: var(--radius-sm);
+  border-radius: 6px;
   background: var(--info-light);
   color: var(--info);
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
 }
 .delivery-pay-note svg { flex-shrink: 0; }
 
@@ -1993,6 +1993,14 @@ input, select, button {
 .delivery-input:focus {
   outline: none;
   border-color: var(--accent);
+}
+
+.delivery-input-invalid {
+  border-color: var(--danger);
+}
+.delivery-input-invalid:focus {
+  border-color: var(--danger);
+  box-shadow: 0 0 0 3px rgba(185, 28, 28, 0.1);
 }
 
 .delivery-address-input {
