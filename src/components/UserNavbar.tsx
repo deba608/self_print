@@ -14,17 +14,27 @@ const navItems = [
 
 export default function UserNavbar() {
   const pathname = usePathname();
-  const [email, setEmail] = useState<string | null | undefined>(undefined);
+  const [displayName, setDisplayName] = useState<string | null | undefined>(undefined);
   const [loggingOut, setLoggingOut] = useState(false);
 
   useEffect(() => {
     try {
       const supabase = createClient();
-      supabase.auth.getUser().then(({ data }) => {
-        setEmail(data.user?.email ?? null);
+      supabase.auth.getUser().then(async ({ data }) => {
+        const email = data.user?.email ?? null;
+        if (data.user?.id) {
+          const { data: profile } = await supabase
+            .from("customer_profiles")
+            .select("display_name")
+            .eq("id", data.user.id)
+            .single();
+          setDisplayName(profile?.display_name || email);
+        } else {
+          setDisplayName(email);
+        }
       });
     } catch {
-      setEmail(null);
+      setDisplayName(null);
     }
   }, []);
 
@@ -66,13 +76,13 @@ export default function UserNavbar() {
           </nav>
 
           <div className="user-navbar-user">
-            {email === undefined ? (
+            {displayName === undefined ? (
               <span className="user-navbar-skeleton" aria-hidden="true" />
-            ) : email ? (
+            ) : displayName ? (
               <>
-                <span className="user-navbar-email" title={email}>
+                <span className="user-navbar-email" title={displayName}>
                   <UserRound size={14} aria-hidden="true" />
-                  <span>{email}</span>
+                  <span>{displayName}</span>
                 </span>
                 <button
                   type="button"

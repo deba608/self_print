@@ -291,7 +291,7 @@ input, select, button {
   gap: 5px;
   min-height: 36px;
   padding: 0 var(--space-3);
-  border: 1px solid var(--danger);
+  border: 1px solid rgba(185, 28, 28, 0.35);
   border-radius: var(--radius-full);
   background: rgba(185, 28, 28, 0.03);
   color: var(--ink);
@@ -3236,8 +3236,8 @@ input[type="number"] {
   gap: 8px;
   padding: 8px 14px;
   border-radius: 12px;
-  border: 1px solid rgba(13, 122, 116, 0.25);
-  background: rgba(13, 122, 116, 0.08);
+  border: 1px solid rgba(13, 122, 116, 0.1);
+  background: rgba(255, 255, 255, 0.6);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   cursor: pointer;
@@ -3246,20 +3246,20 @@ input[type="number"] {
   color: var(--ink);
   transition: all var(--duration-base) var(--ease-out);
   min-height: 40px;
-  box-shadow: 0 2px 8px rgba(13, 122, 116, 0.08);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
 }
 
 .printer-btn:hover {
-  border-color: rgba(13, 122, 116, 0.35);
-  background: rgba(13, 122, 116, 0.15);
+  border-color: rgba(13, 122, 116, 0.2);
+  background: rgba(255, 255, 255, 0.8);
   box-shadow: 0 2px 8px rgba(13, 122, 116, 0.08);
 }
 
 .printer-btn.active {
   background: rgba(13, 122, 116, 0.08);
-  border-color: rgba(13, 122, 116, 0.25);
+  border-color: rgba(13, 122, 116, 0.2);
   color: var(--accent);
-  box-shadow: 0 2px 8px rgba(13, 122, 116, 0.08);
+  box-shadow: 0 1px 4px rgba(13, 122, 116, 0.06);
 }
 
 .printer-btn.empty {
@@ -3313,10 +3313,6 @@ input[type="number"] {
   flex-shrink: 0;
 }
 
-/* Every topbar icon button now borrows the notification bell's resting
-   look (soft teal border + light teal fill) instead of each button having
-   its own near-invisible default — one consistent, visible outline style
-   across the whole navbar. */
 .action-btn {
   position: relative;
   width: 40px;
@@ -3324,38 +3320,36 @@ input[type="number"] {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(13, 122, 116, 0.08);
+  background: rgba(255, 255, 255, 0.6);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  border: 1px solid rgba(13, 122, 116, 0.25);
+  border: 1px solid rgba(13, 122, 116, 0.1);
   border-radius: 12px;
   color: var(--ink);
   cursor: pointer;
   transition: all var(--duration-base) var(--ease-out);
   flex: 0 0 auto;
-  box-shadow: 0 2px 8px rgba(13, 122, 116, 0.08);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
 }
 
 .action-btn:hover {
-  border-color: rgba(13, 122, 116, 0.35);
+  border-color: rgba(13, 122, 116, 0.2);
   color: var(--accent);
-  background: rgba(13, 122, 116, 0.15);
+  background: rgba(255, 255, 255, 0.85);
   box-shadow: 0 2px 8px rgba(13, 122, 116, 0.08);
   transform: translateY(-1px);
 }
 
-/* Stronger than the resting teal outline — marks "this panel is open
-   right now", one tier up from the default button look. */
 .action-btn.active {
-  background: rgba(13, 122, 116, 0.15);
-  border-color: var(--accent);
+  background: rgba(13, 122, 116, 0.1);
+  border-color: rgba(13, 122, 116, 0.25);
   color: var(--accent);
-  box-shadow: 0 1px 4px rgba(13, 122, 116, 0.12);
+  box-shadow: 0 1px 4px rgba(13, 122, 116, 0.08);
 }
 
 .action-btn.active:hover {
-  background: rgba(13, 122, 116, 0.2);
-  border-color: var(--accent);
+  background: rgba(13, 122, 116, 0.15);
+  border-color: rgba(13, 122, 116, 0.3);
 }
 
 .action-btn.danger {
@@ -3377,7 +3371,7 @@ input[type="number"] {
   font-weight: 700;
   white-space: nowrap;
   color: var(--ink);
-  border-color: var(--danger);
+  border-color: rgba(185, 28, 28, 0.35);
   background: rgba(185, 28, 28, 0.03);
 }
 .action-btn.logout-action:hover {
