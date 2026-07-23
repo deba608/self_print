@@ -637,33 +637,13 @@ input, select, button {
   transition: all var(--duration-fast) var(--ease-out);
 }
 .file-thumb-remove:hover { background: var(--danger); color: #fff; }
-.file-thumb-actions {
-  display: flex;
-  align-items: center;
-  gap: 4px;
+.file-thumb-card.drag-over {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-light);
+  transform: scale(1.04);
 }
-.file-thumb-move {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.thumb-move-btn {
-  width: 20px;
-  height: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: none;
-  border-radius: 3px;
-  background: var(--panel);
-  color: var(--muted);
-  cursor: pointer;
-  transition: all var(--duration-fast) var(--ease-out);
-  padding: 0;
-  line-height: 1;
-}
-.thumb-move-btn:hover:not(:disabled) { background: var(--accent-light); color: var(--accent); }
-.thumb-move-btn:disabled { opacity: 0.25; cursor: default; }
+.file-thumb-card[draggable="true"] { cursor: grab; }
+.file-thumb-card[draggable="true"]:active { cursor: grabbing; }
 .file-thumb-add {
   display: flex;
   flex-direction: column;
@@ -986,34 +966,13 @@ input, select, button {
   pointer-events: none;
 }
 
-.bulk-file-row-actions {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  flex-shrink: 0;
+.bulk-file-row.drag-over {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-light);
+  transform: scale(1.02);
 }
-.bulk-file-move {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-}
-.bulk-move-btn {
-  width: 24px;
-  height: 18px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: none;
-  border-radius: 3px;
-  background: transparent;
-  color: var(--muted);
-  cursor: pointer;
-  transition: all var(--duration-fast) var(--ease-out);
-  padding: 0;
-  line-height: 1;
-}
-.bulk-move-btn:hover:not(:disabled) { background: var(--accent-light); color: var(--accent); }
-.bulk-move-btn:disabled { opacity: 0.25; cursor: default; }
+.bulk-file-row[draggable="true"] { cursor: grab; }
+.bulk-file-row[draggable="true"]:active { cursor: grabbing; }
 
 /* Settings heading */
 .settings-heading {
