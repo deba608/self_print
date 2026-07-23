@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import "./management.css";
 
 // Shop staff install this from /admin — its own manifest points start_url
 // at /admin so the home-screen icon opens straight to the dashboard, not
