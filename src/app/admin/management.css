@@ -205,12 +205,29 @@
 
 .management-toolbar {
   display: grid;
-  grid-template-columns: minmax(260px, 1fr) auto minmax(150px, auto);
+  grid-template-columns: minmax(260px, 1fr) auto;
   align-items: center;
   gap: 12px;
   padding: 16px;
   background: #fbfcfd;
   border-bottom: 1px solid var(--line);
+}
+
+.management-filter-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+@media (max-width: 640px) {
+  .management-filter-group {
+    flex-wrap: wrap;
+    gap: 9px;
+  }
+  .management-filter-group .management-select {
+    flex: 1;
+    min-width: 140px;
+  }
 }
 
 .management-toolbar.customer-toolbar { grid-template-columns: minmax(280px, 1fr) auto; }
