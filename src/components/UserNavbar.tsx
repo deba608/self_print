@@ -89,7 +89,10 @@ export default function UserNavbar() {
               </button>
             </>
           ) : (
-            <Link href="/login" className="user-navbar-login-btn">Log in</Link>
+            <>
+              <Link href="/login" className="user-navbar-login-link">Log in</Link>
+              <Link href="/register" className="user-navbar-signup-btn">Sign up</Link>
+            </>
           )}
         </div>
       </header>
