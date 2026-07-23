@@ -356,10 +356,11 @@
 
 @media (max-width: 640px) {
   .management-nav-inner { width: 100%; min-height: auto; display: grid; grid-template-columns: 1fr auto; gap: 8px; padding: 9px 12px 0; }
+  .management-brand { grid-column: 1; grid-row: 1; }
   .management-brand-mark { width: 34px; height: 34px; }
-  .management-logout { min-height: 36px; }
+  .management-logout { grid-column: 2; grid-row: 1; min-height: 36px; margin-left: 0; }
   .management-logout span { display: none; }
-  .management-tabs { grid-column: 1 / -1; width: calc(100% + 24px); margin-left: -12px; padding: 0 12px 8px; }
+  .management-tabs { grid-column: 1 / -1; grid-row: 2; width: calc(100% + 24px); margin-left: -12px; padding: 0 12px 8px; }
   .management-tabs a { min-height: 38px; }
   .management-tabs a span { display: inline; }
   .management-page { width: calc(100% - 20px); gap: 12px; padding: 12px 0 32px; }

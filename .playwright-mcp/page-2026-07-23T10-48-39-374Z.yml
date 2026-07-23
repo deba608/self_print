@@ -1,0 +1,65 @@
+- generic [active] [ref=f9e1]:
+  - generic [ref=f9e2]:
+    - banner [ref=f9e3]:
+      - generic [ref=f9e4]:
+        - link "Back to admin queue" [ref=f9e5] [cursor=pointer]:
+          - /url: /admin
+          - generic [ref=f9e11]:
+            - strong [ref=f9e12]: SelfPrint
+            - generic [ref=f9e13]: Operations
+        - navigation "Admin management" [ref=f9e14]:
+          - link "Queue" [ref=f9e15] [cursor=pointer]:
+            - /url: /admin
+          - link "Orders" [ref=f9e22] [cursor=pointer]:
+            - /url: /admin/orders
+          - link "Customers" [ref=f9e27] [cursor=pointer]:
+            - /url: /admin/customers
+          - link "Accounts" [ref=f9e33] [cursor=pointer]:
+            - /url: /admin/accounts
+          - link "Staff" [ref=f9e37] [cursor=pointer]:
+            - /url: /admin/staff
+        - button "Log out" [ref=f9e51] [cursor=pointer]
+    - main [ref=f9e56]:
+      - generic [ref=f9e57]:
+        - generic [ref=f9e58]:
+          - generic [ref=f9e59]: Operations workspace
+          - heading "Order management" [level=1] [ref=f9e60]
+          - paragraph [ref=f9e61]: Search, prioritize, and dispatch print orders from one focused view.
+        - button "Refresh" [disabled] [ref=f9e62]
+      - region "Order overview" [ref=f9e68]:
+        - article [ref=f9e69]:
+          - generic [ref=f9e74]:
+            - strong [ref=f9e75]: "0"
+            - generic [ref=f9e76]: Total orders
+        - article [ref=f9e77]:
+          - generic [ref=f9e82]:
+            - strong [ref=f9e83]: "0"
+            - generic [ref=f9e84]: Active queue
+        - article [ref=f9e85]:
+          - generic [ref=f9e92]:
+            - strong [ref=f9e93]: "0"
+            - generic [ref=f9e94]: Awaiting dispatch
+        - article [ref=f9e95]:
+          - generic [ref=f9e102]:
+            - strong [ref=f9e103]: "0"
+            - generic [ref=f9e104]: Out for delivery
+      - generic [ref=f9e105]:
+        - generic [ref=f9e106]:
+          - generic [ref=f9e107]:
+            - generic [ref=f9e108]: Search orders
+            - searchbox "Search orders" [ref=f9e109]
+          - group "Fulfilment filter" [ref=f9e110]:
+            - button "All" [ref=f9e111] [cursor=pointer]
+            - button "Pickup" [ref=f9e112] [cursor=pointer]
+            - button "Delivery" [ref=f9e113] [cursor=pointer]
+          - generic [ref=f9e114]:
+            - text: Filter by stage
+            - combobox "Filter by stage" [ref=f9e115] [cursor=pointer]:
+              - option "All stages" [selected]
+              - option "Active"
+              - option "Unpaid"
+              - option "Awaiting dispatch"
+              - option "Out for delivery"
+              - option "Delivered"
+        - generic [ref=f9e116]: Loading orders...
+  - alert [ref=f9e119]
