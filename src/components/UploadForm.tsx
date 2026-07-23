@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useRef } from "react";
-import { UploadCloud, FileText, Image, ArrowLeft, ArrowRight, Check, Eye, Loader2, File, Settings2, Maximize2, Minimize2, Printer, Smartphone, Copy, Store, X, Search, CreditCard, RefreshCw, Info, Truck, MapPin, Navigation } from "lucide-react";
+import { UploadCloud, FileText, Image, ArrowLeft, ArrowRight, ArrowUp, ArrowDown, Check, Eye, Loader2, File, Settings2, Maximize2, Minimize2, Printer, Smartphone, Copy, Store, X, Search, CreditCard, RefreshCw, Info, Truck, MapPin, Navigation } from "lucide-react";
 import { formatRupees, paperSizeLabels, allPaperSizes } from "@/lib/pricing";
 import BillReceipt, { type BillData } from "./BillReceipt";
 import { QRCodeSVG } from "qrcode.react";
@@ -824,6 +824,15 @@ export default function UploadForm() {
     }
   }
 
+  function moveBulkFile(i: number, dir: -1 | 1) {
+    const j = i + dir;
+    if (j < 0 || j >= bulkFiles.length) return;
+    setBulkFiles((prev) => { const arr = [...prev]; [arr[i], arr[j]] = [arr[j], arr[i]]; return arr; });
+    setBulkPageCounts((prev) => { const arr = [...prev]; [arr[i], arr[j]] = [arr[j], arr[i]]; return arr; });
+    setBulkIds((prev) => { const arr = [...prev]; [arr[i], arr[j]] = [arr[j], arr[i]]; return arr; });
+    setBulkPreviewIndex((prev) => prev === i ? j : prev === j ? i : prev);
+  }
+
   async function handleBulkSubmit() {
     if (bulkFiles.length === 0) return;
     setBusy(true);
@@ -1641,14 +1650,30 @@ export default function UploadForm() {
                       <BulkThumb file={f} grayscale={printType === "bw"} width={82} />
                       <span className="file-thumb-name" title={f.name}>{f.name}</span>
                       <span className="file-thumb-pages">{bulkPageCounts[i] ?? 1} pg</span>
-                      <button
-                        type="button"
-                        className="file-thumb-remove"
-                        aria-label={`Remove ${f.name}`}
-                        onClick={(e) => { e.stopPropagation(); removeBulkFile(i); }}
-                      >
-                        <X size={13} />
-                      </button>
+                      <div className="file-thumb-actions">
+                        {bulkFiles.length > 1 && (
+                          <div className="file-thumb-move">
+                            <button type="button" className="thumb-move-btn"
+                              disabled={i === 0}
+                              onClick={(e) => { e.stopPropagation(); moveBulkFile(i, -1); }}
+                              aria-label="Move file up"
+                            ><ArrowUp size={11} /></button>
+                            <button type="button" className="thumb-move-btn"
+                              disabled={i === bulkFiles.length - 1}
+                              onClick={(e) => { e.stopPropagation(); moveBulkFile(i, 1); }}
+                              aria-label="Move file down"
+                            ><ArrowDown size={11} /></button>
+                          </div>
+                        )}
+                        <button
+                          type="button"
+                          className="file-thumb-remove"
+                          aria-label={`Remove ${f.name}`}
+                          onClick={(e) => { e.stopPropagation(); removeBulkFile(i); }}
+                        >
+                          <X size={13} />
+                        </button>
+                      </div>
                     </div>
                   ))
                 ) : file && (
@@ -1760,6 +1785,7 @@ export default function UploadForm() {
           </div>{/* /fs-file-zone */}
 
           <div className="fs-settings compact-settings">
+          <h3 className="settings-heading">Print Settings</h3>
           {/* Print type toggle */}
           <div className="print-type-toggle">
             <button
@@ -2225,14 +2251,30 @@ export default function UploadForm() {
                       <BulkThumb file={f} grayscale={printType === "bw"} />
                       <span className="bulk-file-name">{f.name}</span>
                       <span className="bulk-file-pages">{bulkPageCounts[i] ?? 1} pg</span>
-                      <button type="button" className="bulk-file-remove" aria-label={`Remove ${f.name}`}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (id === undefined) { removeBulkFile(i); return; }
-                          setLeavingBulkIds((prev) => new Set(prev).add(id));
-                        }}>
-                        <X size={16} />
-                      </button>
+                      <div className="bulk-file-row-actions">
+                        {bulkFiles.length > 1 && (
+                          <div className="bulk-file-move">
+                            <button type="button" className="bulk-move-btn"
+                              disabled={i === 0}
+                              onClick={(e) => { e.stopPropagation(); moveBulkFile(i, -1); }}
+                              aria-label="Move file up"
+                            ><ArrowUp size={14} /></button>
+                            <button type="button" className="bulk-move-btn"
+                              disabled={i === bulkFiles.length - 1}
+                              onClick={(e) => { e.stopPropagation(); moveBulkFile(i, 1); }}
+                              aria-label="Move file down"
+                            ><ArrowDown size={14} /></button>
+                          </div>
+                        )}
+                        <button type="button" className="bulk-file-remove" aria-label={`Remove ${f.name}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (id === undefined) { removeBulkFile(i); return; }
+                            setLeavingBulkIds((prev) => new Set(prev).add(id));
+                          }}>
+                          <X size={16} />
+                        </button>
+                      </div>
                     </div>
                     );
                   })}
