@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useRef } from "react";
-import { UploadCloud, FileText, Image, ArrowLeft, ArrowRight, Check, Eye, Loader2, File, Settings2, Maximize2, Minimize2, Printer, Smartphone, Copy, Store, X, Search, CreditCard, RefreshCw, Info } from "lucide-react";
+import { UploadCloud, FileText, Image, ArrowLeft, ArrowRight, Check, Eye, Loader2, File, Settings2, Maximize2, Minimize2, Printer, Smartphone, Copy, Store, X, Search, CreditCard, RefreshCw, Info, Truck, MapPin, Navigation } from "lucide-react";
 import { formatRupees, paperSizeLabels, allPaperSizes } from "@/lib/pricing";
 import BillReceipt, { type BillData } from "./BillReceipt";
 import { QRCodeSVG } from "qrcode.react";
@@ -76,6 +76,13 @@ export default function UploadForm() {
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [deliveryAddress, setDeliveryAddress] = useState("");
+  const [deliveryLocation, setDeliveryLocation] = useState<{
+    latitude: number;
+    longitude: number;
+    accuracyMeters: number;
+  } | null>(null);
+  const [locationState, setLocationState] = useState<"idle" | "locating" | "captured">("idle");
+  const [locationError, setLocationError] = useState("");
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
   // Direction-aware step transition: forward navigation slides in from the
@@ -387,7 +394,7 @@ export default function UploadForm() {
     (pricing?.shopUpiId ?? "").trim() || (pricing?.shopUpiQr ?? "").trim() || (pricing?.razorpayKeyId ?? "").trim()
   );
 
-  const deliveryOfferable = !isBulk && !isDocFile && onlinePaymentRailAvailable;
+  const deliveryOfferable = !isDocFile && onlinePaymentRailAvailable;
 
   useEffect(() => {
     if (!deliveryOfferable && deliveryMethod === "delivery") {
@@ -395,8 +402,52 @@ export default function UploadForm() {
       setCustomerName("");
       setCustomerPhone("");
       setDeliveryAddress("");
+      setDeliveryLocation(null);
+      setLocationState("idle");
+      setLocationError("");
     }
   }, [deliveryOfferable, deliveryMethod]);
+
+  function captureDeliveryLocation() {
+    setLocationError("");
+    if (!navigator.geolocation) {
+      setLocationError("Location access is not supported on this device. Your written address will still be used.");
+      return;
+    }
+    setLocationState("locating");
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setDeliveryLocation({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          accuracyMeters: Math.round(position.coords.accuracy),
+        });
+        setLocationState("captured");
+      },
+      (geoError) => {
+        setLocationState("idle");
+        setLocationError(
+          geoError.code === geoError.PERMISSION_DENIED
+            ? "Location permission was denied. You can continue with the written address."
+            : "We could not get your location. Move near a window and try again, or continue with the written address."
+        );
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+    );
+  }
+
+  function appendDeliveryDetails(form: FormData) {
+    form.set("deliveryMethod", deliveryMethod);
+    if (deliveryMethod !== "delivery") return;
+    form.set("customerName", customerName.trim());
+    form.set("customerPhone", customerPhone);
+    form.set("deliveryAddress", deliveryAddress.trim());
+    if (deliveryLocation) {
+      form.set("deliveryLatitude", String(deliveryLocation.latitude));
+      form.set("deliveryLongitude", String(deliveryLocation.longitude));
+      form.set("deliveryAccuracyMeters", String(deliveryLocation.accuracyMeters));
+    }
+  }
 
   const estimate = useMemo(() => {
     if (!pricing) return 0;
