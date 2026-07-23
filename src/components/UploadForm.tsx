@@ -330,16 +330,34 @@ export default function UploadForm() {
   // the paid-detection that flips this phone to the receipt. One poll serves
   // both: runs while the token screen is up, stops once the job is printed
   // (or leaves the normal flow — failed/cancelled).
-  const [liveStatus, setLiveStatus] = useState<{ status: string; paidAt: string | null; queuePosition?: number; jobsAhead?: number } | null>(null);
+  const [liveStatus, setLiveStatus] = useState<{
+    status: string;
+    paidAt: string | null;
+    queuePosition?: number;
+    jobsAhead?: number;
+    deliveryStatus?: "out_for_delivery" | "delivered" | null;
+  } | null>(null);
   useEffect(() => {
     if (!result || result.needsConversion) return;
-    if (liveStatus && (liveStatus.status === "printed" || !["pending_payment", "paid", "approved", "printing"].includes(liveStatus.status))) return;
+    if (liveStatus) {
+      const terminalFailure = !["pending_payment", "paid", "approved", "printing", "printed"].includes(liveStatus.status);
+      const orderComplete = deliveryMethod === "delivery"
+        ? liveStatus.status === "printed" && liveStatus.deliveryStatus === "delivered"
+        : liveStatus.status === "printed";
+      if (terminalFailure || orderComplete) return;
+    }
     const interval = setInterval(async () => {
       try {
         const res = await fetch(`/api/jobs/${result.token}/status`, { cache: "no-store" });
         if (!res.ok) return;
         const body = await res.json();
-        setLiveStatus({ status: body.status, paidAt: body.paidAt ?? null, queuePosition: body.queuePosition, jobsAhead: body.jobsAhead });
+        setLiveStatus({
+          status: body.status,
+          paidAt: body.paidAt ?? null,
+          queuePosition: body.queuePosition,
+          jobsAhead: body.jobsAhead,
+          deliveryStatus: body.deliveryStatus ?? null,
+        });
         if (body.paidAt) {
           setPaidInfo((p) => p ?? { method: "counter", at: body.paidAt });
         }
@@ -348,7 +366,7 @@ export default function UploadForm() {
       }
     }, 5000);
     return () => clearInterval(interval);
-  }, [result, liveStatus]);
+  }, [result, liveStatus, deliveryMethod]);
 
   const effectivePageRange = useMemo(() => {
     if (pageRangeMode === "all") return "";
@@ -607,11 +625,6 @@ export default function UploadForm() {
     // Bulk mode hides the delivery toggle entirely — reset to pickup so no
     // stale delivery fee/contact fields leak into the bulk estimate or block
     // goToPreview on now-hidden fields.
-    setDeliveryMethod("pickup");
-    setCustomerName("");
-    setCustomerPhone("");
-    setDeliveryAddress("");
-
     const ids = selected.map(() => crypto.randomUUID());
     setBulkFiles(selected);
     setBulkIds(ids);
@@ -817,6 +830,7 @@ export default function UploadForm() {
       bulkForm.set("margins", margins);
       bulkForm.set("pagesPerSheet", String(pagesPerSheet));
       bulkForm.set("duplex", duplex);
+      appendDeliveryDetails(bulkForm);
 
       if (uploadResults.some((r) => r.fallback)) {
         // Direct upload unavailable — send the PDFs themselves; the server
@@ -889,12 +903,7 @@ export default function UploadForm() {
     form.set("margins", margins);
     form.set("pagesPerSheet", String(pagesPerSheet));
     form.set("duplex", duplex);
-    form.set("deliveryMethod", deliveryMethod);
-    if (deliveryMethod === "delivery") {
-      form.set("customerName", customerName.trim());
-      form.set("customerPhone", customerPhone);
-      form.set("deliveryAddress", deliveryAddress.trim());
-    }
+    appendDeliveryDetails(form);
 
     const controller = new AbortController();
     const timeoutId = window.setTimeout(() => controller.abort(), 60000);
@@ -954,7 +963,7 @@ export default function UploadForm() {
       setError("Double-sided printing requires at least 2 pages.");
       return;
     }
-    if (!isBulk && deliveryMethod === "delivery" && (!customerName.trim() || !/^\d{10}$/.test(customerPhone) || !deliveryAddress.trim())) {
+    if (deliveryMethod === "delivery" && (!customerName.trim() || !/^\d{10}$/.test(customerPhone) || !deliveryAddress.trim())) {
       setError("Enter your name, a 10-digit phone number, and delivery address.");
       return;
     }
@@ -988,6 +997,9 @@ export default function UploadForm() {
     setCustomerName("");
     setCustomerPhone("");
     setDeliveryAddress("");
+    setDeliveryLocation(null);
+    setLocationState("idle");
+    setLocationError("");
     if (previewUrl) {
       URL.revokeObjectURL(previewUrl);
       setPreviewUrl(null);
@@ -1393,19 +1405,23 @@ export default function UploadForm() {
     <div className="upload-form">
       {/* Step indicator */}
       <nav className="step-indicator" aria-label="Upload progress">
-        <div className={`step ${step === "upload" || step === "settings" || step === "preview" ? "active" : step === "done" ? "done" : ""}`} aria-current={step === "upload" ? "step" : undefined}>
-          <span className="step-num" aria-hidden="true">1</span>
+        <div className={`step ${step === "upload" || step === "docx-warning" ? "current" : "completed"}`} aria-current={step === "upload" || step === "docx-warning" ? "step" : undefined}>
+          <span className="step-num" aria-hidden="true">
+            {step === "upload" || step === "docx-warning" ? "1" : <Check size={15} />}
+          </span>
           <span className="step-label">Upload</span>
         </div>
-        <div className="step-line" aria-hidden="true" />
-        <div className={`step ${step === "settings" || step === "preview" ? "active" : step === "done" ? "done" : ""}`} aria-current={step === "settings" ? "step" : undefined}>
-          <span className="step-num" aria-hidden="true">2</span>
-          <span className="step-label">Settings</span>
+        <div className={`step-line ${step === "settings" || step === "preview" ? "filled" : ""}`} aria-hidden="true" />
+        <div className={`step ${step === "settings" ? "current" : step === "preview" ? "completed" : ""}`} aria-current={step === "settings" ? "step" : undefined}>
+          <span className="step-num" aria-hidden="true">
+            {step === "preview" ? <Check size={15} /> : "2"}
+          </span>
+          <span className="step-label">Options</span>
         </div>
-        <div className="step-line" aria-hidden="true" />
-        <div className={`step ${step === "preview" ? "active" : step === "done" ? "done" : ""}`} aria-current={step === "preview" ? "step" : undefined}>
+        <div className={`step-line ${step === "preview" ? "filled" : ""}`} aria-hidden="true" />
+        <div className={`step ${step === "preview" ? "current" : ""}`} aria-current={step === "preview" ? "step" : undefined}>
           <span className="step-num" aria-hidden="true">3</span>
-          <span className="step-label">Preview</span>
+          <span className="step-label">Confirm</span>
         </div>
       </nav>
 
@@ -1434,9 +1450,12 @@ export default function UploadForm() {
               onChange={handleFileChange}
             />
             <label htmlFor="file-input" className="upload-label">
-              <UploadCloud size={56} className="upload-icon" aria-hidden="true" />
-              <strong>Tap to select file</strong>
-              <span className="muted">PDF, JPG, PNG up to 25MB · or select 2-10 PDFs at once</span>
+              <span className="upload-icon-wrap">
+                <UploadCloud size={32} className="upload-icon" aria-hidden="true" />
+              </span>
+              <strong>Upload your documents</strong>
+              <span className="muted">Tap to browse or drag and drop files here</span>
+              <span className="upload-limit">PDF, JPG or PNG · Up to 25 MB each</span>
             </label>
           </div>
           <div className="supported-formats">
