@@ -2183,9 +2183,14 @@ input, select, button {
   50% { opacity: 0.72; transform: scale(1.05); }
 }
 
+.token-value {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--accent);
+}
 .result-meta-value.token-value {
   font-size: 30px;
-  font-weight: 900;
+  font-weight: 700;
   color: var(--accent);
   letter-spacing: 2px;
 }
@@ -4644,16 +4649,14 @@ input[type="number"] {
   align-items: flex-start;
   gap: 14px;
   padding: 18px;
-  background: rgba(255, 255, 255, 0.65);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(13, 122, 116, 0.08);
-  border-radius: 16px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
   transition: all var(--duration-base) var(--ease-out);
   animation: cardSlideIn 0.35s var(--ease-out) both;
   position: relative;
   overflow: hidden;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02), 0 4px 12px rgba(13, 122, 116, 0.03);
+  box-shadow: var(--shadow-sm);
 }
 
 @keyframes cardSlideIn {
@@ -4672,7 +4675,7 @@ input[type="number"] {
 .job-list .job-card:nth-child(8) { animation-delay: 280ms; }
 
 .job-card:hover {
-  background: rgba(255, 255, 255, 0.8);
+  background: rgba(13, 122, 116, 0.02);
   border-color: rgba(13, 122, 116, 0.15);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03), 0 8px 20px rgba(13, 122, 116, 0.06);
   transform: translateY(-1px);
@@ -8428,22 +8431,22 @@ input[type="number"] {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 44px;
-  padding: 0 var(--space-4);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-full);
+  min-height: 36px;
+  padding: 0 16px;
+  border: 1.5px solid var(--line);
+  border-radius: 6px;
   background: #fff;
   color: var(--muted);
-  font-size: 13.5px;
+  font-size: 12.5px;
   font-weight: 700;
   text-decoration: none;
   transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out);
 }
 .jobs-filter-chip:hover { border-color: var(--accent); color: var(--accent-strong); }
 .jobs-filter-chip.is-active {
-  background: var(--accent);
+  background: rgba(13, 122, 116, 0.1);
   border-color: var(--accent);
-  color: #fff;
+  color: var(--accent-strong);
 }
 
 /* Job card badge column + tabular prices */
