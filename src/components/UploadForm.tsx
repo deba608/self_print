@@ -330,25 +330,46 @@ export default function UploadForm() {
   // the paid-detection that flips this phone to the receipt. One poll serves
   // both: runs while the token screen is up, stops once the job is printed
   // (or leaves the normal flow — failed/cancelled).
-  const [liveStatus, setLiveStatus] = useState<{ status: string; paidAt: string | null; queuePosition?: number; jobsAhead?: number } | null>(null);
+  const [liveStatus, setLiveStatus] = useState<{
+    status: string;
+    paidAt: string | null;
+    queuePosition?: number;
+    jobsAhead?: number;
+    deliveryStatus?: "out_for_delivery" | "delivered" | null;
+  } | null>(null);
   useEffect(() => {
     if (!result || result.needsConversion) return;
-    if (liveStatus && (liveStatus.status === "printed" || !["pending_payment", "paid", "approved", "printing"].includes(liveStatus.status))) return;
+    if (liveStatus) {
+      const terminalFailure = !["pending_payment", "paid", "approved", "printing", "printed"].includes(liveStatus.status);
+      const orderComplete = deliveryMethod === "delivery"
+        ? liveStatus.status === "printed" && liveStatus.deliveryStatus === "delivered"
+        : liveStatus.status === "printed";
+      if (terminalFailure || orderComplete) return;
+    }
     const interval = setInterval(async () => {
       try {
         const res = await fetch(`/api/jobs/${result.token}/status`, { cache: "no-store" });
         if (!res.ok) return;
         const body = await res.json();
-        setLiveStatus({ status: body.status, paidAt: body.paidAt ?? null, queuePosition: body.queuePosition, jobsAhead: body.jobsAhead });
+        setLiveStatus({
+          status: body.status,
+          paidAt: body.paidAt ?? null,
+          queuePosition: body.queuePosition,
+          jobsAhead: body.jobsAhead,
+          deliveryStatus: body.deliveryStatus ?? null,
+        });
         if (body.paidAt) {
-          setPaidInfo((p) => p ?? { method: "counter", at: body.paidAt });
+          setPaidInfo((p) => p ?? {
+            method: deliveryMethod === "delivery" ? "online" : "counter",
+            at: body.paidAt,
+          });
         }
       } catch {
         /* transient network error — next tick retries */
       }
     }, 5000);
     return () => clearInterval(interval);
-  }, [result, liveStatus]);
+  }, [result, liveStatus, deliveryMethod]);
 
   const effectivePageRange = useMemo(() => {
     if (pageRangeMode === "all") return "";
@@ -604,13 +625,7 @@ export default function UploadForm() {
       setPreviewUrl(null);
     }
 
-    // Bulk mode hides the delivery toggle entirely — reset to pickup so no
-    // stale delivery fee/contact fields leak into the bulk estimate or block
-    // goToPreview on now-hidden fields.
-    setDeliveryMethod("pickup");
-    setCustomerName("");
-    setCustomerPhone("");
-    setDeliveryAddress("");
+    // Preserve delivery details when a single PDF becomes a batch.
 
     const ids = selected.map(() => crypto.randomUUID());
     setBulkFiles(selected);
@@ -817,6 +832,7 @@ export default function UploadForm() {
       bulkForm.set("margins", margins);
       bulkForm.set("pagesPerSheet", String(pagesPerSheet));
       bulkForm.set("duplex", duplex);
+      appendDeliveryDetails(bulkForm);
 
       if (uploadResults.some((r) => r.fallback)) {
         // Direct upload unavailable — send the PDFs themselves; the server
@@ -889,12 +905,7 @@ export default function UploadForm() {
     form.set("margins", margins);
     form.set("pagesPerSheet", String(pagesPerSheet));
     form.set("duplex", duplex);
-    form.set("deliveryMethod", deliveryMethod);
-    if (deliveryMethod === "delivery") {
-      form.set("customerName", customerName.trim());
-      form.set("customerPhone", customerPhone);
-      form.set("deliveryAddress", deliveryAddress.trim());
-    }
+    appendDeliveryDetails(form);
 
     const controller = new AbortController();
     const timeoutId = window.setTimeout(() => controller.abort(), 60000);
@@ -954,7 +965,7 @@ export default function UploadForm() {
       setError("Double-sided printing requires at least 2 pages.");
       return;
     }
-    if (!isBulk && deliveryMethod === "delivery" && (!customerName.trim() || !/^\d{10}$/.test(customerPhone) || !deliveryAddress.trim())) {
+    if (deliveryMethod === "delivery" && (!customerName.trim() || !/^\d{10}$/.test(customerPhone) || !deliveryAddress.trim())) {
       setError("Enter your name, a 10-digit phone number, and delivery address.");
       return;
     }
@@ -988,6 +999,9 @@ export default function UploadForm() {
     setCustomerName("");
     setCustomerPhone("");
     setDeliveryAddress("");
+    setDeliveryLocation(null);
+    setLocationState("idle");
+    setLocationError("");
     if (previewUrl) {
       URL.revokeObjectURL(previewUrl);
       setPreviewUrl(null);
@@ -1541,7 +1555,7 @@ export default function UploadForm() {
                   onClick={() => setDeliveryMethod("delivery")}
                   aria-pressed={deliveryMethod === "delivery"}
                 >
-                  <UploadCloud size={18} aria-hidden="true" />
+                  <Truck size={18} aria-hidden="true" />
                   Home Delivery
                   {pricing && pricing.deliveryFeePaise > 0 && (
                     <span className="delivery-fee-tag">+{formatRupees(pricing.deliveryFeePaise)}</span>
@@ -1586,6 +1600,47 @@ export default function UploadForm() {
                     rows={2}
                     autoComplete="street-address"
                   />
+                  <div className={`delivery-location-card ${deliveryLocation ? "captured" : ""}`}>
+                    <div className="delivery-location-copy">
+                      <span className="delivery-location-icon" aria-hidden="true"><MapPin size={18} /></span>
+                      <div>
+                        <strong>Pin your delivery location</strong>
+                        <p>
+                          Optional, but recommended. Your device shares coordinates only after
+                          you allow access; the written address stays required.
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      className="delivery-location-btn"
+                      onClick={captureDeliveryLocation}
+                      disabled={locationState === "locating"}
+                    >
+                      {locationState === "locating" ? (
+                        <><Loader2 size={16} className="spin" aria-hidden="true" /> Locating...</>
+                      ) : deliveryLocation ? (
+                        <><RefreshCw size={16} aria-hidden="true" /> Refresh location</>
+                      ) : (
+                        <><Navigation size={16} aria-hidden="true" /> Use my location</>
+                      )}
+                    </button>
+                    <div className="delivery-location-feedback" aria-live="polite">
+                      {deliveryLocation && (
+                        <>
+                          <span>Location captured with an accuracy radius of about {deliveryLocation.accuracyMeters} m.</span>
+                          <a
+                            href={`https://www.google.com/maps/search/?api=1&query=${deliveryLocation.latitude},${deliveryLocation.longitude}`}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            Check map
+                          </a>
+                        </>
+                      )}
+                      {locationError && <span className="delivery-location-error">{locationError}</span>}
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
@@ -2026,6 +2081,31 @@ export default function UploadForm() {
             </div>
           </div>
 
+          {deliveryMethod === "delivery" && (
+            <div className="delivery-review-card">
+              <div className="delivery-review-heading">
+                <Truck size={18} aria-hidden="true" />
+                <div>
+                  <h4>Home delivery</h4>
+                  <p>Paid online before printing</p>
+                </div>
+              </div>
+              <dl className="delivery-review-details">
+                <div><dt>Customer</dt><dd>{customerName}</dd></div>
+                <div><dt>Phone</dt><dd>{customerPhone}</dd></div>
+                <div className="delivery-review-address"><dt>Address</dt><dd>{deliveryAddress}</dd></div>
+                <div>
+                  <dt>Map pin</dt>
+                  <dd>
+                    {deliveryLocation
+                      ? `Captured (about ±${deliveryLocation.accuracyMeters} m)`
+                      : "Not shared — written address will be used"}
+                  </dd>
+                </div>
+              </dl>
+            </div>
+          )}
+
           {/* Total price */}
           {deliveryMethod === "delivery" && pricing ? (
             <div className="total-price-breakdown">
@@ -2035,7 +2115,7 @@ export default function UploadForm() {
               </div>
               <div className="total-price-row">
                 <span>Delivery</span>
-                <span>₹{(pricing.deliveryFeePaise / 100).toFixed(2)}</span>
+                <span>{pricing.deliveryFeePaise > 0 ? `₹${(pricing.deliveryFeePaise / 100).toFixed(2)}` : "Free"}</span>
               </div>
               <div className="total-price">
                 <span>Total</span>
@@ -2079,7 +2159,9 @@ export default function UploadForm() {
               ) : isBulk && bulkUploading ? (
                 <><Loader2 size={20} className="spin" aria-hidden="true" /> Uploading files...</>
               ) : (
-                <><Check size={20} aria-hidden="true" /> Confirm Print</>
+                deliveryMethod === "delivery"
+                  ? <><CreditCard size={20} aria-hidden="true" /> Continue to Payment</>
+                  : <><Check size={20} aria-hidden="true" /> Confirm Print</>
               )}
             </button>
           </div>
