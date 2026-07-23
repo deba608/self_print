@@ -300,7 +300,7 @@ input, select, button {
   cursor: pointer;
   transition: color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out);
 }
-.user-navbar-logout:hover { color: var(--danger); border-color: var(--danger-light); }
+.user-navbar-logout:hover { color: var(--danger); border-color: var(--danger); background: rgba(185, 28, 28, 0.06); }
 .user-navbar-logout:disabled { cursor: wait; opacity: 0.7; }
 .user-navbar-login-link {
   display: inline-flex;
@@ -3358,9 +3358,18 @@ input[type="number"] {
   width: auto;
   min-width: 40px;
   padding: 0 12px;
-  gap: 7px;
+  gap: 6px;
   font-weight: 700;
   white-space: nowrap;
+  color: var(--muted);
+  border-color: var(--line);
+}
+.action-btn.logout-action:hover {
+  color: var(--danger);
+  border-color: var(--danger);
+  background: rgba(185, 28, 28, 0.06);
+  box-shadow: none;
+  transform: translateY(-1px);
 }
 
 /* Labeled variant — icon + visible text, for buttons whose purpose
@@ -7050,7 +7059,8 @@ input[type="number"] {
   font-weight: 850;
 }
 
-.staff-avatar.super_admin { color: #92400e; background: #fef3c7; border-color: #fde68a; }
+.staff-avatar.super_admin,
+.staff-avatar.owner { color: #92400e; background: #fef3c7; border-color: #fde68a; }
 .staff-member-identity { min-width: 0; }
 .staff-member-name { display: flex; align-items: center; gap: 7px; }
 .staff-member-name strong {
@@ -7106,7 +7116,8 @@ input[type="number"] {
   font-weight: 800;
 }
 
-.staff-role-badge.super_admin { color: #92400e; background: #fef3c7; }
+.staff-role-badge.super_admin,
+.staff-role-badge.owner { color: #92400e; background: #fef3c7; }
 .staff-joined-date { color: var(--muted); font-size: 10.5px; font-weight: 650; }
 .staff-member-actions { display: flex; justify-content: flex-end; }
 

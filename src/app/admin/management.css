@@ -78,25 +78,27 @@
 .management-tabs a.active { color: var(--accent-strong); background: var(--accent-light); }
 
 .management-logout {
-  min-height: 40px;
+  min-height: 36px;
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: 6px;
   margin-left: auto;
   padding: 0 12px;
   flex: 0 0 auto;
-  color: var(--danger);
+  color: var(--muted);
   background: #fff;
-  border: 1px solid rgba(185, 28, 28, 0.16);
-  border-radius: 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
   font: inherit;
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 700;
   cursor: pointer;
+  transition: color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out);
 }
 
-.management-logout:hover:not(:disabled) { background: var(--danger-light); }
+.management-logout:hover:not(:disabled) { color: var(--danger); border-color: var(--danger); background: rgba(185, 28, 28, 0.06); }
 .management-logout:disabled { cursor: wait; opacity: 0.65; }
+.management-logout svg { flex-shrink: 0; }
 
 .management-page {
   width: min(1200px, calc(100% - 32px));
@@ -216,50 +218,75 @@
 
 .management-toolbar.customer-toolbar { grid-template-columns: minmax(280px, 1fr) auto; }
 .management-search { position: relative; display: flex; align-items: center; }
-.management-search > svg { position: absolute; left: 13px; color: var(--muted); pointer-events: none; }
+.management-search > svg { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
 .management-search input,
 .management-select select {
   width: 100%;
   min-height: 44px;
   color: var(--ink);
   background: #fff;
-  border: 1px solid var(--line);
-  border-radius: 11px;
+  border: 1.5px solid var(--line);
+  border-radius: 8px;
   font: inherit;
-  font-size: 12.5px;
+  font-size: 13px;
+  transition: border-color var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out);
 }
 
-.management-search input { padding: 0 13px 0 40px; }
+.management-search input { padding: 0 36px 0 40px; }
+.management-search input::placeholder { color: #9ca3af; }
+.management-search-clear {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
+}
+.management-search-clear:hover { background: var(--bg); color: var(--ink); }
 .management-select select { padding: 0 34px 0 12px; cursor: pointer; }
 .management-search input:focus,
-.management-select select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-light); }
+.management-select select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-light); }
 
 .management-segmented {
   display: flex;
   gap: 3px;
   padding: 3px;
-  background: #eef2f3;
-  border-radius: 10px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
 }
 
 .management-segmented button {
   min-height: 36px;
-  padding: 0 11px;
+  padding: 0 14px;
   color: var(--muted);
   background: transparent;
   border: 0;
-  border-radius: 8px;
+  border-radius: 6px;
   font: inherit;
-  font-size: 11.5px;
-  font-weight: 800;
+  font-size: 12px;
+  font-weight: 700;
   white-space: nowrap;
   cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
 }
 
+.management-segmented button:hover { color: var(--accent-strong); }
 .management-segmented button.active {
   color: var(--accent-strong);
   background: #fff;
-  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.08);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
 }
 
 .management-error { margin: 14px 16px 0; padding: 10px 12px; color: var(--danger); background: var(--danger-light); border: 1px solid rgba(185, 28, 28, 0.14); border-radius: 10px; font-size: 12.5px; font-weight: 750; }

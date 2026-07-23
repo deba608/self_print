@@ -117,8 +117,18 @@ export default function CustomerManagementPage() {
                     type="search"
                     value={query}
                     onChange={(event) => setQuery(event.target.value)}
-                    placeholder="Search name, email, phone or address"
+                    placeholder="Search by name, email, phone or address"
                   />
+                  {query && (
+                    <button
+                      type="button"
+                      className="management-search-clear"
+                      onClick={() => setQuery("")}
+                      aria-label="Clear search"
+                    >
+                      &times;
+                    </button>
+                  )}
                 </label>
                 <div className="management-segmented" role="group" aria-label="Customer type">
                   {(["all", "registered", "guest"] as const).map((value) => (
