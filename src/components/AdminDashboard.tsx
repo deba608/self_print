@@ -1846,8 +1846,12 @@ export default function AdminDashboard() {
 
       {total > 0 && (
         <div className="jobs-count">
-          <span>{filterStatus === "all" ? jobs.length : filteredJobs.length} of {total} jobs</span>
-          {hasMore && filterStatus === "all" && (
+          <span>
+            {filterStatus === "all"
+              ? `${jobs.length} of ${total} jobs`
+              : `${filteredJobs.length} matching · ${jobs.length} of ${total} loaded`}
+          </span>
+          {hasMore && (
             <button type="button" className="load-more-btn" onClick={loadMore} disabled={loadingMore}>
               {loadingMore ? <><Loader2 size={14} className="spin" /> Loading...</> : "Load more"}
             </button>

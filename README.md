@@ -103,5 +103,4 @@ npm run agent      # Start print agent
 
 ## Known Limitations
 
-- No admin pagination UI (API supports `?page=` / `?limit=`)
-- No rate limiting on file serve endpoints
+None currently tracked. Admin job list is cursor-paginated with a "Load more" control (works while filtered by status too), and every public/token-based endpoint plus the admin/agent file-serve routes are rate-limited per IP.

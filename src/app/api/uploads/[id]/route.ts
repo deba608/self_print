@@ -3,10 +3,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { getJobFileById } from "@/lib/db";
 import { createSignedDownloadUrl, readFileStream } from "@/lib/storage";
 import { requireAdminResponse } from "@/lib/security";
+import { clientIp, isRateLimited } from "@/lib/ratelimit";
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const unauthorized = await requireAdminResponse();
   if (unauthorized) return unauthorized;
+
+  if (isRateLimited("file-serve-admin", clientIp(request.headers), 120, 60 * 1000)) {
+    return NextResponse.json({ error: "Too many requests. Please try again later." }, { status: 429 });
+  }
+
   const { id } = await params;
 
   let file;
