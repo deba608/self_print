@@ -637,6 +637,33 @@ input, select, button {
   transition: all var(--duration-fast) var(--ease-out);
 }
 .file-thumb-remove:hover { background: var(--danger); color: #fff; }
+.file-thumb-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.file-thumb-move {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.thumb-move-btn {
+  width: 20px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 3px;
+  background: var(--panel);
+  color: var(--muted);
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-out);
+  padding: 0;
+  line-height: 1;
+}
+.thumb-move-btn:hover:not(:disabled) { background: var(--accent-light); color: var(--accent); }
+.thumb-move-btn:disabled { opacity: 0.25; cursor: default; }
 .file-thumb-add {
   display: flex;
   flex-direction: column;
@@ -957,6 +984,43 @@ input, select, button {
   padding-bottom: 0;
   border-width: 0;
   pointer-events: none;
+}
+
+.bulk-file-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.bulk-file-move {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.bulk-move-btn {
+  width: 24px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-out);
+  padding: 0;
+  line-height: 1;
+}
+.bulk-move-btn:hover:not(:disabled) { background: var(--accent-light); color: var(--accent); }
+.bulk-move-btn:disabled { opacity: 0.25; cursor: default; }
+
+/* Settings heading */
+.settings-heading {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--ink);
 }
 
 .bulk-file-name {
