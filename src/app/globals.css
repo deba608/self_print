@@ -275,7 +275,7 @@ input, select, button {
 .user-navbar-email {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   font-size: 12.5px;
   font-weight: 600;
   color: var(--muted);
@@ -283,8 +283,18 @@ input, select, button {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  text-decoration: none;
+  transition: color var(--duration-fast) var(--ease-out);
 }
+.user-navbar-email:hover { color: var(--accent); }
 .user-navbar-email span { overflow: hidden; text-overflow: ellipsis; }
+.user-navbar-avatar {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
 .user-navbar-logout {
   display: inline-flex;
   align-items: center;
@@ -9254,4 +9264,82 @@ body {
     scroll-margin-bottom: 104px;
     margin-bottom: 84px;
   }
+}
+
+/* ============================================================
+   Customer account editor (/account) — name + avatar photo
+   ============================================================ */
+.account-editor { display: flex; flex-direction: column; gap: var(--space-4); }
+
+.account-form { display: flex; flex-direction: column; gap: var(--space-4); }
+
+.account-avatar-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 4px;
+}
+
+.account-avatar-picker {
+  position: relative;
+  width: 72px;
+  height: 72px;
+  flex-shrink: 0;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--accent-bg);
+  cursor: pointer;
+  overflow: visible;
+}
+
+.account-avatar-img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+}
+
+.account-avatar-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+}
+
+.account-avatar-edit-badge {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  background: var(--accent);
+  border: 2px solid var(--panel);
+  border-radius: 50%;
+}
+
+.account-avatar-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+  margin-bottom: 4px;
+}
+
+.account-avatar-change-link {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--accent);
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: underline;
 }

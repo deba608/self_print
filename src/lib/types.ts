@@ -33,6 +33,7 @@ export type CustomerProfile = {
   id: string;
   email: string;
   displayName: string | null;
+  avatarUrl: string | null;
   phone: string;
   createdAt: string;
 };
