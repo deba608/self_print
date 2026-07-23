@@ -45,26 +45,10 @@ function loadRazorpayCheckout(): Promise<boolean> {
   return razorpayScriptPromise;
 }
 
-// Desktop gets a single merged workspace (settings + live preview side by
-// side) instead of the mobile 3-step wizard. Starts false so SSR/hydration
-// always match; flips right after mount.
-function useIsDesktop() {
-  const [isDesktop, setIsDesktop] = useState(false);
-  useEffect(() => {
-    const mq = window.matchMedia("(min-width: 1024px)");
-    const update = () => setIsDesktop(mq.matches);
-    update();
-    mq.addEventListener("change", update);
-    return () => mq.removeEventListener("change", update);
-  }, []);
-  return isDesktop;
-}
-
 type Step = "upload" | "settings" | "preview" | "converting" | "done" | "docx-warning";
 type PageRangeMode = "all" | "even" | "odd" | "custom";
 
 export default function UploadForm() {
-  const isDesktop = useIsDesktop();
   const [step, setStep] = useState<Step>("upload");
   const [pricing, setPricing] = useState<Pricing | null>(null);
   const [file, setFile] = useState<File | null>(null);
@@ -346,46 +330,25 @@ export default function UploadForm() {
   // the paid-detection that flips this phone to the receipt. One poll serves
   // both: runs while the token screen is up, stops once the job is printed
   // (or leaves the normal flow — failed/cancelled).
-  const [liveStatus, setLiveStatus] = useState<{
-    status: string;
-    paidAt: string | null;
-    queuePosition?: number;
-    jobsAhead?: number;
-    deliveryStatus?: "out_for_delivery" | "delivered" | null;
-  } | null>(null);
+  const [liveStatus, setLiveStatus] = useState<{ status: string; paidAt: string | null; queuePosition?: number; jobsAhead?: number } | null>(null);
   useEffect(() => {
     if (!result || result.needsConversion) return;
-    if (liveStatus) {
-      const terminalFailure = !["pending_payment", "paid", "approved", "printing", "printed"].includes(liveStatus.status);
-      const orderComplete = deliveryMethod === "delivery"
-        ? liveStatus.status === "printed" && liveStatus.deliveryStatus === "delivered"
-        : liveStatus.status === "printed";
-      if (terminalFailure || orderComplete) return;
-    }
+    if (liveStatus && (liveStatus.status === "printed" || !["pending_payment", "paid", "approved", "printing"].includes(liveStatus.status))) return;
     const interval = setInterval(async () => {
       try {
         const res = await fetch(`/api/jobs/${result.token}/status`, { cache: "no-store" });
         if (!res.ok) return;
         const body = await res.json();
-        setLiveStatus({
-          status: body.status,
-          paidAt: body.paidAt ?? null,
-          queuePosition: body.queuePosition,
-          jobsAhead: body.jobsAhead,
-          deliveryStatus: body.deliveryStatus ?? null,
-        });
+        setLiveStatus({ status: body.status, paidAt: body.paidAt ?? null, queuePosition: body.queuePosition, jobsAhead: body.jobsAhead });
         if (body.paidAt) {
-          setPaidInfo((p) => p ?? {
-            method: deliveryMethod === "delivery" ? "online" : "counter",
-            at: body.paidAt,
-          });
+          setPaidInfo((p) => p ?? { method: "counter", at: body.paidAt });
         }
       } catch {
         /* transient network error — next tick retries */
       }
     }, 5000);
     return () => clearInterval(interval);
-  }, [result, liveStatus, deliveryMethod]);
+  }, [result, liveStatus]);
 
   const effectivePageRange = useMemo(() => {
     if (pageRangeMode === "all") return "";
@@ -641,8 +604,14 @@ export default function UploadForm() {
       setPreviewUrl(null);
     }
 
-    // Keep delivery details when a single PDF becomes a batch so customers do
-    // not have to enter the same address twice.
+    // Bulk mode hides the delivery toggle entirely — reset to pickup so no
+    // stale delivery fee/contact fields leak into the bulk estimate or block
+    // goToPreview on now-hidden fields.
+    setDeliveryMethod("pickup");
+    setCustomerName("");
+    setCustomerPhone("");
+    setDeliveryAddress("");
+
     const ids = selected.map(() => crypto.randomUUID());
     setBulkFiles(selected);
     setBulkIds(ids);
@@ -848,7 +817,6 @@ export default function UploadForm() {
       bulkForm.set("margins", margins);
       bulkForm.set("pagesPerSheet", String(pagesPerSheet));
       bulkForm.set("duplex", duplex);
-      appendDeliveryDetails(bulkForm);
 
       if (uploadResults.some((r) => r.fallback)) {
         // Direct upload unavailable — send the PDFs themselves; the server
@@ -921,7 +889,12 @@ export default function UploadForm() {
     form.set("margins", margins);
     form.set("pagesPerSheet", String(pagesPerSheet));
     form.set("duplex", duplex);
-    appendDeliveryDetails(form);
+    form.set("deliveryMethod", deliveryMethod);
+    if (deliveryMethod === "delivery") {
+      form.set("customerName", customerName.trim());
+      form.set("customerPhone", customerPhone);
+      form.set("deliveryAddress", deliveryAddress.trim());
+    }
 
     const controller = new AbortController();
     const timeoutId = window.setTimeout(() => controller.abort(), 60000);
@@ -976,41 +949,17 @@ export default function UploadForm() {
     }
   }
 
-  // Shared pre-submit validation: mobile runs it before entering the Preview
-  // step, desktop runs it right before submitting from the merged workspace.
-  function validateSettings(): boolean {
+  function goToPreview() {
     if (isDuplexInvalid) {
       setError("Double-sided printing requires at least 2 pages.");
-      return false;
+      return;
     }
-    if (!isBulk && pageRangeMode === "custom" && customPageRange.trim() && !isValidPageRange) {
-      setError("Please enter valid page numbers within the PDF range.");
-      return false;
-    }
-    if (deliveryMethod === "delivery" && (!customerName.trim() || !/^\d{10}$/.test(customerPhone) || !deliveryAddress.trim())) {
+    if (!isBulk && deliveryMethod === "delivery" && (!customerName.trim() || !/^\d{10}$/.test(customerPhone) || !deliveryAddress.trim())) {
       setError("Enter your name, a 10-digit phone number, and delivery address.");
-      return false;
+      return;
     }
-    return true;
-  }
-
-  function goToPreview() {
-    if (!validateSettings()) return;
     setStep("preview");
   }
-
-  // Desktop workspace confirm: preview is already on screen, so validation
-  // passes straight into submit — no intermediate step.
-  async function confirmFromWorkspace() {
-    if (!validateSettings()) return;
-    await handleSubmit();
-  }
-
-  // The separate Preview step doesn't exist on desktop — if the viewport
-  // crosses into desktop while on it, collapse back into the merged workspace.
-  useEffect(() => {
-    if (isDesktop && step === "preview") setStep("settings");
-  }, [isDesktop, step]);
 
   function resetForm() {
     setStep("upload");
@@ -1039,9 +988,6 @@ export default function UploadForm() {
     setCustomerName("");
     setCustomerPhone("");
     setDeliveryAddress("");
-    setDeliveryLocation(null);
-    setLocationState("idle");
-    setLocationError("");
     if (previewUrl) {
       URL.revokeObjectURL(previewUrl);
       setPreviewUrl(null);
@@ -1234,18 +1180,7 @@ export default function UploadForm() {
         </div>
 
         {paidInfo ? (
-          <>
-            <BillReceipt bill={billData} />
-            {isDeliveryOrder && (
-              <div className="delivery-paid-note">
-                <Truck size={18} aria-hidden="true" />
-                <div>
-                  <strong>Payment received</strong>
-                  <p>The shop will print your order and update delivery progress here.</p>
-                </div>
-              </div>
-            )}
-          </>
+          <BillReceipt bill={billData} />
         ) : result.needsConversion ? (
           <div className="counter-card">
             <span className="upi-tag"><Store size={13} aria-hidden="true" /> Pay at Counter</span>
@@ -1302,11 +1237,7 @@ export default function UploadForm() {
                   {payState === "paid" ? (
                     <div className="pay-done" role="status">
                       <Check size={20} aria-hidden="true" />
-                      <span>
-                        {isDeliveryOrder
-                          ? "Payment received — your order will now be prepared for delivery."
-                          : "Payment received — show this screen to staff."}
-                      </span>
+                      <span>Payment received — show this screen to staff.</span>
                     </div>
                   ) : (
                     <>
@@ -1329,8 +1260,8 @@ export default function UploadForm() {
 
                   <ol className="upi-steps">
                     <li><span className="upi-step-num">1</span> Tap Pay and complete payment</li>
-                    <li><span className="upi-step-num">2</span> {isDeliveryOrder ? "The shop prepares your prints" : "Show this screen to staff"}</li>
-                    <li><span className="upi-step-num">3</span> {isDeliveryOrder ? "Track dispatch and delivery here" : "Collect your print"}</li>
+                    <li><span className="upi-step-num">2</span> Show this screen to staff</li>
+                    <li><span className="upi-step-num">3</span> Collect your print</li>
                   </ol>
                 </div>
               ) : (
@@ -1356,8 +1287,8 @@ export default function UploadForm() {
 
                   <ol className="upi-steps">
                     <li><span className="upi-step-num">1</span> On this phone? Screenshot the QR, then scan it from gallery in your UPI app</li>
-                    <li><span className="upi-step-num">2</span> Pay ₹{amountRupees}{isDeliveryOrder ? "" : " and show this screen to staff"}</li>
-                    <li><span className="upi-step-num">3</span> {isDeliveryOrder ? "Track preparation and delivery here" : "Collect your print"}</li>
+                    <li><span className="upi-step-num">2</span> Pay ₹{amountRupees} and show this screen to staff</li>
+                    <li><span className="upi-step-num">3</span> Collect your print</li>
                   </ol>
                 </div>
               )
@@ -1376,14 +1307,6 @@ export default function UploadForm() {
               </div>
             )}
           </>
-        ) : isDeliveryOrder ? (
-          <div className="counter-card">
-            <span className="upi-tag"><CreditCard size={13} aria-hidden="true" /> Online Payment Required</span>
-            <div className="upi-amount">₹{amountRupees}</div>
-            <p className="counter-msg">
-              Online payment is temporarily unavailable. Your order is saved; retry from this page or contact the shop before delivery.
-            </p>
-          </div>
         ) : (
           <div className="counter-card">
             <span className="upi-tag"><Store size={13} aria-hidden="true" /> Pay at Counter</span>
@@ -1403,32 +1326,18 @@ export default function UploadForm() {
           const st = liveStatus?.status ?? "pending_payment";
           const paid = Boolean(liveStatus?.paidAt) || Boolean(paidInfo);
           const failed = !["pending_payment", "paid", "approved", "printing", "printed"].includes(st);
-          const printStarted = st === "approved" || st === "printing" || st === "printed";
-          const printComplete = st === "printed";
-          const dispatched = liveStatus?.deliveryStatus === "out_for_delivery" || liveStatus?.deliveryStatus === "delivered";
-          const delivered = liveStatus?.deliveryStatus === "delivered";
-          const done = isDeliveryOrder
-            ? [true, paid, printComplete, dispatched, delivered]
-            : [true, paid, printStarted, printComplete];
+          const done = [true, paid, st === "approved" || st === "printing" || st === "printed", st === "printed"];
           const activeIdx = done.findIndex((d) => !d);
           // jobsAhead is a live count (recomputed every poll) of active jobs
           // still ahead of this one — unlike queuePosition, a fixed ticket
           // number assigned at creation that never decreases.
           const jobsAhead = liveStatus?.jobsAhead ?? Math.max(0, result.queuePosition - 1);
-          const miniSteps = isDeliveryOrder
-            ? [
-                { label: "Submitted", icon: <UploadCloud size={15} /> },
-                { label: "Paid", icon: <CreditCard size={15} /> },
-                { label: "Printed", icon: <Printer size={15} /> },
-                { label: "Dispatch", icon: <Truck size={15} /> },
-                { label: "Delivered", icon: <Check size={15} /> },
-              ]
-            : [
-                { label: "Submitted", icon: <UploadCloud size={15} /> },
-                { label: "Paid", icon: <CreditCard size={15} /> },
-                { label: "Printing", icon: <Printer size={15} /> },
-                { label: "Ready", icon: <Check size={15} /> },
-              ];
+          const miniSteps = [
+            { label: "Submitted", icon: <UploadCloud size={15} /> },
+            { label: "Paid", icon: <CreditCard size={15} /> },
+            { label: "Printing", icon: <Printer size={15} /> },
+            { label: "Ready", icon: <Check size={15} /> },
+          ];
           return (
             <div className="mini-track" aria-live="polite">
               <div className="mini-track-head">
@@ -1457,16 +1366,7 @@ export default function UploadForm() {
                   })}
                 </div>
               )}
-              {st === "printed" && isDeliveryOrder && delivered && (
-                <p className="track-collect"><Check size={14} aria-hidden="true" /> Delivered successfully</p>
-              )}
-              {st === "printed" && isDeliveryOrder && dispatched && !delivered && (
-                <p className="track-collect"><Truck size={14} aria-hidden="true" /> Your order is out for delivery</p>
-              )}
-              {st === "printed" && isDeliveryOrder && !dispatched && (
-                <p className="track-collect"><Truck size={14} aria-hidden="true" /> Printed and waiting for dispatch</p>
-              )}
-              {st === "printed" && !isDeliveryOrder && (
+              {st === "printed" && (
                 <p className="track-collect"><Store size={14} aria-hidden="true" /> Ready — collect at the counter!</p>
               )}
             </div>
@@ -1489,137 +1389,25 @@ export default function UploadForm() {
 
 
 
-  // Live print preview — used by the mobile Preview step AND the desktop
-  // merged workspace pane, so it stays a single source of truth.
-  const previewArea = (
-    <div className={`preview-area ${printType === "bw" ? "bw-sim" : ""}`}>
-      {isBulk && (
-        <>
-          <div className="bulk-file-list">
-            {bulkFiles.map((f, i) => {
-              const id = bulkIds[i];
-              const isLeaving = id !== undefined && leavingBulkIds.has(id);
-              return (
-              <div
-                className={`bulk-file-row ${i === bulkPreviewIndex ? "active" : ""} ${isLeaving ? "leaving" : ""}`}
-                key={id ?? i}
-                role="button"
-                tabIndex={0}
-                aria-label={`Preview ${f.name}`}
-                aria-pressed={i === bulkPreviewIndex}
-                onClick={() => setBulkPreviewIndex(i)}
-                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setBulkPreviewIndex(i); } }}
-                onTransitionEnd={(e) => {
-                  if (e.target !== e.currentTarget || e.propertyName !== "max-height") return;
-                  if (id === undefined || !leavingBulkIds.has(id)) return;
-                  removeBulkFile(bulkIds.indexOf(id));
-                  setLeavingBulkIds((prev) => { const next = new Set(prev); next.delete(id); return next; });
-                }}
-              >
-                <BulkThumb file={f} grayscale={printType === "bw"} />
-                <span className="bulk-file-name">{f.name}</span>
-                <span className="bulk-file-pages">{bulkPageCounts[i] ?? 1} pg</span>
-                <button type="button" className="bulk-file-remove" aria-label={`Remove ${f.name}`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (id === undefined) { removeBulkFile(i); return; }
-                    setLeavingBulkIds((prev) => new Set(prev).add(id));
-                  }}>
-                  <X size={16} />
-                </button>
-              </div>
-              );
-            })}
-          </div>
-          {/* Full print preview of the tapped file — same viewer as single mode */}
-          {bulkFiles[bulkPreviewIndex] && (
-            <PdfCanvasPreview
-              key={bulkIds[bulkPreviewIndex] ?? bulkPreviewIndex}
-              file={bulkFiles[bulkPreviewIndex]}
-              fallbackPageCount={bulkPageCounts[bulkPreviewIndex] ?? 1}
-              sim={{ pagesPerSheet, layout, paperSize, margins }}
-            />
-          )}
-        </>
-      )}
-      {file && file.type === "application/pdf" && (
-        <PdfCanvasPreview
-          file={file}
-          fallbackPageCount={filePageCount ?? 1}
-          sim={{ pagesPerSheet, layout, paperSize, margins, pages: selectedPageList }}
-        />
-      )}
-      {file && file.type.startsWith("image/") && previewUrl && (
-        <img src={previewUrl} alt="Image Preview" className="preview-image" />
-      )}
-      {file && (file.name.endsWith(".doc") || file.name.endsWith(".docx")) && (
-        <div className="doc-preview">
-          <File size={48} aria-hidden="true" />
-          <p>Word document preview not available</p>
-          <span className="muted">File will be reviewed at the shop</span>
-        </div>
-      )}
-    </div>
-  );
-
-  const totalPriceBlock = deliveryMethod === "delivery" && pricing ? (
-    <div className="total-price-breakdown">
-      <div className="total-price-row">
-        <span>Printing</span>
-        <span>₹{(estimate - pricing.deliveryFeePaise / 100).toFixed(2)}</span>
-      </div>
-      <div className="total-price-row">
-        <span>Delivery</span>
-        <span>{pricing.deliveryFeePaise > 0 ? `₹${(pricing.deliveryFeePaise / 100).toFixed(2)}` : "Free"}</span>
-      </div>
-      <div className="total-price">
-        <span>Total</span>
-        <strong>₹{estimate.toFixed(2)}</strong>
-      </div>
-    </div>
-  ) : (
-    <div className="total-price">
-      <span>Total</span>
-      <strong>{pricing ? `₹${estimate.toFixed(2)}` : "…"}</strong>
-    </div>
-  );
-
-  const submitButtonLabel = busy ? (
-    <><Loader2 size={20} className="spin" aria-hidden="true" /> Processing...</>
-  ) : isBulk && bulkUploading ? (
-    <><Loader2 size={20} className="spin" aria-hidden="true" /> Uploading files...</>
-  ) : (
-    deliveryMethod === "delivery"
-      ? <><CreditCard size={20} aria-hidden="true" /> Continue to Payment</>
-      : <><Check size={20} aria-hidden="true" /> Confirm Print</>
-  );
-
   return (
     <div className="upload-form">
-      {/* Step indicator — mobile only; desktop merges steps 2+3 into one
-          workspace so a 3-step rail would lie about the flow. */}
-      {!isDesktop && (
+      {/* Step indicator */}
       <nav className="step-indicator" aria-label="Upload progress">
-        <div className={`step ${step === "upload" || step === "docx-warning" ? "current" : "completed"}`} aria-current={step === "upload" || step === "docx-warning" ? "step" : undefined}>
-          <span className="step-num" aria-hidden="true">
-            {step === "upload" || step === "docx-warning" ? "1" : <Check size={15} />}
-          </span>
+        <div className={`step ${step === "upload" || step === "settings" || step === "preview" ? "active" : step === "done" ? "done" : ""}`} aria-current={step === "upload" ? "step" : undefined}>
+          <span className="step-num" aria-hidden="true">1</span>
           <span className="step-label">Upload</span>
         </div>
-        <div className={`step-line ${step === "settings" || step === "preview" ? "filled" : ""}`} aria-hidden="true" />
-        <div className={`step ${step === "settings" ? "current" : step === "preview" ? "completed" : ""}`} aria-current={step === "settings" ? "step" : undefined}>
-          <span className="step-num" aria-hidden="true">
-            {step === "preview" ? <Check size={15} /> : "2"}
-          </span>
-          <span className="step-label">Options</span>
+        <div className="step-line" aria-hidden="true" />
+        <div className={`step ${step === "settings" || step === "preview" ? "active" : step === "done" ? "done" : ""}`} aria-current={step === "settings" ? "step" : undefined}>
+          <span className="step-num" aria-hidden="true">2</span>
+          <span className="step-label">Settings</span>
         </div>
-        <div className={`step-line ${step === "preview" ? "filled" : ""}`} aria-hidden="true" />
-        <div className={`step ${step === "preview" ? "current" : ""}`} aria-current={step === "preview" ? "step" : undefined}>
+        <div className="step-line" aria-hidden="true" />
+        <div className={`step ${step === "preview" ? "active" : step === "done" ? "done" : ""}`} aria-current={step === "preview" ? "step" : undefined}>
           <span className="step-num" aria-hidden="true">3</span>
-          <span className="step-label">Confirm</span>
+          <span className="step-label">Preview</span>
         </div>
       </nav>
-      )}
 
       {/* Step 1: Upload */}
       {step === "upload" && (
@@ -1646,12 +1434,9 @@ export default function UploadForm() {
               onChange={handleFileChange}
             />
             <label htmlFor="file-input" className="upload-label">
-              <span className="upload-icon-wrap">
-                <UploadCloud size={32} className="upload-icon" aria-hidden="true" />
-              </span>
-              <strong>Upload your documents</strong>
-              <span className="muted">Tap to browse or drag and drop files here</span>
-              <span className="upload-limit">PDF, JPG or PNG · Up to 25 MB each</span>
+              <UploadCloud size={56} className="upload-icon" aria-hidden="true" />
+              <strong>Tap to select file</strong>
+              <span className="muted">PDF, JPG, PNG up to 25MB · or select 2-10 PDFs at once</span>
             </label>
           </div>
           <div className="supported-formats">
@@ -1707,12 +1492,9 @@ export default function UploadForm() {
         </div>
       )}
 
-      {/* Step 2: Settings — on desktop this is the whole job in one window:
-          settings on the left, live print preview + total + confirm on the
-          right. On mobile it stays step 2 of 3. */}
+      {/* Step 2: Settings */}
       {step === "settings" && (
-        <div className={`step-content ${stepAnim} ${isDesktop ? "desktop-workspace" : ""}`} key={step}>
-        <div className="workspace-config">
+        <div className={`step-content ${stepAnim}`} key={step}>
           {/* File summary */}
           {isBulk ? (
             <button className="file-summary" onClick={() => setStep("upload")} aria-label="Change files">
@@ -1759,7 +1541,7 @@ export default function UploadForm() {
                   onClick={() => setDeliveryMethod("delivery")}
                   aria-pressed={deliveryMethod === "delivery"}
                 >
-                  <Truck size={18} aria-hidden="true" />
+                  <UploadCloud size={18} aria-hidden="true" />
                   Home Delivery
                   {pricing && pricing.deliveryFeePaise > 0 && (
                     <span className="delivery-fee-tag">+{formatRupees(pricing.deliveryFeePaise)}</span>
@@ -1804,51 +1586,6 @@ export default function UploadForm() {
                     rows={2}
                     autoComplete="street-address"
                   />
-                  <div className={`delivery-location-card ${deliveryLocation ? "captured" : ""}`}>
-                    <div className="delivery-location-copy">
-                      <span className="delivery-location-icon" aria-hidden="true">
-                        <MapPin size={18} />
-                      </span>
-                      <div>
-                        <strong>Pin your delivery location</strong>
-                        <p>
-                          Optional, but recommended. Your device shares coordinates only after
-                          you allow access; the written address stays required.
-                        </p>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      className="delivery-location-btn"
-                      onClick={captureDeliveryLocation}
-                      disabled={locationState === "locating"}
-                    >
-                      {locationState === "locating" ? (
-                        <><Loader2 size={16} className="spin" aria-hidden="true" /> Locating...</>
-                      ) : deliveryLocation ? (
-                        <><RefreshCw size={16} aria-hidden="true" /> Refresh location</>
-                      ) : (
-                        <><Navigation size={16} aria-hidden="true" /> Use my location</>
-                      )}
-                    </button>
-                    <div className="delivery-location-feedback" aria-live="polite">
-                      {deliveryLocation && (
-                        <>
-                          <span>
-                            Location captured with an accuracy radius of about {deliveryLocation.accuracyMeters} m.
-                          </span>
-                          <a
-                            href={`https://www.google.com/maps/search/?api=1&query=${deliveryLocation.latitude},${deliveryLocation.longitude}`}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            Check map
-                          </a>
-                        </>
-                      )}
-                      {locationError && <span className="delivery-location-error">{locationError}</span>}
-                    </div>
-                  </div>
                 </div>
               )}
             </div>
@@ -2144,67 +1881,103 @@ export default function UploadForm() {
             </div>
           )}
 
-          {/* Actions — mobile only; on desktop the confirm button lives in
-              the preview pane and "Change" on the file summary goes back. */}
-          {!isDesktop && (
-            <div className="form-actions">
-              <button
-                type="button"
-                className="btn-secondary"
-                onClick={() => setStep("upload")}
-                aria-label="Go back to upload step"
-              >
-                <ArrowLeft size={20} aria-hidden="true" /> Back
-              </button>
-              <button
-                type="button"
-                className="btn-primary"
-                onClick={goToPreview}
-                disabled={(pageRangeMode === "custom" && !!customPageRange.trim() && !isValidPageRange) || isDuplexInvalid}
-                aria-label="Preview print settings"
-              >
-                Preview <Eye size={20} aria-hidden="true" />
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* Desktop live preview pane — updates instantly as settings change */}
-        {isDesktop && (
-          <aside className="workspace-preview" aria-label="Live print preview">
-            <div className="workspace-preview-head">
-              <h3><Eye size={18} aria-hidden="true" /> Print Preview</h3>
-              <span className="workspace-preview-hint">Updates as you change settings</span>
-            </div>
-            {previewArea}
-            <div className="summary-paper-note">
-              <Printer size={14} aria-hidden="true" />
-              Prints on {physicalSheets} sheet{physicalSheets === 1 ? "" : "s"} of paper
-              {copies > 1 ? ` per copy (${physicalSheets * copies} total)` : ""}
-            </div>
-            {totalPriceBlock}
+          {/* Actions */}
+          <div className="form-actions">
             <button
               type="button"
-              className="btn-primary btn-submit"
-              onClick={confirmFromWorkspace}
-              disabled={busy || (isBulk && bulkUploading) || (pageRangeMode === "custom" && !!customPageRange.trim() && !isValidPageRange) || isDuplexInvalid}
-              aria-busy={busy || (isBulk && bulkUploading)}
+              className="btn-secondary"
+              onClick={() => setStep("upload")}
+              aria-label="Go back to upload step"
             >
-              {submitButtonLabel}
+              <ArrowLeft size={20} aria-hidden="true" /> Back
             </button>
-          </aside>
-        )}
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={goToPreview}
+              disabled={(pageRangeMode === "custom" && !!customPageRange.trim() && !isValidPageRange) || isDuplexInvalid}
+              aria-label="Preview print settings"
+            >
+              Preview <Eye size={20} aria-hidden="true" />
+            </button>
+          </div>
         </div>
       )}
 
-      {/* Step 3: Preview — mobile only; desktop shows the preview inline in
-          the merged workspace above. */}
-      {!isDesktop && step === "preview" && (
+      {/* Step 3: Preview */}
+      {step === "preview" && (
         <div className={`step-content ${stepAnim}`} key={step}>
           <h3 className="preview-title">Review Your Print Job</h3>
 
           {/* Preview area — grayscale simulation when printing B&W */}
-          {previewArea}
+          <div className={`preview-area ${printType === "bw" ? "bw-sim" : ""}`}>
+            {isBulk && (
+              <>
+                <div className="bulk-file-list">
+                  {bulkFiles.map((f, i) => {
+                    const id = bulkIds[i];
+                    const isLeaving = id !== undefined && leavingBulkIds.has(id);
+                    return (
+                    <div
+                      className={`bulk-file-row ${i === bulkPreviewIndex ? "active" : ""} ${isLeaving ? "leaving" : ""}`}
+                      key={id ?? i}
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`Preview ${f.name}`}
+                      aria-pressed={i === bulkPreviewIndex}
+                      onClick={() => setBulkPreviewIndex(i)}
+                      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setBulkPreviewIndex(i); } }}
+                      onTransitionEnd={(e) => {
+                        if (e.target !== e.currentTarget || e.propertyName !== "max-height") return;
+                        if (id === undefined || !leavingBulkIds.has(id)) return;
+                        removeBulkFile(bulkIds.indexOf(id));
+                        setLeavingBulkIds((prev) => { const next = new Set(prev); next.delete(id); return next; });
+                      }}
+                    >
+                      <BulkThumb file={f} grayscale={printType === "bw"} />
+                      <span className="bulk-file-name">{f.name}</span>
+                      <span className="bulk-file-pages">{bulkPageCounts[i] ?? 1} pg</span>
+                      <button type="button" className="bulk-file-remove" aria-label={`Remove ${f.name}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (id === undefined) { removeBulkFile(i); return; }
+                          setLeavingBulkIds((prev) => new Set(prev).add(id));
+                        }}>
+                        <X size={16} />
+                      </button>
+                    </div>
+                    );
+                  })}
+                </div>
+                {/* Full print preview of the tapped file — same viewer as single mode */}
+                {bulkFiles[bulkPreviewIndex] && (
+                  <PdfCanvasPreview
+                    key={bulkIds[bulkPreviewIndex] ?? bulkPreviewIndex}
+                    file={bulkFiles[bulkPreviewIndex]}
+                    fallbackPageCount={bulkPageCounts[bulkPreviewIndex] ?? 1}
+                    sim={{ pagesPerSheet, layout, paperSize, margins }}
+                  />
+                )}
+              </>
+            )}
+            {file && file.type === "application/pdf" && (
+              <PdfCanvasPreview
+                file={file}
+                fallbackPageCount={filePageCount ?? 1}
+                sim={{ pagesPerSheet, layout, paperSize, margins, pages: selectedPageList }}
+              />
+            )}
+            {file && file.type.startsWith("image/") && previewUrl && (
+              <img src={previewUrl} alt="Image Preview" className="preview-image" />
+            )}
+            {file && (file.name.endsWith(".doc") || file.name.endsWith(".docx")) && (
+              <div className="doc-preview">
+                <File size={48} aria-hidden="true" />
+                <p>Word document preview not available</p>
+                <span className="muted">File will be reviewed at the shop</span>
+              </div>
+            )}
+          </div>
 
           {/* Settings summary */}
           <div className="settings-summary">
@@ -2253,42 +2026,28 @@ export default function UploadForm() {
             </div>
           </div>
 
-          {deliveryMethod === "delivery" && (
-            <div className="delivery-review-card">
-              <div className="delivery-review-heading">
-                <Truck size={18} aria-hidden="true" />
-                <div>
-                  <h4>Home delivery</h4>
-                  <p>Paid online before printing</p>
-                </div>
+          {/* Total price */}
+          {deliveryMethod === "delivery" && pricing ? (
+            <div className="total-price-breakdown">
+              <div className="total-price-row">
+                <span>Printing</span>
+                <span>₹{(estimate - pricing.deliveryFeePaise / 100).toFixed(2)}</span>
               </div>
-              <dl className="delivery-review-details">
-                <div>
-                  <dt>Customer</dt>
-                  <dd>{customerName}</dd>
-                </div>
-                <div>
-                  <dt>Phone</dt>
-                  <dd>{customerPhone}</dd>
-                </div>
-                <div className="delivery-review-address">
-                  <dt>Address</dt>
-                  <dd>{deliveryAddress}</dd>
-                </div>
-                <div>
-                  <dt>Map pin</dt>
-                  <dd>
-                    {deliveryLocation
-                      ? `Captured (about ±${deliveryLocation.accuracyMeters} m)`
-                      : "Not shared — written address will be used"}
-                  </dd>
-                </div>
-              </dl>
+              <div className="total-price-row">
+                <span>Delivery</span>
+                <span>₹{(pricing.deliveryFeePaise / 100).toFixed(2)}</span>
+              </div>
+              <div className="total-price">
+                <span>Total</span>
+                <strong>₹{estimate.toFixed(2)}</strong>
+              </div>
+            </div>
+          ) : (
+            <div className="total-price">
+              <span>Total</span>
+              <strong>{pricing ? `₹${estimate.toFixed(2)}` : "…"}</strong>
             </div>
           )}
-
-          {/* Total price */}
-          {totalPriceBlock}
 
           {/* Submit errors must be visible HERE — Confirm lives on this step,
               and the settings-step error block is not rendered here. */}
@@ -2315,12 +2074,24 @@ export default function UploadForm() {
               disabled={busy || (isBulk && bulkUploading)}
               aria-busy={busy || (isBulk && bulkUploading)}
             >
-              {submitButtonLabel}
+              {busy ? (
+                <><Loader2 size={20} className="spin" aria-hidden="true" /> Processing...</>
+              ) : isBulk && bulkUploading ? (
+                <><Loader2 size={20} className="spin" aria-hidden="true" /> Uploading files...</>
+              ) : (
+                <><Check size={20} aria-hidden="true" /> Confirm Print</>
+              )}
             </button>
           </div>
         </div>
       )}
 
+      {/* Help text */}
+      {step !== "done" && (
+        <p className="help-text">
+          Need help? Ask the shop staff for assistance.
+        </p>
+      )}
     </div>
   );
 }
