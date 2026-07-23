@@ -12,19 +12,21 @@ const navItems = [
   { href: "/track", label: "Track", icon: Search },
 ] as const;
 
+type Identity = { name: string; avatarUrl: string | null };
+
 export default function UserNavbar() {
   const pathname = usePathname();
-  // undefined = auth state not resolved yet; null = signed out; "" = signed
-  // in with no usable name; string = signed in with a first name.
-  const [displayName, setDisplayName] = useState<string | null | undefined>(undefined);
+  // undefined = auth state not resolved yet; null = signed out; Identity =
+  // signed in (name may be "" if there's no usable name on file).
+  const [identity, setIdentity] = useState<Identity | null | undefined>(undefined);
   const [loggingOut, setLoggingOut] = useState(false);
 
   useEffect(() => {
     let mounted = true;
     const supabase = createClient();
 
-    /** Return only the first name from the registration display_name */
-    const resolveName = (user: import("@supabase/supabase-js").User) => {
+    /** Return only the first name (+ avatar) from the registration profile */
+    const resolveIdentity = (user: import("@supabase/supabase-js").User): Identity => {
       const meta = user.user_metadata as Record<string, unknown> | undefined;
       const fullName =
         (typeof meta?.display_name === "string" && meta.display_name) ||
@@ -33,17 +35,17 @@ export default function UserNavbar() {
         "";
       // Accounts created before the register route stopped falling back to
       // email still carry the email in display_name — treat that as no name.
-      if (fullName.includes("@")) return "";
-      // Take only the first word (first name) — trim whitespace first
-      return fullName.trim().split(/\s+/)[0] || "";
+      const name = fullName.includes("@") ? "" : fullName.trim().split(/\s+/)[0] || "";
+      const avatarUrl = typeof meta?.avatar_url === "string" && meta.avatar_url ? meta.avatar_url : null;
+      return { name, avatarUrl };
     };
 
     // Subscribe to auth changes — fires immediately with the current session,
     // so the navbar updates the moment the user logs in or out. A signed-in
-    // user with no usable name is still signed in ("") — never fall through
-    // to the logged-out null branch, which would show Log in/Sign up.
+    // user with no usable name is still signed in (name: "") — never fall
+    // through to the logged-out null branch, which would show Log in/Sign up.
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (mounted) setDisplayName(session?.user ? resolveName(session.user) : null);
+      if (mounted) setIdentity(session?.user ? resolveIdentity(session.user) : null);
     });
 
     return () => {
@@ -90,16 +92,23 @@ export default function UserNavbar() {
           </nav>
 
           <div className="user-navbar-user">
-            {displayName === undefined ? (
+            {identity === undefined ? (
               <span className="user-navbar-skeleton" aria-hidden="true" />
-            ) : displayName !== null ? (
+            ) : identity !== null ? (
               <>
-                {displayName && (
-                  <span className="user-navbar-email" title={displayName}>
+                <Link
+                  href="/account"
+                  className="user-navbar-email"
+                  title={identity.name || "My account"}
+                  aria-current={pathname === "/account" ? "page" : undefined}
+                >
+                  {identity.avatarUrl ? (
+                    <img src={identity.avatarUrl} alt="" className="user-navbar-avatar" />
+                  ) : (
                     <UserRound size={14} aria-hidden="true" />
-                    <span>{displayName}</span>
-                  </span>
-                )}
+                  )}
+                  {identity.name && <span>{identity.name}</span>}
+                </Link>
                 <button
                   type="button"
                   className="user-navbar-logout"
