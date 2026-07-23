@@ -1,17 +1,14 @@
 import { Headphones } from "lucide-react";
 import UploadForm from "@/components/UploadForm";
-import UserNavbar from "@/components/UserNavbar";
 
 export default function CustomerPage() {
   return (
     <main className="customer-home">
-      <UserNavbar />
-
       <section className="customer-hero" aria-labelledby="customer-page-title">
         <h1 id="customer-page-title">Print Documents Easily</h1>
         <p>
-          Upload your files, configure print settings, generate a token, pay at
-          the counter, and collect your print.
+          Upload one or more PDFs, choose pickup or delivery, and track every
+          step from printing to fulfilment.
         </p>
       </section>
 
