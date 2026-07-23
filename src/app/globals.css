@@ -305,33 +305,42 @@ input, select, button {
 .user-navbar-login-link {
   display: inline-flex;
   align-items: center;
-  min-height: 36px;
-  padding: 0 var(--space-3);
-  border-radius: var(--radius-full);
+  min-height: 40px;
+  padding: 0 16px;
+  border: 1.5px solid var(--accent);
+  border-radius: 6px;
   font-size: 12.5px;
   font-weight: 700;
-  color: var(--accent-strong);
+  color: var(--accent);
+  background: transparent;
+  transition: color var(--duration-fast) var(--ease-out), background var(--duration-fast) var(--ease-out);
 }
-.user-navbar-login-link:hover { background: rgba(13, 122, 116, 0.08); }
-.user-navbar-login-link.active {
-  background: var(--accent-light);
+.user-navbar-login-link:hover {
   color: var(--accent-strong);
+  background: rgba(13, 122, 116, 0.06);
+}
+.user-navbar-login-link.active {
+  background: rgba(13, 122, 116, 0.1);
 }
 .user-navbar-signup-btn {
   display: inline-flex;
   align-items: center;
-  min-height: 36px;
-  padding: 0 var(--space-4);
-  border-radius: var(--radius-full);
+  min-height: 40px;
+  padding: 0 18px;
+  border: 1.5px solid var(--accent);
+  border-radius: 6px;
   font-size: 12.5px;
   font-weight: 700;
   background: var(--accent);
   color: #fff;
-  box-shadow: 0 2px 8px rgba(13, 122, 116, 0.25);
   white-space: nowrap;
+  transition: background var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out);
+}
+.user-navbar-signup-btn:hover {
+  background: var(--accent-strong);
 }
 .user-navbar-signup-btn.active {
-  box-shadow: 0 0 0 3px var(--accent-light), 0 2px 8px rgba(13, 122, 116, 0.25);
+  box-shadow: 0 0 0 3px var(--accent-light);
 }
 .user-navbar-skeleton {
   display: block;
@@ -8411,7 +8420,6 @@ body {
 .user-navbar-signup-btn,
 .user-navbar-logout {
   min-height: 44px;
-  border-radius: 12px;
   transition:
     color 200ms ease,
     background 200ms ease,
@@ -8420,33 +8428,8 @@ body {
     transform 200ms ease;
 }
 
-.user-navbar-login-link {
-  padding: 0 16px;
-  color: var(--accent);
-  background: transparent;
-  border: 1px solid var(--accent);
-}
-
-.user-navbar-login-link:hover {
-  color: var(--accent-strong);
-  background: #ecfdf5;
-}
-
-.user-navbar-signup-btn {
-  padding: 0 18px;
-  background: var(--accent);
-  box-shadow: none;
-}
-
-.user-navbar-login-link:hover,
-.user-navbar-signup-btn:hover,
 .user-navbar-logout:hover {
   transform: translateY(-2px);
-}
-
-.user-navbar-signup-btn:hover {
-  background: var(--accent-strong);
-  box-shadow: var(--shadow-accent-strong);
 }
 
 .customer-home {
