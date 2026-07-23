@@ -1,4 +1,4 @@
-import type { Job, JobFile, PricingConfig, PrinterOption, SseClient } from './types';
+import type { CustomerManagementRow, Job, JobFile, PricingConfig, PrinterOption, SseClient } from './types';
 
 // Check if Supabase is configured
 const isSupabase = Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
@@ -146,6 +146,7 @@ async function initSchema(database: any) {
   database.exec(`CREATE INDEX IF NOT EXISTS idx_jobs_created ON jobs(created_at)`);
   database.exec(`CREATE INDEX IF NOT EXISTS idx_jobs_queue ON jobs(queue_position)`);
   database.exec(`CREATE INDEX IF NOT EXISTS idx_jobs_approved ON jobs(status, needs_conversion, updated_at)`);
+  database.exec(`CREATE INDEX IF NOT EXISTS idx_jobs_delivery_dispatch ON jobs(delivery_method, delivery_status, created_at)`);
   database.exec(`CREATE INDEX IF NOT EXISTS idx_job_files_job_id ON job_files(job_id)`);
   database.exec(`CREATE INDEX IF NOT EXISTS idx_print_events_job_id ON print_events(job_id)`);
   database.exec(`CREATE INDEX IF NOT EXISTS idx_agent_printers_seen ON agent_printers(seen_at)`);
@@ -172,6 +173,10 @@ async function ensureJobColumns(database: any) {
     ['delivery_address', 'TEXT'],
     ['delivery_fee_paise', 'INTEGER NOT NULL DEFAULT 0'],
     ['delivery_status', 'TEXT'],
+    ['delivery_latitude', 'REAL'],
+    ['delivery_longitude', 'REAL'],
+    ['delivery_accuracy_meters', 'REAL'],
+    ['delivery_location_captured_at', 'TEXT'],
     ['customer_user_id', 'TEXT']
   ];
   for (const [name, definition] of additions) {
@@ -260,7 +265,11 @@ function mapJob(row: Record<string, unknown>, expiryMinutes: number = 1440): Job
     customerPhone: row.customer_phone ? String(row.customer_phone) : null,
     deliveryAddress: row.delivery_address ? String(row.delivery_address) : null,
     deliveryFeePaise: Number(row.delivery_fee_paise ?? 0),
-    deliveryStatus: row.delivery_status ? (row.delivery_status as Job['deliveryStatus']) : null
+    deliveryStatus: row.delivery_status ? (row.delivery_status as Job['deliveryStatus']) : null,
+    deliveryLatitude: row.delivery_latitude == null ? null : Number(row.delivery_latitude),
+    deliveryLongitude: row.delivery_longitude == null ? null : Number(row.delivery_longitude),
+    deliveryAccuracyMeters: row.delivery_accuracy_meters == null ? null : Number(row.delivery_accuracy_meters),
+    deliveryLocationCapturedAt: row.delivery_location_captured_at ? String(row.delivery_location_captured_at) : null
   };
 }
 
@@ -514,15 +523,31 @@ export async function createJobWithFiles(
     customerPhone: jobData.customerPhone ?? jobData.customer_phone ?? null,
     deliveryAddress: jobData.deliveryAddress ?? jobData.delivery_address ?? null,
     deliveryFeePaise: jobData.deliveryFeePaise ?? jobData.delivery_fee_paise ?? 0,
+    deliveryLatitude: jobData.deliveryLatitude ?? jobData.delivery_latitude ?? null,
+    deliveryLongitude: jobData.deliveryLongitude ?? jobData.delivery_longitude ?? null,
+    deliveryAccuracyMeters: jobData.deliveryAccuracyMeters ?? jobData.delivery_accuracy_meters ?? null,
+    deliveryLocationCapturedAt: jobData.deliveryLocationCapturedAt ?? jobData.delivery_location_captured_at ?? null,
   };
 
   const firstKind = filesData[0]?.fileKind ?? filesData[0]?.file_kind;
 
   sqlite.transaction(() => {
     sqlite.prepare(`
-      INSERT INTO jobs (id, token, status, customer_user_id, print_type, copies, page_range, paper_size, layout, pages_per_sheet, margins, scale, duplex, page_count, price_paise, needs_conversion, queue_position, delivery_method, customer_name, customer_phone, delivery_address, delivery_fee_paise, created_at, updated_at)
-      VALUES (?, ?, 'pending_payment', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(jobId, j.token, j.customerUserId, j.printType, j.copies, j.pageRange, j.paperSize, j.layout, j.pagesPerSheet, j.margins, j.scale, j.duplex, j.pageCount, j.pricePaise, j.needsConversion, j.queuePosition, j.deliveryMethod, j.customerName, j.customerPhone, j.deliveryAddress, j.deliveryFeePaise, now, now);
+      INSERT INTO jobs (
+        id, token, status, customer_user_id, print_type, copies, page_range, paper_size,
+        layout, pages_per_sheet, margins, scale, duplex, page_count, price_paise,
+        needs_conversion, queue_position, delivery_method, customer_name, customer_phone,
+        delivery_address, delivery_fee_paise, delivery_latitude, delivery_longitude,
+        delivery_accuracy_meters, delivery_location_captured_at, created_at, updated_at
+      )
+      VALUES (?, ?, 'pending_payment', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      jobId, j.token, j.customerUserId, j.printType, j.copies, j.pageRange, j.paperSize,
+      j.layout, j.pagesPerSheet, j.margins, j.scale, j.duplex, j.pageCount, j.pricePaise,
+      j.needsConversion, j.queuePosition, j.deliveryMethod, j.customerName, j.customerPhone,
+      j.deliveryAddress, j.deliveryFeePaise, j.deliveryLatitude, j.deliveryLongitude,
+      j.deliveryAccuracyMeters, j.deliveryLocationCapturedAt, now, now
+    );
 
     const insertFile = sqlite.prepare(`
       INSERT INTO job_files (id, job_id, original_name, stored_name, mime_type, size_bytes, file_kind, storage_path, created_at)

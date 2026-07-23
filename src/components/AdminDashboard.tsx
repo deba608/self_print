@@ -1147,7 +1147,10 @@ function JobCard({
             together as one line. */}
         <Badge variant={status.variant} icon={status.icon}>{status.label}</Badge>
 
-        {(job.status === "pending_payment" || job.status === "paid") && (
+        {(job.status === "pending_payment" || job.status === "paid") && job.deliveryMethod === "delivery" && !job.paidAt && (
+          <Badge variant="warning" icon={Clock}>Awaiting online payment</Badge>
+        )}
+        {(job.status === "pending_payment" || job.status === "paid") && !(job.deliveryMethod === "delivery" && !job.paidAt) && (
           <div className="print-mode-group">
             <div className="print-mode-switch" role="group" aria-label="Print mode">
               <button type="button" className={`print-mode-opt ${printMode === "auto" ? "active" : ""}`} onClick={() => setPrintMode("auto")}>

@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import crypto from 'node:crypto';
-import type { Job, JobFile, PricingConfig, PrinterOption, SseClient } from './types';
+import type { CustomerManagementRow, Job, JobFile, PricingConfig, PrinterOption, SseClient } from './types';
 
 const supabaseUrl = process.env.SUPABASE_URL?.trim();
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
@@ -50,7 +50,11 @@ function mapJob(row: any, expiryMinutes: number = 1440): Job {
     customerPhone: row.customer_phone ? String(row.customer_phone) : null,
     deliveryAddress: row.delivery_address ? String(row.delivery_address) : null,
     deliveryFeePaise: Number(row.delivery_fee_paise ?? 0),
-    deliveryStatus: row.delivery_status ? (row.delivery_status as Job['deliveryStatus']) : null
+    deliveryStatus: row.delivery_status ? (row.delivery_status as Job['deliveryStatus']) : null,
+    deliveryLatitude: row.delivery_latitude == null ? null : Number(row.delivery_latitude),
+    deliveryLongitude: row.delivery_longitude == null ? null : Number(row.delivery_longitude),
+    deliveryAccuracyMeters: row.delivery_accuracy_meters == null ? null : Number(row.delivery_accuracy_meters),
+    deliveryLocationCapturedAt: row.delivery_location_captured_at ? String(row.delivery_location_captured_at) : null
   };
 }
 
@@ -259,6 +263,10 @@ export async function createJobWithFiles(jobData: any, filesData: any[]) {
     customer_phone: jobData.customer_phone ?? jobData.customerPhone ?? null,
     delivery_address: jobData.delivery_address ?? jobData.deliveryAddress ?? null,
     delivery_fee_paise: jobData.delivery_fee_paise ?? jobData.deliveryFeePaise ?? 0,
+    delivery_latitude: jobData.delivery_latitude ?? jobData.deliveryLatitude ?? null,
+    delivery_longitude: jobData.delivery_longitude ?? jobData.deliveryLongitude ?? null,
+    delivery_accuracy_meters: jobData.delivery_accuracy_meters ?? jobData.deliveryAccuracyMeters ?? null,
+    delivery_location_captured_at: jobData.delivery_location_captured_at ?? jobData.deliveryLocationCapturedAt ?? null,
   };
 
   const { error: jobError } = await supabase

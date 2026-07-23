@@ -26,6 +26,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   }
   const invalid = invalidTransition(job.deliveryStatus, job.status, deliveryStatus);
   if (invalid) return NextResponse.json({ error: invalid }, { status: 400 });
+  // Defense-in-depth alongside the release-time check: never dispatch an
+  // unpaid delivery order (there is no cash-on-delivery flow).
+  if (deliveryStatus === "out_for_delivery" && !job.paidAt) {
+    return NextResponse.json({ error: "Delivery orders must be paid before dispatch." }, { status: 400 });
+  }
 
   await updateDeliveryStatus(id, deliveryStatus);
 
