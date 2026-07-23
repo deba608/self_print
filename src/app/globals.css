@@ -460,6 +460,28 @@ input, select, button {
 .intro p { font-size: 13px; margin: 0; color: var(--muted); }
 
 .upload-form { display: flex; flex-direction: column; gap: var(--space-5); }
+
+/* === Desktop one-page workspace (settings + live preview side by side) === */
+/* Mobile/tablet: the wrapper is inert — the wizard steps stack as before. */
+.flow-stack { display: flex; flex-direction: column; gap: var(--space-5); }
+.flow-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 28px;
+  align-items: start;
+}
+/* Preview column stays in view while the (taller) settings column scrolls. */
+.flow-grid .flow-preview-col {
+  position: sticky;
+  top: 84px;
+}
+/* The 520px phone-first shell can't hold two columns — widen it only when
+   the one-page grid is actually on screen (desktop, mid-flow). */
+@media (min-width: 1024px) {
+  .customer-shell:has(.flow-grid) {
+    max-width: 1080px;
+  }
+}
 .step-content { display: grid; gap: var(--space-4); }
 
 /* Step Indicator with animated transitions */

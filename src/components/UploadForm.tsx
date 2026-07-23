@@ -95,6 +95,18 @@ export default function UploadForm() {
     prevStepRef.current = step;
   }
   const stepAnim = stepAnimRef.current;
+  // Desktop one-page mode: at >=1024px the Settings and Preview steps merge
+  // into one two-column workspace (settings left, live preview + confirm
+  // right) — the wizard only exists on smaller screens. SSR renders the
+  // mobile wizard; the effect corrects on mount before first paint matters.
+  const [isDesktop, setIsDesktop] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1024px)");
+    const apply = () => setIsDesktop(mq.matches);
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, []);
   const [filePageCount, setFilePageCount] = useState<number | null>(null);
   const [bulkFiles, setBulkFiles] = useState<File[]>([]);
   const [bulkPageCounts, setBulkPageCounts] = useState<number[]>([]);
@@ -1449,9 +1461,22 @@ export default function UploadForm() {
 
 
 
+  // Desktop one-page workspace: both the settings and preview blocks render
+  // side by side; the wizard's step value stays wherever it was (mobile
+  // resize mid-flow keeps working) but no longer gates what's visible.
+  const onePage = isDesktop && (step === "settings" || step === "preview");
+  const showSettings = step === "settings" || (onePage && step === "preview");
+  const showPreview = step === "preview" || (onePage && step === "settings");
+  // Same validity rule the Preview button uses on mobile — in one-page mode
+  // it gates Confirm directly since there is no intermediate Preview click.
+  const settingsInvalid =
+    (pageRangeMode === "custom" && !!customPageRange.trim() && !isValidPageRange) || isDuplexInvalid;
+
   return (
     <div className="upload-form">
-      {/* Step indicator */}
+      {/* Step indicator — hidden in the desktop one-page workspace, where
+          there are no steps to indicate. */}
+      {!onePage && (
       <nav className="step-indicator" aria-label="Upload progress">
         <div className={`step ${step === "upload" || step === "settings" || step === "preview" ? "active" : step === "done" ? "done" : ""}`} aria-current={step === "upload" ? "step" : undefined}>
           <span className="step-num" aria-hidden="true">1</span>
@@ -1468,6 +1493,7 @@ export default function UploadForm() {
           <span className="step-label">Preview</span>
         </div>
       </nav>
+      )}
 
       {/* Step 1: Upload */}
       {step === "upload" && (
@@ -1552,9 +1578,13 @@ export default function UploadForm() {
         </div>
       )}
 
+      {/* Steps 2+3 — a wizard on mobile, one two-column workspace on
+          desktop (settings left, live preview + confirm right). */}
+      <div className={onePage ? "flow-grid" : "flow-stack"}>
+
       {/* Step 2: Settings */}
-      {step === "settings" && (
-        <div className={`step-content ${stepAnim}`} key={step}>
+      {showSettings && (
+        <div className={`step-content ${onePage ? "" : stepAnim}`} key="block-settings">
           {/* File summary */}
           {isBulk ? (
             <button className="file-summary" onClick={() => setStep("upload")} aria-label="Change files">
@@ -1980,13 +2010,17 @@ export default function UploadForm() {
             )}
           </div>
 
-          {error && (
+          {/* In one-page mode the error renders once, next to Confirm in the
+              preview column, instead of twice. */}
+          {error && !onePage && (
             <div className="error-msg" role="alert">
               {error}
             </div>
           )}
 
-          {/* Actions */}
+          {/* Actions — the wizard's Back/Preview navigation; pointless in
+              one-page mode where the preview is already on screen. */}
+          {!onePage && (
           <div className="form-actions">
             <button
               type="button"
@@ -2000,19 +2034,20 @@ export default function UploadForm() {
               type="button"
               className="btn-primary"
               onClick={goToPreview}
-              disabled={(pageRangeMode === "custom" && !!customPageRange.trim() && !isValidPageRange) || isDuplexInvalid}
+              disabled={settingsInvalid}
               aria-label="Preview print settings"
             >
               Preview <Eye size={20} aria-hidden="true" />
             </button>
           </div>
+          )}
         </div>
       )}
 
       {/* Step 3: Preview */}
-      {step === "preview" && (
-        <div className={`step-content ${stepAnim}`} key={step}>
-          <h3 className="preview-title">Review Your Print Job</h3>
+      {showPreview && (
+        <div className={`step-content ${onePage ? "flow-preview-col" : stepAnim}`} key="block-preview">
+          <h3 className="preview-title">{onePage ? "Live Preview" : "Review Your Print Job"}</h3>
 
           {/* Preview area — grayscale simulation when printing B&W */}
           <div className={`preview-area ${printType === "bw" ? "bw-sim" : ""}`}>
@@ -2084,7 +2119,10 @@ export default function UploadForm() {
             )}
           </div>
 
-          {/* Settings summary */}
+          {/* Settings summary — redundant in one-page mode where the live
+              settings sit in the adjacent column; only the physical-output
+              line survives there (rendered below). */}
+          {!onePage && (
           <div className="settings-summary">
             <h4>Print Settings</h4>
             <div className="summary-grid">
@@ -2130,6 +2168,15 @@ export default function UploadForm() {
               {copies > 1 ? ` per copy (${physicalSheets * copies} total)` : ""}
             </div>
           </div>
+          )}
+
+          {onePage && (
+            <div className="summary-paper-note">
+              <Printer size={14} aria-hidden="true" />
+              Prints on {physicalSheets} sheet{physicalSheets === 1 ? "" : "s"} of paper
+              {copies > 1 ? ` per copy (${physicalSheets * copies} total)` : ""}
+            </div>
+          )}
 
           {deliveryMethod === "delivery" && (
             <div className="delivery-review-card">
@@ -2194,6 +2241,7 @@ export default function UploadForm() {
               className="btn-secondary"
               onClick={() => setStep("settings")}
               aria-label="Go back to edit settings"
+              style={onePage ? { display: "none" } : undefined}
             >
               <ArrowLeft size={20} aria-hidden="true" /> Edit
             </button>
@@ -2201,7 +2249,7 @@ export default function UploadForm() {
               type="button"
               className="btn-primary btn-submit"
               onClick={handleSubmit}
-              disabled={busy || (isBulk && bulkUploading)}
+              disabled={busy || (isBulk && bulkUploading) || (onePage && settingsInvalid)}
               aria-busy={busy || (isBulk && bulkUploading)}
             >
               {busy ? (
@@ -2217,6 +2265,8 @@ export default function UploadForm() {
           </div>
         </div>
       )}
+
+      </div>{/* /flow-grid | flow-stack */}
 
       {/* Help text */}
       {step !== "done" && (
