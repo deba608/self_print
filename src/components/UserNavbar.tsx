@@ -18,10 +18,16 @@ export default function UserNavbar() {
   const [loggingOut, setLoggingOut] = useState(false);
 
   useEffect(() => {
-    fetch("/api/user/profile", { credentials: "include" })
-      .then((res) => res.json())
-      .then((data) => setDisplayName(data.displayName ?? null))
-      .catch(() => setDisplayName(null));
+    try {
+      const supabase = createClient();
+      supabase.auth.getUser().then(({ data }) => {
+        const meta = data.user?.user_metadata as Record<string, unknown> | undefined;
+        const metaName = typeof meta?.display_name === "string" ? meta.display_name : null;
+        setDisplayName(metaName ?? data.user?.email ?? null);
+      });
+    } catch {
+      setDisplayName(null);
+    }
   }, []);
 
   const handleLogout = async () => {
