@@ -53,6 +53,12 @@ Thumbs.db
 graphify-out/
 GRAPHIFY_GUIDE.md
 
+# Playwright MCP artifacts
+.playwright-mcp/
+
+# Generated reports
+.superpowers-report.md
+
 # AI agent / assistant files
 .agents/
 skills-lock.json
