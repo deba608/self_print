@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Printer, Upload, PackageSearch, Search, LogOut, UserRound, Loader2 } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
 
 const navItems = [
   { href: "/", label: "New Print", icon: Upload },
@@ -18,27 +17,10 @@ export default function UserNavbar() {
   const [loggingOut, setLoggingOut] = useState(false);
 
   useEffect(() => {
-    try {
-      const supabase = createClient();
-      supabase.auth.getUser().then(async ({ data }) => {
-        const email = data.user?.email ?? null;
-        const metaName = data.user?.user_metadata?.display_name as string | undefined;
-        if (metaName) {
-          setDisplayName(metaName);
-        } else if (data.user?.id) {
-          const { data: profile } = await supabase
-            .from("customer_profiles")
-            .select("display_name")
-            .eq("id", data.user.id)
-            .single();
-          setDisplayName(profile?.display_name || email);
-        } else {
-          setDisplayName(email);
-        }
-      });
-    } catch {
-      setDisplayName(null);
-    }
+    fetch("/api/user/profile", { credentials: "include" })
+      .then((res) => res.json())
+      .then((data) => setDisplayName(data.displayName ?? null))
+      .catch(() => setDisplayName(null));
   }, []);
 
   const handleLogout = async () => {

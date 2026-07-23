@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function GET() {
   try {
@@ -9,7 +10,8 @@ export async function GET() {
       return NextResponse.json({ displayName: null });
     }
 
-    const { data: profile } = await supabase
+    const admin = createAdminClient();
+    const { data: profile } = await admin
       .from("customer_profiles")
       .select("display_name")
       .eq("id", user.id)
