@@ -6,7 +6,7 @@ import {
   RefreshCw, Settings, LogOut, Printer, Bell, BellRing,
   CheckSquare, Square, CreditCard, Eye, X, Check, Monitor, Loader2,
     ChevronDown, Zap, TrendingUp, Clock,
-    Trash2, ListTodo, Inbox, FileText, BarChart2, ShieldCheck, MessageCircleWarning, AlertTriangle, Users, UsersRound, Truck, MapPinned
+    Trash2, ListTodo, Inbox, FileText, BarChart2, ShieldCheck, MessageCircleWarning, AlertTriangle, Users, UsersRound, Truck, MapPinned, LayoutGrid
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { manualPrint } from "@/lib/manualPrint";
@@ -154,6 +154,69 @@ function StatsBar({ activeJobs, todayRevenue }: { activeJobs: number; todayReven
   );
 }
 
+// Groups the 4 "navigate away to a full management page" links that used
+// to sit as bare icons alongside stay-in-place utility buttons (refresh,
+// notifications) with no visual distinction — clicking one kept you on the
+// dashboard, clicking another silently left it. One labeled entry point
+// makes that boundary obvious instead of hiding it behind identical icons.
+function ManageMenu() {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function onDocClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("mousedown", onDocClick);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDocClick);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  const items = [
+    { href: "/admin/orders", icon: ListTodo, label: "Order Management", hint: "Full order list, search & filters" },
+    { href: "/admin/customers", icon: UsersRound, label: "User Management", hint: "Customer accounts" },
+    { href: "/admin/accounts", icon: BarChart2, label: "Accounts & Daily Data", hint: "Revenue, daily close-out" },
+    { href: "/admin/staff", icon: Users, label: "Staff Management", hint: "Invite & manage staff logins" },
+  ];
+
+  return (
+    <div className="manage-menu" ref={ref}>
+      <button
+        type="button"
+        className={`action-btn action-btn-labeled ${open ? "active" : ""}`}
+        onClick={() => setOpen((v) => !v)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+      >
+        <LayoutGrid size={17} />
+        <span>Manage</span>
+        <ChevronDown size={14} className="chevron" />
+      </button>
+      {open && (
+        <div className="manage-menu-panel" role="menu">
+          <span className="manage-menu-caption">Go to a management page</span>
+          {items.map(({ href, icon: Icon, label, hint }) => (
+            <Link key={href} href={href} className="manage-menu-item" role="menuitem" onClick={() => setOpen(false)}>
+              <Icon size={17} aria-hidden="true" />
+              <span className="manage-menu-item-text">
+                <strong>{label}</strong>
+                <span>{hint}</span>
+              </span>
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Topbar Component
 function AdminTopbar({
   printerName,
@@ -208,6 +271,7 @@ function AdminTopbar({
       </button>
 
       <div className="topbar-actions">
+        {/* Group 1 — live monitoring: stay-in-place actions, used constantly. */}
         <div className="action-group">
           <button
             type="button"
@@ -234,56 +298,30 @@ function AdminTopbar({
             type="button"
             className="action-btn"
             onClick={onOpenManageOrders}
-            title="Quick order list"
-            aria-label="Open quick order list"
+            title="Cleanup: select and delete old orders"
+            aria-label="Cleanup orders"
           >
             <Inbox size={18} />
           </button>
+        </div>
 
-          <Link
-            href="/admin/orders"
-            className="action-btn"
-            title="Order Management"
-            aria-label="Order management"
-          >
-            <ListTodo size={18} />
-          </Link>
+        <div className="topbar-divider" aria-hidden="true" />
 
-          <Link
-            href="/admin/customers"
-            className="action-btn"
-            title="User Management"
-            aria-label="User management"
-          >
-            <UsersRound size={18} />
-          </Link>
-
-          <Link
-            href="/admin/accounts"
-            className="action-btn"
-            title="Accounts & Daily Data"
-            aria-label="Accounts and daily data"
-          >
-            <BarChart2 size={18} />
-          </Link>
-
-          <Link
-            href="/admin/staff"
-            className="action-btn"
-            title="Staff Management"
-            aria-label="Staff management"
-          >
-            <Users size={18} />
-          </Link>
+        {/* Group 2 — everything that navigates away to its own full page,
+            collapsed into one labeled menu instead of 4 bare icons that
+            looked identical to the stay-in-place buttons above. */}
+        <div className="action-group">
+          <ManageMenu />
 
           <button
             type="button"
-            className={`action-btn ${showPricing ? "active" : ""}`}
+            className={`action-btn action-btn-labeled ${showPricing ? "active" : ""}`}
             onClick={onOpenPricing}
             title="Pricing Settings"
             aria-label="Pricing settings"
           >
             <Settings size={18} />
+            <span>Pricing</span>
           </button>
         </div>
 
