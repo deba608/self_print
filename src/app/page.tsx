@@ -1,10 +1,8 @@
 import UploadForm from "@/components/UploadForm";
-import UserNavbar from "@/components/UserNavbar";
 
 export default function CustomerPage() {
   return (
     <main className="customer-home">
-      <UserNavbar />
       <section className="customer-hero" aria-labelledby="customer-page-title">
         <h1 id="customer-page-title">Print Documents Easily</h1>
         <p>
