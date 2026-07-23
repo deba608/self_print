@@ -359,7 +359,10 @@ export default function UploadForm() {
           deliveryStatus: body.deliveryStatus ?? null,
         });
         if (body.paidAt) {
-          setPaidInfo((p) => p ?? { method: "counter", at: body.paidAt });
+          setPaidInfo((p) => p ?? {
+            method: deliveryMethod === "delivery" ? "online" : "counter",
+            at: body.paidAt,
+          });
         }
       } catch {
         /* transient network error — next tick retries */
