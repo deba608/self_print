@@ -2,8 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAuthRedirectUrl } from "@/lib/site-url";
+import { clientIp, isRateLimited } from "@/lib/ratelimit";
 
 export async function POST(request: NextRequest) {
+  if (isRateLimited("user-register", clientIp(request.headers), 6, 60 * 60 * 1000)) {
+    return NextResponse.json({ error: "Too many attempts. Please try again later." }, { status: 429 });
+  }
+
   const body = await request.json().catch(() => null);
   const email = typeof body?.email === "string" ? body.email.trim() : "";
   const password = typeof body?.password === "string" ? body.password : "";
