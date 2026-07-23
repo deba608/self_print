@@ -5,7 +5,6 @@ import {
   AlertCircle,
   CalendarDays,
   CheckCircle2,
-  Crown,
   Loader2,
   Mail,
   RefreshCw,
@@ -148,7 +147,7 @@ export default function StaffManagement({ currentStaff }: { currentStaff: StaffP
           <span><strong>{loading ? "—" : staff.length - superAdminCount}</strong><small>Admins</small></span>
         </div>
         <div className="staff-summary-card">
-          <span className="staff-summary-icon owners"><Crown size={20} aria-hidden="true" /></span>
+          <span className="staff-summary-icon owners"><ShieldCheck size={20} aria-hidden="true" /></span>
           <span><strong>{loading ? "—" : superAdminCount}</strong><small>Super admins</small></span>
         </div>
       </section>
@@ -278,7 +277,7 @@ export default function StaffManagement({ currentStaff }: { currentStaff: StaffP
 
                   <div className="staff-member-meta">
                     <span className={`staff-role-badge ${member.role}`}>
-                      {member.role === "super_admin" ? <Crown size={13} aria-hidden="true" /> : <ShieldCheck size={13} aria-hidden="true" />}
+                      <ShieldCheck size={13} aria-hidden="true" />
                       {member.role === "super_admin" ? "Super admin" : "Admin"}
                     </span>
                     <span className="staff-joined-date">

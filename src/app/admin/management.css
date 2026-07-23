@@ -34,18 +34,21 @@
 }
 
 .management-brand-mark {
-  width: 38px;
-  height: 38px;
+  width: 40px;
+  height: 40px;
   display: grid;
   place-items: center;
-  color: #fff;
-  background: var(--accent);
-  border-radius: 11px;
+  color: var(--accent);
+  background: rgba(13, 122, 116, 0.08);
+  border-radius: 12px;
+  transition: background var(--duration-base) var(--ease-out);
 }
 
+.management-nav:hover .management-brand-mark { background: rgba(13, 122, 116, 0.12); }
+
 .management-brand > span:last-child { display: flex; flex-direction: column; }
-.management-brand strong { font-size: 14px; line-height: 1.2; }
-.management-brand small { color: var(--muted); font-size: 9.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; }
+.management-brand strong { font-size: 16px; font-weight: 800; color: var(--ink); letter-spacing: -0.3px; line-height: 1.2; }
+.management-brand small { color: var(--muted); font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; line-height: 1; }
 
 .management-tabs {
   min-width: 0;
@@ -357,7 +360,7 @@
 @media (max-width: 640px) {
   .management-nav-inner { width: 100%; min-height: auto; display: grid; grid-template-columns: 1fr auto; gap: 8px; padding: 9px 12px 0; }
   .management-brand { grid-column: 1; grid-row: 1; }
-  .management-brand-mark { width: 34px; height: 34px; }
+  .management-brand-mark { width: 36px; height: 36px; }
   .management-logout { grid-column: 2; grid-row: 1; min-height: 36px; margin-left: 0; }
   .management-logout span { display: none; }
   .management-tabs { grid-column: 1 / -1; grid-row: 2; width: calc(100% + 24px); margin-left: -12px; padding: 0 12px 8px; }
