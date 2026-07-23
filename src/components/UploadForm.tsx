@@ -2197,80 +2197,14 @@ export default function UploadForm() {
         </div>
       )}
 
-      {/* Step 3: Preview */}
-      {step === "preview" && (
+      {/* Step 3: Preview — mobile only; desktop shows the preview inline in
+          the merged workspace above. */}
+      {!isDesktop && step === "preview" && (
         <div className={`step-content ${stepAnim}`} key={step}>
           <h3 className="preview-title">Review Your Print Job</h3>
 
           {/* Preview area — grayscale simulation when printing B&W */}
-          <div className={`preview-area ${printType === "bw" ? "bw-sim" : ""}`}>
-            {isBulk && (
-              <>
-                <div className="bulk-file-list">
-                  {bulkFiles.map((f, i) => {
-                    const id = bulkIds[i];
-                    const isLeaving = id !== undefined && leavingBulkIds.has(id);
-                    return (
-                    <div
-                      className={`bulk-file-row ${i === bulkPreviewIndex ? "active" : ""} ${isLeaving ? "leaving" : ""}`}
-                      key={id ?? i}
-                      role="button"
-                      tabIndex={0}
-                      aria-label={`Preview ${f.name}`}
-                      aria-pressed={i === bulkPreviewIndex}
-                      onClick={() => setBulkPreviewIndex(i)}
-                      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setBulkPreviewIndex(i); } }}
-                      onTransitionEnd={(e) => {
-                        if (e.target !== e.currentTarget || e.propertyName !== "max-height") return;
-                        if (id === undefined || !leavingBulkIds.has(id)) return;
-                        removeBulkFile(bulkIds.indexOf(id));
-                        setLeavingBulkIds((prev) => { const next = new Set(prev); next.delete(id); return next; });
-                      }}
-                    >
-                      <BulkThumb file={f} grayscale={printType === "bw"} />
-                      <span className="bulk-file-name">{f.name}</span>
-                      <span className="bulk-file-pages">{bulkPageCounts[i] ?? 1} pg</span>
-                      <button type="button" className="bulk-file-remove" aria-label={`Remove ${f.name}`}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (id === undefined) { removeBulkFile(i); return; }
-                          setLeavingBulkIds((prev) => new Set(prev).add(id));
-                        }}>
-                        <X size={16} />
-                      </button>
-                    </div>
-                    );
-                  })}
-                </div>
-                {/* Full print preview of the tapped file — same viewer as single mode */}
-                {bulkFiles[bulkPreviewIndex] && (
-                  <PdfCanvasPreview
-                    key={bulkIds[bulkPreviewIndex] ?? bulkPreviewIndex}
-                    file={bulkFiles[bulkPreviewIndex]}
-                    fallbackPageCount={bulkPageCounts[bulkPreviewIndex] ?? 1}
-                    sim={{ pagesPerSheet, layout, paperSize, margins }}
-                  />
-                )}
-              </>
-            )}
-            {file && file.type === "application/pdf" && (
-              <PdfCanvasPreview
-                file={file}
-                fallbackPageCount={filePageCount ?? 1}
-                sim={{ pagesPerSheet, layout, paperSize, margins, pages: selectedPageList }}
-              />
-            )}
-            {file && file.type.startsWith("image/") && previewUrl && (
-              <img src={previewUrl} alt="Image Preview" className="preview-image" />
-            )}
-            {file && (file.name.endsWith(".doc") || file.name.endsWith(".docx")) && (
-              <div className="doc-preview">
-                <File size={48} aria-hidden="true" />
-                <p>Word document preview not available</p>
-                <span className="muted">File will be reviewed at the shop</span>
-              </div>
-            )}
-          </div>
+          {previewArea}
 
           {/* Settings summary */}
           <div className="settings-summary">
@@ -2354,27 +2288,7 @@ export default function UploadForm() {
           )}
 
           {/* Total price */}
-          {deliveryMethod === "delivery" && pricing ? (
-            <div className="total-price-breakdown">
-              <div className="total-price-row">
-                <span>Printing</span>
-                <span>₹{(estimate - pricing.deliveryFeePaise / 100).toFixed(2)}</span>
-              </div>
-              <div className="total-price-row">
-                <span>Delivery</span>
-                <span>{pricing.deliveryFeePaise > 0 ? `₹${(pricing.deliveryFeePaise / 100).toFixed(2)}` : "Free"}</span>
-              </div>
-              <div className="total-price">
-                <span>Total</span>
-                <strong>₹{estimate.toFixed(2)}</strong>
-              </div>
-            </div>
-          ) : (
-            <div className="total-price">
-              <span>Total</span>
-              <strong>{pricing ? `₹${estimate.toFixed(2)}` : "…"}</strong>
-            </div>
-          )}
+          {totalPriceBlock}
 
           {/* Submit errors must be visible HERE — Confirm lives on this step,
               and the settings-step error block is not rendered here. */}
@@ -2401,15 +2315,7 @@ export default function UploadForm() {
               disabled={busy || (isBulk && bulkUploading)}
               aria-busy={busy || (isBulk && bulkUploading)}
             >
-              {busy ? (
-                <><Loader2 size={20} className="spin" aria-hidden="true" /> Processing...</>
-              ) : isBulk && bulkUploading ? (
-                <><Loader2 size={20} className="spin" aria-hidden="true" /> Uploading files...</>
-              ) : (
-                deliveryMethod === "delivery"
-                  ? <><CreditCard size={20} aria-hidden="true" /> Continue to Payment</>
-                  : <><Check size={20} aria-hidden="true" /> Confirm Print</>
-              )}
+              {submitButtonLabel}
             </button>
           </div>
         </div>
