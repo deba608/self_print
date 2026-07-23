@@ -23,7 +23,7 @@ function ForgotPasswordForm() {
     setLoading(true);
     setError("");
     try {
-      await fetch("/api/customer/forgot-password", {
+      await fetch("/api/user/forgot-password", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },

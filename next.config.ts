@@ -8,7 +8,7 @@ const nextConfig: NextConfig = {
   },
   async redirects() {
     return [
-      // Customer login moved from /customer-login to /login.
+      // User login moved from /customer-login to /login.
       {
         source: "/customer-login",
         destination: "/login",
