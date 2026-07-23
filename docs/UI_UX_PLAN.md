@@ -10,7 +10,7 @@
 | Area | Backend | UI | Verdict |
 |------|---------|-----|---------|
 | Home delivery (customer + admin) | ✓ | ✓ full | Polish only |
-| Customer accounts (`/my-jobs`, `/register`, `/customer-login`) | ✓ | ✓ full | Polish + empty/loading states |
+| User accounts (`/my-jobs`, `/register`, `/login`) | ✓ | ✓ full | Polish + empty/loading states |
 | Admin auth (`/login`, `/forgot-password`, `/reset-password`, `/staff/accept-invite`) | ✓ | ✓ full | Unify layout + error UX |
 | Admin sub-pages (`/admin/jobs/[id]`, `/admin/jobs/[id]/print`, `/admin/accounts`, `/admin/staff`) | ✓ | ✓ (thin wrappers, full inner components) | Consistent shell + navigation |
 | Admin dashboard (`AdminDashboard.tsx`, 1828 lines) | ✓ | ✓ full but dense | Restructure into components, improve scanability |
@@ -91,14 +91,14 @@ Priority: highest traffic, mobile, on shaky mobile data.
 
 ## 4. Auth Pages (customer + admin) — unify
 
-All 6 auth screens (`/login`, `/customer-login`, `/register`, `/forgot-password`, `/reset-password`, `/staff/accept-invite`) share one `<AuthShell>`:
+All 6 auth screens (`/login` (user), `/admin` (staff), `/register`, `/forgot-password`, `/reset-password`, `/staff/accept-invite`) share one `<AuthShell>`:
 - Centered card ≤400px, logo, single h1, one primary CTA.
 - Password fields: show/hide toggle, `autocomplete="current-password" / "new-password"`.
 - Submit: disabled + spinner during request; error banner with cause + recovery ("Wrong password? Reset it").
 - Reset-password: password strength hint (min rules listed as checklist that ticks live).
 - Forgot-password success stays generic (no account enumeration) — already correct, keep.
 - Focus management: autofocus first field; on error, focus invalid field.
-- Clear cross-links: admin login ↔ customer login clearly labelled so staff/customers don't land on wrong form.
+- Clear cross-links: staff login ↔ user login clearly labelled so staff/customers don't land on wrong form.
 
 ## 5. Admin Dashboard (`AdminDashboard.tsx`)
 

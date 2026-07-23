@@ -6,7 +6,7 @@ import Link from "next/link";
 import { Lock, Mail } from "lucide-react";
 import { AuthShell, AuthInput, AuthError, AuthSubmit } from "@/components/ui/Auth";
 
-export default function CustomerLoginPage() {
+export default function UserLoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -22,7 +22,7 @@ export default function CustomerLoginPage() {
     setLoading(true);
     setError("");
     try {
-      const response = await fetch("/api/customer/login", {
+      const response = await fetch("/api/user/login", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },

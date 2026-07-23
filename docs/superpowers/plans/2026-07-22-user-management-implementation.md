@@ -265,14 +265,14 @@ Self_Print currently has a single hardcoded admin login (`admin`/`1234`, `admin_
 
 ## Task 9: Customer register/login/forgot-password/reset-password
 
-**Files (new):** `src/app/register/page.tsx`, `src/app/customer-login/page.tsx`, `src/app/forgot-password/page.tsx`, `src/app/reset-password/page.tsx`, `src/app/api/customer/register/route.ts`, `src/app/api/customer/login/route.ts`, `src/app/api/customer/logout/route.ts`, `src/app/api/customer/forgot-password/route.ts`
+**Files (new):** `src/app/register/page.tsx`, `src/app/login/page.tsx`, `src/app/forgot-password/page.tsx`, `src/app/reset-password/page.tsx`, `src/app/api/user/register/route.ts`, `src/app/api/user/login/route.ts`, `src/app/api/user/logout/route.ts`, `src/app/api/user/forgot-password/route.ts`
 
 **Steps:**
 1. All pages: Client Components reusing `.login-container`/`.login-card`/`.login-form`/`.login-error`/`.login-btn`/`.login-footer` classes (same system as staff login).
-2. `src/app/api/customer/register/route.ts`: `POST { email, password, displayName, phone }` — **`phone` is required** (locked decision 5); validate non-empty (basic format check, no SMS verification). `supabase.auth.signUp({ email, password })` via `src/lib/supabase/server.ts`'s anon client. Insert `customer_profiles` row `{ id: data.user.id, email, display_name: displayName, phone }`. Return `{ ok: true, needsEmailConfirmation: !data.session }` (locked decision 6: email confirmation required, so this will normally be true).
-3. `src/app/api/customer/login/route.ts`: `POST { email, password }` → `signInWithPassword`. Verify a `customer_profiles` row exists; if not, clear error (e.g. staff account on wrong page) rather than silently allowing cross-use.
-4. `src/app/api/customer/logout/route.ts`: `auth.signOut()`.
-5. `src/app/api/customer/forgot-password/route.ts`: `POST { email }` → `resetPasswordForEmail(email, { redirectTo: <site-url>/reset-password })`. Always return `{ ok: true }` regardless of whether the email exists (no user enumeration).
+2. `src/app/api/user/register/route.ts`: `POST { email, password, displayName, phone }` — **`phone` is required** (locked decision 5); validate non-empty (basic format check, no SMS verification). `supabase.auth.signUp({ email, password })` via `src/lib/supabase/server.ts`'s anon client. Insert `customer_profiles` row `{ id: data.user.id, email, display_name: displayName, phone }`. Return `{ ok: true, needsEmailConfirmation: !data.session }` (locked decision 6: email confirmation required, so this will normally be true).
+3. `src/app/api/user/login/route.ts`: `POST { email, password }` → `signInWithPassword`. Verify a `customer_profiles` row exists; if not, clear error (e.g. staff account on wrong page) rather than silently allowing cross-use.
+4. `src/app/api/user/logout/route.ts`: `auth.signOut()`.
+5. `src/app/api/user/forgot-password/route.ts`: `POST { email }` → `resetPasswordForEmail(email, { redirectTo: <site-url>/reset-password })`. Always return `{ ok: true }` regardless of whether the email exists (no user enumeration).
 6. `src/app/reset-password/page.tsx`: reads Supabase recovery session from the redirect, form for new password, `supabase.auth.updateUser({ password })` directly from the browser client.
 7. Add minimal nav links between register/customer-login/forgot-password and back to `/`, plus an optional "Have an account? Log in" link from the home page header — must not obscure or complicate the guest upload path.
 
@@ -282,14 +282,14 @@ Self_Print currently has a single hardcoded admin login (`admin`/`1234`, `admin_
 
 ## Task 10: Customer dashboard (job history)
 
-**Files (new):** `src/app/my-jobs/page.tsx`, `src/app/api/customer/jobs/route.ts`
+**Files (new):** `src/app/my-jobs/page.tsx`, `src/app/api/user/jobs/route.ts`
 
 **Steps:**
-1. `src/app/api/customer/jobs/route.ts`: `GET` — use the anon-key cookie-bound client (`src/lib/supabase/server.ts`, NOT `db-supabase.ts`'s service-role client) so RLS (Task 4) does the filtering. 401 if `getUser()` returns null. Add explicit `.eq("customer_user_id", user.id)` too, as defense-in-depth.
+1. `src/app/api/user/jobs/route.ts`: `GET` — use the anon-key cookie-bound client (`src/lib/supabase/server.ts`, NOT `db-supabase.ts`'s service-role client) so RLS (Task 4) does the filtering. 401 if `getUser()` returns null. Add explicit `.eq("customer_user_id", user.id)` too, as defense-in-depth.
 2. `src/app/my-jobs/page.tsx`: lists the customer's jobs (status/date/price), linking to the existing job-tracking page/component for details — reuse whatever summary card component already exists for the customer token screen rather than duplicating markup.
 3. Add a "My Jobs" link (server-side session check) vs. "Log in" link in the home page header depending on customer session state.
 
-**Verification:** `npm run build`. Manual: two customer accounts, Customer A uploads while logged in (after Task 11), confirm Customer B's `/api/customer/jobs` never returns Customer A's job (RLS-enforced — test via curl with Customer B's session cookie, not just UI).
+**Verification:** `npm run build`. Manual: two customer accounts, Customer A uploads while logged in (after Task 11), confirm Customer B's `/api/user/jobs` never returns Customer A's job (RLS-enforced — test via curl with Customer B's session cookie, not just UI).
 
 ---
 
