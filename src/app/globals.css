@@ -197,20 +197,34 @@ input, select, button {
 .shop-nav-tab:not(.active):hover { color: var(--accent); }
 .shop-nav-tab svg { flex-shrink: 0; }
 
-/* === User Dashboard Navbar === */
-/* Always visible, all breakpoints — this is the only place a mobile guest
-   can reach Log in / Sign up, since the bottom tab bar only covers the
-   primary New Print / My Jobs / Track pages, not account actions. */
+/* === Customer navigation === */
+.customer-app-content {
+  min-height: calc(100dvh - 65px);
+}
+
+.customer-app-content > .admin-login-shell {
+  min-height: calc(100dvh - 65px);
+}
+
 .user-navbar {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-3) var(--space-4);
-  background: var(--panel);
-  border-bottom: 1px solid var(--line);
   position: sticky;
   top: 0;
   z-index: 50;
+  width: 100%;
+  padding-top: env(safe-area-inset-top, 0px);
+  background: rgba(255, 255, 255, 0.92);
+  border-bottom: 1px solid rgba(13, 122, 116, 0.12);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+.user-navbar-inner {
+  width: min(1120px, calc(100% - 24px));
+  min-height: 60px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
 }
 .user-navbar-logo {
   display: flex;
@@ -222,9 +236,8 @@ input, select, button {
   letter-spacing: -0.3px;
   flex-shrink: 0;
 }
+.user-navbar-logo:hover { color: var(--accent-strong); }
 .user-navbar-nav {
-  /* Redundant with the mobile bottom tab bar below 600px — shown only
-     once there's room to display both without crowding. */
   display: none;
   gap: 2px;
   padding: 3px;
@@ -243,6 +256,7 @@ input, select, button {
   color: var(--muted);
   transition: all var(--duration-base) var(--ease-out);
   white-space: nowrap;
+  min-height: 36px;
 }
 .user-navbar-link.active {
   background: var(--panel);
@@ -278,7 +292,7 @@ input, select, button {
   min-height: 36px;
   padding: 0 var(--space-3);
   border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-full);
   background: #fff;
   color: var(--muted);
   font-size: 12px;
@@ -299,6 +313,10 @@ input, select, button {
   color: var(--accent-strong);
 }
 .user-navbar-login-link:hover { background: rgba(13, 122, 116, 0.08); }
+.user-navbar-login-link.active {
+  background: var(--accent-light);
+  color: var(--accent-strong);
+}
 .user-navbar-signup-btn {
   display: inline-flex;
   align-items: center;
@@ -312,24 +330,58 @@ input, select, button {
   box-shadow: 0 2px 8px rgba(13, 122, 116, 0.25);
   white-space: nowrap;
 }
+.user-navbar-signup-btn.active {
+  box-shadow: 0 0 0 3px var(--accent-light), 0 2px 8px rgba(13, 122, 116, 0.25);
+}
 .user-navbar-skeleton {
   display: block;
-  width: 140px;
+  width: 112px;
   height: 36px;
   border-radius: var(--radius-full);
   background: linear-gradient(90deg, var(--accent-bg) 25%, var(--accent-light) 50%, var(--accent-bg) 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s ease-in-out infinite;
 }
-/* Below 600px the email is the widest element in the row and there's a
-   4th tab bar competing for space — drop the text, keep the icon+logout
-   button so identity is still visible without crowding the brand/actions. */
 @media (max-width: 599px) {
   .user-navbar-email span { display: none; }
   .user-navbar-email { max-width: none; }
+  .user-navbar-logout span { display: none; }
+  .user-navbar-logout {
+    width: 40px;
+    min-height: 40px;
+    padding: 0;
+    justify-content: center;
+  }
+  .user-navbar-login-link,
+  .user-navbar-signup-btn { min-height: 40px; }
 }
 @media (min-width: 600px) {
-  .user-navbar-nav { display: flex; }
+  .user-navbar-inner {
+    width: min(1120px, calc(100% - 32px));
+    min-height: 65px;
+    display: grid;
+    grid-template-columns: minmax(120px, 1fr) auto minmax(120px, 1fr);
+  }
+  .user-navbar-nav { display: flex; justify-self: center; }
+  .user-navbar-user { justify-self: end; }
+}
+@media (min-width: 900px) {
+  .user-navbar-skeleton { width: 140px; }
+}
+@media (min-width: 1040px) {
+  .user-navbar-email { display: inline-flex; }
+}
+@media (min-width: 600px) and (max-width: 1039px) {
+  .user-navbar-email span { display: none; }
+  .user-navbar-email { max-width: none; }
+}
+@media (max-width: 370px) {
+  .user-navbar-inner { width: calc(100% - 16px); gap: 6px; }
+  .user-navbar-logo { font-size: 15px; gap: 6px; }
+  .user-navbar-logo svg { width: 21px; height: 21px; }
+  .user-navbar-user { gap: 3px; }
+  .user-navbar-login-link { padding: 0 8px; }
+  .user-navbar-signup-btn { padding: 0 11px; }
 }
 
 /* Mobile bottom tab bar */
@@ -338,27 +390,49 @@ input, select, button {
   bottom: 0;
   left: 0;
   right: 0;
-  display: flex;
-  background: var(--panel);
-  border-top: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.96);
+  border-top: 1px solid rgba(13, 122, 116, 0.12);
   z-index: 50;
-  padding: 4px 0 env(safe-area-inset-bottom, 4px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  box-shadow: 0 -6px 20px rgba(15, 23, 42, 0.06);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+.user-bottom-nav-inner {
+  width: min(520px, 100%);
+  min-height: 58px;
+  margin: 0 auto;
+  display: flex;
 }
 .user-bottom-link {
+  position: relative;
   flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 2px;
-  padding: 6px 0 4px;
+  justify-content: center;
+  padding: 7px 0 6px;
   font-size: 10.5px;
   font-weight: 700;
   color: var(--muted);
   text-decoration: none;
   transition: color var(--duration-fast) var(--ease-out);
-  min-height: 44px;
+  min-height: 58px;
 }
-.user-bottom-link.active { color: var(--accent); }
+.user-bottom-link.active { color: var(--accent-strong); }
+.user-bottom-link.active::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 34px;
+  height: 3px;
+  border-radius: 0 0 4px 4px;
+  background: var(--accent);
+  transform: translateX(-50%);
+}
+.user-bottom-link:hover { color: var(--accent); }
 .user-bottom-link svg { flex-shrink: 0; }
 @media (min-width: 600px) {
   .user-bottom-nav { display: none; }

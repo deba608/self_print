@@ -1,10 +1,8 @@
 import UploadForm from "@/components/UploadForm";
-import UserNavbar from "@/components/UserNavbar";
 
 export default function CustomerPage() {
   return (
     <main className="customer-shell">
-      <UserNavbar />
       <section className="panel stack">
         <div className="intro">
           <h1>Print Your Files</h1>
