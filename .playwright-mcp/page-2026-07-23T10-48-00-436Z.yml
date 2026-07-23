@@ -1,0 +1,54 @@
+- generic [ref=f7e2]:
+  - banner [ref=f7e3]:
+    - generic [ref=f7e4]:
+      - link "Back to admin queue" [ref=f7e5] [cursor=pointer]:
+        - /url: /admin
+        - generic [ref=f7e11]:
+          - strong [ref=f7e12]: SelfPrint
+          - generic [ref=f7e13]: Operations
+      - navigation "Admin management" [ref=f7e14]:
+        - link [ref=f7e15] [cursor=pointer]:
+          - /url: /admin
+        - link [ref=f7e21] [cursor=pointer]:
+          - /url: /admin/orders
+        - link [ref=f7e25] [cursor=pointer]:
+          - /url: /admin/customers
+        - link [ref=f7e30] [cursor=pointer]:
+          - /url: /admin/accounts
+        - link [ref=f7e33] [cursor=pointer]:
+          - /url: /admin/staff
+      - button "Log out" [ref=f7e46] [cursor=pointer]
+  - main [ref=f7e51]:
+    - generic [ref=f7e52]:
+      - generic [ref=f7e53]:
+        - generic [ref=f7e54]: Customer directory
+        - heading "User management" [level=1] [ref=f7e55]
+        - paragraph [ref=f7e56]: See registered users and delivery customers with their order history and contact details.
+      - button "Refresh" [disabled] [ref=f7e57]
+    - region "Customer overview" [ref=f7e63]:
+      - article [ref=f7e64]:
+        - generic [ref=f7e70]:
+          - strong [ref=f7e71]: "0"
+          - generic [ref=f7e72]: Known customers
+      - article [ref=f7e73]:
+        - generic [ref=f7e79]:
+          - strong [ref=f7e80]: "0"
+          - generic [ref=f7e81]: Registered users
+      - article [ref=f7e82]:
+        - generic [ref=f7e89]:
+          - strong [ref=f7e90]: "0"
+          - generic [ref=f7e91]: With active orders
+      - article [ref=f7e92]:
+        - generic [ref=f7e97]:
+          - strong [ref=f7e98]: "0"
+          - generic [ref=f7e99]: Total orders
+    - generic [ref=f7e100]:
+      - generic [ref=f7e101]:
+        - generic [ref=f7e102]:
+          - generic [ref=f7e103]: Search customers
+          - searchbox "Search customers" [ref=f7e104]
+        - group "Customer type" [ref=f7e105]:
+          - button "All" [ref=f7e106] [cursor=pointer]
+          - button "Registered" [ref=f7e107] [cursor=pointer]
+          - button "Guest delivery" [ref=f7e108] [cursor=pointer]
+      - generic [ref=f7e109]: Loading customers...
