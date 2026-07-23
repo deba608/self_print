@@ -293,12 +293,12 @@ input, select, button {
   padding: 0 var(--space-3);
   border: 1px solid var(--line);
   border-radius: var(--radius-full);
-  background: #fff;
+  background: rgba(185, 28, 28, 0.03);
   color: var(--muted);
   font-size: 12px;
   font-weight: 700;
   cursor: pointer;
-  transition: color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out);
+  transition: color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out), background var(--duration-fast) var(--ease-out);
 }
 .user-navbar-logout:hover { color: var(--danger); border-color: var(--danger); background: rgba(185, 28, 28, 0.06); }
 .user-navbar-logout:disabled { cursor: wait; opacity: 0.7; }
@@ -3363,6 +3363,7 @@ input[type="number"] {
   white-space: nowrap;
   color: var(--muted);
   border-color: var(--line);
+  background: rgba(185, 28, 28, 0.03);
 }
 .action-btn.logout-action:hover {
   color: var(--danger);
