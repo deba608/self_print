@@ -21,20 +21,18 @@ export default function UserNavbar() {
     let mounted = true;
     const supabase = createClient();
 
-    /** Derive a display name from a Supabase User object */
+    /** Return only the first name from the registration display_name */
     const resolveName = (user: import("@supabase/supabase-js").User | null | undefined) => {
       if (!user) return null;
       const meta = user.user_metadata as Record<string, unknown> | undefined;
-      // Prefer explicit name fields over email
-      const name =
+      const fullName =
+        (typeof meta?.display_name === "string" && meta.display_name) ||
         (typeof meta?.full_name === "string" && meta.full_name) ||
         (typeof meta?.name === "string" && meta.name) ||
-        (typeof meta?.display_name === "string" && meta.display_name) ||
-        null;
-      if (name) return name;
-      // Last resort: use the local part of the email (before @)
-      const email = user.email ?? "";
-      return email.includes("@") ? email.split("@")[0] : email || null;
+        "";
+      // Take only the first word (first name) — trim whitespace first
+      const firstName = fullName.trim().split(/\s+/)[0];
+      return firstName || null;
     };
 
     // Subscribe to auth changes — fires immediately with the current session,
