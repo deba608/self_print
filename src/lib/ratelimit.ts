@@ -5,6 +5,7 @@
 type Entry = { count: number; lastReset: number };
 
 const buckets = new Map<string, Map<string, Entry>>();
+console.log("DEBUG ratelimit module instance:", Math.random());
 
 export function isRateLimited(
   bucket: string,
