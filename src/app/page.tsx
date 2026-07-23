@@ -18,7 +18,6 @@ export default function CustomerPage() {
       </section>
 
       <aside className="customer-help">
-        <Headphones size={22} aria-hidden="true" />
         <div>
           <h2>Need assistance?</h2>
           <p>Our staff will help you print your documents quickly.</p>
