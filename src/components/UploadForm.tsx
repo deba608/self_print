@@ -107,6 +107,17 @@ export default function UploadForm() {
     mq.addEventListener("change", apply);
     return () => mq.removeEventListener("change", apply);
   }, []);
+  // Desktop fulfillment stage — the workspace's Continue button flips to a
+  // dedicated "how will you get your prints?" screen before submitting.
+  const [fulfilStage, setFulfilStage] = useState(false);
+  useEffect(() => {
+    // Leaving the workspace (new upload, done, resize to mobile) always
+    // resets to the first stage.
+    if (step !== "settings" && step !== "preview") setFulfilStage(false);
+  }, [step]);
+  useEffect(() => {
+    if (!isDesktop) setFulfilStage(false);
+  }, [isDesktop]);
   const [filePageCount, setFilePageCount] = useState<number | null>(null);
   const [bulkFiles, setBulkFiles] = useState<File[]>([]);
   const [bulkPageCounts, setBulkPageCounts] = useState<number[]>([]);
@@ -1582,11 +1593,104 @@ export default function UploadForm() {
 
       {/* Steps 2+3 — a wizard on mobile, one two-column workspace on
           desktop (settings left, live preview + confirm right). */}
-      <div className={onePage ? "flow-grid" : "flow-stack"}>
+      <div className={onePage ? `flow-grid${fulfilStage ? " fulfil-stage" : ""}` : "flow-stack"}>
 
-      {/* Step 2: Settings */}
+      {/* Step 2: Settings — children are grouped into three zones so the
+          desktop one-page grid can place them (file top-left, settings
+          bottom-left, fulfillment+price bottom-right) while mobile just
+          stacks the same zones in order. */}
       {showSettings && (
-        <div className={`step-content ${onePage ? "" : stepAnim}`} key="block-settings">
+        <div className={`step-content ${onePage ? "flow-contents" : stepAnim}`} key="block-settings">
+          <div className="fs-file-zone">
+
+          {/* Hidden add-more input — shared by the mobile button and the
+              desktop "+ Add more" tile. */}
+          {(isBulk || file?.type === "application/pdf") && (
+            <input
+              ref={addMoreInputRef}
+              type="file"
+              id="add-more-input"
+              multiple
+              accept=".pdf,application/pdf"
+              onChange={handleAddMoreFiles}
+              style={{ display: "none" }}
+            />
+          )}
+
+          {onePage ? (
+            /* Desktop: files as thumbnail cards (click = preview it,
+               × = remove) plus an add-more tile — no summary chip. */
+            <div className="file-zone-board">
+              <h3 className="file-zone-title">
+                Your files
+                {isBulk && <span className="file-zone-count">{bulkFiles.length}/10 · {bulkTotalPages} pages</span>}
+              </h3>
+              <div className="file-thumb-grid">
+                {isBulk ? (
+                  bulkFiles.map((f, i) => (
+                    <div
+                      key={bulkIds[i] ?? i}
+                      className={`file-thumb-card ${i === bulkPreviewIndex ? "active" : ""}`}
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`Preview ${f.name}`}
+                      aria-pressed={i === bulkPreviewIndex}
+                      onClick={() => setBulkPreviewIndex(i)}
+                      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setBulkPreviewIndex(i); } }}
+                    >
+                      <BulkThumb file={f} grayscale={printType === "bw"} width={82} />
+                      <span className="file-thumb-name" title={f.name}>{f.name}</span>
+                      <span className="file-thumb-pages">{bulkPageCounts[i] ?? 1} pg</span>
+                      <button
+                        type="button"
+                        className="file-thumb-remove"
+                        aria-label={`Remove ${f.name}`}
+                        onClick={(e) => { e.stopPropagation(); removeBulkFile(i); }}
+                      >
+                        <X size={13} />
+                      </button>
+                    </div>
+                  ))
+                ) : file && (
+                  <div className="file-thumb-card active">
+                    {file.type === "application/pdf" ? (
+                      <BulkThumb file={file} grayscale={printType === "bw"} width={82} />
+                    ) : previewUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={previewUrl} alt="" className="file-thumb-img" />
+                    ) : (
+                      <File size={40} aria-hidden="true" />
+                    )}
+                    <span className="file-thumb-name" title={file.name}>{file.name}</span>
+                    {file.type === "application/pdf" && filePageCount ? (
+                      <span className="file-thumb-pages">{filePageCount} pg</span>
+                    ) : null}
+                    <button
+                      type="button"
+                      className="file-thumb-remove"
+                      aria-label="Remove file and choose another"
+                      onClick={() => setStep("upload")}
+                    >
+                      <X size={13} />
+                    </button>
+                  </div>
+                )}
+                {(isBulk || file?.type === "application/pdf") && (
+                  <button
+                    type="button"
+                    className="file-thumb-add"
+                    onClick={() => addMoreInputRef.current?.click()}
+                    disabled={isBulk && bulkFiles.length >= 10}
+                    title={isBulk && bulkFiles.length >= 10 ? "Maximum 10 files per job" : "Add more PDFs to this job"}
+                  >
+                    <UploadCloud size={22} aria-hidden="true" />
+                    Add more
+                  </button>
+                )}
+              </div>
+            </div>
+          ) : (
+            <>
           {/* File summary */}
           {isBulk ? (
             <button className="file-summary" onClick={() => setStep("upload")} aria-label="Change files">
@@ -1614,7 +1718,274 @@ export default function UploadForm() {
             </button>
           )}
 
-          {deliveryOfferable && (
+          {/* Add more PDFs to this job (converts a single PDF into a batch).
+              Hidden for images/docs — bulk is PDF-only. */}
+          {(isBulk || file?.type === "application/pdf") && (
+              <button
+                type="button"
+                className="add-more-btn"
+                onClick={() => addMoreInputRef.current?.click()}
+                disabled={isBulk && bulkFiles.length >= 10}
+                title={isBulk && bulkFiles.length >= 10 ? "Maximum 10 files per job" : undefined}
+              >
+                <UploadCloud size={16} aria-hidden="true" />
+                Add more PDFs
+                <span className="add-more-hint">
+                  {isBulk ? `${bulkFiles.length}/10 files` : "print several in one job"}
+                </span>
+              </button>
+          )}
+
+          {/* Repeat-print: one tap reapplies the last successful job's settings */}
+          {lastSettings && !appliedLastSettings && (
+            <button type="button" className="repeat-settings-chip" onClick={applyLastSettings}>
+              <RefreshCw size={14} aria-hidden="true" />
+              <span>Use same as last time</span>
+              <span className="repeat-settings-sub">{lastSettingsSummary}</span>
+            </button>
+          )}
+            </>
+          )}
+
+          {/* Live upload progress — large files take a while on mobile data */}
+          {(isBulk ? bulkUploading : uploadPct > 0 && uploadPct < 100) && (
+            <div className="upload-progress" role="progressbar" aria-valuenow={uploadPct} aria-valuemin={0} aria-valuemax={100} aria-label="Upload progress">
+              <div className="upload-progress-track">
+                <div className="upload-progress-fill" style={{ width: `${uploadPct}%` }} />
+              </div>
+              <span className="upload-progress-label">Uploading… {uploadPct}%</span>
+            </div>
+          )}
+
+          </div>{/* /fs-file-zone */}
+
+          <div className="fs-settings compact-settings">
+          {/* Print type toggle */}
+          <div className="print-type-toggle">
+            <button
+              type="button"
+              className={`toggle-btn ${printType === "bw" ? "active" : ""}`}
+              onClick={() => setPrintType("bw")}
+              aria-pressed={printType === "bw"}
+            >
+              <span className="toggle-label">Black & White</span>
+              {pricing && <span className="toggle-price">{formatRupees(pricing.bwPerPagePaise)}/pg</span>}
+            </button>
+            <button
+              type="button"
+              className={`toggle-btn color-btn ${printType === "color" ? "active" : ""}`}
+              onClick={() => setPrintType("color")}
+              aria-pressed={printType === "color"}
+            >
+              <span className="toggle-label">Color</span>
+              {pricing && <span className="toggle-price">{formatRupees(pricing.colorPerPagePaise)}/pg</span>}
+            </button>
+          </div>
+
+          {/* Sides — right after print type */}
+          <div className="form-group">
+            <label id="sides-label">Sides</label>
+            <div className="page-mode-grid" role="group" aria-labelledby="sides-label">
+              <button
+                type="button"
+                className={`page-mode-btn ${duplex === "simplex" ? "active" : ""}`}
+                onClick={() => setDuplex("simplex")}
+                aria-pressed={duplex === "simplex"}
+              >
+                <FileText size={18} className="page-mode-icon" aria-hidden="true" />
+                <span className="page-mode-label">Single-sided</span>
+              </button>
+              <button
+                type="button"
+                className={`page-mode-btn ${duplex !== "simplex" ? "active" : ""}`}
+                onClick={() => canDuplex && setDuplex("long-edge")}
+                aria-pressed={duplex !== "simplex"}
+                disabled={!canDuplex}
+                title={!canDuplex ? "Needs a document with at least 2 pages" : undefined}
+              >
+                <Copy size={18} className="page-mode-icon" aria-hidden="true" />
+                <span className="page-mode-label">Double-sided</span>
+              </button>
+            </div>
+            {!canDuplex && (
+              <span className="range-hint" style={{ marginTop: "0.25rem", display: "block" }}>
+                Double-sided needs a document with at least 2 pages.
+              </span>
+            )}
+          </div>
+
+          {/* Copies + Paper Size */}
+          <div className="form-row">
+            <div className="form-group">
+              <label htmlFor="copies-input">Copies</label>
+              <div className="number-input">
+                <button
+                  type="button"
+                  className="num-btn"
+                  onClick={() => setCopies(Math.max(1, copies - 1))}
+                  aria-label="Decrease copies"
+                ><span>-</span></button>
+                <input
+                  id="copies-input"
+                  type="number"
+                  min="1" max="99" step="1"
+                  value={copies}
+                  onChange={(e) => {
+                    const val = Math.floor(Number(e.target.value));
+                    setCopies(isNaN(val) ? 1 : Math.min(99, Math.max(1, val)));
+                  }}
+                  aria-label="Number of copies"
+                  className="num-display"
+                />
+                <button
+                  type="button"
+                  className="num-btn"
+                  onClick={() => setCopies(Math.min(99, copies + 1))}
+                  aria-label="Increase copies"
+                ><span>+</span></button>
+              </div>
+            </div>
+            <div className="form-group">
+              <label htmlFor="paper-size">Paper</label>
+              <select
+                id="paper-size"
+                value={paperSize}
+                onChange={(e) => setPaperSize(e.target.value)}
+                className="mobile-select"
+              >
+                {allPaperSizes.map((size) => (
+                  <option key={size} value={size}>{paperSizeLabels[size as keyof typeof paperSizeLabels]}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Layout + Scale */}
+          <div className="form-row">
+            <div className="form-group">
+              <label htmlFor="layout-select">Layout</label>
+              <select id="layout-select" value={layout} onChange={(e) => setLayout(e.target.value)} className="mobile-select">
+                <option value="portrait">Portrait</option>
+                <option value="landscape">Landscape</option>
+              </select>
+            </div>
+            <div className="form-group">
+              <label htmlFor="scale-select">Scale</label>
+              <select id="scale-select" value={scale} onChange={(e) => setScale(e.target.value)} className="mobile-select">
+                <option value="default">Auto</option>
+                <option value="fit">Fit to Page</option>
+                <option value="shrink">Shrink if Oversized</option>
+                <option value="noscale">Actual Size</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Margins + Pages/Sheet */}
+          <div className="form-row">
+            <div className="form-group">
+              <label htmlFor="margins-select">Margins</label>
+              <select id="margins-select" value={margins} onChange={(e) => setMargins(e.target.value)} className="mobile-select">
+                <option value="default">Default</option>
+                <option value="minimum">Minimum</option>
+                <option value="none">None</option>
+              </select>
+            </div>
+            <div className="form-group">
+              <label htmlFor="pages-per-sheet-select">Per Sheet</label>
+              <select id="pages-per-sheet-select" value={pagesPerSheet} onChange={(e) => setPagesPerSheet(Number(e.target.value))} className="mobile-select">
+                <option value={1}>1</option>
+                <option value={2}>2</option>
+                <option value={4}>4</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Page Range — not applicable in bulk mode */}
+          {!isBulk && (
+            <div className="form-group">
+              <label>Select Pages</label>
+              <div className="page-range-selector">
+                <div className="page-mode-grid">
+                  <button
+                    type="button"
+                    className={`page-mode-btn ${pageRangeMode === "all" ? "active" : ""}`}
+                    onClick={() => setPageRangeMode("all")}
+                    aria-pressed={pageRangeMode === "all"}
+                  >
+                    <File size={18} className="page-mode-icon" aria-hidden="true" />
+                    <span className="page-mode-label">All Pages</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`page-mode-btn ${pageRangeMode === "even" ? "active" : ""}`}
+                    onClick={() => setPageRangeMode("even")}
+                    aria-pressed={pageRangeMode === "even"}
+                  >
+                    <span className="page-mode-num">2</span>
+                    <span className="page-mode-label">Even Only</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`page-mode-btn ${pageRangeMode === "odd" ? "active" : ""}`}
+                    onClick={() => setPageRangeMode("odd")}
+                    aria-pressed={pageRangeMode === "odd"}
+                  >
+                    <span className="page-mode-num">1</span>
+                    <span className="page-mode-label">Odd Only</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`page-mode-btn ${pageRangeMode === "custom" ? "active" : ""}`}
+                    onClick={() => setPageRangeMode("custom")}
+                    aria-pressed={pageRangeMode === "custom"}
+                  >
+                    <span className="page-mode-num">C</span>
+                    <span className="page-mode-label">Custom</span>
+                  </button>
+                </div>
+                {pageRangeMode === "custom" && (
+                  <div className="custom-range-input">
+                    <input
+                      type="text"
+                      placeholder="e.g., 1-5 or 1,3,5"
+                      value={customPageRange}
+                      onChange={(e) => setCustomPageRange(e.target.value.replace(/[^0-9,\-]/g, ''))}
+                      aria-label="Enter custom page range"
+                      inputMode="numeric"
+                      aria-invalid={!isValidPageRange && !!customPageRange.trim()}
+                    />
+                    <span className="range-hint">Separate with commas or dash for range</span>
+                    {pageRangeValidationMessage && (
+                      <span className="range-error" role="alert">
+                        {pageRangeValidationMessage}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          </div>{/* /fs-settings */}
+
+          <div className="fs-fulfil">
+          {/* Desktop stage 2 header — this zone becomes its own page. */}
+          {onePage && fulfilStage && (
+            <div className="fulfil-page-head">
+              <button
+                type="button"
+                className="fulfil-back-btn"
+                onClick={() => setFulfilStage(false)}
+                aria-label="Back to print settings"
+              >
+                <ArrowLeft size={16} aria-hidden="true" /> Back to settings
+              </button>
+              <h3 className="fulfil-page-title">Almost done</h3>
+            </div>
+          )}
+          {/* Fulfillment choice: on the desktop workspace this hides behind
+              the Continue button (its own stage); mobile keeps it inline. */}
+          {(!onePage || fulfilStage) && deliveryOfferable && (
             <div className="delivery-method-section">
               <h4 className="delivery-method-title">How will you get your prints?</h4>
               <div className="delivery-method-toggle" role="group" aria-label="Pickup or delivery">
@@ -1728,272 +2099,6 @@ export default function UploadForm() {
             </div>
           )}
 
-          {/* Add more PDFs to this job (converts a single PDF into a batch).
-              Hidden for images/docs — bulk is PDF-only. */}
-          {(isBulk || file?.type === "application/pdf") && (
-            <>
-              <input
-                ref={addMoreInputRef}
-                type="file"
-                id="add-more-input"
-                multiple
-                accept=".pdf,application/pdf"
-                onChange={handleAddMoreFiles}
-                style={{ display: "none" }}
-              />
-              <button
-                type="button"
-                className="add-more-btn"
-                onClick={() => addMoreInputRef.current?.click()}
-                disabled={isBulk && bulkFiles.length >= 10}
-                title={isBulk && bulkFiles.length >= 10 ? "Maximum 10 files per job" : undefined}
-              >
-                <UploadCloud size={16} aria-hidden="true" />
-                Add more PDFs
-                <span className="add-more-hint">
-                  {isBulk ? `${bulkFiles.length}/10 files` : "print several in one job"}
-                </span>
-              </button>
-            </>
-          )}
-
-          {/* Live upload progress — large files take a while on mobile data */}
-          {(isBulk ? bulkUploading : uploadPct > 0 && uploadPct < 100) && (
-            <div className="upload-progress" role="progressbar" aria-valuenow={uploadPct} aria-valuemin={0} aria-valuemax={100} aria-label="Upload progress">
-              <div className="upload-progress-track">
-                <div className="upload-progress-fill" style={{ width: `${uploadPct}%` }} />
-              </div>
-              <span className="upload-progress-label">Uploading… {uploadPct}%</span>
-            </div>
-          )}
-
-          {/* Repeat-print: one tap reapplies the last successful job's settings */}
-          {lastSettings && !appliedLastSettings && (
-            <button type="button" className="repeat-settings-chip" onClick={applyLastSettings}>
-              <RefreshCw size={14} aria-hidden="true" />
-              <span>Use same as last time</span>
-              <span className="repeat-settings-sub">{lastSettingsSummary}</span>
-            </button>
-          )}
-
-          {/* Print type toggle */}
-          <div className="print-type-toggle">
-            <button
-              type="button"
-              className={`toggle-btn ${printType === "bw" ? "active" : ""}`}
-              onClick={() => setPrintType("bw")}
-              aria-pressed={printType === "bw"}
-            >
-              <span className="toggle-label">Black & White</span>
-              {pricing && <span className="toggle-price">{formatRupees(pricing.bwPerPagePaise)}/page</span>}
-            </button>
-            <button
-              type="button"
-              className={`toggle-btn color-btn ${printType === "color" ? "active" : ""}`}
-              onClick={() => setPrintType("color")}
-              aria-pressed={printType === "color"}
-            >
-              <span className="toggle-label">Color</span>
-              {pricing && <span className="toggle-price">{formatRupees(pricing.colorPerPagePaise)}/page</span>}
-            </button>
-          </div>
-
-          {/* Copies */}
-          <div className="form-group">
-            <label htmlFor="copies-input">Number of Copies</label>
-            <div className="number-input number-input-lg">
-              <button
-                type="button"
-                className="num-btn"
-                onClick={() => setCopies(Math.max(1, copies - 1))}
-                aria-label="Decrease copies"
-              >
-                <span>-</span>
-              </button>
-              <input
-                id="copies-input"
-                type="number"
-                min="1"
-                max="99"
-                step="1"
-                value={copies}
-                onChange={(e) => {
-                  const val = Math.floor(Number(e.target.value));
-                  setCopies(isNaN(val) ? 1 : Math.min(99, Math.max(1, val)));
-                }}
-                aria-label="Number of copies"
-                className="num-display"
-              />
-              <button
-                type="button"
-                className="num-btn"
-                onClick={() => setCopies(Math.min(99, copies + 1))}
-                aria-label="Increase copies"
-              >
-                <span>+</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Page Range — not applicable in bulk mode (multiple whole PDFs) */}
-          {!isBulk && (
-            <div className="form-group">
-              <label>Select Pages</label>
-              <div className="page-range-selector">
-                <div className="page-mode-grid">
-                  <button
-                    type="button"
-                    className={`page-mode-btn ${pageRangeMode === "all" ? "active" : ""}`}
-                    onClick={() => setPageRangeMode("all")}
-                    aria-pressed={pageRangeMode === "all"}
-                  >
-                    <File size={20} className="page-mode-icon" aria-hidden="true" />
-                    <span className="page-mode-label">All Pages</span>
-                  </button>
-                  <button
-                    type="button"
-                    className={`page-mode-btn ${pageRangeMode === "even" ? "active" : ""}`}
-                    onClick={() => setPageRangeMode("even")}
-                    aria-pressed={pageRangeMode === "even"}
-                  >
-                    <span className="page-mode-num">2</span>
-                    <span className="page-mode-label">Even Only</span>
-                  </button>
-                  <button
-                    type="button"
-                    className={`page-mode-btn ${pageRangeMode === "odd" ? "active" : ""}`}
-                    onClick={() => setPageRangeMode("odd")}
-                    aria-pressed={pageRangeMode === "odd"}
-                  >
-                    <span className="page-mode-num">1</span>
-                    <span className="page-mode-label">Odd Only</span>
-                  </button>
-                  <button
-                    type="button"
-                    className={`page-mode-btn ${pageRangeMode === "custom" ? "active" : ""}`}
-                    onClick={() => setPageRangeMode("custom")}
-                    aria-pressed={pageRangeMode === "custom"}
-                  >
-                    <span className="page-mode-num">C</span>
-                    <span className="page-mode-label">Custom</span>
-                  </button>
-                </div>
-                {pageRangeMode === "custom" && (
-                  <div className="custom-range-input">
-                    <input
-                      type="text"
-                      placeholder="e.g., 1-5 or 1,3,5"
-                      value={customPageRange}
-                      onChange={(e) => setCustomPageRange(e.target.value.replace(/[^0-9,\-]/g, ''))}
-                      aria-label="Enter custom page range"
-                      inputMode="numeric"
-                      aria-invalid={!isValidPageRange && !!customPageRange.trim()}
-                    />
-                    <span className="range-hint">Separate with commas or dash for range</span>
-                    {pageRangeValidationMessage && (
-                      <span className="range-error" role="alert">
-                        {pageRangeValidationMessage}
-                      </span>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Paper size */}
-          <div className="form-group">
-            <label htmlFor="paper-size">Paper Size</label>
-            <select
-              id="paper-size"
-              value={paperSize}
-              onChange={(e) => setPaperSize(e.target.value)}
-              className="mobile-select"
-            >
-              {allPaperSizes.map((size) => (
-                <option key={size} value={size}>{paperSizeLabels[size as keyof typeof paperSizeLabels]}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* Sides */}
-          <div className="form-group">
-            <label id="sides-label">Sides</label>
-            <div className="page-mode-grid" role="group" aria-labelledby="sides-label">
-              <button
-                type="button"
-                className={`page-mode-btn ${duplex === "simplex" ? "active" : ""}`}
-                onClick={() => setDuplex("simplex")}
-                aria-pressed={duplex === "simplex"}
-              >
-                <FileText size={20} className="page-mode-icon" aria-hidden="true" />
-                <span className="page-mode-label">Single-sided</span>
-              </button>
-              <button
-                type="button"
-                className={`page-mode-btn ${duplex !== "simplex" ? "active" : ""}`}
-                onClick={() => canDuplex && setDuplex("long-edge")}
-                aria-pressed={duplex !== "simplex"}
-                disabled={!canDuplex}
-                title={!canDuplex ? "Needs a document with at least 2 pages" : undefined}
-              >
-                <Copy size={20} className="page-mode-icon" aria-hidden="true" />
-                <span className="page-mode-label">Double-sided</span>
-              </button>
-            </div>
-            {!canDuplex && (
-              <span className="range-hint" style={{ marginTop: "0.25rem", display: "block" }}>
-                Double-sided needs a document with at least 2 pages.
-              </span>
-            )}
-          </div>
-
-          {/* Advanced options */}
-          <details className="advanced-section">
-            <summary>
-              <Settings2 size={16} aria-hidden="true" />
-              <span>Advanced Options</span>
-            </summary>
-            <div className="adv-options">
-              <div className="form-row">
-                <div className="form-group">
-                  <label htmlFor="layout-select">Layout</label>
-                  <select id="layout-select" value={layout} onChange={(e) => setLayout(e.target.value)} className="mobile-select">
-                    <option value="portrait">Portrait</option>
-                    <option value="landscape">Landscape</option>
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label htmlFor="scale-select">Scale</label>
-                  <select id="scale-select" value={scale} onChange={(e) => setScale(e.target.value)} className="mobile-select">
-                    <option value="default">Auto</option>
-                    <option value="fit">Fit to Page</option>
-                    <option value="shrink">Shrink if Oversized</option>
-                    <option value="noscale">Actual Size</option>
-                  </select>
-                </div>
-              </div>
-              <div className="form-row">
-                <div className="form-group">
-                  <label htmlFor="margins-select">Margins</label>
-                  <select id="margins-select" value={margins} onChange={(e) => setMargins(e.target.value)} className="mobile-select">
-                    <option value="default">Default</option>
-                    <option value="minimum">Minimum</option>
-                    <option value="none">None</option>
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label htmlFor="pages-per-sheet-select">Pages per Sheet</label>
-                  <select id="pages-per-sheet-select" value={pagesPerSheet} onChange={(e) => setPagesPerSheet(Number(e.target.value))} className="mobile-select">
-                    <option value={1}>1</option>
-                    <option value={2}>2</option>
-                    <option value={4}>4</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-          </details>
-
           {/* Price box */}
           <div className="price-box">
             <div className="price-header">
@@ -2012,12 +2117,48 @@ export default function UploadForm() {
             )}
           </div>
 
-          {/* In one-page mode the error renders once, next to Confirm in the
-              preview column, instead of twice. */}
-          {error && !onePage && (
+          {/* Errors render once, in the fulfillment zone, in both modes. */}
+          {error && (
             <div className="error-msg" role="alert">
               {error}
             </div>
+          )}
+
+          {/* One-page mode: workspace stage shows Continue (→ fulfillment
+              page) when a fulfillment choice exists; the fulfillment page
+              (or workspace when there's no choice to make) shows the real
+              submit. Same validation as the wizard throughout. */}
+          {onePage && deliveryOfferable && !fulfilStage ? (
+            <button
+              type="button"
+              className="btn-primary btn-submit"
+              onClick={() => {
+                if (settingsInvalid) return;
+                setError("");
+                setFulfilStage(true);
+              }}
+              disabled={busy || (isBulk && bulkUploading) || settingsInvalid}
+            >
+              Continue <ArrowRight size={20} aria-hidden="true" />
+            </button>
+          ) : onePage && (
+            <button
+              type="button"
+              className="btn-primary btn-submit"
+              onClick={handleSubmit}
+              disabled={busy || (isBulk && bulkUploading) || settingsInvalid}
+              aria-busy={busy || (isBulk && bulkUploading)}
+            >
+              {busy ? (
+                <><Loader2 size={20} className="spin" aria-hidden="true" /> Processing...</>
+              ) : isBulk && bulkUploading ? (
+                <><Loader2 size={20} className="spin" aria-hidden="true" /> Uploading files...</>
+              ) : (
+                deliveryMethod === "delivery"
+                  ? <><CreditCard size={20} aria-hidden="true" /> Continue to Payment</>
+                  : <><Check size={20} aria-hidden="true" /> Confirm Print</>
+              )}
+            </button>
           )}
 
           {/* Actions — the wizard's Back/Preview navigation; pointless in
@@ -2043,18 +2184,23 @@ export default function UploadForm() {
             </button>
           </div>
           )}
+          </div>{/* /fs-fulfil */}
         </div>
       )}
 
       {/* Step 3: Preview */}
       {showPreview && (
-        <div className={`step-content ${onePage ? "flow-preview-col" : stepAnim}`} key="block-preview">
+        <div className={`step-content ${onePage ? "flow-contents" : stepAnim}`} key="block-preview">
+          <div className="preview-pane">
           <h3 className="preview-title">{onePage ? "Live Preview" : "Review Your Print Job"}</h3>
 
           {/* Preview area — grayscale simulation when printing B&W */}
           <div className={`preview-area ${printType === "bw" ? "bw-sim" : ""}`}>
             {isBulk && (
               <>
+                {/* File management lives in the desktop file zone; this row
+                    list is the mobile wizard's version only. */}
+                {!onePage && (
                 <div className="bulk-file-list">
                   {bulkFiles.map((f, i) => {
                     const id = bulkIds[i];
@@ -2091,6 +2237,7 @@ export default function UploadForm() {
                     );
                   })}
                 </div>
+                )}
                 {/* Full print preview of the tapped file — same viewer as single mode */}
                 {bulkFiles[bulkPreviewIndex] && (
                   <PdfCanvasPreview
@@ -2179,8 +2326,12 @@ export default function UploadForm() {
               {copies > 1 ? ` per copy (${physicalSheets * copies} total)` : ""}
             </div>
           )}
+          </div>{/* /preview-pane */}
 
-          {deliveryMethod === "delivery" && (
+          {/* Everything below belongs to the wizard's review step only —
+              in one-page mode fulfillment, totals, and Confirm live in the
+              fs-fulfil zone instead. */}
+          {!onePage && deliveryMethod === "delivery" && (
             <div className="delivery-review-card">
               <div className="delivery-review-heading">
                 <Truck size={18} aria-hidden="true" />
@@ -2206,7 +2357,7 @@ export default function UploadForm() {
           )}
 
           {/* Total price */}
-          {deliveryMethod === "delivery" && pricing ? (
+          {!onePage && (deliveryMethod === "delivery" && pricing ? (
             <div className="total-price-breakdown">
               <div className="total-price-row">
                 <span>Printing</span>
@@ -2226,24 +2377,24 @@ export default function UploadForm() {
               <span>Total</span>
               <strong>{pricing ? `₹${estimate.toFixed(2)}` : "…"}</strong>
             </div>
-          )}
+          ))}
 
           {/* Submit errors must be visible HERE — Confirm lives on this step,
               and the settings-step error block is not rendered here. */}
-          {error && (
+          {!onePage && error && (
             <div className="error-msg" role="alert">
               {error}
             </div>
           )}
 
           {/* Actions */}
+          {!onePage && (
           <div className="form-actions">
             <button
               type="button"
               className="btn-secondary"
               onClick={() => setStep("settings")}
               aria-label="Go back to edit settings"
-              style={onePage ? { display: "none" } : undefined}
             >
               <ArrowLeft size={20} aria-hidden="true" /> Edit
             </button>
@@ -2251,7 +2402,7 @@ export default function UploadForm() {
               type="button"
               className="btn-primary btn-submit"
               onClick={handleSubmit}
-              disabled={busy || (isBulk && bulkUploading) || (onePage && settingsInvalid)}
+              disabled={busy || (isBulk && bulkUploading)}
               aria-busy={busy || (isBulk && bulkUploading)}
             >
               {busy ? (
@@ -2265,6 +2416,7 @@ export default function UploadForm() {
               )}
             </button>
           </div>
+          )}
         </div>
       )}
 
@@ -2561,7 +2713,7 @@ function PdfCanvasPreview({ file, fallbackPageCount, sim }: { file: File; fallba
 // Tiny first-page thumbnail for a bulk-selected PDF. Renders once per file at a
 // fixed small width; falls back to the generic file icon if pdf.js can't render
 // on this device (the file still uploads and prints fine).
-function BulkThumb({ file, grayscale }: { file: File; grayscale: boolean }) {
+function BulkThumb({ file, grayscale, width = 44 }: { file: File; grayscale: boolean; width?: number }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [failed, setFailed] = useState(false);
 
@@ -2586,7 +2738,7 @@ function BulkThumb({ file, grayscale }: { file: File; grayscale: boolean }) {
         const canvas = canvasRef.current;
         if (disposed || !canvas) return;
         const base = page.getViewport({ scale: 1 });
-        const scale = 44 / base.width; // ~44px wide thumb
+        const scale = width / base.width;
         const viewport = page.getViewport({ scale });
         const ctx = canvas.getContext("2d");
         if (!ctx) return;
@@ -2607,7 +2759,7 @@ function BulkThumb({ file, grayscale }: { file: File; grayscale: boolean }) {
       disposed = true;
       pdf?.destroy?.();
     };
-  }, [file]);
+  }, [file, width]);
 
   if (failed) return <FileText size={18} aria-hidden="true" />;
   return <canvas ref={canvasRef} className={`bulk-thumb ${grayscale ? "bw-sim-img" : ""}`} aria-hidden="true" />;
