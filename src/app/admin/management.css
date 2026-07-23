@@ -82,9 +82,9 @@
   margin-left: auto;
   padding: 0 12px;
   flex: 0 0 auto;
-  color: var(--muted);
+  color: var(--ink);
   background: rgba(185, 28, 28, 0.03);
-  border: 1px solid var(--line);
+  border: 1px solid var(--danger);
   border-radius: 6px;
   font: inherit;
   font-size: 12px;
