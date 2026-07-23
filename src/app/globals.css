@@ -8695,6 +8695,7 @@ body {
   padding: 18px;
   color: var(--muted);
   text-align: left;
+  border-top: 1px solid var(--line);
 }
 
 .customer-help > svg {
