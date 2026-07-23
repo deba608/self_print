@@ -1264,7 +1264,7 @@ input, select, button {
 
 .price-value {
   font-size: 28px;
-  font-weight: 800;
+  font-weight: 700;
   color: var(--accent);
   display: inline-block;
 }
@@ -1948,8 +1948,8 @@ input, select, button {
   background: var(--accent);
   color: #fff;
   font-size: 10.5px;
-  font-weight: 800;
-  border-radius: var(--radius-full);
+  font-weight: 700;
+  border-radius: 6px;
 }
 
 .delivery-contact-fields {
@@ -3620,7 +3620,7 @@ input[type="number"] {
   justify-content: center;
   background: transparent;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 6px;
   color: var(--muted);
   cursor: pointer;
   transition: all var(--duration-fast);
@@ -3673,7 +3673,7 @@ input[type="number"] {
 
 .pricing-field label {
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--muted);
 }
 
@@ -3681,7 +3681,7 @@ input[type="number"] {
   height: 44px;
   padding: 0 12px;
   border: 2px solid var(--line);
-  border-radius: var(--radius-sm);
+  border-radius: 6px;
   font-size: 14px;
   color: var(--ink);
   background: #fff;
@@ -3708,7 +3708,7 @@ input[type="number"] {
   position: absolute;
   left: 12px;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--muted);
 }
 
@@ -3721,7 +3721,7 @@ input[type="number"] {
   margin: -4px 24px 14px;
   padding: 10px 12px;
   border: 1px solid var(--danger);
-  border-radius: var(--radius-sm);
+  border-radius: 6px;
   background: var(--danger-light);
   color: var(--danger);
   font-size: 13px;
@@ -3770,9 +3770,9 @@ input[type="number"] {
   justify-content: center;
   gap: 8px;
   height: 46px;
-  border-radius: var(--radius-sm);
+  border-radius: 6px;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
   transition: all var(--duration-fast) var(--ease-out);
 }
@@ -5295,7 +5295,7 @@ input[type="number"] {
 
 .job-detail-price {
   font-size: 26px;
-  font-weight: 800;
+  font-weight: 700;
   color: var(--ink);
 }
 
@@ -5305,7 +5305,7 @@ input[type="number"] {
   align-items: center;
   gap: 5px;
   padding: 6px 10px;
-  border-radius: 999px;
+  border-radius: 6px;
   font-size: 12px;
   font-weight: 700;
 }
