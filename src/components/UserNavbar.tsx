@@ -40,77 +40,94 @@ export default function UserNavbar() {
   const activeTab = navItems.find((item) =>
     item.href === "/" ? pathname === "/" : pathname.startsWith(item.href)
   )?.href;
+  const showBottomNav = activeTab !== undefined;
 
   return (
     <>
-      {/* Desktop / Tablet top navbar */}
       <header className="user-navbar">
-        <Link href="/" className="user-navbar-logo">
-          <Printer size={24} />
-          <span>Self_Print</span>
-        </Link>
+        <div className="user-navbar-inner">
+          <Link href="/" className="user-navbar-logo" aria-label="Self Print home">
+            <Printer size={24} aria-hidden="true" />
+            <span>Self_Print</span>
+          </Link>
 
-        <nav className="user-navbar-nav" aria-label="Main">
-          {navItems.map(({ href, label, icon: Icon }) => (
-            <Link
-              key={href}
-              href={href}
-              className={`user-navbar-link ${activeTab === href ? "active" : ""}`}
-              aria-current={activeTab === href ? "page" : undefined}
-            >
-              <Icon size={15} aria-hidden="true" />
-              <span>{label}</span>
-            </Link>
-          ))}
-        </nav>
-
-        <div className="user-navbar-user">
-          {email === undefined ? (
-            <span className="user-navbar-skeleton" aria-hidden="true" />
-          ) : email ? (
-            <>
-              <span className="user-navbar-email">
-                <UserRound size={14} aria-hidden="true" />
-                <span>{email}</span>
-              </span>
-              <button
-                type="button"
-                className="user-navbar-logout"
-                onClick={handleLogout}
-                disabled={loggingOut}
-                aria-label={loggingOut ? "Signing out" : "Log out"}
+          <nav className="user-navbar-nav" aria-label="Customer navigation">
+            {navItems.map(({ href, label, icon: Icon }) => (
+              <Link
+                key={href}
+                href={href}
+                className={`user-navbar-link ${activeTab === href ? "active" : ""}`}
+                aria-current={activeTab === href ? "page" : undefined}
               >
-                {loggingOut ? (
-                  <Loader2 size={14} className="spin" aria-hidden="true" />
-                ) : (
-                  <LogOut size={14} aria-hidden="true" />
-                )}
-                <span>{loggingOut ? "Signing out..." : "Log out"}</span>
-              </button>
-            </>
-          ) : (
-            <>
-              <Link href="/login" className="user-navbar-login-link">Log in</Link>
-              <Link href="/register" className="user-navbar-signup-btn">Sign up</Link>
-            </>
-          )}
+                <Icon size={15} aria-hidden="true" />
+                <span>{label}</span>
+              </Link>
+            ))}
+          </nav>
+
+          <div className="user-navbar-user">
+            {email === undefined ? (
+              <span className="user-navbar-skeleton" aria-hidden="true" />
+            ) : email ? (
+              <>
+                <span className="user-navbar-email" title={email}>
+                  <UserRound size={14} aria-hidden="true" />
+                  <span>{email}</span>
+                </span>
+                <button
+                  type="button"
+                  className="user-navbar-logout"
+                  onClick={handleLogout}
+                  disabled={loggingOut}
+                  aria-label={loggingOut ? "Signing out" : "Log out"}
+                >
+                  {loggingOut ? (
+                    <Loader2 size={14} className="spin" aria-hidden="true" />
+                  ) : (
+                    <LogOut size={14} aria-hidden="true" />
+                  )}
+                  <span>{loggingOut ? "Signing out..." : "Log out"}</span>
+                </button>
+              </>
+            ) : (
+              <>
+                <Link
+                  href="/login"
+                  className={`user-navbar-login-link ${pathname === "/login" ? "active" : ""}`}
+                  aria-current={pathname === "/login" ? "page" : undefined}
+                >
+                  Log in
+                </Link>
+                <Link
+                  href="/register"
+                  className={`user-navbar-signup-btn ${pathname === "/register" ? "active" : ""}`}
+                  aria-current={pathname === "/register" ? "page" : undefined}
+                >
+                  Sign up
+                </Link>
+              </>
+            )}
+          </div>
         </div>
       </header>
 
-      {/* Mobile bottom tab bar */}
-      <nav className="user-bottom-nav" aria-label="Main">
-        {navItems.map(({ href, label, icon: Icon }) => (
-          <Link
-            key={href}
-            href={href}
-            className={`user-bottom-link ${activeTab === href ? "active" : ""}`}
-            aria-current={activeTab === href ? "page" : undefined}
-          >
-            <Icon size={20} aria-hidden="true" />
-            <span>{label}</span>
-          </Link>
-        ))}
-      </nav>
+      {showBottomNav && (
+        <nav className="user-bottom-nav" aria-label="Customer navigation">
+          <div className="user-bottom-nav-inner">
+            {navItems.map(({ href, label, icon: Icon }) => (
+              <Link
+                key={href}
+                href={href}
+                className={`user-bottom-link ${activeTab === href ? "active" : ""}`}
+                aria-current={activeTab === href ? "page" : undefined}
+              >
+                <Icon size={20} aria-hidden="true" />
+                <span>{label}</span>
+              </Link>
+            ))}
+          </div>
+        </nav>
+      )}
     </>
   );
 }

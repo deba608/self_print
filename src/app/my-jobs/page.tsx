@@ -13,7 +13,6 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import UserNavbar from "@/components/UserNavbar";
 import Badge, { type BadgeVariant } from "@/components/ui/Badge";
 import EmptyState from "@/components/ui/EmptyState";
 import Skeleton from "@/components/ui/Skeleton";
@@ -217,7 +216,6 @@ export default async function MyJobsPage({
 
   return (
     <main className="customer-shell">
-      <UserNavbar />
       <section className="panel stack">
         <div className="intro">
           <h1>My Jobs</h1>
