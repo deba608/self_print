@@ -55,7 +55,7 @@ function JobListSkeleton() {
             <Skeleton width="40%" height={18} />
             <Skeleton width="65%" height={13} />
           </div>
-          <Skeleton width={72} height={24} style={{ borderRadius: 999 }} />
+          <Skeleton width={72} height={24} style={{ borderRadius: 6 }} />
         </div>
       ))}
     </div>
