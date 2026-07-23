@@ -63,7 +63,7 @@ export default function AcceptInvitePage() {
         setLoading(false);
         return;
       }
-      router.push("/login");
+      router.push("/admin");
     } catch {
       setError("Connection error. Please try again.");
       setLoading(false);
