@@ -1808,32 +1808,42 @@ export default function AdminDashboard() {
 
       <StatsBar activeJobs={activeJobs.length} todayRevenue={summary.totalPaise} />
 
-      <div className="delivery-filter-toggle" role="group" aria-label="Filter by fulfillment method">
-        {(["all", "pickup", "delivery"] as const).map((f) => (
-          <button
-            type="button"
-            key={f}
-            className={`delivery-filter-btn ${deliveryFilter === f ? "active" : ""}`}
-            onClick={() => setDeliveryFilter(f)}
-            aria-pressed={deliveryFilter === f}
-          >
-            {f === "all" ? "All Orders" : f === "pickup" ? "Pickup" : "Delivery"}
-            {f === "delivery" && outForDeliveryCount > 0 && (
-              <span className="delivery-filter-count" title={`${outForDeliveryCount} out for delivery`}>
-                <Truck size={12} aria-hidden="true" />
-                {outForDeliveryCount}
-              </span>
-            )}
-          </button>
-        ))}
+      {/* Two distinct filter dimensions (fulfillment method, print status)
+          were previously two visually-identical pill rows stacked with no
+          label — easy to misread as one duplicated bar. Each now carries
+          its own small caption so its purpose is legible at a glance. */}
+      <div className="admin-filter-group">
+        <span className="admin-filter-label">Fulfillment</span>
+        <div className="delivery-filter-toggle" role="group" aria-label="Filter by fulfillment method">
+          {(["all", "pickup", "delivery"] as const).map((f) => (
+            <button
+              type="button"
+              key={f}
+              className={`delivery-filter-btn ${deliveryFilter === f ? "active" : ""}`}
+              onClick={() => setDeliveryFilter(f)}
+              aria-pressed={deliveryFilter === f}
+            >
+              {f === "all" ? "All Orders" : f === "pickup" ? "Pickup" : "Delivery"}
+              {f === "delivery" && outForDeliveryCount > 0 && (
+                <span className="delivery-filter-count" title={`${outForDeliveryCount} out for delivery`}>
+                  <Truck size={12} aria-hidden="true" />
+                  {outForDeliveryCount}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
       </div>
 
-      <FilterTabs
-        filters={statusFilters}
-        activeFilter={filterStatus}
-        counts={counts}
-        onFilterChange={setFilterStatus}
-      />
+      <div className="admin-filter-group">
+        <span className="admin-filter-label">Status</span>
+        <FilterTabs
+          filters={statusFilters}
+          activeFilter={filterStatus}
+          counts={counts}
+          onFilterChange={setFilterStatus}
+        />
+      </div>
 
       {pending.length > 0 && (
         <BatchBar
