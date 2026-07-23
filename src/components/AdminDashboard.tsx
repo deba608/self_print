@@ -1177,79 +1177,89 @@ function JobCard({
       <div className="job-side">
       <div className="job-actions">
 
-        {/* Print status leads the control row — state and its actions read
-            together as one line. */}
-        <Badge variant={status.variant} icon={status.icon}>{status.label}</Badge>
+        {/* Zone 1 — status: what state this job is in right now. */}
+        <div className="job-actions-status">
+          <Badge variant={status.variant} icon={status.icon}>{status.label}</Badge>
+          {(job.status === "pending_payment" || job.status === "paid") && job.deliveryMethod === "delivery" && !job.paidAt && (
+            <Badge variant="warning" icon={Clock}>Awaiting online payment</Badge>
+          )}
+        </div>
 
-        {(job.status === "pending_payment" || job.status === "paid") && job.deliveryMethod === "delivery" && !job.paidAt && (
-          <Badge variant="warning" icon={Clock}>Awaiting online payment</Badge>
-        )}
-        {(job.status === "pending_payment" || job.status === "paid") && !(job.deliveryMethod === "delivery" && !job.paidAt) && (
-          <div className="print-mode-group">
-            <div className="print-mode-switch" role="group" aria-label="Print mode">
-              <button type="button" className={`print-mode-opt ${printMode === "auto" ? "active" : ""}`} onClick={() => setPrintMode("auto")}>
-                Auto
-              </button>
-              <button type="button" className={`print-mode-opt ${printMode === "manual" ? "active" : ""}`} onClick={() => setPrintMode("manual")}>
-                Manual
+        {/* Zone 2 — primary action: the one thing to do next for this job. */}
+        <div className="job-actions-primary">
+          {(job.status === "pending_payment" || job.status === "paid") && !(job.deliveryMethod === "delivery" && !job.paidAt) && (
+            <div className="print-mode-group">
+              <div className="print-mode-switch" role="group" aria-label="Print mode">
+                <button type="button" className={`print-mode-opt ${printMode === "auto" ? "active" : ""}`} onClick={() => setPrintMode("auto")}>
+                  Auto
+                </button>
+                <button type="button" className={`print-mode-opt ${printMode === "manual" ? "active" : ""}`} onClick={() => setPrintMode("manual")}>
+                  Manual
+                </button>
+              </div>
+              <button
+                type="button"
+                className="job-btn release"
+                onClick={(e) => printMode === "manual" ? handleManualPrint(e) : handleActionClick("approved")}
+                disabled={printMode === "manual" ? printing : actionLoading}
+              >
+                {(printMode === "manual" ? printing : actionLoading) ? <Loader2 size={14} className="spin" /> : <Printer size={14} />}
+                <span>{printMode === "manual" ? "Manual Print" : "Release"}</span>
               </button>
             </div>
+          )}
+          {(job.status === "approved" || job.status === "printing" || job.status === "failed") && (
+            <button type="button" className="job-btn done" onClick={() => handleActionClick("printed")} disabled={actionLoading}>
+              {actionLoading ? <Loader2 size={14} className="spin" /> : <Check size={14} />}
+              <span>Done</span>
+            </button>
+          )}
+          {job.deliveryMethod === "delivery" && job.status === "printed" && job.deliveryStatus !== "out_for_delivery" && job.deliveryStatus !== "delivered" && (
+            <button type="button" className="job-btn release" onClick={() => handleActionClick("out_for_delivery")} disabled={actionLoading}>
+              {actionLoading ? <Loader2 size={14} className="spin" /> : <Truck size={14} />}
+              <span>Out for Delivery</span>
+            </button>
+          )}
+          {job.deliveryMethod === "delivery" && job.deliveryStatus === "out_for_delivery" && (
+            <button type="button" className="job-btn done" onClick={() => handleActionClick("delivered")} disabled={actionLoading}>
+              {actionLoading ? <Loader2 size={14} className="spin" /> : <Check size={14} />}
+              <span>Delivered</span>
+            </button>
+          )}
+          {(job.status === "printed" || job.status === "failed") && (
+            <button type="button" className="job-btn reprint" onClick={() => handleActionClick("reprint")} disabled={actionLoading}>
+              {actionLoading ? <Loader2 size={14} className="spin" /> : <RefreshCw size={14} />}
+              <span>{job.status === "failed" ? "Retry" : "Reprint"}</span>
+            </button>
+          )}
+        </div>
+
+        {/* Zone 3 — utility + destructive: secondary, icon-only, visually
+            demoted behind a divider so they never compete with the primary
+            action. Cancel stays red and last, but now reads as "the other
+            group" instead of just another button in the same row. */}
+        <div className="job-actions-utility">
+          {!["pending_payment", "paid", "cancelled"].includes(job.status) && (
             <button
               type="button"
-              className="job-btn release"
-              onClick={(e) => printMode === "manual" ? handleManualPrint(e) : handleActionClick("approved")}
-              disabled={printMode === "manual" ? printing : actionLoading}
+              className="job-btn manual"
+              onClick={handleManualPrint}
+              disabled={printing}
+              aria-label="Manual print via browser dialog"
+              title="Backup: print via the browser/Windows print dialog"
             >
-              {(printMode === "manual" ? printing : actionLoading) ? <Loader2 size={14} className="spin" /> : <Printer size={14} />}
-              <span>{printMode === "manual" ? "Manual Print" : "Release"}</span>
+              {printing ? <Loader2 size={14} className="spin" /> : <Printer size={14} />}
             </button>
-          </div>
-        )}
-        {(job.status === "approved" || job.status === "printing" || job.status === "failed") && (
-          <button type="button" className="job-btn done" onClick={() => handleActionClick("printed")} disabled={actionLoading}>
-            {actionLoading ? <Loader2 size={14} className="spin" /> : <Check size={14} />}
-            <span>Done</span>
+          )}
+          <button type="button" className="job-btn view" onClick={(event) => { event.preventDefault(); event.stopPropagation(); onView(); }} aria-label="Open job details">
+            <Eye size={14} />
           </button>
-        )}
-        {job.deliveryMethod === "delivery" && job.status === "printed" && job.deliveryStatus !== "out_for_delivery" && job.deliveryStatus !== "delivered" && (
-          <button type="button" className="job-btn release" onClick={() => handleActionClick("out_for_delivery")} disabled={actionLoading}>
-            {actionLoading ? <Loader2 size={14} className="spin" /> : <Truck size={14} />}
-            <span>Out for Delivery</span>
-          </button>
-        )}
-        {job.deliveryMethod === "delivery" && job.deliveryStatus === "out_for_delivery" && (
-          <button type="button" className="job-btn done" onClick={() => handleActionClick("delivered")} disabled={actionLoading}>
-            {actionLoading ? <Loader2 size={14} className="spin" /> : <Check size={14} />}
-            <span>Delivered</span>
-          </button>
-        )}
-        {(job.status === "printed" || job.status === "failed") && (
-          <button type="button" className="job-btn reprint" onClick={() => handleActionClick("reprint")} disabled={actionLoading}>
-            {actionLoading ? <Loader2 size={14} className="spin" /> : <RefreshCw size={14} />}
-            <span>{job.status === "failed" ? "Retry" : "Reprint"}</span>
-          </button>
-        )}
-        {!["pending_payment", "paid", "cancelled"].includes(job.status) && (
-          <button
-            type="button"
-            className="job-btn manual"
-            onClick={handleManualPrint}
-            disabled={printing}
-            aria-label="Manual print via browser dialog"
-            title="Backup: print via the browser/Windows print dialog"
-          >
-            {printing ? <Loader2 size={14} className="spin" /> : <Printer size={14} />}
-          </button>
-        )}
-        <button type="button" className="job-btn view" onClick={(event) => { event.preventDefault(); event.stopPropagation(); onView(); }} aria-label="Open job details">
-          <Eye size={14} />
-        </button>
-        {/* Destructive action sits last, visually separated in red. */}
-        {job.status !== "printed" && job.status !== "cancelled" && (
-          <button type="button" className="job-btn cancel" onClick={() => handleActionClick("cancelled")} disabled={actionLoading} aria-label="Cancel job">
-            {actionLoading ? <Loader2 size={14} className="spin" /> : <X size={14} />}
-          </button>
-        )}
+          {job.status !== "printed" && job.status !== "cancelled" && (
+            <button type="button" className="job-btn cancel" onClick={() => handleActionClick("cancelled")} disabled={actionLoading} aria-label="Cancel job">
+              {actionLoading ? <Loader2 size={14} className="spin" /> : <X size={14} />}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Payment strip: right-aligned under the action row — amount, then
