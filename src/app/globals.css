@@ -8855,3 +8855,82 @@ body {
     transform: none;
   }
 }
+
+/* ============================================================
+   Desktop merged workspace — upload/settings/preview in ONE
+   window (>=1024px). Settings column left, sticky live print
+   preview pane right. Mobile keeps the 3-step wizard.
+   ============================================================ */
+@media (min-width: 1024px) {
+  /* Give the one-window workspace room to breathe. */
+  .customer-home {
+    width: min(1160px, calc(100% - 48px));
+  }
+
+  .customer-hero,
+  .customer-assurance,
+  .customer-help {
+    max-width: 760px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .desktop-workspace {
+    display: grid;
+    grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+    gap: 28px;
+    align-items: start;
+  }
+
+  .workspace-config {
+    display: grid;
+    gap: var(--space-4);
+    min-width: 0;
+  }
+
+  .workspace-preview {
+    position: sticky;
+    top: 84px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    min-width: 0;
+    padding: 18px;
+    background: #f8fafc;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+  }
+
+  .workspace-preview-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .workspace-preview-head h3 {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--ink);
+  }
+
+  .workspace-preview-hint {
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .workspace-preview .preview-area {
+    max-height: min(62vh, 640px);
+    overflow: auto;
+  }
+
+  .workspace-preview .btn-submit {
+    width: 100%;
+    justify-content: center;
+  }
+}

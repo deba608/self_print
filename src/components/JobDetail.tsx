@@ -5,7 +5,7 @@ import { useEffect, useState, useRef } from "react";
 import {
   ChevronLeft, CreditCard, Printer, RotateCcw, Save, X,
   FileText, Image, CheckCircle2, AlertCircle, Loader2, Circle,
-  Upload, Send, FileCheck, IndianRupee
+  Upload, Send, FileCheck, IndianRupee, MapPinned, Truck
 } from "lucide-react";
 import { paperSizeLabels } from "@/lib/pricing";
 import { manualPrint } from "@/lib/manualPrint";
@@ -34,6 +34,10 @@ type Detail = {
     customerPhone?: string | null;
     deliveryAddress?: string | null;
     deliveryStatus?: "pending" | "out_for_delivery" | "delivered" | null;
+    deliveryLatitude?: number | null;
+    deliveryLongitude?: number | null;
+    deliveryAccuracyMeters?: number | null;
+    deliveryLocationCapturedAt?: string | null;
   };
   file: { id: string; originalName: string; mimeType: string; fileKind: string; sizeBytes: number } | null;
   files: Array<{ id: string; originalName: string; mimeType: string; fileKind: string; sizeBytes: number }>;
@@ -84,7 +88,13 @@ export default function JobDetail({ id }: { id: string }) {
     // the agent works. Stop polling once the job reaches a terminal state.
     const poll = setInterval(() => {
       setDetail((current) => {
-        if (current && ["printed", "cancelled"].includes(current.job.status)) return current;
+        if (current) {
+          const deliveryComplete = current.job.deliveryMethod !== "delivery"
+            || current.job.deliveryStatus === "delivered";
+          if (current.job.status === "cancelled" || (current.job.status === "printed" && deliveryComplete)) {
+            return current;
+          }
+        }
         load(false);
         return current;
       });
@@ -357,6 +367,23 @@ function DeliveryCard({ job }: { job: Detail["job"] }) {
         <div className="summary-row"><span>Name</span><strong>{job.customerName ?? "—"}</strong></div>
         <div className="summary-row"><span>Phone</span><strong>{job.customerPhone ?? "—"}</strong></div>
         <div className="summary-row"><span>Address</span><strong>{job.deliveryAddress ?? "—"}</strong></div>
+        <div className="summary-row">
+          <span>Map pin</span>
+          <strong>
+            {job.deliveryLatitude != null && job.deliveryLongitude != null ? (
+              <a
+                className="detail-map-link"
+                href={`https://www.google.com/maps/dir/?api=1&destination=${job.deliveryLatitude},${job.deliveryLongitude}`}
+                target="_blank"
+                rel="noreferrer"
+              >
+                <MapPinned size={14} aria-hidden="true" />
+                Open directions
+                {job.deliveryAccuracyMeters != null && ` (±${Math.round(job.deliveryAccuracyMeters)} m)`}
+              </a>
+            ) : "Not shared — use written address"}
+          </strong>
+        </div>
         <div className="summary-row"><span>Status</span><strong>{deliveryStatusLabel(job.deliveryStatus)}</strong></div>
       </div>
     </div>
@@ -396,7 +423,7 @@ function ActionsCard({
     <div className="detail-card">
       <h3 className="card-title">Actions</h3>
       <div className="detail-action-grid">
-        {(job.status === "pending_payment" || job.status === "paid") && (
+        {(job.status === "pending_payment" || job.status === "paid") && !(job.deliveryMethod === "delivery" && !job.paidAt) && (
           <div className="print-mode-group">
             <div className="print-mode-switch" role="group" aria-label="Print mode">
               <button type="button" className={`print-mode-opt ${printMode === "auto" ? "active" : ""}`} onClick={() => setPrintMode("auto")}>
@@ -417,6 +444,12 @@ function ActionsCard({
             </button>
           </div>
         )}
+        {(job.status === "pending_payment" || job.status === "paid") && job.deliveryMethod === "delivery" && !job.paidAt && (
+          <div className="delivery-payment-lock">
+            <CreditCard size={15} aria-hidden="true" />
+            Awaiting online payment before release
+          </div>
+        )}
         {!job.paidAt && job.status !== "cancelled" && (
           <button type="button" className="job-btn paid" onClick={() => setStatus("paid")}>
             <CreditCard size={16} /> Mark as Paid
@@ -429,7 +462,7 @@ function ActionsCard({
         )}
         {job.deliveryMethod === "delivery" && job.status === "printed" && job.deliveryStatus !== "out_for_delivery" && job.deliveryStatus !== "delivered" && (
           <button type="button" className="job-btn release" onClick={() => setDeliveryStatus("out_for_delivery")}>
-            <Printer size={16} /> Out for Delivery
+            <Truck size={16} /> Out for Delivery
           </button>
         )}
         {job.deliveryMethod === "delivery" && job.deliveryStatus === "out_for_delivery" && (

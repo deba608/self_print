@@ -6,7 +6,7 @@ import {
   RefreshCw, Settings, LogOut, Printer, Bell, BellRing,
   CheckSquare, Square, CreditCard, Eye, X, Check, Monitor, Loader2,
     ChevronDown, Zap, TrendingUp, Clock,
-    Trash2, ListTodo, Inbox, FileText, BarChart2, ShieldCheck, MessageCircleWarning, AlertTriangle, Users, UsersRound, Truck
+    Trash2, ListTodo, Inbox, FileText, BarChart2, ShieldCheck, MessageCircleWarning, AlertTriangle, Users, UsersRound, Truck, MapPinned
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { manualPrint } from "@/lib/manualPrint";
@@ -37,6 +37,9 @@ type Job = {
   customerPhone?: string | null;
   deliveryAddress?: string | null;
   deliveryStatus?: "pending" | "out_for_delivery" | "delivered" | null;
+  deliveryLatitude?: number | null;
+  deliveryLongitude?: number | null;
+  deliveryAccuracyMeters?: number | null;
 };
 
 type Pricing = {
@@ -1154,6 +1157,19 @@ function JobCard({
             )}
             <span>{job.customerName} · {job.customerPhone}</span>
             <span className="job-delivery-address">{job.deliveryAddress}</span>
+            {job.deliveryLatitude != null && job.deliveryLongitude != null && (
+              <a
+                className="job-delivery-map"
+                href={`https://www.google.com/maps/dir/?api=1&destination=${job.deliveryLatitude},${job.deliveryLongitude}`}
+                target="_blank"
+                rel="noreferrer"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <MapPinned size={13} aria-hidden="true" />
+                Open directions
+                {job.deliveryAccuracyMeters != null && ` (±${Math.round(job.deliveryAccuracyMeters)} m)`}
+              </a>
+            )}
           </div>
         )}
       </div>
@@ -1197,7 +1213,7 @@ function JobCard({
         )}
         {job.deliveryMethod === "delivery" && job.status === "printed" && job.deliveryStatus !== "out_for_delivery" && job.deliveryStatus !== "delivered" && (
           <button type="button" className="job-btn release" onClick={() => handleActionClick("out_for_delivery")} disabled={actionLoading}>
-            {actionLoading ? <Loader2 size={14} className="spin" /> : <Printer size={14} />}
+            {actionLoading ? <Loader2 size={14} className="spin" /> : <Truck size={14} />}
             <span>Out for Delivery</span>
           </button>
         )}
