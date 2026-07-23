@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
     email,
     password,
     options: {
-      emailRedirectTo: getAuthRedirectUrl("/customer-login"),
+      emailRedirectTo: getAuthRedirectUrl("/login"),
     },
   });
 

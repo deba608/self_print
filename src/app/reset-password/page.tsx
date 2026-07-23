@@ -77,7 +77,7 @@ export default function ResetPasswordPage() {
           .maybeSingle();
         isStaff = !!profile;
       }
-      router.push(isStaff ? "/login" : "/customer-login");
+      router.push(isStaff ? "/admin" : "/login");
     } catch {
       setError("Connection error. Please try again.");
       setLoading(false);
