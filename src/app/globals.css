@@ -4814,10 +4814,37 @@ input[type="number"] {
 
 .job-actions {
   display: flex;
-  gap: 8px;
+  align-items: center;
+  gap: 10px;
   flex-shrink: 0;
   flex-wrap: wrap;
   justify-content: flex-end;
+}
+
+/* Three-zone action row: status (what's happening) → primary (what to do
+   next) → utility/destructive (secondary, demoted behind a divider so they
+   never compete visually with the one action that actually matters). */
+.job-actions-status,
+.job-actions-primary,
+.job-actions-utility {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.job-actions-utility {
+  padding-left: 10px;
+  border-left: 1px solid var(--line);
+}
+
+/* Row wraps as a whole unit on narrow cards, not mid-zone — keeps each
+   zone's buttons together instead of splitting a group across two lines. */
+@media (max-width: 480px) {
+  .job-actions-utility {
+    padding-left: 0;
+    border-left: none;
+    margin-left: auto;
+  }
 }
 
 .job-btn {
