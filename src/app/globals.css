@@ -8492,6 +8492,10 @@ input[type="number"] {
   background: var(--accent-strong);
   border-color: var(--accent-strong);
 }
+.jobs-empty-cta svg {
+  color: inherit;
+  opacity: 1;
+}
 
 /* "Updated Xs ago" under the tracking timeline */
 .track-updated {
