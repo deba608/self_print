@@ -95,6 +95,11 @@ export default function OrderManagementPage() {
     load();
   }, [load]);
 
+  useEffect(() => {
+    const customerQuery = new URLSearchParams(window.location.search).get("customer");
+    if (customerQuery) setQuery(customerQuery);
+  }, []);
+
   async function updateDelivery(job: Job, deliveryStatus: "out_for_delivery" | "delivered") {
     setUpdatingId(job.id);
     setError("");
