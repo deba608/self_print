@@ -137,7 +137,7 @@ async function JobsList({ filter }: { filter: Filter }) {
           }
           action={
             filter === "all" ? (
-              <Link href="/" className="btn-primary jobs-empty-cta">
+              <Link href="/" className="jobs-empty-cta">
                 <UploadCloud size={16} aria-hidden="true" /> Upload a file
               </Link>
             ) : undefined
