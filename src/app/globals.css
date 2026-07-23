@@ -7061,7 +7061,7 @@ input[type="number"] {
 }
 
 .staff-avatar.super_admin,
-.staff-avatar.owner { color: #92400e; background: #fef3c7; border-color: #fde68a; }
+.staff-avatar.owner { color: var(--accent-strong); background: var(--accent-light); border-color: rgba(13, 122, 116, 0.13); }
 .staff-member-identity { min-width: 0; }
 .staff-member-name { display: flex; align-items: center; gap: 7px; }
 .staff-member-name strong {
@@ -7073,12 +7073,12 @@ input[type="number"] {
 }
 
 .staff-you-badge {
-  padding: 2px 6px;
+  padding: 2px 8px;
   color: var(--accent-strong);
   background: var(--accent-light);
-  border-radius: var(--radius-full);
-  font-size: 9.5px;
-  font-weight: 850;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
@@ -7109,16 +7109,16 @@ input[type="number"] {
 }
 
 .staff-role-badge {
-  padding: 4px 8px;
+  padding: 3px 10px;
   color: var(--accent-strong);
-  background: var(--accent-bg);
-  border-radius: var(--radius-full);
-  font-size: 10.5px;
-  font-weight: 800;
+  background: var(--accent-light);
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
 }
 
 .staff-role-badge.super_admin,
-.staff-role-badge.owner { color: #92400e; background: #fef3c7; }
+.staff-role-badge.owner { color: var(--accent-strong); background: var(--accent-light); }
 .staff-joined-date { color: var(--muted); font-size: 10.5px; font-weight: 650; }
 .staff-member-actions { display: flex; justify-content: flex-end; }
 
