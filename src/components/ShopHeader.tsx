@@ -39,7 +39,7 @@ export default function ShopHeader() {
           </Link>
         ) : (
           <>
-            <Link href="/customer-login" className="shop-auth-link">
+            <Link href="/login" className="shop-auth-link">
               Log in
             </Link>
             <Link href="/register" className="shop-auth-btn">

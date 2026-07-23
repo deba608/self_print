@@ -5,6 +5,16 @@ const nextConfig: NextConfig = {
     serverActions: {
       bodySizeLimit: "25mb"
     }
+  },
+  async redirects() {
+    return [
+      // Customer login moved from /customer-login to /login.
+      {
+        source: "/customer-login",
+        destination: "/login",
+        permanent: true
+      }
+    ];
   }
 };
 

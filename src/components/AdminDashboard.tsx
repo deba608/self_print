@@ -1369,7 +1369,7 @@ export default function AdminDashboard() {
 
   const load = useCallback(async () => {
     const response = await fetch("/api/admin/jobs", { credentials: "include" });
-    if (response.status === 401) { setLoggedIn(false); router.push("/login"); return; }
+    if (response.status === 401) { setLoggedIn(false); router.push("/admin"); return; }
     const body = await response.json();
     setJobs(body.jobs ?? []);
     setCursor(body.cursor ?? null);
@@ -1461,7 +1461,7 @@ export default function AdminDashboard() {
       try {
         const res = await fetch("/api/admin/me", { credentials: "include" });
         if (res.status === 401) {
-          router.push("/login");
+          router.push("/admin");
           return;
         }
         if (res.ok) {
@@ -1476,7 +1476,7 @@ export default function AdminDashboard() {
   async function logout() {
     await fetch("/api/admin/logout", { method: "POST", credentials: "include" });
     setLoggedIn(false);
-    router.push("/login");
+    router.push("/admin");
   }
 
   async function savePricing(data: Pricing) {
@@ -1520,7 +1520,7 @@ export default function AdminDashboard() {
       const body = await response.json().catch(() => ({}));
       if (response.status === 401) {
         setLoggedIn(false);
-        router.push("/login");
+        router.push("/admin");
         return;
       }
       if (!response.ok) {
@@ -1573,7 +1573,7 @@ export default function AdminDashboard() {
       const unauthorized = responses.some(({ response }) => response.status === 401);
       if (unauthorized) {
         setLoggedIn(false);
-        router.push("/login");
+        router.push("/admin");
         return;
       }
       const failed = responses.find(({ response }) => !response.ok);

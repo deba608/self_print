@@ -44,7 +44,7 @@ export default function RegisterPage() {
         setLoading(false);
         return;
       }
-      window.location.href = "/customer-login";
+      window.location.href = "/login";
     } catch {
       setError("Connection error. Please try again.");
       setLoading(false);
@@ -59,7 +59,7 @@ export default function RegisterPage() {
             Check your email to confirm your account before logging in.
           </AuthNotice>
           <p className="login-footer">
-            <Link href="/customer-login">Back to log in</Link>
+            <Link href="/login">Back to log in</Link>
           </p>
         </div>
       ) : (
@@ -113,7 +113,7 @@ export default function RegisterPage() {
           <AuthError>{error}</AuthError>
           <AuthSubmit loading={loading} loadingLabel="Creating account..." label="Create Account" />
           <p className="login-footer">
-            Already have an account? <Link href="/customer-login">Log in</Link>
+            Already have an account? <Link href="/login">Log in</Link>
           </p>
         </form>
       )}
