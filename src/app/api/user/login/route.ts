@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { clientIp, isRateLimited } from "@/lib/ratelimit";
 
 export async function POST(request: NextRequest) {
+  if (isRateLimited("user-login", clientIp(request.headers), 10, 60 * 1000)) {
+    return NextResponse.json({ error: "Too many attempts. Please try again later." }, { status: 429 });
+  }
+
   const body = await request.json().catch(() => null);
   if (!body) {
     return NextResponse.json({ error: "Invalid request body" }, { status: 400 });

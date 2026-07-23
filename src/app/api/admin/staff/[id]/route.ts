@@ -15,8 +15,24 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
   if (!id) {
     return NextResponse.json({ error: "Missing staff id" }, { status: 400 });
   }
+  if (id === admin.id) {
+    return NextResponse.json({ error: "You cannot revoke your own access" }, { status: 400 });
+  }
 
   const adminClient = createAdminClient();
+  const { count: superAdminCount } = await adminClient
+    .from("staff_profiles")
+    .select("id", { count: "exact", head: true })
+    .eq("role", "super_admin");
+  const { data: target } = await adminClient
+    .from("staff_profiles")
+    .select("role")
+    .eq("id", id)
+    .maybeSingle();
+  if (target?.role === "super_admin" && (superAdminCount ?? 0) <= 1) {
+    return NextResponse.json({ error: "Cannot remove the last super admin" }, { status: 400 });
+  }
+
   // staff_profiles.invited_by references auth.users(id) without ON DELETE SET
   // NULL, so deleting an inviter would be rejected by Postgres while rows still
   // point at them. Detach those references first.
