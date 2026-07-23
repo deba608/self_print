@@ -28,6 +28,7 @@ export async function POST(request: NextRequest) {
     password,
     options: {
       emailRedirectTo: getAuthRedirectUrl("/login"),
+      data: { display_name: displayName || email },
     },
   });
 
