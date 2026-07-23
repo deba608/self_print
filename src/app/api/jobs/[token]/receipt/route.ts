@@ -1,14 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getJobByToken, getJobFilesByJob, getPricing } from "@/lib/db";
+import { clientIp, isRateLimited } from "@/lib/ratelimit";
 
 // Public receipt data for the customer's status/track page. Only exposed once
 // the job is actually paid — mirrors what BillReceipt renders right after
 // checkout, rebuilt from stored job data so it also works after a page reload
 // or on a different device (a plain re-lookup of the token).
-export async function GET(_: NextRequest, { params }: { params: Promise<{ token: string }> }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
   if (!/^\d{6}$/.test(token)) {
     return NextResponse.json({ error: "Invalid token" }, { status: 400 });
+  }
+
+  if (isRateLimited("job-receipt", clientIp(request.headers), 30, 60 * 1000)) {
+    return NextResponse.json({ error: "Too many requests. Please try again later." }, { status: 429 });
   }
 
   let job;

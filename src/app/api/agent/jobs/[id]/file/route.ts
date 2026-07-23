@@ -2,11 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { getJobFile } from "@/lib/db";
 import { createSignedDownloadUrl } from "@/lib/storage";
 import { verifyAgentToken } from "@/lib/security";
+import { clientIp, isRateLimited } from "@/lib/ratelimit";
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   if (!(await verifyAgentToken(request.headers.get("authorization")))) {
     return NextResponse.json({ error: "Invalid agent token" }, { status: 401 });
   }
+
+  if (isRateLimited("file-serve-agent", clientIp(request.headers), 120, 60 * 1000)) {
+    return NextResponse.json({ error: "Too many requests. Please try again later." }, { status: 429 });
+  }
+
   const { id } = await params;
   
   let file;
