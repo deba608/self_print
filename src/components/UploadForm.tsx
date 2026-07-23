@@ -1619,6 +1619,7 @@ export default function UploadForm() {
           <span className="step-label">Confirm</span>
         </div>
       </nav>
+      )}
 
       {/* Step 1: Upload */}
       {step === "upload" && (
@@ -1706,9 +1707,12 @@ export default function UploadForm() {
         </div>
       )}
 
-      {/* Step 2: Settings */}
+      {/* Step 2: Settings — on desktop this is the whole job in one window:
+          settings on the left, live print preview + total + confirm on the
+          right. On mobile it stays step 2 of 3. */}
       {step === "settings" && (
-        <div className={`step-content ${stepAnim}`} key={step}>
+        <div className={`step-content ${stepAnim} ${isDesktop ? "desktop-workspace" : ""}`} key={step}>
+        <div className="workspace-config">
           {/* File summary */}
           {isBulk ? (
             <button className="file-summary" onClick={() => setStep("upload")} aria-label="Change files">
@@ -2140,26 +2144,56 @@ export default function UploadForm() {
             </div>
           )}
 
-          {/* Actions */}
-          <div className="form-actions">
+          {/* Actions — mobile only; on desktop the confirm button lives in
+              the preview pane and "Change" on the file summary goes back. */}
+          {!isDesktop && (
+            <div className="form-actions">
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => setStep("upload")}
+                aria-label="Go back to upload step"
+              >
+                <ArrowLeft size={20} aria-hidden="true" /> Back
+              </button>
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={goToPreview}
+                disabled={(pageRangeMode === "custom" && !!customPageRange.trim() && !isValidPageRange) || isDuplexInvalid}
+                aria-label="Preview print settings"
+              >
+                Preview <Eye size={20} aria-hidden="true" />
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Desktop live preview pane — updates instantly as settings change */}
+        {isDesktop && (
+          <aside className="workspace-preview" aria-label="Live print preview">
+            <div className="workspace-preview-head">
+              <h3><Eye size={18} aria-hidden="true" /> Print Preview</h3>
+              <span className="workspace-preview-hint">Updates as you change settings</span>
+            </div>
+            {previewArea}
+            <div className="summary-paper-note">
+              <Printer size={14} aria-hidden="true" />
+              Prints on {physicalSheets} sheet{physicalSheets === 1 ? "" : "s"} of paper
+              {copies > 1 ? ` per copy (${physicalSheets * copies} total)` : ""}
+            </div>
+            {totalPriceBlock}
             <button
               type="button"
-              className="btn-secondary"
-              onClick={() => setStep("upload")}
-              aria-label="Go back to upload step"
+              className="btn-primary btn-submit"
+              onClick={confirmFromWorkspace}
+              disabled={busy || (isBulk && bulkUploading) || (pageRangeMode === "custom" && !!customPageRange.trim() && !isValidPageRange) || isDuplexInvalid}
+              aria-busy={busy || (isBulk && bulkUploading)}
             >
-              <ArrowLeft size={20} aria-hidden="true" /> Back
+              {submitButtonLabel}
             </button>
-            <button
-              type="button"
-              className="btn-primary"
-              onClick={goToPreview}
-              disabled={(pageRangeMode === "custom" && !!customPageRange.trim() && !isValidPageRange) || isDuplexInvalid}
-              aria-label="Preview print settings"
-            >
-              Preview <Eye size={20} aria-hidden="true" />
-            </button>
-          </div>
+          </aside>
+        )}
         </div>
       )}
 
