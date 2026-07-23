@@ -6,7 +6,7 @@ import Link from "next/link";
 import { Lock, Mail } from "lucide-react";
 import { AuthShell, AuthInput, AuthError, AuthSubmit } from "@/components/ui/Auth";
 
-export default function LoginPage() {
+export default function CustomerLoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -22,7 +22,7 @@ export default function LoginPage() {
     setLoading(true);
     setError("");
     try {
-      const response = await fetch("/api/admin/login", {
+      const response = await fetch("/api/customer/login", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -34,7 +34,7 @@ export default function LoginPage() {
         setLoading(false);
         return;
       }
-      router.push("/admin");
+      router.push("/my-jobs");
     } catch {
       setError("Connection error. Please try again.");
       setLoading(false);
@@ -42,7 +42,7 @@ export default function LoginPage() {
   };
 
   return (
-    <AuthShell title="SelfPrint Admin" subtitle="Staff sign in">
+    <AuthShell title="Welcome Back" subtitle="Log in to track your print orders">
       <form className="login-form" onSubmit={handleSubmit}>
         <AuthInput
           id="email"
@@ -70,9 +70,9 @@ export default function LoginPage() {
         <AuthError>{error}</AuthError>
         <AuthSubmit loading={loading} loadingLabel="Signing in..." label="Sign In" />
         <p className="login-footer">
-          <Link href="/forgot-password?from=admin">Forgot password?</Link>
+          <Link href="/forgot-password">Forgot password?</Link>
           {" · "}
-          Customer? <Link href="/customer-login">Log in here</Link>
+          Need an account? <Link href="/register">Sign up</Link>
         </p>
       </form>
     </AuthShell>
