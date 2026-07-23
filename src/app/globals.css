@@ -461,25 +461,210 @@ input, select, button {
 
 .upload-form { display: flex; flex-direction: column; gap: var(--space-5); }
 
-/* === Desktop one-page workspace (settings + live preview side by side) === */
-/* Mobile/tablet: the wrapper is inert — the wizard steps stack as before. */
+/* === Desktop one-page workspace — 2×2 zones ===
+   file card ......... live preview
+   print settings .... fulfillment + price + confirm
+   Both step-content wrappers dissolve (display: contents) so the four zone
+   wrappers become the grid items. Mobile: wrappers just stack in order. */
 .flow-stack { display: flex; flex-direction: column; gap: var(--space-5); }
+.fs-file-zone,
+.fs-settings,
+.fs-fulfil,
+.preview-pane {
+  display: grid;
+  gap: var(--space-4);
+  align-content: start;
+}
+/* Workspace stage: left column flows file→settings with no dead gap
+   (preview spans two rows, so settings starts right under the file board
+   regardless of preview height); price + Continue tuck under the preview
+   so both columns finish at roughly the same level. */
 .flow-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 28px;
+  grid-template-rows: auto auto 1fr;
+  grid-template-areas:
+    "file     preview"
+    "settings preview"
+    "settings fulfil";
+  gap: 20px 28px;
   align-items: start;
 }
-/* Preview column stays in view while the (taller) settings column scrolls. */
-.flow-grid .flow-preview-col {
-  position: sticky;
-  top: 84px;
+.flow-grid > .flow-contents { display: contents; }
+.flow-grid .fs-file-zone { grid-area: file; }
+.flow-grid .fs-settings { grid-area: settings; }
+.flow-grid .fs-fulfil { grid-area: fulfil; }
+.flow-grid .preview-pane { grid-area: preview; }
+/* Cap the viewer so the right column stays balanced with the left; the
+   canvas scrolls inside its own box instead. */
+.flow-grid .preview-pane .preview-area {
+  max-height: 430px;
+  overflow-y: auto;
 }
+
+/* Fulfillment stage — the workspace steps aside and the fulfillment zone
+   becomes its own centered page. */
+.flow-grid.fulfil-stage {
+  display: block;
+}
+.flow-grid.fulfil-stage .fs-file-zone,
+.flow-grid.fulfil-stage .fs-settings,
+.flow-grid.fulfil-stage .preview-pane {
+  display: none;
+}
+.flow-grid.fulfil-stage .fs-fulfil {
+  max-width: 560px;
+  margin: 0 auto;
+  animation: fadeSlideIn 0.28s var(--ease-out) both;
+}
+.fulfil-page-head {
+  display: grid;
+  gap: 6px;
+  justify-items: start;
+}
+.fulfil-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  margin-left: -10px;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-full);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted);
+  cursor: pointer;
+  transition: color var(--duration-fast) var(--ease-out), background var(--duration-fast) var(--ease-out);
+}
+.fulfil-back-btn:hover { color: var(--accent); background: var(--accent-bg); }
+.fulfil-page-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--ink);
+  letter-spacing: -0.3px;
+}
+
+/* Responsive: tighter workspace between 1024px and 1279px. */
+@media (min-width: 1024px) and (max-width: 1279px) {
+  .flow-grid { gap: 16px 20px; }
+  .flow-grid .preview-pane .preview-area { max-height: 380px; }
+  .file-thumb-grid { grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); }
+}
+/* Desktop file zone — uploaded files as thumbnail cards + add-more tile */
+.file-zone-board {
+  display: grid;
+  gap: 10px;
+}
+.file-zone-title {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0;
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--ink);
+}
+.file-zone-count {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.file-thumb-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
+  gap: 10px;
+}
+.file-thumb-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 8px 10px;
+  background: var(--panel);
+  border: 1.5px solid var(--line);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: border-color var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out);
+}
+.file-thumb-card:hover { border-color: rgba(13, 122, 116, 0.4); }
+.file-thumb-card.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-light);
+}
+.file-thumb-card .bulk-thumb {
+  border-radius: 4px;
+  box-shadow: 0 1px 6px rgba(23, 32, 42, 0.18);
+}
+.file-thumb-img {
+  width: 82px;
+  height: 104px;
+  object-fit: cover;
+  border-radius: 4px;
+  border: 1px solid var(--line);
+}
+.file-thumb-name {
+  max-width: 100%;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.file-thumb-pages {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.file-thumb-remove {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  background: #fff;
+  color: var(--muted);
+  box-shadow: 0 1px 4px rgba(23, 32, 42, 0.2);
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-out);
+}
+.file-thumb-remove:hover { background: var(--danger); color: #fff; }
+.file-thumb-add {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 130px;
+  padding: 12px 8px;
+  border: 1.5px dashed rgba(13, 122, 116, 0.45);
+  border-radius: 12px;
+  background: var(--accent-bg);
+  color: var(--accent);
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-out);
+}
+.file-thumb-add:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: var(--accent-light);
+}
+.file-thumb-add:disabled { opacity: 0.5; cursor: not-allowed; }
+
 /* The 520px phone-first shell can't hold two columns — widen it only when
    the one-page grid is actually on screen (desktop, mid-flow). */
 @media (min-width: 1024px) {
   .customer-shell:has(.flow-grid) {
-    max-width: 1080px;
+    max-width: 1120px;
   }
 }
 .step-content { display: grid; gap: var(--space-4); }
@@ -2656,6 +2841,42 @@ button.upi-pay-btn:disabled {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
+}
+
+/* === Compact settings (UploadForm) === */
+.compact-settings .toggle-btn {
+  padding: 12px 12px;
+  min-height: 56px;
+  gap: 4px;
+  border-radius: 10px;
+}
+.compact-settings .number-input {
+  height: 40px;
+}
+.compact-settings .num-btn {
+  width: 40px;
+  font-size: 18px;
+}
+.compact-settings .mobile-select {
+  min-height: 40px;
+  padding: 6px 32px 6px 10px;
+  font-size: 13px;
+  background-size: 12px 8px;
+}
+.compact-settings .page-mode-btn {
+  padding: 10px 8px;
+  gap: 4px;
+  min-height: 0;
+}
+.compact-settings .page-mode-icon,
+.compact-settings .page-mode-num {
+  font-size: 14px;
+}
+.compact-settings .form-group {
+  gap: 6px;
+}
+.compact-settings .form-group label {
+  font-size: 12px;
 }
 
 /* === Hide spinners === */
