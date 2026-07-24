@@ -46,7 +46,7 @@ function loadRazorpayCheckout(): Promise<boolean> {
 }
 
 type Step = "upload" | "settings" | "preview" | "converting" | "done" | "docx-warning";
-type PageRangeMode = "all" | "even" | "odd" | "custom";
+type PageRangeMode = "all" | "custom";
 
 export default function UploadForm() {
   const [step, setStep] = useState<Step>("upload");
@@ -398,15 +398,11 @@ export default function UploadForm() {
 
   const effectivePageRange = useMemo(() => {
     if (pageRangeMode === "all") return "";
-    if (pageRangeMode === "even") return "even";
-    if (pageRangeMode === "odd") return "odd";
     return customPageRange;
   }, [pageRangeMode, customPageRange]);
 
   const selectedPages = useMemo(() => {
     const totalPages = filePageCount ?? 1;
-    if (pageRangeMode === "even") return Math.floor(totalPages / 2);
-    if (pageRangeMode === "odd") return Math.ceil(totalPages / 2);
     if (pageRangeMode === "custom" && customPageRange.trim()) return estimateRange(customPageRange);
     return totalPages;
   }, [filePageCount, pageRangeMode, customPageRange]);
@@ -549,14 +545,6 @@ export default function UploadForm() {
     if (pageRangeMode === "all") {
       return totalPages > 1 ? `All ${totalPages} pages` : "All pages";
     }
-    if (pageRangeMode === "even") {
-      const count = Math.floor(totalPages / 2);
-      return `${count} even page${count !== 1 ? "s" : ""}`;
-    }
-    if (pageRangeMode === "odd") {
-      const count = Math.ceil(totalPages / 2);
-      return `${count} odd page${count !== 1 ? "s" : ""}`;
-    }
     if (pageRangeMode === "custom" && customPageRange.trim()) {
       const pages = estimateRange(customPageRange);
       return `${pages} page${pages !== 1 ? "s" : ""}`;
@@ -588,16 +576,6 @@ export default function UploadForm() {
   const selectedPageList = useMemo<number[] | null>(() => {
     const total = filePageCount ?? 0;
     if (!total || pageRangeMode === "all") return null;
-    if (pageRangeMode === "even") {
-      const out: number[] = [];
-      for (let n = 2; n <= total; n += 2) out.push(n);
-      return out.length ? out : null;
-    }
-    if (pageRangeMode === "odd") {
-      const out: number[] = [];
-      for (let n = 1; n <= total; n += 2) out.push(n);
-      return out;
-    }
     if (!customPageRange.trim() || !isValidPageRange) return null;
     const pages = new Set<number>();
     for (const part of customPageRange.split(",")) {
@@ -1930,24 +1908,6 @@ export default function UploadForm() {
                   >
                     <File size={18} className="page-mode-icon" aria-hidden="true" />
                     <span className="page-mode-label">All Pages</span>
-                  </button>
-                  <button
-                    type="button"
-                    className={`page-mode-btn ${pageRangeMode === "even" ? "active" : ""}`}
-                    onClick={() => setPageRangeMode("even")}
-                    aria-pressed={pageRangeMode === "even"}
-                  >
-                    <span className="page-mode-num">2</span>
-                    <span className="page-mode-label">Even Only</span>
-                  </button>
-                  <button
-                    type="button"
-                    className={`page-mode-btn ${pageRangeMode === "odd" ? "active" : ""}`}
-                    onClick={() => setPageRangeMode("odd")}
-                    aria-pressed={pageRangeMode === "odd"}
-                  >
-                    <span className="page-mode-num">1</span>
-                    <span className="page-mode-label">Odd Only</span>
                   </button>
                   <button
                     type="button"

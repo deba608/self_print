@@ -16,8 +16,6 @@ type JobInfo = {
 
 function pagesLabel(range: string | null, pageCount: number) {
   if (!range) return `All${pageCount ? ` (${pageCount})` : ""}`;
-  if (range.toLowerCase() === "even") return "Even pages only";
-  if (range.toLowerCase() === "odd") return "Odd pages only";
   return range;
 }
 
