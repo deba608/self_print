@@ -1808,6 +1808,54 @@ export default function UploadForm() {
             )}
           </div>
 
+          {/* Page Range — not applicable in bulk mode */}
+          {!isBulk && (
+            <div className="form-group">
+              <label>Select Pages</label>
+              <div className="page-range-selector">
+                <div className="page-mode-grid">
+                  <button
+                    type="button"
+                    className={`page-mode-btn ${pageRangeMode === "all" ? "active" : ""}`}
+                    onClick={() => setPageRangeMode("all")}
+                    aria-pressed={pageRangeMode === "all"}
+                  >
+                    <File size={18} className="page-mode-icon" aria-hidden="true" />
+                    <span className="page-mode-label">All Pages</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`page-mode-btn ${pageRangeMode === "custom" ? "active" : ""}`}
+                    onClick={() => setPageRangeMode("custom")}
+                    aria-pressed={pageRangeMode === "custom"}
+                  >
+                    <span className="page-mode-num">C</span>
+                    <span className="page-mode-label">Custom</span>
+                  </button>
+                </div>
+                {pageRangeMode === "custom" && (
+                  <div className="custom-range-input">
+                    <input
+                      type="text"
+                      placeholder="e.g., 1-5 or 1,3,5"
+                      value={customPageRange}
+                      onChange={(e) => setCustomPageRange(e.target.value.replace(/[^0-9,\-]/g, ''))}
+                      aria-label="Enter custom page range"
+                      inputMode="numeric"
+                      aria-invalid={!isValidPageRange && !!customPageRange.trim()}
+                    />
+                    <span className="range-hint">Separate with commas or dash for range</span>
+                    {pageRangeValidationMessage && (
+                      <span className="range-error" role="alert">
+                        {pageRangeValidationMessage}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Copies + Paper Size */}
           <div className="form-row">
             <div className="form-group">
@@ -1893,54 +1941,6 @@ export default function UploadForm() {
               </select>
             </div>
           </div>
-
-          {/* Page Range — not applicable in bulk mode */}
-          {!isBulk && (
-            <div className="form-group">
-              <label>Select Pages</label>
-              <div className="page-range-selector">
-                <div className="page-mode-grid">
-                  <button
-                    type="button"
-                    className={`page-mode-btn ${pageRangeMode === "all" ? "active" : ""}`}
-                    onClick={() => setPageRangeMode("all")}
-                    aria-pressed={pageRangeMode === "all"}
-                  >
-                    <File size={18} className="page-mode-icon" aria-hidden="true" />
-                    <span className="page-mode-label">All Pages</span>
-                  </button>
-                  <button
-                    type="button"
-                    className={`page-mode-btn ${pageRangeMode === "custom" ? "active" : ""}`}
-                    onClick={() => setPageRangeMode("custom")}
-                    aria-pressed={pageRangeMode === "custom"}
-                  >
-                    <span className="page-mode-num">C</span>
-                    <span className="page-mode-label">Custom</span>
-                  </button>
-                </div>
-                {pageRangeMode === "custom" && (
-                  <div className="custom-range-input">
-                    <input
-                      type="text"
-                      placeholder="e.g., 1-5 or 1,3,5"
-                      value={customPageRange}
-                      onChange={(e) => setCustomPageRange(e.target.value.replace(/[^0-9,\-]/g, ''))}
-                      aria-label="Enter custom page range"
-                      inputMode="numeric"
-                      aria-invalid={!isValidPageRange && !!customPageRange.trim()}
-                    />
-                    <span className="range-hint">Separate with commas or dash for range</span>
-                    {pageRangeValidationMessage && (
-                      <span className="range-error" role="alert">
-                        {pageRangeValidationMessage}
-                      </span>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
 
           </div>{/* /fs-settings */}
 
