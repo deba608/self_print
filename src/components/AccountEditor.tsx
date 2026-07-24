@@ -66,7 +66,8 @@ export default function AccountEditor({
           .from(AVATAR_BUCKET)
           .upload(path, avatarFile, { upsert: true, contentType: avatarFile.type });
         if (uploadError) throw new Error(uploadError.message);
-        nextAvatarUrl = supabase.storage.from(AVATAR_BUCKET).getPublicUrl(path).data.publicUrl;
+        const publicUrl = supabase.storage.from(AVATAR_BUCKET).getPublicUrl(path).data.publicUrl;
+        nextAvatarUrl = `${publicUrl}?v=${Date.now()}`;
       }
 
       // Keep both sources in sync: Auth metadata drives the navbar (read
