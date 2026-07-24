@@ -1907,7 +1907,7 @@ export default function UploadForm() {
               </select>
             </div>
             <div className="form-group">
-              <label htmlFor="pages-per-sheet-select">Per Sheet</label>
+              <label htmlFor="pages-per-sheet-select">Pages per Sheet</label>
               <select id="pages-per-sheet-select" value={pagesPerSheet} onChange={(e) => setPagesPerSheet(Number(e.target.value))} className="mobile-select">
                 <option value={1}>1</option>
                 <option value={2}>2</option>

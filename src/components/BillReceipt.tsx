@@ -38,7 +38,7 @@ export default function BillReceipt({ bill }: { bill: BillData }) {
     bill.settings.printType === "bw" ? "Black & White" : "Color",
     bill.settings.duplex === "simplex" ? "Single-sided" : "Double-sided",
     bill.settings.paperSize,
-    bill.settings.pagesPerSheet > 1 ? `${bill.settings.pagesPerSheet}/sheet` : null,
+    bill.settings.pagesPerSheet > 1 ? `${bill.settings.pagesPerSheet} pages/sheet` : null,
   ].filter(Boolean).join(" · ");
 
   async function saveAsImage() {
@@ -188,7 +188,7 @@ async function renderBillPng(bill: BillData): Promise<Blob> {
     bill.settings.printType === "bw" ? "Black & White" : "Color",
     bill.settings.duplex === "simplex" ? "Single-sided" : "Double-sided",
     bill.settings.paperSize,
-    bill.settings.pagesPerSheet > 1 ? `${bill.settings.pagesPerSheet}/sheet` : null,
+    bill.settings.pagesPerSheet > 1 ? `${bill.settings.pagesPerSheet} pages/sheet` : null,
   ].filter(Boolean).join(" · ");
   ctx.fillStyle = "#4b5563";
   ctx.font = "600 12px system-ui, sans-serif";
