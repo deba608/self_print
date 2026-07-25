@@ -407,6 +407,7 @@ export async function getJobsPage(limit: number, cursor?: string | null): Promis
         job_files.stored_name AS f_stored_name, job_files.mime_type AS f_mime_type,
         job_files.size_bytes AS f_size_bytes, job_files.file_kind AS f_file_kind,
         job_files.storage_path AS f_storage_path, job_files.created_at AS f_created_at,
+        job_files.purged_at AS f_purged_at,
         (SELECT COUNT(*) FROM job_files jf WHERE jf.job_id = jobs.id) AS f_count
       FROM jobs
       LEFT JOIN job_files ON jobs.id = job_files.job_id
@@ -422,6 +423,7 @@ export async function getJobsPage(limit: number, cursor?: string | null): Promis
         job_files.stored_name AS f_stored_name, job_files.mime_type AS f_mime_type,
         job_files.size_bytes AS f_size_bytes, job_files.file_kind AS f_file_kind,
         job_files.storage_path AS f_storage_path, job_files.created_at AS f_created_at,
+        job_files.purged_at AS f_purged_at,
         (SELECT COUNT(*) FROM job_files jf WHERE jf.job_id = jobs.id) AS f_count
       FROM jobs
       LEFT JOIN job_files ON jobs.id = job_files.job_id
@@ -444,7 +446,8 @@ export async function getJobsPage(limit: number, cursor?: string | null): Promis
         sizeBytes: Number(row.f_size_bytes),
         fileKind: row.f_file_kind as any,
         storagePath: String(row.f_storage_path),
-        createdAt: String(row.f_created_at)
+        createdAt: String(row.f_created_at),
+        purgedAt: row.f_purged_at ? String(row.f_purged_at) : null
       };
     }
     job.fileCount = Number(row.f_count ?? (row.f_id ? 1 : 0));
