@@ -516,8 +516,11 @@ input, select, button {
 /* Cap the viewer so the right column stays balanced with the left; the
    canvas scrolls inside its own box instead. */
 .flow-grid .preview-pane .preview-area {
-  max-height: 430px;
-  overflow-y: auto;
+  overflow: hidden;
+}
+
+.flow-grid .pdfjs-canvas-wrap {
+  max-height: 420px;
 }
 
 /* Fulfillment stage — the workspace steps aside and the fulfillment zone
@@ -567,7 +570,7 @@ input, select, button {
 /* Responsive: tighter workspace between 1024px and 1279px. */
 @media (min-width: 1024px) and (max-width: 1279px) {
   .flow-grid { gap: 16px 20px; }
-  .flow-grid .preview-pane .preview-area { max-height: 380px; }
+  .flow-grid .pdfjs-canvas-wrap { max-height: 350px; }
   .file-thumb-grid { grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); }
 }
 /* Desktop file zone — uploaded files as thumbnail cards + add-more tile */
@@ -1814,9 +1817,11 @@ input, select, button {
 
 .pdfjs-preview {
   width: 100%;
-  display: grid;
-  gap: 0;
+  display: flex;
+  flex-direction: column;
   background: #eef1f5;
+  border-radius: 14px;
+  overflow: hidden;
 }
 
 .pdfjs-toolbar {
@@ -1964,7 +1969,7 @@ input, select, button {
   position: relative;
   width: 100%;
   min-height: 320px;
-  max-height: min(58vh, 640px);
+  max-height: min(58vh, 520px);
   overflow: auto;
   display: flex;
   align-items: flex-start;
@@ -9376,8 +9381,11 @@ body {
   }
 
   .workspace-preview .preview-area {
-    max-height: min(62vh, 640px);
-    overflow: auto;
+    overflow: hidden;
+  }
+
+  .workspace-preview .pdfjs-canvas-wrap {
+    max-height: min(58vh, 520px);
   }
 
   .workspace-preview .btn-submit {
