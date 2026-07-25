@@ -159,16 +159,15 @@ async function JobsList({ filter }: { filter: Filter }) {
                 key={job.id}
                 href={`/track?token=${job.token}`}
                 className={`job-card ${job.status}`}
-                style={{ textDecoration: "none", color: "inherit" }}
               >
-                <div className="job-side" style={{ flex: 1 }}>
-                  <div>
+                <div className="job-info">
+                  <div className="job-info-row">
                     <strong className="token-value">{job.token}</strong>
-                    <span className="muted" style={{ marginLeft: 8 }}>
+                    <span className="muted job-info-date">
                       {formatDate(String(job.created_at))}
                     </span>
                   </div>
-                  <div className="muted" style={{ fontSize: "0.85em" }}>
+                  <div className="muted job-info-meta">
                     {job.print_type === "color" ? "Color" : "B&W"} &middot; {job.copies}{" "}
                     {job.copies === 1 ? "copy" : "copies"} &middot; {job.page_count}{" "}
                     {job.page_count === 1 ? "page" : "pages"}
