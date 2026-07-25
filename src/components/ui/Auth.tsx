@@ -43,6 +43,8 @@ type AuthInputProps = {
   required?: boolean;
   /** Renders a show/hide toggle and masks input. Overrides `type`. */
   password?: boolean;
+  /** Renders next to the label, right-aligned (e.g. a "Forgot password?" link). */
+  labelAction?: ReactNode;
 };
 
 export function AuthInput({
@@ -59,11 +61,15 @@ export function AuthInput({
   autoFocus,
   required,
   password,
+  labelAction,
 }: AuthInputProps) {
   const [show, setShow] = useState(false);
   return (
     <div className="input-group">
-      <label htmlFor={id}>{label}</label>
+      <div className="input-label-row">
+        <label htmlFor={id}>{label}</label>
+        {labelAction}
+      </div>
       <div className="input-wrapper">
         <span className="input-icon">
           <Icon size={18} strokeWidth={2} />
