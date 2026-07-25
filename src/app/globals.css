@@ -1003,6 +1003,49 @@ input, select, button {
   color: var(--ink);
 }
 
+/* Advanced print options — layout/scale/margins/pages-per-sheet, collapsed by
+   default since most orders use the defaults and never touch them. */
+.advanced-settings {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 0;
+  overflow: hidden;
+}
+
+.advanced-settings-summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 12px 14px;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  user-select: none;
+}
+
+.advanced-settings-summary::-webkit-details-marker { display: none; }
+
+.advanced-settings-summary::before {
+  content: "›";
+  display: inline-block;
+  transition: transform 0.15s ease;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.advanced-settings[open] .advanced-settings-summary::before {
+  transform: rotate(90deg);
+}
+
+.advanced-settings-body {
+  padding: 4px 14px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
 .bulk-file-name {
   flex: 1;
   font-weight: 600;
@@ -2062,26 +2105,63 @@ input, select, button {
   margin: 0;
 }
 
-/* Settings Summary */
+/* Settings Summary — collapsed <details> on mobile; the closed <summary> row
+   shows a one-line glance so the review step reads as one compact card
+   instead of an 8-row dump. Expands to the full grid on tap. */
 .settings-summary {
   background: #fff;
   border: 1px solid var(--line);
   border-radius: 14px;
-  padding: 18px;
+  padding: 14px 18px;
   margin-bottom: 0;
 }
 
-.settings-summary h4 {
-  font-size: 14px;
+.settings-summary[open] {
+  padding-bottom: 18px;
+}
+
+.settings-summary summary {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 13px;
+}
+
+.settings-summary summary::-webkit-details-marker { display: none; }
+
+.settings-summary summary::after {
+  content: "›";
+  color: var(--muted);
   font-weight: 700;
-  margin: 0 0 12px;
+  transition: transform 0.15s ease;
+}
+
+.settings-summary[open] summary::after {
+  transform: rotate(90deg);
+}
+
+.summary-glance-title {
+  font-weight: 700;
   color: var(--ink);
+  white-space: nowrap;
+}
+
+.summary-glance {
+  color: var(--muted);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .summary-grid {
   display: grid;
   grid-template-columns: 1fr;
   gap: 14px;
+  margin-top: 14px;
 }
 
 .summary-item {
@@ -6439,7 +6519,8 @@ input[type="number"] {
   }
 
   .summary-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px 14px;
   }
 
   .action-grid {
