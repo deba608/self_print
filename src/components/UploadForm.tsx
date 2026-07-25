@@ -1472,6 +1472,16 @@ export default function UploadForm() {
 
   return (
     <div className="upload-form">
+      {/* Intro copy — only makes sense on the upload screen itself; once the
+          customer has a file in and is deep in settings/preview it's just
+          dead weight pushing the actual controls further down. */}
+      {step === "upload" && (
+        <div className="intro intro-anim">
+          <h1>Print Your Files</h1>
+          <p className="muted">Upload from your phone, get a token, pay at the counter, and collect your print.</p>
+        </div>
+      )}
+
       {/* Step indicator — hidden in the desktop one-page workspace, where
           there are no steps to indicate — on desktop the flow is just
           "pick a file → everything on one screen", so the 3-step wizard

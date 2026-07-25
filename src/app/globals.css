@@ -468,8 +468,40 @@ input, select, button {
 }
 
 .intro { text-align: center; margin-bottom: var(--space-5); }
-.intro h1 { font-size: 22px; margin: 0 0 var(--space-1); color: var(--ink); letter-spacing: -0.3px; }
-.intro p { font-size: 13px; margin: 0; color: var(--muted); }
+.intro h1 {
+  font-size: 28px;
+  font-weight: 800;
+  margin: 0 0 8px;
+  color: var(--ink);
+  letter-spacing: -0.03em;
+  line-height: 1.2;
+}
+.intro p {
+  font-size: 14.5px;
+  font-weight: 500;
+  line-height: 1.5;
+  margin: 0 auto;
+  max-width: 320px;
+  color: var(--muted);
+}
+
+/* Entrance animation — `backwards` only (not `both`): applies the "from"
+   keyframe pre-start so there's no flash, but reverts to the normal cascade
+   once done instead of leaving a permanent transform behind (see .slide-fwd
+   for why that matters — a lingering transform silently becomes a
+   positioning container for any `position: fixed` descendant). */
+.intro-anim {
+  animation: introIn 0.4s var(--ease-out) backwards;
+}
+
+@keyframes introIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .intro-anim { animation: none; }
+}
 
 .upload-form { display: flex; flex-direction: column; gap: var(--space-5); }
 
