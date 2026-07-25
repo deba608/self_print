@@ -7,6 +7,10 @@
      CSS `position: sticky` ignores ancestor padding and measures from the
      viewport edge directly. */
   --mobile-bottom-nav-h: 60px;
+  /* Fixed wizard Back/Preview bar (see .form-actions) — content that scrolls
+     behind it needs this much bottom padding so nothing ends up hidden
+     underneath. Measured buttons + 16px padding top/bottom. */
+  --mobile-form-actions-h: 84px;
 
   /* Core Colors */
   --bg: #f4f6f8;
@@ -704,6 +708,15 @@ input, select, button {
   }
 }
 .step-content { display: grid; gap: var(--space-4); }
+
+/* Reserves space for the now-fixed .form-actions bar (see --mobile-form-actions-h)
+   so content isn't hidden underneath it. Only needed where the wizard (and
+   its fixed action bar) actually renders — below the 1024px desktop split. */
+@media (max-width: 1023px) {
+  .step-content {
+    padding-bottom: var(--mobile-form-actions-h);
+  }
+}
 
 /* Step Indicator with animated transitions */
 /* Connectors flex-stretch so the row fills its container edge-to-edge on
@@ -1637,27 +1650,29 @@ input, select, button {
   font-weight: 500;
 }
 
-/* Form Actions */
+/* Form Actions — the wizard's Back/Preview (and Edit/Confirm) bar.
+   `position: fixed` (not sticky) so it's pinned to the screen from the very
+   first paint, not just once you've scrolled far enough for its in-flow
+   position to reach the viewport edge. Full-bleed like the tab bar below it;
+   see --mobile-form-actions-h for the matching content padding-bottom. */
 .form-actions {
   display: flex;
   gap: 12px;
-  padding: 14px 0;
-  position: sticky;
+  position: fixed;
+  left: 0;
+  right: 0;
   bottom: 0;
-  z-index: 10;
-  background: linear-gradient(to top, var(--bg) 76%, rgba(244, 246, 248, 0));
-  margin: 0 -16px;
+  z-index: 40;
   padding: 16px;
+  background: rgba(244, 246, 248, 0.92);
   border-top: 1px solid rgba(212, 219, 228, 0.72);
   backdrop-filter: blur(10px);
-  /* `sticky` measures `bottom` from the viewport edge, not from any ancestor's
-     padding — so left at 0 this bar sticks flush behind the fixed mobile tab
-     bar (z-index 50 > 10 here) instead of above it. Cleared below on mobile. */
+  -webkit-backdrop-filter: blur(10px);
 }
 
 @media (max-width: 599px) {
   .form-actions {
-    bottom: calc(var(--mobile-bottom-nav-h) + env(safe-area-inset-bottom, 0px));
+    bottom: var(--mobile-bottom-nav-h);
   }
 }
 
@@ -8184,12 +8199,21 @@ input[type="number"] {
 }
 
 /* === Direction-aware step transitions === */
+/* `backwards` only (not `both`) — applies the "from" keyframe before the
+   animation starts (no flash of the un-animated state), but once it finishes
+   the element reverts to its normal cascade instead of staying pinned at
+   `transform: translateX(0)`. That lingering transform (an identity matrix,
+   but still a non-"none" value) silently made this element a positioning
+   container, trapping any `position: fixed` descendant (e.g. .form-actions)
+   inside it instead of the real viewport — these step wrappers stay mounted
+   indefinitely (the class is never removed), so "both"/"forwards" here
+   wasn't a brief side effect, it was permanent. */
 .slide-fwd {
-  animation: slideFwd 0.28s var(--ease-out) both;
+  animation: slideFwd 0.28s var(--ease-out) backwards;
 }
 
 .slide-back {
-  animation: slideBack 0.28s var(--ease-out) both;
+  animation: slideBack 0.28s var(--ease-out) backwards;
 }
 
 @keyframes slideFwd {
