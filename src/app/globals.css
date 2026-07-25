@@ -2,6 +2,12 @@
 /* Mobile-first design with clean aesthetics */
 
 :root {
+  /* Fixed mobile bottom tab bar footprint (see .user-bottom-nav) — anything
+     that sticks to the viewport bottom on mobile must offset by this, since
+     CSS `position: sticky` ignores ancestor padding and measures from the
+     viewport edge directly. */
+  --mobile-bottom-nav-h: 81px;
+
   /* Core Colors */
   --bg: #f4f6f8;
   --panel: #ffffff;
@@ -207,7 +213,7 @@ input, select, button {
    sits on top of a constant blank strip instead of overlapping live content. */
 @media (max-width: 599px) {
   .customer-app-content {
-    padding-bottom: calc(81px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(var(--mobile-bottom-nav-h) + env(safe-area-inset-bottom, 0px));
   }
 }
 
@@ -1651,6 +1657,15 @@ input, select, button {
   padding: 16px;
   border-top: 1px solid rgba(212, 219, 228, 0.72);
   backdrop-filter: blur(10px);
+  /* `sticky` measures `bottom` from the viewport edge, not from any ancestor's
+     padding — so left at 0 this bar sticks flush behind the fixed mobile tab
+     bar (z-index 50 > 10 here) instead of above it. Cleared below on mobile. */
+}
+
+@media (max-width: 599px) {
+  .form-actions {
+    bottom: calc(var(--mobile-bottom-nav-h) + env(safe-area-inset-bottom, 0px));
+  }
 }
 
 /* Buttons with enhanced interactions */
