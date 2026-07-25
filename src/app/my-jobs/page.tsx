@@ -10,6 +10,7 @@ import {
   PackageCheck,
   Inbox,
   UploadCloud,
+  ChevronRight,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
@@ -158,39 +159,42 @@ async function JobsList({ filter }: { filter: Filter }) {
               <Link
                 key={job.id}
                 href={`/track?token=${job.token}`}
-                className={`job-card ${job.status}`}
+                className={`job-card jobs-list-card ${job.status}`}
               >
-                <div className="job-info">
-                  <div className="job-info-row">
-                    <strong className="token-value">{job.token}</strong>
-                    <span className="muted job-info-date">
+                <div className="jobs-card-main">
+                  <div className="jobs-card-header">
+                    <strong className="token-value">#{job.token}</strong>
+                    <span className="muted jobs-card-date">
                       {formatDate(String(job.created_at))}
                     </span>
+                    <ChevronRight className="jobs-card-arrow" size={18} aria-hidden="true" />
                   </div>
-                  <div className="muted job-info-meta">
+                  <div className="muted jobs-card-specs">
                     {job.print_type === "color" ? "Color" : "B&W"} &middot; {job.copies}{" "}
                     {job.copies === 1 ? "copy" : "copies"} &middot; {job.page_count}{" "}
                     {job.page_count === 1 ? "page" : "pages"}
                   </div>
                 </div>
-                <div className="job-actions jobs-card-badges">
-                  <Badge variant={status.variant} icon={status.icon}>
-                    {status.label}
-                  </Badge>
-                  {isDelivery &&
-                    (job.delivery_status === "delivered" ? (
-                      <Badge variant="success" icon={PackageCheck}>
-                        Delivered
-                      </Badge>
-                    ) : job.delivery_status === "out_for_delivery" ? (
-                      <Badge variant="warning" icon={Truck}>
-                        Out for delivery
-                      </Badge>
-                    ) : (
-                      <Badge variant="neutral" icon={Truck}>
-                        Delivery
-                      </Badge>
-                    ))}
+                <div className="jobs-card-footer">
+                  <div className="jobs-card-badges">
+                    <Badge variant={status.variant} icon={status.icon}>
+                      {status.label}
+                    </Badge>
+                    {isDelivery &&
+                      (job.delivery_status === "delivered" ? (
+                        <Badge variant="success" icon={PackageCheck}>
+                          Delivered
+                        </Badge>
+                      ) : job.delivery_status === "out_for_delivery" ? (
+                        <Badge variant="warning" icon={Truck}>
+                          Out for delivery
+                        </Badge>
+                      ) : (
+                        <Badge variant="neutral" icon={Truck}>
+                          Delivery
+                        </Badge>
+                      ))}
+                  </div>
                   <span className="result-meta-value jobs-price">
                     {formatRupees(Number(job.price_paise))}
                   </span>
@@ -215,7 +219,7 @@ export default async function MyJobsPage({
 
   return (
     <main className="customer-shell">
-      <section className="panel stack">
+      <section className="panel stack jobs-page">
         <div className="intro">
           <h1>My Jobs</h1>
           <p className="muted">Everything you&apos;ve printed with this account.</p>
