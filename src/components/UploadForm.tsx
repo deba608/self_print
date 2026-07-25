@@ -2268,6 +2268,7 @@ export default function UploadForm() {
                 {isBulk ? `${bulkTotalPages}p` : pageInfo} · {paperSizeLabels[paperSize as keyof typeof paperSizeLabels] || paperSize}
               </span>
             </summary>
+            <div className="settings-summary-body">
             <div className="summary-grid">
               <div className="summary-item">
                 <span className="summary-label">File</span>
@@ -2310,6 +2311,7 @@ export default function UploadForm() {
               Prints on {physicalSheets} sheet{physicalSheets === 1 ? "" : "s"} of paper
               {copies > 1 ? ` per copy (${physicalSheets * copies} total)` : ""}
             </div>
+            </div>{/* /settings-summary-body */}
           </details>
           )}
 
