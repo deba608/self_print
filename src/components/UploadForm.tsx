@@ -2542,8 +2542,14 @@ function PdfCanvasPreview({ file, fallbackPageCount, sim }: { file: File; fallba
         const context = canvas.getContext("2d");
         if (!context) return;
 
-        const containerWidth = Math.max((containerRef.current?.clientWidth ?? 320) - 24, 240);
-        const containerHeight = Math.max((containerRef.current?.clientHeight ?? 400) - 24, 300);
+        // Subtract .pdfjs-canvas-wrap's own padding (14px each side, 28px per
+        // axis) so the sheet never exceeds the actual available space. This
+        // was off by 4px before (used 24 instead of 28), which let the canvas
+        // overflow past the right padding edge — visible as an uneven gap
+        // (14px left, ~10px right) since the wrap centers via flexbox and
+        // silently clips overflow instead of centering it symmetrically.
+        const containerWidth = Math.max((containerRef.current?.clientWidth ?? 320) - 28, 240);
+        const containerHeight = Math.max((containerRef.current?.clientHeight ?? 400) - 28, 300);
 
         // Sheet aspect from paper size + orientation. Without sim, fall back
         // to the first page's own aspect (plain document view).
