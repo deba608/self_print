@@ -469,12 +469,12 @@ input, select, button {
 
 .intro { text-align: center; margin-bottom: var(--space-5); }
 .intro h1 {
-  font-size: 24px;
-  font-weight: 700;
-  margin: 0 0 6px;
+  font-size: 28px;
+  font-weight: 800;
+  margin: 0 0 8px;
   color: var(--ink);
-  letter-spacing: -0.02em;
-  line-height: 1.25;
+  letter-spacing: -0.03em;
+  line-height: 1.2;
 }
 .intro p {
   font-size: 13.5px;
@@ -1710,7 +1710,11 @@ input, select, button {
 
 @media (max-width: 599px) {
   .form-actions {
-    bottom: var(--mobile-bottom-nav-h);
+    /* .user-bottom-nav's true height is --mobile-bottom-nav-h PLUS its own
+       safe-area padding (nonzero on phones with a gesture bar) — omitting
+       that here left a visible sliver of gap on real devices even though it
+       measured flush in a desktop-browser emulator (0 safe-area inset). */
+    bottom: calc(var(--mobile-bottom-nav-h) + env(safe-area-inset-bottom, 0px));
   }
 }
 
