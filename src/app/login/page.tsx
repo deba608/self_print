@@ -72,12 +72,15 @@ export default function UserLoginPage() {
           placeholder="Enter password"
           autoComplete="current-password"
           disabled={loading}
+          labelAction={
+            <Link href="/forgot-password" className="input-label-link">
+              Forgot password?
+            </Link>
+          }
         />
         <AuthError>{error}</AuthError>
         <AuthSubmit loading={loading} loadingLabel="Signing in..." label="Log in" />
         <p className="login-footer">
-          <Link href="/forgot-password">Forgot password?</Link>
-          {" · "}
           Need an account? <Link href="/register">Sign up</Link>
         </p>
       </form>

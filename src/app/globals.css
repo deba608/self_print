@@ -3161,11 +3161,12 @@ input[type="number"] {
 }
 
 .login-header h1 {
-  font-size: 24px;
+  font-size: 27px;
   font-weight: 800;
   margin: 0;
   color: #0f172a;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.03em;
+  line-height: 1.25;
 }
 
 .login-header p {
@@ -3184,12 +3185,33 @@ input[type="number"] {
   gap: 7px;
 }
 
+.input-label-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .input-group label {
   font-size: 12px;
   font-weight: 700;
   color: #475569;
   text-transform: uppercase;
   letter-spacing: 0.04em;
+}
+
+/* Inline label action — e.g. "Forgot password?" sitting beside the Password
+   label instead of buried in the footer after the submit button. */
+.input-label-link {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--accent-strong);
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.input-label-link:hover {
+  text-decoration: underline;
 }
 
 .input-wrapper {
@@ -3303,8 +3325,10 @@ input[type="number"] {
 .login-notice svg { margin-top: 1px; }
 
 .login-subtitle {
-  margin: 6px 0 0;
-  font-size: 13px;
+  margin: 7px 0 0;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.5;
   color: var(--muted);
   display: block !important;
 }
@@ -3456,11 +3480,12 @@ input[type="number"] {
 }
 
 .login-footer {
-  margin-top: 20px;
+  margin-top: 22px;
   color: var(--muted);
-  font-size: 13px;
+  font-size: 13.5px;
+  font-weight: 500;
   text-align: center;
-  line-height: 1.7;
+  line-height: 1.6;
 }
 
 .login-footer a {
