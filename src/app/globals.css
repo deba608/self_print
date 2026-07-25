@@ -3218,11 +3218,13 @@ input[type="number"] {
 }
 
 .login-header h1 {
-  font-size: 27px;
-  font-weight: 800;
+  /* Matches .intro h1 (home screen) — same scale/weight everywhere a page
+     title appears, instead of drifting to its own one-off size/color. */
+  font-size: 24px;
+  font-weight: 700;
   margin: 0;
-  color: #0f172a;
-  letter-spacing: -0.03em;
+  color: var(--ink);
+  letter-spacing: -0.02em;
   line-height: 1.25;
 }
 
@@ -3250,21 +3252,20 @@ input[type="number"] {
 }
 
 .input-group label {
-  font-size: 12px;
-  font-weight: 700;
-  color: #475569;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  /* Matches .form-group label (main upload form) — same label treatment
+     everywhere instead of the auth screens running their own small-caps
+     convention. */
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--muted);
 }
 
 /* Inline label action — e.g. "Forgot password?" sitting beside the Password
    label instead of buried in the footer after the submit button. */
 .input-label-link {
-  font-size: 12.5px;
+  font-size: 13px;
   font-weight: 700;
   color: var(--accent-strong);
-  text-transform: none;
-  letter-spacing: normal;
 }
 
 .input-label-link:hover {
@@ -3382,9 +3383,9 @@ input[type="number"] {
 .login-notice svg { margin-top: 1px; }
 
 .login-subtitle {
-  margin: 7px 0 0;
-  font-size: 14px;
-  font-weight: 500;
+  /* Matches .intro p (home screen) for the same reason as .login-header h1. */
+  margin: 6px 0 0;
+  font-size: 13.5px;
   line-height: 1.5;
   color: var(--muted);
   display: block !important;
@@ -5189,6 +5190,26 @@ input[type="number"] {
   border-left: 3px solid var(--ok);
   opacity: 0.75;
 }
+
+/* Left column of the /my-jobs card (token, date, print summary). Its own
+   class — this used to reuse `.job-side`, a different class from the admin
+   dashboard's right-aligned action column (align-items: flex-end), which
+   silently right-aligned this text too. */
+.job-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.job-info-row {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.job-info-date { font-size: 13px; }
+.job-info-meta { font-size: 13px; }
 
 .job-checkbox {
   width: 44px;
