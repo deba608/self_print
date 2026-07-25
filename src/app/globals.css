@@ -883,6 +883,7 @@ input, select, button {
   cursor: pointer;
   min-height: 56px;
   width: 100%;
+  min-width: 0;
   text-align: left;
   border: 1px solid #b8ded7;
 }
@@ -898,6 +899,12 @@ input, select, button {
 
 .file-summary .file-name {
   flex: 1;
+  /* Flex items default to `min-width: auto`, which for a nowrap text span
+     resolves to its full intrinsic content width — so a long filename never
+     actually shrinks, `overflow`/`text-overflow` below never engage, and the
+     row (and everything downstream sharing the page's width) gets pushed
+     into horizontal overflow instead of truncating cleanly. */
+  min-width: 0;
   font-weight: 600;
   font-size: 14px;
   white-space: nowrap;
