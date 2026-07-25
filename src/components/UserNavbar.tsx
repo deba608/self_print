@@ -8,8 +8,8 @@ import { createClient } from "@/lib/supabase/client";
 
 const navItems = [
   { href: "/", label: "New Print", icon: Upload },
-  { href: "/my-jobs", label: "My Jobs", icon: PackageSearch },
   { href: "/track", label: "Track", icon: Search },
+  { href: "/my-jobs", label: "My Jobs", icon: PackageSearch },
 ] as const;
 
 type Identity = { name: string; avatarUrl: string | null };
