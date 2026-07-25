@@ -8976,10 +8976,15 @@ input[type="number"] {
 
 /* My Jobs: keep a consistent header → details → summary rhythm at every
    viewport. This intentionally avoids the generic admin job-card wrapping
-   rules, which made customer cards feel cramped on phones. */
-.jobs-page { gap: var(--space-5); }
+   rules, which made customer cards feel cramped on phones.
+   NB: `.panel`/`.stack` (the section's other classes) have no CSS of their
+   own anywhere in this file — `gap` here was silently a no-op without an
+   explicit flex column, and the negative margins tuned "on top of" that
+   phantom gap actually produced a -4px overlap above the filter chips and a
+   flat 0px gap before the job list. Fixed by making .jobs-page itself the
+   flex container. */
+.jobs-page { display: flex; flex-direction: column; gap: var(--space-4); }
 .jobs-page .intro { margin-bottom: 0; }
-.jobs-page .jobs-filter-chips { margin-top: calc(var(--space-1) * -1); }
 .jobs-page .job-list { gap: var(--space-3); }
 .jobs-list-card {
   display: grid;
