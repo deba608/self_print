@@ -202,6 +202,15 @@ input, select, button {
   min-height: calc(100dvh - 65px);
 }
 
+/* Reserves the fixed bottom tab bar's own footprint (see .user-bottom-nav,
+   ~81px tall) so page content never scrolls underneath it — the bar always
+   sits on top of a constant blank strip instead of overlapping live content. */
+@media (max-width: 599px) {
+  .customer-app-content {
+    padding-bottom: calc(81px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
 .customer-app-content > .admin-login-shell {
   min-height: calc(100dvh - 65px);
 }
@@ -1040,10 +1049,16 @@ input, select, button {
 }
 
 .advanced-settings-body {
+  /* Author rules always beat the UA details-collapse rule, so the display
+     toggle has to be explicit here instead of relying on native <details>. */
+  display: none;
   padding: 4px 14px 14px;
-  display: flex;
   flex-direction: column;
   gap: 14px;
+}
+
+.advanced-settings[open] .advanced-settings-body {
+  display: flex;
 }
 
 .bulk-file-name {
@@ -2157,11 +2172,21 @@ input, select, button {
   white-space: nowrap;
 }
 
+/* Wraps the grid + paper note so both toggle together — same reasoning as
+   .advanced-settings-body: an explicit display avoids fighting the details UA rule. */
+.settings-summary-body {
+  display: none;
+  margin-top: 14px;
+}
+
+.settings-summary[open] .settings-summary-body {
+  display: block;
+}
+
 .summary-grid {
   display: grid;
   grid-template-columns: 1fr;
   gap: 14px;
-  margin-top: 14px;
 }
 
 .summary-item {
