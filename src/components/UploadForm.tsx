@@ -1902,45 +1902,51 @@ export default function UploadForm() {
             </div>
           </div>
 
-          {/* Layout + Scale */}
-          <div className="form-row">
-            <div className="form-group">
-              <label htmlFor="layout-select">Layout</label>
-              <select id="layout-select" value={layout} onChange={(e) => setLayout(e.target.value)} className="mobile-select">
-                <option value="portrait">Portrait</option>
-                <option value="landscape">Landscape</option>
-              </select>
-            </div>
-            <div className="form-group">
-              <label htmlFor="scale-select">Scale</label>
-              <select id="scale-select" value={scale} onChange={(e) => setScale(e.target.value)} className="mobile-select">
-                <option value="default">Auto</option>
-                <option value="fit">Fit to Page</option>
-                <option value="shrink">Shrink if Oversized</option>
-                <option value="noscale">Actual Size</option>
-              </select>
-            </div>
-          </div>
+          {/* Layout, scale, margins, pages/sheet — most orders use the
+              defaults, so these live behind a closed disclosure and only
+              surface for the customer who actually needs to change them. */}
+          <details className="advanced-settings">
+            <summary className="advanced-settings-summary">Advanced options</summary>
+            <div className="advanced-settings-body">
+              <div className="form-row">
+                <div className="form-group">
+                  <label htmlFor="layout-select">Layout</label>
+                  <select id="layout-select" value={layout} onChange={(e) => setLayout(e.target.value)} className="mobile-select">
+                    <option value="portrait">Portrait</option>
+                    <option value="landscape">Landscape</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label htmlFor="scale-select">Scale</label>
+                  <select id="scale-select" value={scale} onChange={(e) => setScale(e.target.value)} className="mobile-select">
+                    <option value="default">Auto</option>
+                    <option value="fit">Fit to Page</option>
+                    <option value="shrink">Shrink if Oversized</option>
+                    <option value="noscale">Actual Size</option>
+                  </select>
+                </div>
+              </div>
 
-          {/* Margins + Pages/Sheet */}
-          <div className="form-row">
-            <div className="form-group">
-              <label htmlFor="margins-select">Margins</label>
-              <select id="margins-select" value={margins} onChange={(e) => setMargins(e.target.value)} className="mobile-select">
-                <option value="default">Default</option>
-                <option value="minimum">Minimum</option>
-                <option value="none">None</option>
-              </select>
+              <div className="form-row">
+                <div className="form-group">
+                  <label htmlFor="margins-select">Margins</label>
+                  <select id="margins-select" value={margins} onChange={(e) => setMargins(e.target.value)} className="mobile-select">
+                    <option value="default">Default</option>
+                    <option value="minimum">Minimum</option>
+                    <option value="none">None</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label htmlFor="pages-per-sheet-select">Pages per Sheet</label>
+                  <select id="pages-per-sheet-select" value={pagesPerSheet} onChange={(e) => setPagesPerSheet(Number(e.target.value))} className="mobile-select">
+                    <option value={1}>1</option>
+                    <option value={2}>2</option>
+                    <option value={4}>4</option>
+                  </select>
+                </div>
+              </div>
             </div>
-            <div className="form-group">
-              <label htmlFor="pages-per-sheet-select">Pages per Sheet</label>
-              <select id="pages-per-sheet-select" value={pagesPerSheet} onChange={(e) => setPagesPerSheet(Number(e.target.value))} className="mobile-select">
-                <option value={1}>1</option>
-                <option value={2}>2</option>
-                <option value={4}>4</option>
-              </select>
-            </div>
-          </div>
+          </details>
 
           </div>{/* /fs-settings */}
 
@@ -2254,8 +2260,14 @@ export default function UploadForm() {
               settings sit in the adjacent column; only the physical-output
               line survives there (rendered below). */}
           {!onePage && (
-          <div className="settings-summary">
-            <h4>Print Settings</h4>
+          <details className="settings-summary">
+            <summary>
+              <span className="summary-glance-title">Print Settings</span>
+              <span className="summary-glance">
+                {printType === "bw" ? "B&W" : "Color"} · {copies > 1 ? `${copies}× · ` : ""}
+                {isBulk ? `${bulkTotalPages}p` : pageInfo} · {paperSizeLabels[paperSize as keyof typeof paperSizeLabels] || paperSize}
+              </span>
+            </summary>
             <div className="summary-grid">
               <div className="summary-item">
                 <span className="summary-label">File</span>
@@ -2298,7 +2310,7 @@ export default function UploadForm() {
               Prints on {physicalSheets} sheet{physicalSheets === 1 ? "" : "s"} of paper
               {copies > 1 ? ` per copy (${physicalSheets * copies} total)` : ""}
             </div>
-          </div>
+          </details>
           )}
 
           {onePage && (
