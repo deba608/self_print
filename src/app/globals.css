@@ -210,15 +210,6 @@ input, select, button {
   min-height: calc(100dvh - 65px);
 }
 
-/* Reserves the fixed bottom tab bar's own footprint (see .user-bottom-nav,
-   ~81px tall) so page content never scrolls underneath it — the bar always
-   sits on top of a constant blank strip instead of overlapping live content. */
-@media (max-width: 599px) {
-  .customer-app-content {
-    padding-bottom: calc(var(--mobile-bottom-nav-h) + env(safe-area-inset-bottom, 0px));
-  }
-}
-
 .customer-app-content > .admin-login-shell {
   min-height: calc(100dvh - 65px);
 }
