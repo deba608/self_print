@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
+import Link from "next/link";
 import { Printer, Eye, EyeOff, ArrowRight, Loader2, AlertCircle, type LucideIcon } from "lucide-react";
 
 /**
@@ -15,9 +16,9 @@ export function AuthShell({ title, subtitle, children }: { title: string; subtit
       <div className="login-container">
         <div className="login-card">
           <div className="login-header">
-            <div className="login-logo">
+            <Link href="/" className="login-logo" aria-label="Back to Self Print home">
               <Printer size={32} strokeWidth={1.5} />
-            </div>
+            </Link>
             <h1>{title}</h1>
             {subtitle && <p className="login-subtitle">{subtitle}</p>}
           </div>

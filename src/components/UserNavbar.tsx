@@ -147,7 +147,7 @@ export default function UserNavbar() {
       </header>
 
       {showBottomNav && (
-        <nav className="user-bottom-nav" aria-label="Customer navigation">
+        <nav className="user-bottom-nav" aria-label="Primary navigation">
           <div className="user-bottom-nav-inner">
             {navItems.map(({ href, label, icon: Icon }) => (
               <Link
