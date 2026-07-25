@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import crypto from 'node:crypto';
 import type { CustomerManagementRow, Job, JobFile, PricingConfig, PrinterOption, SseClient } from './types';
+import { FILE_RETENTION_DAYS } from './config';
 
 const supabaseUrl = process.env.SUPABASE_URL?.trim();
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
@@ -69,7 +70,8 @@ function mapJobFile(row: any): JobFile {
     sizeBytes: Number(row.size_bytes),
     fileKind: row.file_kind,
     storagePath: String(row.storage_path),
-    createdAt: String(row.created_at)
+    createdAt: String(row.created_at),
+    purgedAt: row.purged_at ? String(row.purged_at) : null
   };
 }
 
@@ -754,52 +756,76 @@ const PRINTING_LEASE_MINUTES = 10;
 
 export async function cleanupOldJobs(): Promise<{ deleted: number; storagePaths: string[] }> {
   const pricing = await getPricing();
-  const cutoff = new Date(Date.now() - pricing.expiryMinutes * 60000).toISOString();
+  const abandonedCutoff = new Date(Date.now() - pricing.expiryMinutes * 60000).toISOString();
   const leaseCutoff = new Date(Date.now() - PRINTING_LEASE_MINUTES * 60000).toISOString();
+  const fileRetentionCutoff = new Date(Date.now() - FILE_RETENTION_DAYS * 24 * 60 * 60000).toISOString();
+  const now = new Date().toISOString();
 
   // Reset stale "printing" leases — agent crashed before completing.
   await supabase
     .from('jobs')
-    .update({ status: 'approved', updated_at: new Date().toISOString() })
+    .update({ status: 'approved', updated_at: now })
     .eq('status', 'printing')
     .lt('updated_at', leaseCutoff);
 
-  // Find jobs to remove: finished, or unpaid past expiry.
-  // Printed delivery jobs awaiting hand-off (delivery_status not yet 'delivered')
-  // must survive cleanup — only cancelled/failed/delivered delivery jobs clean up.
-  const { data: finishedRaw, error: finErr } = await supabase
-    .from('jobs')
-    .select('id, delivery_method, status, delivery_status')
-    .in('status', ['printed', 'cancelled', 'failed']);
-  if (finErr) throw finErr;
-  const finished = (finishedRaw || []).filter((r) => {
-    const isUndeliveredDelivery =
-      r.delivery_method === 'delivery' && r.status === 'printed' && r.delivery_status !== 'delivered';
-    return !isUndeliveredDelivery;
-  });
+  const storagePaths: string[] = [];
 
+  // 1) Abandoned unpaid carts: no order was ever placed, so the whole row goes.
   const { data: expired, error: expErr } = await supabase
     .from('jobs')
     .select('id')
     .eq('status', 'pending_payment')
-    .lt('created_at', cutoff)
+    .lt('created_at', abandonedCutoff)
     .is('paid_at', null);
   if (expErr) throw expErr;
+  const abandonedIds = (expired || []).map((r) => String(r.id));
 
-  const ids = Array.from(new Set([...(finished || []), ...(expired || [])].map((r) => String(r.id))));
-  if (ids.length === 0) return { deleted: 0, storagePaths: [] };
+  if (abandonedIds.length > 0) {
+    const { data: files, error: fileErr } = await supabase
+      .from('job_files')
+      .select('storage_path')
+      .in('job_id', abandonedIds);
+    if (fileErr) throw fileErr;
+    storagePaths.push(...(files || []).map((f) => String(f.storage_path)));
 
-  const { data: files, error: fileErr } = await supabase
-    .from('job_files')
-    .select('storage_path')
-    .in('job_id', ids);
-  if (fileErr) throw fileErr;
-  const storagePaths = (files || []).map((f) => String(f.storage_path));
+    const { error: delErr } = await supabase.from('jobs').delete().in('id', abandonedIds);
+    if (delErr) throw delErr;
+  }
 
-  const { error: delErr } = await supabase.from('jobs').delete().in('id', ids);
-  if (delErr) throw delErr;
+  // 2) Privacy purge: finished orders (printed/cancelled/failed, and delivery
+  // orders only once actually delivered) older than FILE_RETENTION_DAYS lose
+  // their file bytes. Row + job_files metadata stay for history/receipts.
+  const { data: finishedRaw, error: finErr } = await supabase
+    .from('jobs')
+    .select('id, delivery_method, status, delivery_status, created_at')
+    .in('status', ['printed', 'cancelled', 'failed'])
+    .lt('created_at', fileRetentionCutoff);
+  if (finErr) throw finErr;
+  const finishedIds = (finishedRaw || [])
+    .filter((r) => !(r.delivery_method === 'delivery' && r.status === 'printed' && r.delivery_status !== 'delivered'))
+    .map((r) => String(r.id));
 
-  return { deleted: ids.length, storagePaths };
+  if (finishedIds.length > 0) {
+    const { data: purgeFiles, error: purgeFileErr } = await supabase
+      .from('job_files')
+      .select('id, storage_path')
+      .in('job_id', finishedIds)
+      .is('purged_at', null)
+      .neq('storage_path', '');
+    if (purgeFileErr) throw purgeFileErr;
+
+    if ((purgeFiles || []).length > 0) {
+      storagePaths.push(...(purgeFiles || []).map((f) => String(f.storage_path)));
+      const purgeIds = (purgeFiles || []).map((f) => String(f.id));
+      const { error: updateErr } = await supabase
+        .from('job_files')
+        .update({ storage_path: '', purged_at: now })
+        .in('id', purgeIds);
+      if (updateErr) throw updateErr;
+    }
+  }
+
+  return { deleted: abandonedIds.length, storagePaths };
 }
 
 export async function filterActiveStoragePaths(paths: string[]): Promise<Set<string>> {

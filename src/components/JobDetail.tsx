@@ -533,7 +533,13 @@ function PreviewCard({ files, job }: { files: Detail["files"]; job: Detail["job"
         </div>
       )}
       <div className={`admin-preview-area ${isBw ? "bw-sim" : ""}`}>
-        {file.fileKind === "pdf" ? (
+        {file.purgedAt ? (
+          <div className="doc-preview-note">
+            <FileText size={40} />
+            <p>File removed for privacy</p>
+            <span>Uploaded files are deleted after the retention period; order details are kept.</span>
+          </div>
+        ) : file.fileKind === "pdf" ? (
           <iframe src={previewUrl} className="preview-iframe" title="File Preview" />
         ) : file.fileKind === "image" ? (
           <img src={previewUrl} alt={file.originalName} className="preview-image" />

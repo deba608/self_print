@@ -1,4 +1,5 @@
 import type { CustomerManagementRow, Job, JobFile, PricingConfig, PrinterOption, SseClient } from './types';
+import { FILE_RETENTION_DAYS } from './config';
 
 // Check if Supabase is configured
 const isSupabase = Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
@@ -116,7 +117,8 @@ async function initSchema(database: any) {
       size_bytes INTEGER NOT NULL,
       file_kind TEXT NOT NULL,
       storage_path TEXT NOT NULL,
-      created_at TEXT NOT NULL
+      created_at TEXT NOT NULL,
+      purged_at TEXT
     );
 
     CREATE TABLE IF NOT EXISTS pricing_config (
@@ -165,6 +167,7 @@ async function initSchema(database: any) {
 
   await ensureJobColumns(database);
   await ensurePricingColumns(database);
+  await ensureJobFileColumns(database);
   database.exec(`CREATE INDEX IF NOT EXISTS idx_jobs_status ON jobs(status)`);
   database.exec(`CREATE INDEX IF NOT EXISTS idx_jobs_created ON jobs(created_at)`);
   database.exec(`CREATE INDEX IF NOT EXISTS idx_jobs_queue ON jobs(queue_position)`);
@@ -206,6 +209,15 @@ async function ensureJobColumns(database: any) {
     if (!columns.has(name)) {
       database.prepare(`ALTER TABLE jobs ADD COLUMN ${name} ${definition}`).run();
     }
+  }
+}
+
+async function ensureJobFileColumns(database: any) {
+  const columns = new Set(
+    (database.prepare('PRAGMA table_info(job_files)').all() as Array<{ name: string }>).map((column) => column.name)
+  );
+  if (!columns.has('purged_at')) {
+    database.prepare(`ALTER TABLE job_files ADD COLUMN purged_at TEXT`).run();
   }
 }
 
@@ -307,7 +319,8 @@ export function mapJobFile(row: Record<string, unknown>): JobFile {
     sizeBytes: Number(row.size_bytes),
     fileKind: row.file_kind as JobFile['fileKind'],
     storagePath: String(row.storage_path),
-    createdAt: String(row.created_at)
+    createdAt: String(row.created_at),
+    purgedAt: row.purged_at ? String(row.purged_at) : null
   };
 }
 
@@ -988,8 +1001,11 @@ export async function bulkDeleteJobs(ids: string[]): Promise<void> {
   sqlite.prepare(`DELETE FROM jobs WHERE id IN (${ids.map(() => '?').join(',')})`).run(...ids);
 }
 
-// Deletes finished jobs (printed/cancelled/failed) and expired unpaid jobs.
-// Returns storage paths of removed files so the caller can purge them from disk/storage.
+// Deletes abandoned unpaid carts (never became a real order) and purges the
+// uploaded file bytes — but NOT the job row — of finished orders once they're
+// past FILE_RETENTION_DAYS old. The job row and job_files metadata row (name,
+// size, page count) are kept forever so order history and receipts still work
+// after the file is gone; only storage bytes are deleted for privacy.
 // Also resets jobs stuck in "printing" for > PRINTING_LEASE_MINUTES back to "approved"
 // so they can be retried automatically after an agent crash.
 const PRINTING_LEASE_MINUTES = 10;
@@ -1002,41 +1018,56 @@ export async function cleanupOldJobs(): Promise<{ deleted: number; storagePaths:
 
   const sqlite = await getDbInstance();
   const pricing = await getPricing();
-  const cutoff = new Date(Date.now() - pricing.expiryMinutes * 60000).toISOString();
+  const abandonedCutoff = new Date(Date.now() - pricing.expiryMinutes * 60000).toISOString();
   const leaseCutoff = new Date(Date.now() - PRINTING_LEASE_MINUTES * 60000).toISOString();
+  const fileRetentionCutoff = new Date(Date.now() - FILE_RETENTION_DAYS * 24 * 60 * 60000).toISOString();
+  const now = new Date().toISOString();
 
   // Reset stale "printing" leases — agent crashed before completing.
   sqlite.prepare(`
     UPDATE jobs SET status = 'approved', updated_at = ?
     WHERE status = 'printing' AND updated_at < ?
-  `).run(new Date().toISOString(), leaseCutoff);
+  `).run(now, leaseCutoff);
 
-  const targets = sqlite.prepare(`
-    SELECT id FROM jobs
-    WHERE (
-      status IN ('printed', 'cancelled', 'failed')
-      AND NOT (
-        delivery_method = 'delivery' AND status = 'printed'
-        AND (delivery_status IS NULL OR delivery_status <> 'delivered')
-      )
-    )
-       OR (status = 'pending_payment' AND created_at < ? AND paid_at IS NULL)
-  `).all(cutoff) as Array<{ id: string }>;
-  const ids = targets.map((t) => t.id);
-  if (ids.length === 0) return { deleted: 0, storagePaths: [] };
+  const storagePaths: string[] = [];
 
-  const placeholders = ids.map(() => '?').join(',');
-  const files = sqlite
-    .prepare(`SELECT storage_path FROM job_files WHERE job_id IN (${placeholders})`)
-    .all(...ids) as Array<{ storage_path: string }>;
-  const storagePaths = files.map((f) => f.storage_path);
-
-  if (ids.length > 0) {
-    const placeholders = ids.map(() => '?').join(',');
-    sqlite.prepare(`DELETE FROM jobs WHERE id IN (${placeholders})`).run(...ids);
+  // 1) Abandoned unpaid carts: no order was ever placed, so the whole row goes.
+  const abandoned = sqlite.prepare(`
+    SELECT id FROM jobs WHERE status = 'pending_payment' AND created_at < ? AND paid_at IS NULL
+  `).all(abandonedCutoff) as Array<{ id: string }>;
+  const abandonedIds = abandoned.map((r) => r.id);
+  if (abandonedIds.length > 0) {
+    const placeholders = abandonedIds.map(() => '?').join(',');
+    const files = sqlite
+      .prepare(`SELECT storage_path FROM job_files WHERE job_id IN (${placeholders})`)
+      .all(...abandonedIds) as Array<{ storage_path: string }>;
+    storagePaths.push(...files.map((f) => f.storage_path));
+    sqlite.prepare(`DELETE FROM jobs WHERE id IN (${placeholders})`).run(...abandonedIds);
   }
 
-  return { deleted: ids.length, storagePaths };
+  // 2) Privacy purge: finished orders (printed/cancelled/failed, and delivery
+  // orders only once actually delivered) older than FILE_RETENTION_DAYS lose
+  // their file bytes. Row + job_files metadata stay for history/receipts.
+  const purgeTargets = sqlite.prepare(`
+    SELECT jf.id AS file_id, jf.storage_path FROM job_files jf
+    JOIN jobs j ON j.id = jf.job_id
+    WHERE jf.purged_at IS NULL AND jf.storage_path <> '' AND j.created_at < ?
+      AND j.status IN ('printed', 'cancelled', 'failed')
+      AND NOT (
+        j.delivery_method = 'delivery' AND j.status = 'printed'
+        AND (j.delivery_status IS NULL OR j.delivery_status <> 'delivered')
+      )
+  `).all(fileRetentionCutoff) as Array<{ file_id: string; storage_path: string }>;
+
+  if (purgeTargets.length > 0) {
+    storagePaths.push(...purgeTargets.map((f) => f.storage_path));
+    const purgeStmt = sqlite.prepare(`UPDATE job_files SET storage_path = '', purged_at = ? WHERE id = ?`);
+    sqlite.transaction((rows: typeof purgeTargets) => {
+      for (const r of rows) purgeStmt.run(now, r.file_id);
+    })(purgeTargets);
+  }
+
+  return { deleted: abandonedIds.length, storagePaths };
 }
 
 export async function filterActiveStoragePaths(paths: string[]): Promise<Set<string>> {

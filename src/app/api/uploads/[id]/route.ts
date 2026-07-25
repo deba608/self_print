@@ -22,6 +22,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     return NextResponse.json({ error: "File not found" }, { status: 404 });
   }
 
+  if (!file.storagePath) {
+    return NextResponse.json({ error: "File was removed after the retention period." }, { status: 404 });
+  }
+
   // Proxy mode: stream the bytes through this same-origin route instead of
   // redirecting to a cross-origin signed URL. Required for the manual-print
   // page, whose browser fetch()/iframe would otherwise be blocked by CORS.
