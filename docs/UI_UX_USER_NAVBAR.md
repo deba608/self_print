@@ -22,7 +22,7 @@ Current user dashboard (`/my-jobs`, `/track`) uses `ShopHeader` + a separate acc
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│  🖨 Self_Print    [New Print] [My Jobs] [Track]    user@email.com [Logout] │
+│  🖨 Self_Print    [New Print] [Track] [My Jobs]    user@email.com [Logout] │
 └─────────────────────────────────────────────────────┘
 ```
 
