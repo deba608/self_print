@@ -6379,12 +6379,11 @@ input[type="number"] {
     height: 450px;
   }
 
-  .form-actions {
-    position: static;
-    background: transparent;
-    margin: 0;
-    padding: 16px 0;
-  }
+  /* No .form-actions override here on purpose — it must stay `position:
+     fixed` (see the rule itself for why). A `position: static` reset used to
+     live here and silently dropped the wizard's action bar back into normal
+     flow at tablet widths (600-1023px), reintroducing the exact "not sticky
+     until you scroll" bug this bar exists to avoid. */
 }
 
 /* === Admin Responsive === */
