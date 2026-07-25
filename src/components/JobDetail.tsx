@@ -39,8 +39,8 @@ type Detail = {
     deliveryAccuracyMeters?: number | null;
     deliveryLocationCapturedAt?: string | null;
   };
-  file: { id: string; originalName: string; mimeType: string; fileKind: string; sizeBytes: number } | null;
-  files: Array<{ id: string; originalName: string; mimeType: string; fileKind: string; sizeBytes: number }>;
+  file: { id: string; originalName: string; mimeType: string; fileKind: string; sizeBytes: number; purgedAt: string | null } | null;
+  files: Array<{ id: string; originalName: string; mimeType: string; fileKind: string; sizeBytes: number; purgedAt: string | null }>;
   events: Array<{ id: string; event_type: string; message: string; created_at: string }>;
 };
 
