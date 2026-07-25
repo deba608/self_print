@@ -104,6 +104,10 @@ export type JobFile = {
   fileKind: FileKind;
   storagePath: string;
   createdAt: string;
+  // Set once the file's bytes have been deleted for privacy retention (see
+  // FILE_RETENTION_DAYS). storagePath is emptied at the same time; the row
+  // itself (name/size/kind) is kept forever for order history.
+  purgedAt: string | null;
 };
 
 export type PricingConfig = {
