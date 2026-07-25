@@ -109,8 +109,10 @@ input, select, button {
 ::selection { background: var(--accent-light); color: var(--accent-strong); }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--radius-sm); }
 
-/* Customer Shell */
-.customer-shell { width: 100%; max-width: 520px; margin: 0 auto; padding: var(--space-5) var(--space-4) 112px; }
+/* Customer Shell — bottom padding on mobile clears the fixed tab bar
+   (.user-bottom-nav, ~59px tall) plus a small breathing gap; desktop/tablet
+   override below (≥600px, where the tab bar is hidden) drops it back down. */
+.customer-shell { width: 100%; max-width: 520px; margin: 0 auto; padding: var(--space-5) var(--space-4) calc(var(--mobile-bottom-nav-h) + env(safe-area-inset-bottom, 0px) + 16px); }
 .shell { width: min(1120px, calc(100% - 32px)); margin: 0 auto; padding: var(--space-6) 0; }
 .shop-header {
   display: flex;
