@@ -6,7 +6,7 @@
      that sticks to the viewport bottom on mobile must offset by this, since
      CSS `position: sticky` ignores ancestor padding and measures from the
      viewport edge directly. */
-  --mobile-bottom-nav-h: 81px;
+  --mobile-bottom-nav-h: 60px;
 
   /* Core Colors */
   --bg: #f4f6f8;
