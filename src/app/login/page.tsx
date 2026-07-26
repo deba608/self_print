@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Lock, Mail } from "lucide-react";
-import { AuthShell, AuthInput, AuthError, AuthSubmit } from "@/components/ui/Auth";
+import { AuthShell, AuthInput, AuthError, AuthSubmit, AuthDivider, GoogleAuthButton } from "@/components/ui/Auth";
 import { createClient } from "@/lib/supabase/client";
 
 export default function UserLoginPage() {
@@ -13,6 +13,14 @@ export default function UserLoginPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  const handleGoogleLogin = async () => {
+    const supabase = createClient();
+    await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: `${window.location.origin}/auth/callback` },
+    });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -80,6 +88,8 @@ export default function UserLoginPage() {
         />
         <AuthError>{error}</AuthError>
         <AuthSubmit loading={loading} loadingLabel="Signing in..." label="Log in" />
+        <AuthDivider />
+        <GoogleAuthButton onClick={handleGoogleLogin} disabled={loading} />
         <p className="login-footer">
           Need an account? <Link href="/register">Sign up</Link>
         </p>

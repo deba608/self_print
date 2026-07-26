@@ -3537,6 +3537,39 @@ input[type="number"] {
   cursor: not-allowed;
 }
 
+.login-btn-google {
+  background: #ffffff;
+  color: #3c4043;
+  border: 1px solid var(--border, #dadce0);
+  box-shadow: none;
+}
+
+.login-btn-google:hover:not(:disabled) {
+  background: #f8f9fa;
+  color: #3c4043;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+}
+
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 18px 0;
+  color: var(--muted);
+  font-size: 12.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border, #e5e7eb);
+}
+
 .login-footer {
   margin-top: 22px;
   color: var(--muted);
