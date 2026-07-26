@@ -23,20 +23,22 @@ function ForgotPasswordForm() {
     setLoading(true);
     setError("");
     try {
-      await fetch("/api/user/forgot-password", {
+      const response = await fetch("/api/user/forgot-password", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
       });
-      // Always show the generic success message, regardless of outcome —
-      // prevents leaking whether an account exists for this email.
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        setError(body.error || "Something went wrong. Try again.");
+        setLoading(false);
+        return;
+      }
       setSent(true);
       setLoading(false);
     } catch {
-      // Even on a network error, don't reveal anything specific — show the
-      // same generic message.
-      setSent(true);
+      setError("Connection error. Please try again.");
       setLoading(false);
     }
   };
@@ -46,7 +48,7 @@ function ForgotPasswordForm() {
       {sent ? (
         <div className="login-form">
           <AuthNotice icon={MailCheck}>
-            If an account exists for that email, a reset link has been sent.
+            Reset link sent to {email}. Check your inbox (and spam folder).
           </AuthNotice>
           <p className="login-footer">
             <Link href={loginHref}>Back to log in</Link>
