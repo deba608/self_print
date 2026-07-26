@@ -113,6 +113,19 @@ input, select, button {
 ::selection { background: var(--accent-light); color: var(--accent-strong); }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--radius-sm); }
 
+/* Accessibility: visually hidden but readable by screen readers */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 /* Customer Shell — bottom padding on mobile clears the fixed tab bar
    (.user-bottom-nav, ~59px tall) plus a small breathing gap; desktop/tablet
    override below (≥600px, where the tab bar is hidden) drops it back down. */
