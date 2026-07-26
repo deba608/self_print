@@ -24,9 +24,11 @@ export async function GET(request: NextRequest) {
   const admin = createAdminClient();
   const { data: profile } = await admin
     .from("customer_profiles")
-    .select("id")
+    .select("phone")
     .eq("id", data.user.id)
     .maybeSingle();
+
+  let phone = profile?.phone ?? null;
 
   if (!profile) {
     const { error: insertError } = await admin.from("customer_profiles").insert({
@@ -40,6 +42,11 @@ export async function GET(request: NextRequest) {
       await supabase.auth.signOut();
       return NextResponse.redirect(`${origin}/login?error=oauth_profile_failed`);
     }
+    phone = null;
+  }
+
+  if (!phone) {
+    return NextResponse.redirect(`${origin}/complete-profile`);
   }
 
   return NextResponse.redirect(`${origin}/my-jobs`);
