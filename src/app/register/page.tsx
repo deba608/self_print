@@ -3,7 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Lock, Mail, User, Phone, MailCheck } from "lucide-react";
-import { AuthShell, AuthInput, AuthError, AuthNotice, AuthSubmit } from "@/components/ui/Auth";
+import { AuthShell, AuthInput, AuthError, AuthNotice, AuthSubmit, AuthDivider, GoogleAuthButton } from "@/components/ui/Auth";
+import { createClient } from "@/lib/supabase/client";
 
 export default function RegisterPage() {
   const [email, setEmail] = useState("");
@@ -15,6 +16,14 @@ export default function RegisterPage() {
   const [confirmationSent, setConfirmationSent] = useState(false);
   const [resending, setResending] = useState(false);
   const [resendNotice, setResendNotice] = useState("");
+
+  const handleGoogleSignup = async () => {
+    const supabase = createClient();
+    await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: `${window.location.origin}/auth/callback` },
+    });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -148,6 +157,8 @@ export default function RegisterPage() {
           />
           <AuthError>{error}</AuthError>
           <AuthSubmit loading={loading} loadingLabel="Creating account..." label="Create Account" />
+          <AuthDivider />
+          <GoogleAuthButton onClick={handleGoogleSignup} disabled={loading} label="Sign up with Google" />
           <p className="login-footer">
             Already have an account? <Link href="/login">Log in</Link>
           </p>
