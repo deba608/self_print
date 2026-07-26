@@ -110,38 +110,49 @@ export default function CustomerManagementPage() {
 
             <section className="management-workspace">
               <div className="management-toolbar customer-toolbar">
-                <label className="management-search">
-                  <Search size={17} aria-hidden="true" />
-                  <span className="sr-only">Search customers</span>
-                  <input
-                    type="search"
-                    value={query}
-                    onChange={(event) => setQuery(event.target.value)}
-                    placeholder="Search by name, email, phone or address"
-                  />
-                  {query && (
-                    <button
-                      type="button"
-                      className="management-search-clear"
-                      onClick={() => setQuery("")}
-                      aria-label="Clear search"
-                    >
-                      &times;
-                    </button>
-                  )}
-                </label>
-                <div className="management-segmented" role="group" aria-label="Customer type">
-                  {(["all", "registered", "guest"] as const).map((value) => (
-                    <button
-                      key={value}
-                      type="button"
-                      className={kind === value ? "active" : ""}
-                      onClick={() => setKind(value)}
-                    >
-                      {value === "all" ? "All" : value === "registered" ? "Registered" : "Guest delivery"}
-                    </button>
-                  ))}
+                <div className="customer-toolbar-row">
+                  <label className="management-search" htmlFor="customer-search">
+                    <Search size={17} aria-hidden="true" />
+                    <span className="sr-only">Search customers</span>
+                    <input
+                      id="customer-search"
+                      type="search"
+                      value={query}
+                      onChange={(event) => setQuery(event.target.value)}
+                      placeholder="Search by name, email, phone or address…"
+                      autoComplete="off"
+                    />
+                    {query && (
+                      <button
+                        type="button"
+                        className="management-search-clear"
+                        onClick={() => setQuery("")}
+                        aria-label="Clear search"
+                      >
+                        &times;
+                      </button>
+                    )}
+                  </label>
+                  <div className="management-segmented" role="group" aria-label="Customer type">
+                    {(["all", "registered", "guest"] as const).map((value) => (
+                      <button
+                        key={value}
+                        type="button"
+                        className={kind === value ? "active" : ""}
+                        onClick={() => setKind(value)}
+                      >
+                        {value === "all" ? "All" : value === "registered" ? "Registered" : "Guest delivery"}
+                      </button>
+                    ))}
+                  </div>
                 </div>
+                {(query || kind !== "all") && (
+                  <p className="customer-results-count" aria-live="polite">
+                    <strong>{filteredCustomers.length}</strong>
+                    {filteredCustomers.length === 1 ? " customer" : " customers"} found
+                    {query && <> matching <em>&ldquo;{query}&rdquo;</em></>}
+                  </p>
+                )}
               </div>
 
               {error && <div className="management-error" role="alert">{error}</div>}
