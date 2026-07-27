@@ -120,25 +120,15 @@ src/components/
 
 ---
 
-### 3.4 Missing Loading Skeletons on Sub-Pages
+### 3.4 ✅ Missing Loading Skeletons on Sub-Pages — FIXED
 
-**Problem:** Only the dashboard has skeleton loading. `OrderManagementPage`, `CustomerManagementPage`, `StaffPage`, and `SecurityPage` show a spinner instead. Looks unfinished.
-
-**Fix:** Add skeleton loading states to all management sub-pages (reuse existing `Skeleton` component).
-
-**Effort:** 1 session.
+**Status:** DONE — `ManagementSkeleton` component created and used in `OrderManagementPage`, `CustomerManagementPage`, `StaffPage`, and `SecurityPage`.
 
 ---
 
-### 3.5 Monolithic CSS (~10,500 lines)
+### 3.5 ⚠️ Monolithic CSS — PARTIALLY FIXED
 
-**Problem:** `globals.css` (9,971 lines) + `management.css` (641 lines) — all global, no scoping. Class name collisions are a real risk. Impossible to know which styles belong to which component.
-
-**Fix:** Either:
-- Split into feature-scoped CSS files (`admin.css`, `customer.css`, `auth.css`, `tokens.css`)
-- Or migrate to CSS modules incrementally
-
-**Effort:** 2–3 sessions (incremental split recommended).
+**Status:** globals.css reduced from 9971 → 8827 lines. Still a single file — full split pending.
 
 ---
 
