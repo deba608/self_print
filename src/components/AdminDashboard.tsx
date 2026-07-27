@@ -231,6 +231,43 @@ export default function AdminDashboard() {
 
   useEffect(() => { load(); }, [load]);
 
+  // Keyboard shortcuts for busy counter operators.
+  // Skip when typing in an input, textarea, select, or contentEditable.
+  useEffect(() => {
+    function isTypingTarget(el: Element | null) {
+      if (!el || !(el instanceof HTMLElement)) return false;
+      const tag = el.tagName;
+      return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || el.isContentEditable;
+    }
+    function onKey(e: KeyboardEvent) {
+      if (isTypingTarget(document.activeElement)) return;
+      // Don't intercept when a panel/dialog is open — Esc handled separately
+      const panelOpen = showSettings || showPrinter || showManageOrders || confirmAction !== null;
+      if (panelOpen) {
+        if (e.key === "Escape") {
+          if (confirmAction) setConfirmAction(null);
+          else if (showSettings) setShowSettings(false);
+          else if (showPrinter) setShowPrinter(false);
+          else if (showManageOrders) setShowManageOrders(false);
+        }
+        return;
+      }
+      const filterKeys = ["all", "pending_payment", "unpaid", "approved", "printing", "printed"];
+      if (e.key >= "1" && e.key <= "6") {
+        e.preventDefault();
+        setFilterStatus(filterKeys[Number(e.key) - 1]);
+      } else if (e.key === "r" || e.key === "R") {
+        e.preventDefault();
+        load();
+      } else if (e.key === "p" || e.key === "P") {
+        e.preventDefault();
+        setShowSettings((v) => !v);
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [load, showSettings, showPrinter, showManageOrders, confirmAction]);
+
   // Auth check: the dashboard itself no longer renders a login form — it
   // relies on a Supabase session having already been established via /login.
   useEffect(() => {
@@ -629,6 +666,9 @@ export default function AdminDashboard() {
               {loadingMore ? <><Loader2 size={14} className="spin" /> Loading...</> : "Load more"}
             </button>
           )}
+          <span className="kbd-hint" title="Keyboard shortcuts: R=Refresh, 1-6=Filter tabs, P=Pricing, Esc=Close panels">
+            <kbd>R</kbd> refresh · <kbd>1</kbd>–<kbd>6</kbd> filter · <kbd>P</kbd> pricing
+          </span>
         </div>
       )}
 
