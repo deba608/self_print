@@ -420,6 +420,32 @@ export default function StaffManagement({ currentStaff }: { currentStaff: StaffP
                       )}
                     </div>
                   )}
+
+                  {isSuperAdmin && (
+                    <div style={{ width: "100%" }}>
+                      <button
+                        type="button"
+                        className="staff-history-toggle"
+                        onClick={() =>
+                          setExpandedLoginId(expandedLoginId === member.id ? null : member.id)
+                        }
+                        aria-expanded={expandedLoginId === member.id}
+                      >
+                        {expandedLoginId === member.id ? (
+                          <ChevronUp size={13} aria-hidden="true" />
+                        ) : (
+                          <ChevronDown size={13} aria-hidden="true" />
+                        )}
+                        {expandedLoginId === member.id ? "Hide" : "Login history"}
+                      </button>
+
+                      {expandedLoginId === member.id && (
+                        <div className="staff-login-history">
+                          <LoginHistoryPanel staffId={member.id} />
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </li>
               );
             })}
