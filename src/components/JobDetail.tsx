@@ -205,8 +205,8 @@ export default function JobDetail({ id }: { id: string }) {
   const badge = statusBadge(job.status);
 
   return (
+    <AdminManagementNav>
     <main className="admin-shell job-detail-shell">
-      <AdminManagementNav />
       {/* Back navigation */}
       <Link href="/admin" className="back-link">
         <ChevronLeft size={18} />
@@ -313,6 +313,7 @@ export default function JobDetail({ id }: { id: string }) {
         </section>
       </div>
     </main>
+    </AdminManagementNav>
   );
 }
 

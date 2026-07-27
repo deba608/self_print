@@ -140,8 +140,8 @@ export default function ManualPrint({ id }: { id: string }) {
   }, [id]);
 
   return (
+    <AdminManagementNav>
     <main className="admin-shell manual-print-shell">
-      <AdminManagementNav />
       <Link href={`/admin/jobs/${id}`} className="back-link">
         <ChevronLeft size={18} />
         <span>Back to Job</span>
@@ -204,5 +204,6 @@ export default function ManualPrint({ id }: { id: string }) {
         onLoad={() => { loadedRef.current = true; }}
       />
     </main>
+    </AdminManagementNav>
   );
 }
