@@ -191,11 +191,11 @@
 .admin-topbar-inner {
   position: relative;
   width: min(1200px, calc(100% - 32px));
+  height: 64px;
   margin: 0 auto;
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: 10px 0;
   flex-wrap: nowrap;
 }
 
@@ -4901,12 +4901,14 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 18px 20px;
+    height: 64px;
+    padding: 0 20px;
     font-size: 16px;
     font-weight: 800;
     color: var(--ink);
     border-bottom: 1px solid var(--line);
     flex-shrink: 0;
+    box-sizing: border-box;
   }
 
   .sidebar-brand svg {
