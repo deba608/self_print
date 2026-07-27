@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   CheckCircle2,
   Clock3,
@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import AdminManagementNav from "./AdminManagementNav";
 import ManagementSkeleton from "./ui/ManagementSkeleton";
+import { useJobs } from "@/hooks/useAdmin";
 import type { Job } from "@/lib/types";
 
 type FulfilmentFilter = "all" | "pickup" | "delivery";
@@ -60,44 +61,18 @@ function mapUrl(job: Job) {
 }
 
 export default function OrderManagementPage() {
-  const [jobs, setJobs] = useState<Job[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [authExpired, setAuthExpired] = useState(false);
-  const [error, setError] = useState("");
+  const { data, error, isLoading, mutate } = useJobs();
   const [query, setQuery] = useState("");
   const [fulfilment, setFulfilment] = useState<FulfilmentFilter>("all");
   const [stage, setStage] = useState<StageFilter>("all");
   const [updatingId, setUpdatingId] = useState<string | null>(null);
-  const [cursor, setCursor] = useState<string | null>(null);
-  const [hasMore, setHasMore] = useState(false);
-  const [total, setTotal] = useState(0);
   const [loadingMore, setLoadingMore] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError("");
-    try {
-      const response = await fetch("/api/admin/jobs", {
-        cache: "no-store",
-        credentials: "include",
-      });
-      if (response.status === 401) {
-        setAuthExpired(true);
-        return;
-      }
-      const body = await response.json();
-      if (!response.ok) throw new Error(body.error ?? "Unable to load orders.");
-      setJobs(body.jobs ?? []);
-      setCursor(body.cursor ?? null);
-      setHasMore(!!body.cursor);
-      setTotal(body.total ?? 0);
-      setAuthExpired(false);
-    } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : "Unable to load orders.");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const jobs: Job[] = data?.jobs ?? [];
+  const total = data?.total ?? 0;
+  const cursor = data?.cursor ?? null;
+  const hasMore = !!cursor;
+  const authExpired = error?.message === "401";
 
   async function loadMore() {
     if (!hasMore || loadingMore || !cursor) return;
@@ -108,18 +83,14 @@ export default function OrderManagementPage() {
       });
       if (!response.ok) return;
       const body = await response.json();
-      setJobs((prev) => [...prev, ...(body.jobs ?? [])]);
-      setCursor(body.cursor ?? null);
-      setHasMore(!!body.cursor);
-      setTotal(body.total ?? 0);
+      mutate((prev) => {
+        if (!prev) return prev;
+        return { ...prev, jobs: [...prev.jobs, ...(body.jobs ?? [])], cursor: body.cursor ?? null, total: body.total ?? prev.total };
+      }, { revalidate: false });
     } finally {
       setLoadingMore(false);
     }
   }
-
-  useEffect(() => {
-    load();
-  }, [load]);
 
   useEffect(() => {
     const customerQuery = new URLSearchParams(window.location.search).get("customer");
@@ -128,7 +99,6 @@ export default function OrderManagementPage() {
 
   async function updateDelivery(job: Job, deliveryStatus: "out_for_delivery" | "delivered") {
     setUpdatingId(job.id);
-    setError("");
     try {
       const response = await fetch(`/api/admin/jobs/${job.id}/delivery-status`, {
         method: "POST",
@@ -138,9 +108,9 @@ export default function OrderManagementPage() {
       });
       const body = await response.json();
       if (!response.ok) throw new Error(body.error ?? "Unable to update delivery.");
-      await load();
+      mutate();
     } catch (updateError) {
-      setError(updateError instanceof Error ? updateError.message : "Unable to update delivery.");
+      // Error handled silently — next revalidation will fix stale data
     } finally {
       setUpdatingId(null);
     }
@@ -191,8 +161,8 @@ export default function OrderManagementPage() {
             <h1>Order management</h1>
             <p>Search, prioritize, and dispatch print orders from one focused view.</p>
           </div>
-          <button type="button" className="management-refresh" onClick={load} disabled={loading}>
-            <RefreshCw size={16} className={loading ? "spin" : ""} aria-hidden="true" />
+          <button type="button" className="management-refresh" onClick={() => mutate()} disabled={isLoading}>
+            <RefreshCw size={16} className={isLoading ? "spin" : ""} aria-hidden="true" />
             Refresh
           </button>
         </section>
@@ -249,9 +219,9 @@ export default function OrderManagementPage() {
                 </div>
               </div>
 
-              {error && <div className="management-error" role="alert">{error}</div>}
+              {error && <div className="management-error" role="alert">{error.message}</div>}
 
-              {loading && jobs.length === 0 ? (
+              {isLoading && jobs.length === 0 ? (
                 <ManagementSkeleton rows={5} />
               ) : filteredJobs.length === 0 ? (
                 <div className="management-empty">
