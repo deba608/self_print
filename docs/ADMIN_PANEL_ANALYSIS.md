@@ -20,7 +20,7 @@ The admin panel is **functionally complete** with a rich feature set: real-time 
 | 3.3 | Consolidate order management | ⚠️ Intentional — different purposes |
 | 3.4 | Loading skeletons on sub-pages | ✅ DONE — ManagementSkeleton in all sub-pages |
 | 3.5 | Split monolithic CSS | ⚠️ Partial — 9971→8827 lines |
-| 3.6 | Shared data-fetching | ❌ Not done |
+| 3.6 | Shared data-fetching | ✅ DONE — SWR hooks in `src/hooks/useAdmin.ts` |
 | 3.7 | Extract UI primitives | ✅ DONE — Button, Card, FormField, Toast all exist |
 | 3.8 | Keyboard shortcuts | ✅ DONE — R=refresh, 1-6=filters, P=pricing, Esc=close panels |
 | 3.9 | JobDetail mobile tabs | ✅ DONE — pill-shaped with active state |
@@ -132,17 +132,20 @@ src/components/
 
 ---
 
-### 3.6 No Shared Data-Fetching Layer
+### 3.6 ✅ Shared Data-Fetching Layer — IMPLEMENTED
 
-**Problem:** Every component independently calls `fetch()` with its own `useState` for loading/error/data. No caching, deduplication, or stale-while-revalidate. Lots of boilerplate.
+**Status:** DONE — SWR installed and hooks created at `src/hooks/useAdmin.ts`:
+- `useJobs()` — job list with pagination
+- `useSummary()` — dashboard summary (5s auto-refresh)
+- `usePricing()` — pricing config
+- `usePrinter()` — selected printer
+- `usePrinters()` — available printers (10s auto-refresh)
+- `useCustomers()` — customer list
+- `useStaff()` — staff list
+- `useLoginEvents()` — security audit log
+- `useCurrentStaff()` — current session
 
-**Fix:** Add SWR or TanStack Query for admin data fetching. Benefits:
-- Automatic revalidation
-- Deduplication
-- Better loading/error states
-- Reduced boilerplate
-
-**Effort:** 2–3 sessions (incremental adoption).
+**Adopted by:** AdminDashboard (all hooks), OrderManagementPage (useJobs). Other sub-pages can adopt incrementally.
 
 ---
 
