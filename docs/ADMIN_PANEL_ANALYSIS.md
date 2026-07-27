@@ -233,7 +233,7 @@ Reference: `docs/UI_UX_PLAN.md`
 | 10 | Accessibility audit + fixes | 1 | ✅ Done |
 | 11 | Split monolithic CSS (incremental) | 2–3 | ⚠️ Partial |
 
-**Completed:** 9/11 | **Remaining:** 2 (3.5 CSS split, 3.6 data-fetching)
+**Completed:** 10/11 | **Remaining:** 1 (3.5 CSS split)
 
 ---
 
