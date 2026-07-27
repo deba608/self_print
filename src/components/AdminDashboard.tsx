@@ -13,61 +13,10 @@ import { manualPrint } from "@/lib/manualPrint";
 import Badge, { type BadgeVariant } from "@/components/ui/Badge";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import Link from "next/link";
-import type { StaffProfile } from "@/lib/types";
-
-type Job = {
-  id: string;
-  token: string;
-  status: string;
-  pricePaise: number;
-  createdAt: string;
-  needsConversion: 0 | 1;
-  queuePosition: number;
-  printType: string;
-  paperSize: string;
-  copies: number;
-  paidAt?: string | null;
-  issueReportedAt?: string | null;
-  issueNote?: string | null;
-  issueResolvedAt?: string | null;
-  file: { originalName: string } | null;
-  fileCount?: number;
-  deliveryMethod?: "pickup" | "delivery";
-  customerName?: string | null;
-  customerPhone?: string | null;
-  deliveryAddress?: string | null;
-  deliveryStatus?: "pending" | "out_for_delivery" | "delivered" | null;
-  deliveryLatitude?: number | null;
-  deliveryLongitude?: number | null;
-  deliveryAccuracyMeters?: number | null;
-};
-
-type Pricing = {
-  bwPerPagePaise: number;
-  colorPerPagePaise: number;
-  photoPrintPaise: number;
-  copyMultiplier: number;
-  a3Multiplier: number;
-  a4Multiplier: number;
-  a5Multiplier: number;
-  a6Multiplier: number;
-  b5Multiplier: number;
-  legalMultiplier: number;
-  photoMultiplier: number;
-  duplexBwPerPagePaise: number;
-  expiryMinutes: number;
-  deliveryFeePaise: number;
-};
+import type { StaffProfile, Job, PricingConfig as Pricing, PrinterOption } from "@/lib/types";
 
 type PricingDraft = {
   [Key in keyof Pricing]: Pricing[Key] | "";
-};
-
-type PrinterOption = {
-  name: string;
-  driverName: string;
-  portName: string;
-  isDefault: boolean;
 };
 
 const defaultPricing: Pricing = {
@@ -752,7 +701,7 @@ type ManageJob = {
   status: string;
   pricePaise: number;
   createdAt: string;
-  file: { originalName: string } | null;
+  file: { originalName: string } | undefined;
 };
 
 function ManageOrdersPanel({
