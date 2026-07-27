@@ -158,20 +158,15 @@ src/components/
 
 ---
 
-### 3.8 No Keyboard Shortcuts
+### 3.8 ✅ Keyboard Shortcuts — IMPLEMENTED
 
-**Problem:** A busy print shop operator would benefit from keyboard shortcuts for common actions. Currently everything is click-only.
+**Status:** DONE — Keyboard shortcuts added to AdminDashboard:
+- `R` — Refresh queue
+- `1`–`6` — Switch status filter (All, Queued, Unpaid, Ready, Printing, Done)
+- `P` — Toggle pricing panel
+- `Esc` — Close any open panel/dialog
 
-**Fix:** Add shortcuts:
-| Key | Action |
-|-----|--------|
-| `R` | Refresh queue |
-| `1`–`6` | Switch status filter tab |
-| `P` | Open pricing panel |
-| `Enter` (on selected card) | Release print |
-| `Esc` | Close panel/dialog |
-
-**Effort:** 1 session.
+**UI hint:** Small `<kbd>` styled hint shown below the job count (hidden on mobile). Shortcuts are disabled when typing in inputs/textareas or when a panel is open.
 
 ---
 
@@ -229,13 +224,13 @@ Reference: `docs/UI_UX_PLAN.md`
 | 4 | Extract Button, Card, FormField, Toast primitives | 1–2 | ✅ Done |
 | 5 | Add sidebar nav at ≥1024px | 1–2 | ❌ Pending |
 | 6 | Consolidate order management experiences | — | ⚠️ Intentional |
-| 7 | Add keyboard shortcuts | 1 | ❌ Pending |
+| 7 | Add keyboard shortcuts | 1 | ✅ Done |
 | 8 | Add pagination to management pages | 1 | ✅ Done |
 | 9 | Polish JobDetail mobile tabs | 0.5 | ✅ Done |
 | 10 | Accessibility audit + fixes | 1 | ❌ Pending |
 | 11 | Split monolithic CSS (incremental) | 2–3 | ⚠️ Partial |
 
-**Completed:** 7/11 | **Remaining:** 4 (3.5 CSS split, 3.6 data-fetching, 3.8 keyboard shortcuts, 3.10 a11y audit)
+**Completed:** 8/11 | **Remaining:** 3 (3.5 CSS split, 3.6 data-fetching, 3.10 a11y audit)
 
 ---
 
