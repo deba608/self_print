@@ -68,12 +68,16 @@ export default function OrderManagementPage() {
   const [fulfilment, setFulfilment] = useState<FulfilmentFilter>("all");
   const [stage, setStage] = useState<StageFilter>("all");
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [cursor, setCursor] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(false);
+  const [total, setTotal] = useState(0);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
-      const response = await fetch("/api/admin/jobs?limit=200", {
+      const response = await fetch("/api/admin/jobs", {
         cache: "no-store",
         credentials: "include",
       });
@@ -84,6 +88,9 @@ export default function OrderManagementPage() {
       const body = await response.json();
       if (!response.ok) throw new Error(body.error ?? "Unable to load orders.");
       setJobs(body.jobs ?? []);
+      setCursor(body.cursor ?? null);
+      setHasMore(!!body.cursor);
+      setTotal(body.total ?? 0);
       setAuthExpired(false);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Unable to load orders.");
@@ -91,6 +98,24 @@ export default function OrderManagementPage() {
       setLoading(false);
     }
   }, []);
+
+  async function loadMore() {
+    if (!hasMore || loadingMore || !cursor) return;
+    setLoadingMore(true);
+    try {
+      const response = await fetch(`/api/admin/jobs?cursor=${encodeURIComponent(cursor)}`, {
+        credentials: "include",
+      });
+      if (!response.ok) return;
+      const body = await response.json();
+      setJobs((prev) => [...prev, ...(body.jobs ?? [])]);
+      setCursor(body.cursor ?? null);
+      setHasMore(!!body.cursor);
+      setTotal(body.total ?? 0);
+    } finally {
+      setLoadingMore(false);
+    }
+  }
 
   useEffect(() => {
     load();
@@ -321,6 +346,21 @@ export default function OrderManagementPage() {
                       </article>
                     );
                   })}
+
+                  {total > 0 && (
+                    <div className="jobs-count">
+                      <span>
+                        {query || fulfilment !== "all" || stage !== "all"
+                          ? `${filteredJobs.length} matching · ${jobs.length} of ${total} loaded`
+                          : `${jobs.length} of ${total} orders`}
+                      </span>
+                      {hasMore && (
+                        <button type="button" className="load-more-btn" onClick={loadMore} disabled={loadingMore}>
+                          {loadingMore ? <><Loader2 size={14} className="spin" /> Loading...</> : "Load more"}
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
             </section>
