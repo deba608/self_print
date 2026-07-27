@@ -244,11 +244,15 @@ export default function JobDetail({ id }: { id: string }) {
 
       <ProgressTracker job={job} events={detail.events} />
 
-      <div className="mobile-tabs">
+      <div className="mobile-tabs" role="tablist" aria-label="Job detail sections">
         {(["details", "preview", "settings", "log"] as const).map((tab) => (
           <button
             type="button"
             key={tab}
+            id={`tab-${tab}`}
+            role="tab"
+            aria-selected={activeTab === tab}
+            aria-controls={`panel-${tab}`}
             className={`mobile-tab ${activeTab === tab ? "active" : ""}`}
             onClick={() => setActiveTab(tab)}
           >
@@ -258,18 +262,36 @@ export default function JobDetail({ id }: { id: string }) {
       </div>
 
       <div className="job-detail-grid">
-        <section className={`detail-pane detail-pane-details ${activeTab === "details" ? "active" : ""}`}>
+        <section
+          id="panel-details"
+          role="tabpanel"
+          aria-labelledby="tab-details"
+          hidden={activeTab !== "details"}
+          className={`detail-pane detail-pane-details ${activeTab === "details" ? "active" : ""}`}
+        >
           <FileCard files={files} />
           <SummaryCard job={job} files={files} />
           <DeliveryCard job={job} />
           <ActionsCard job={job} setStatus={setStatus} setDeliveryStatus={setDeliveryStatus} reprint={reprint} />
         </section>
 
-        <section className={`detail-pane detail-pane-preview ${activeTab === "preview" ? "active" : ""}`}>
+        <section
+          id="panel-preview"
+          role="tabpanel"
+          aria-labelledby="tab-preview"
+          hidden={activeTab !== "preview"}
+          className={`detail-pane detail-pane-preview ${activeTab === "preview" ? "active" : ""}`}
+        >
           <PreviewCard files={files} job={job} />
         </section>
 
-        <section className={`detail-pane detail-pane-settings ${activeTab === "settings" ? "active" : ""}`}>
+        <section
+          id="panel-settings"
+          role="tabpanel"
+          aria-labelledby="tab-settings"
+          hidden={activeTab !== "settings"}
+          className={`detail-pane detail-pane-settings ${activeTab === "settings" ? "active" : ""}`}
+        >
           <SettingsCard
             settings={settings}
             settingsLocked={settingsLocked}
@@ -280,7 +302,13 @@ export default function JobDetail({ id }: { id: string }) {
           />
         </section>
 
-        <section className={`detail-pane detail-pane-log ${activeTab === "log" ? "active" : ""}`}>
+        <section
+          id="panel-log"
+          role="tabpanel"
+          aria-labelledby="tab-log"
+          hidden={activeTab !== "log"}
+          className={`detail-pane detail-pane-log ${activeTab === "log" ? "active" : ""}`}
+        >
           <EventLogCard events={detail.events} />
         </section>
       </div>
