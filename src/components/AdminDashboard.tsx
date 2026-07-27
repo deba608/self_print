@@ -655,7 +655,7 @@ export default function AdminDashboard() {
       )}
 
       {total > 0 && (
-        <div className="jobs-count">
+        <div className="jobs-count" aria-live="polite" aria-atomic="true">
           <span>
             {filterStatus === "all"
               ? `${jobs.length} of ${total} jobs`

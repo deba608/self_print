@@ -30,7 +30,7 @@ export default function BatchBar({
             {loading ? <Loader2 size={16} className="spin" /> : <CreditCard size={16} />}
             Mark {selectedCount} paid
           </button>
-          <button type="button" className="batch-btn clear" onClick={onClear}>
+          <button type="button" className="batch-btn clear" onClick={onClear} aria-label="Clear selection">
             <X size={16} />
           </button>
         </div>

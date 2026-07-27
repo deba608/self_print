@@ -159,7 +159,7 @@ export default function ManageOrdersPanel({
                 {bulkDeleting ? <Loader2 size={14} className="spin" /> : <Trash2 size={14} />}
                 Delete Selected
               </button>
-              <button type="button" className="bulk-clear-btn" onClick={() => setSelectedIds(new Set())}>
+              <button type="button" className="bulk-clear-btn" onClick={() => setSelectedIds(new Set())} aria-label="Clear selection">
                 <X size={14} />
               </button>
             </div>
@@ -188,6 +188,7 @@ export default function ManageOrdersPanel({
                   className={`manage-order-checkbox ${selectedIds.has(job.id) ? "selected" : ""}`}
                   onClick={() => toggleSelect(job.id)}
                   type="button"
+                  aria-label={selectedIds.has(job.id) ? `Deselect order ${job.token}` : `Select order ${job.token}`}
                 >
                   <span className={`checkbox-circle checkbox-circle-sm ${selectedIds.has(job.id) ? "checked" : ""}`}>
                     {selectedIds.has(job.id) && <Check size={12} strokeWidth={3.5} />}
