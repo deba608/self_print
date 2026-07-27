@@ -50,6 +50,6 @@ export default function StaffPage() {
           </div>
         )}
       </main>
-    </div>
+    </AdminManagementNav>
   );
 }
