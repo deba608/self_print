@@ -64,9 +64,10 @@ function StatusCell({ success, failureReason }: { success: boolean; failureReaso
 function SecurityTable({ events }: { events: LoginEvent[] }) {
   if (events.length === 0) {
     return (
-      <div className="security-empty">
+      <div className="management-empty">
         <ShieldCheck size={28} aria-hidden="true" />
-        <p>No login events recorded yet.</p>
+        <h2>No login events recorded yet.</h2>
+        <p>Login attempts will appear here.</p>
       </div>
     );
   }
@@ -138,7 +139,7 @@ export default function SecurityPage() {
   return (
     <div className="management-page-shell">
       <AdminManagementNav />
-      <main className="admin-shell accounts-shell">
+      <main className="management-page">
         {authState === "checking" ? (
           <div className="staff-page-loading" role="status">
             <Loader2 size={24} className="spin" aria-hidden="true" />
@@ -157,26 +158,28 @@ export default function SecurityPage() {
             <Link href="/admin" className="btn-primary">Back to dashboard</Link>
           </div>
         ) : (
-          <div className="security-page">
-            <header className="staff-hero">
-              <div className="staff-hero-copy">
-                <span className="staff-eyebrow">Audit trail</span>
+          <>
+            <section className="management-hero">
+              <div>
+                <span className="management-eyebrow">Audit trail</span>
                 <h1>Security log</h1>
                 <p>All admin login attempts — device, location, and outcome.</p>
               </div>
-            </header>
+            </section>
 
-            {loading ? (
-              <ManagementSkeleton rows={5} />
-            ) : error ? (
-              <div className="staff-message error">
-                <AlertCircle size={17} aria-hidden="true" />
-                {error}
-              </div>
-            ) : (
-              <SecurityTable events={events} />
-            )}
-          </div>
+            <section className="management-workspace">
+              {loading ? (
+                <ManagementSkeleton rows={5} />
+              ) : error ? (
+                <div className="management-error" role="alert">
+                  <AlertCircle size={17} aria-hidden="true" />
+                  {error}
+                </div>
+              ) : (
+                <SecurityTable events={events} />
+              )}
+            </section>
+          </>
         )}
       </main>
     </div>
