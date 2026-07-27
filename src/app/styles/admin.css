@@ -4008,7 +4008,6 @@
 
 .staff-member-card:last-child { border-bottom: none; }
 .staff-member-card:hover { background: rgba(13, 122, 116, 0.02); }
-.staff-member-card.is-current { background: linear-gradient(90deg, var(--accent-bg), transparent 70%); }
 
 .staff-member-main {
   display: grid;
