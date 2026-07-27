@@ -227,7 +227,7 @@ export default function OrderManagementPage() {
               {error && <div className="management-error" role="alert">{error}</div>}
 
               {loading && jobs.length === 0 ? (
-                <div className="management-loading"><Loader2 size={24} className="spin" /> Loading orders...</div>
+                <ManagementSkeleton rows={5} />
               ) : filteredJobs.length === 0 ? (
                 <div className="management-empty">
                   <Search size={28} aria-hidden="true" />

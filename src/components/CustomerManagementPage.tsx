@@ -17,6 +17,7 @@ import {
   UsersRound,
 } from "lucide-react";
 import AdminManagementNav from "./AdminManagementNav";
+import ManagementSkeleton from "./ui/ManagementSkeleton";
 import type { CustomerManagementRow } from "@/lib/types";
 
 export default function CustomerManagementPage() {
@@ -158,7 +159,7 @@ export default function CustomerManagementPage() {
               {error && <div className="management-error" role="alert">{error}</div>}
 
               {loading && customers.length === 0 ? (
-                <div className="management-loading"><Loader2 size={24} className="spin" /> Loading customers...</div>
+                <ManagementSkeleton rows={5} />
               ) : filteredCustomers.length === 0 ? (
                 <div className="management-empty">
                   <UsersRound size={28} aria-hidden="true" />

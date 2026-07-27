@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import type { LoginEvent, StaffProfile } from "@/lib/types";
 import AdminManagementNav from "./AdminManagementNav";
+import ManagementSkeleton from "./ui/ManagementSkeleton";
 
 function DeviceIcon({ device }: { device: string | null }) {
   if (device === "Mobile") return <Smartphone size={14} aria-hidden="true" />;
@@ -166,10 +167,7 @@ export default function SecurityPage() {
             </header>
 
             {loading ? (
-              <div className="staff-page-loading" role="status">
-                <Loader2 size={24} className="spin" aria-hidden="true" />
-                <span>Loading login events…</span>
-              </div>
+              <ManagementSkeleton rows={5} />
             ) : error ? (
               <div className="staff-message error">
                 <AlertCircle size={17} aria-hidden="true" />
