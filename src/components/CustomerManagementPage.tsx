@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   CalendarDays,
-  Loader2,
   Lock,
   Mail,
   MapPin,
