@@ -4629,3 +4629,113 @@
   }
 }
 
+/* === Admin Sidebar (desktop ≥1024px) === */
+.admin-layout {
+  display: flex;
+  min-height: 100dvh;
+}
+
+.admin-sidebar {
+  display: none;
+}
+
+.sidebar-brand {
+  display: none;
+}
+
+.sidebar-nav {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .admin-layout {
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    grid-template-rows: auto 1fr;
+    min-height: 100dvh;
+  }
+
+  .admin-sidebar {
+    display: flex;
+    flex-direction: column;
+    position: sticky;
+    top: 0;
+    height: 100dvh;
+    background: var(--panel);
+    border-right: 1px solid var(--line);
+    padding: 0;
+    overflow-y: auto;
+    grid-row: 1 / -1;
+  }
+
+  .sidebar-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 18px 20px;
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--ink);
+    border-bottom: 1px solid var(--line);
+    flex-shrink: 0;
+  }
+
+  .sidebar-brand svg {
+    color: var(--accent);
+  }
+
+  .sidebar-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 12px 10px;
+    flex: 1;
+  }
+
+  .sidebar-link {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    border-radius: var(--radius-sm);
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--muted);
+    text-decoration: none;
+    transition: all var(--duration-fast) var(--ease-out);
+  }
+
+  .sidebar-link:hover {
+    color: var(--ink);
+    background: var(--accent-bg);
+  }
+
+  .sidebar-link.active {
+    color: var(--accent);
+    background: var(--accent-light);
+    font-weight: 700;
+  }
+
+  .sidebar-link svg {
+    flex-shrink: 0;
+  }
+
+  /* Topbar spans full width above sidebar + content */
+  .admin-topbar {
+    grid-column: 1 / -1;
+  }
+
+  /* Main content shifts right to accommodate sidebar */
+  .admin-shell {
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 16px 24px 40px;
+  }
+
+  /* Hide ManageMenu dropdown on desktop — sidebar replaces it */
+  .manage-menu {
+    display: none;
+  }
+}
+
