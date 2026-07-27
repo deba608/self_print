@@ -336,6 +336,6 @@ export default function OrderManagementPage() {
           </>
         )}
       </main>
-    </div>
+    </AdminManagementNav>
   );
 }
