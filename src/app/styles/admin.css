@@ -4055,13 +4055,14 @@
 }
 
 .staff-you-badge {
-  padding: 2px 8px;
-  color: var(--accent-strong);
-  background: var(--accent-light);
-  border-radius: 6px;
+  padding: 2px 7px;
+  color: var(--accent);
+  background: none;
+  border: 1px solid var(--accent);
+  border-radius: 5px;
   font-size: 10px;
   font-weight: 700;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.03em;
   text-transform: uppercase;
 }
 
