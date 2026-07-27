@@ -77,8 +77,7 @@ export default function CustomerManagementPage() {
   }, [customers, query, kind]);
 
   return (
-    <div className="management-page-shell">
-      <AdminManagementNav />
+    <AdminManagementNav>
       <main className="management-page">
         <section className="management-hero customers">
           <div>
@@ -217,6 +216,6 @@ export default function CustomerManagementPage() {
           </>
         )}
       </main>
-    </div>
+    </AdminManagementNav>
   );
 }

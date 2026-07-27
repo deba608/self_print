@@ -152,8 +152,7 @@ export default function OrderManagementPage() {
   }, [jobs, query, fulfilment, stage]);
 
   return (
-    <div className="management-page-shell">
-      <AdminManagementNav />
+    <AdminManagementNav>
       <main className="management-page">
         <section className="management-hero">
           <div>
