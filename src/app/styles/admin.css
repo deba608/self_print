@@ -4702,15 +4702,95 @@
   display: none;
 }
 
+/* === Sidebar toggle button (mobile only) === */
+.sidebar-toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(13, 122, 116, 0.1);
+  border-radius: 12px;
+  color: var(--ink);
+  cursor: pointer;
+  transition: all var(--duration-base) var(--ease-out);
+  flex-shrink: 0;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+
+.sidebar-toggle-btn:hover {
+  border-color: rgba(13, 122, 116, 0.2);
+  color: var(--accent);
+  background: rgba(255, 255, 255, 0.85);
+}
+
+/* === Mobile sidebar overlay === */
+.sidebar-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(23, 32, 42, 0.46);
+  backdrop-filter: blur(4px);
+  z-index: 90;
+  animation: overlayIn 0.25s var(--ease-out);
+}
+
+/* === Mobile sidebar drawer === */
+.admin-sidebar.mobile-open {
+  display: flex;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 260px;
+  height: 100dvh;
+  z-index: 100;
+  background: var(--panel);
+  border-right: 1px solid var(--line);
+  flex-direction: column;
+  animation: sidebarSlideIn 0.25s var(--ease-out);
+}
+
+@keyframes sidebarSlideIn {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+
+.sidebar-close-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  margin-left: auto;
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all var(--duration-fast);
+}
+
+.sidebar-close-btn:hover {
+  color: var(--danger);
+  border-color: var(--danger);
+  background: var(--danger-light);
+}
+
 @media (min-width: 1024px) {
   .admin-layout {
     display: grid;
     grid-template-columns: 220px 1fr;
     grid-template-rows: auto 1fr;
+    grid-template-areas:
+      "sidebar topbar"
+      "sidebar main";
     min-height: 100dvh;
   }
 
   .admin-sidebar {
+    grid-area: sidebar;
     display: flex;
     flex-direction: column;
     position: sticky;
@@ -4720,7 +4800,6 @@
     border-right: 1px solid var(--line);
     padding: 0;
     overflow-y: auto;
-    grid-row: 1 / -1;
   }
 
   .sidebar-brand {
@@ -4775,17 +4854,19 @@
     flex-shrink: 0;
   }
 
-  /* Topbar spans full width above sidebar + content */
+  /* Topbar sits in the top-right cell, beside the sidebar — not over it. */
   .admin-topbar {
-    grid-column: 1 / -1;
+    grid-area: topbar;
   }
 
-  /* Main content shifts right to accommodate sidebar */
+  /* Main content occupies the bottom-right cell, beside the sidebar. */
   .admin-shell {
+    grid-area: main;
     width: 100%;
     max-width: 1200px;
     margin: 0 auto;
     padding: 16px 24px 40px;
+    min-width: 0;
   }
 
   /* Hide ManageMenu dropdown on desktop — sidebar replaces it */

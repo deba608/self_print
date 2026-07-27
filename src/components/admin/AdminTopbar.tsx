@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  Bell, BellRing, ChevronDown, Inbox, LogOut, Loader2, Monitor, Printer, RefreshCw, Settings,
+  Bell, BellRing, ChevronDown, Inbox, LogOut, Loader2, Menu, Monitor, Printer, RefreshCw, Settings,
 } from "lucide-react";
 import ManageMenu from "./ManageMenu";
 
@@ -17,7 +17,8 @@ export default function AdminTopbar({
   onLogout,
   loggingOut,
   staffName,
-  showPricing
+  showPricing,
+  onToggleSidebar
 }: {
   printerName: string;
   newJobCount: number;
@@ -31,10 +32,16 @@ export default function AdminTopbar({
   loggingOut: boolean;
   staffName?: string;
   showPricing: boolean;
+  onToggleSidebar?: () => void;
 }) {
   return (
     <header className="admin-topbar">
       <div className="admin-topbar-inner">
+      {onToggleSidebar && (
+        <button type="button" className="sidebar-toggle-btn" onClick={onToggleSidebar} aria-label="Toggle navigation menu">
+          <Menu size={20} />
+        </button>
+      )}
       <div className="topbar-brand">
         <div className="brand-logo">
           <Printer size={24} strokeWidth={1.5} />
