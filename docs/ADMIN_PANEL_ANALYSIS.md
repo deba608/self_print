@@ -9,7 +9,22 @@
 
 The admin panel is **functionally complete** with a rich feature set: real-time job queue, delivery workflow, pricing management, staff roles, security audit, analytics, and browser-based fallback printing. The core UX logic is correct and the teal-accent design system is consistent. The remaining work is **architectural cleanup and polish**, not missing features.
 
-**Verdict:** ~80% done. No fundamental redesign needed — systematic refinement only.
+**Verdict:** ~90% done. No fundamental redesign needed — systematic refinement only.
+
+### Progress Tracker
+
+| # | Issue | Status |
+|---|-------|--------|
+| 3.1 | Decompose AdminDashboard.tsx | ✅ DONE — 631 lines, 10 components extracted |
+| 3.2 | Deduplicate types | ✅ DONE — imports from `@/lib/types` |
+| 3.3 | Consolidate order management | ⚠️ Intentional — different purposes |
+| 3.4 | Loading skeletons on sub-pages | ✅ DONE — ManagementSkeleton in all sub-pages |
+| 3.5 | Split monolithic CSS | ⚠️ Partial — 9971→8827 lines |
+| 3.6 | Shared data-fetching | ❌ Not done |
+| 3.7 | Extract UI primitives | 🔧 IN PROGRESS |
+| 3.8 | Keyboard shortcuts | ❌ Not done |
+| 3.9 | JobDetail mobile tabs | ✅ DONE — pill-shaped with active state |
+| 3.10 | Pagination on management pages | ✅ DONE — cursor-based load more |
 
 ---
 
@@ -86,52 +101,22 @@ src/components/
 
 ## 3. Issues & Recommendations
 
-### 3.1 CRITICAL: AdminDashboard.tsx is 1992 lines
+### 3.1 ✅ CRITICAL: AdminDashboard.tsx — DECOMPOSED
 
-**Problem:** 10+ sub-components defined inline (StatsBar, ManageMenu, AdminTopbar, PricingPanel, PrinterPanel, ManageOrdersPanel, FilterTabs, BatchBar, JobCard, etc.). Impossible to maintain or test in isolation.
-
-**Fix:** Extract each into `src/components/admin/`:
-```
-src/components/admin/
-├── AdminTopbar.tsx
-├── StatsBar.tsx
-├── ManageMenu.tsx
-├── FilterTabs.tsx
-├── BatchBar.tsx
-├── JobCard.tsx
-├── PricingPanel.tsx
-├── PrinterPanel.tsx
-├── ManageOrdersPanel.tsx
-└── DeliveryControls.tsx
-```
-
-**Effort:** 2–3 sessions. No behavior change — pure extraction.
+**Status:** DONE — reduced from 1992 → 631 lines. 10 components extracted to `src/components/admin/`:
+- AdminTopbar, StatsBar, ManageMenu, FilterTabs, BatchBar, JobCard, PricingPanel, PrinterPanel, ManageOrdersPanel, EmptyState
 
 ---
 
-### 3.2 Duplicate Type Definitions
+### 3.2 ✅ Duplicate Type Definitions — FIXED
 
-**Problem:** `AdminDashboard.tsx` (lines 18–71) redefines `Job`, `Pricing`, `PricingDraft`, `PrinterOption` locally instead of importing from `src/lib/types.ts`. Types drift between files over time.
-
-**Fix:** Delete local type definitions, import canonical types from `@/lib/types`.
-
-**Effort:** 1 session.
+**Status:** DONE — AdminDashboard.tsx now imports `StaffProfile, Job, PricingConfig as Pricing, PrinterOption` from `@/lib/types`.
 
 ---
 
-### 3.3 Two Separate Order Management Experiences
+### 3.3 ⚠️ Two Separate Order Management Experiences — INTENTIONAL
 
-**Problem:**
-- `ManageOrdersPanel` (dashboard slide-over) — bulk delete with status filters
-- `OrderManagementPage` (`/admin/orders`) — full order list with search, KPIs, actions
-
-These are different UIs for overlapping data. Staff may be confused about which to use.
-
-**Fix:** Either:
-- Consolidate into one page with a "Bulk Actions" mode, or
-- Clearly differentiate: dashboard = quick actions, `/admin/orders` = deep management
-
-**Effort:** 1–2 sessions.
+**Status:** Different purposes — ManageOrdersPanel = quick bulk cleanup from dashboard, OrderManagementPage = full operations workspace with search/KPIs/actions. No consolidation needed.
 
 ---
 
