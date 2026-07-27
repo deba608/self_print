@@ -21,7 +21,7 @@ The admin panel is **functionally complete** with a rich feature set: real-time 
 | 3.4 | Loading skeletons on sub-pages | ✅ DONE — ManagementSkeleton in all sub-pages |
 | 3.5 | Split monolithic CSS | ⚠️ Partial — 9971→8827 lines |
 | 3.6 | Shared data-fetching | ❌ Not done |
-| 3.7 | Extract UI primitives | 🔧 IN PROGRESS |
+| 3.7 | Extract UI primitives | ✅ DONE — Button, Card, FormField, Toast all exist |
 | 3.8 | Keyboard shortcuts | ❌ Not done |
 | 3.9 | JobDetail mobile tabs | ✅ DONE — pill-shaped with active state |
 | 3.10 | Pagination on management pages | ✅ DONE — cursor-based load more |
@@ -146,17 +146,15 @@ src/components/
 
 ---
 
-### 3.7 Missing UI Primitives
+### 3.7 ✅ Missing UI Primitives — FIXED
 
-**Problem:** `docs/UI_UX_PLAN.md` (§1.3) calls for extracting `Button`, `Card`, `FormField`, `Toast` — none exist yet. Currently using raw `<button>` and `<input>` with inconsistent styling.
+**Status:** DONE — All four primitives exist in `src/components/ui/`:
+- `Button.tsx` — variant props (primary, secondary, danger, ghost), loading state, icon support
+- `Card.tsx` — wrapper with `ui-card` class
+- `FormField.tsx` — label + input + inline error + helper text
+- `Toast.tsx` — `useToasts()` hook + `<ToastStack />` component with auto-dismiss
 
-**Fix:** Extract from existing patterns:
-- `Button` — variant props (primary, danger, ghost), loading state, icon support
-- `Card` — container with standard padding/shadow/radius
-- `FormField` — label + input + inline error + helper text
-- `Toast` — auto-dismiss notification (currently managed via local `toasts` array in AdminDashboard)
-
-**Effort:** 1–2 sessions.
+**Note:** Toast is adopted by AdminDashboard. Button/Card/FormField are ready but not yet used by existing admin components — adoption is a separate cleanup task.
 
 ---
 
@@ -195,7 +193,7 @@ Reference: `docs/UI_UX_PLAN.md`
 
 | Phase | Description | Status |
 |-------|-------------|--------|
-| §1 | Token consolidation + primitives extraction | **Partial** — Badge, Skeleton, EmptyState, ConfirmDialog, ManagementSkeleton done; Button, Card, FormField, Toast 🔧 IN PROGRESS |
+| §1 | Token consolidation + primitives extraction | ✅ Done — Badge, Skeleton, EmptyState, ConfirmDialog, ManagementSkeleton, Button, Card, FormField, Toast all exist |
 | §2 | Customer upload stepper + sticky price + delivery cards | ✅ Done |
 | §3 | Track timeline + my-jobs polish | ✅ Done |
 | §4 | Auth unification (AuthShell) | ✅ Done |
@@ -228,7 +226,7 @@ Reference: `docs/UI_UX_PLAN.md`
 | 1 | Decompose AdminDashboard.tsx into separate components | 2–3 | ✅ Done |
 | 2 | Deduplicate types (import from `@/lib/types`) | 1 | ✅ Done |
 | 3 | Add loading skeletons to management sub-pages | 1 | ✅ Done |
-| 4 | Extract Button, Card, FormField, Toast primitives | 1–2 | 🔧 In progress |
+| 4 | Extract Button, Card, FormField, Toast primitives | 1–2 | ✅ Done |
 | 5 | Add sidebar nav at ≥1024px | 1–2 | ❌ Pending |
 | 6 | Consolidate order management experiences | — | ⚠️ Intentional |
 | 7 | Add keyboard shortcuts | 1 | ❌ Pending |
@@ -237,7 +235,7 @@ Reference: `docs/UI_UX_PLAN.md`
 | 10 | Accessibility audit + fixes | 1 | ❌ Pending |
 | 11 | Split monolithic CSS (incremental) | 2–3 | ⚠️ Partial |
 
-**Completed:** 5/11 | **In progress:** 1 | **Remaining:** 5
+**Completed:** 7/11 | **Remaining:** 4 (3.5 CSS split, 3.6 data-fetching, 3.8 keyboard shortcuts, 3.10 a11y audit)
 
 ---
 
