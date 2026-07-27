@@ -184,6 +184,7 @@ function ManageMenu() {
     { href: "/admin/customers", icon: UsersRound, label: "User Management", hint: "Customer accounts" },
     { href: "/admin/accounts", icon: BarChart2, label: "Accounts & Daily Data", hint: "Revenue, daily close-out" },
     { href: "/admin/staff", icon: Users, label: "Staff Management", hint: "Invite & manage staff logins" },
+    { href: "/admin/security", icon: ShieldCheck, label: "Security", hint: "Login audit log" },
   ];
 
   return (
