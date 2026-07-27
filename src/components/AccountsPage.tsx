@@ -18,8 +18,7 @@ export default function AccountsPage() {
   }, []);
 
   return (
-    <div className="management-page-shell">
-      <AdminManagementNav />
+    <AdminManagementNav>
       <main className="admin-shell accounts-shell">
         {authState === "unauthorized" ? (
           <div className="accounts-locked">
@@ -31,6 +30,6 @@ export default function AccountsPage() {
           <AccountsTab />
         )}
       </main>
-    </div>
+    </AdminManagementNav>
   );
 }
