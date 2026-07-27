@@ -377,7 +377,7 @@ export default function AdminDashboard() {
         newJobCount={newJobCount}
         soundOn={soundOn}
         onToggleSound={toggleSound}
-        onRefresh={() => { mutateJobs(); mutateSummary(); }}
+        onRefresh={() => { mutateJobs(); }}
         onOpenPricing={() => { setShowSettings(true); setShowPrinter(false); setShowManageOrders(false); }}
         onOpenPrinter={() => { setShowPrinter(true); setShowSettings(false); setShowManageOrders(false); }}
         onOpenManageOrders={() => { setShowManageOrders(true); setShowSettings(false); setShowPrinter(false); }}
@@ -386,29 +386,22 @@ export default function AdminDashboard() {
         staffName={staff?.displayName || staff?.email}
         showPricing={showSettings}
         onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
-        pageTitle="Job Queue"
-        subbar={
+        filterBar={
           <>
-            <div className="subbar-group">
-              <span className="subbar-label">Status</span>
-              <FilterTabs filters={statusFilters} activeFilter={filterStatus} counts={counts} onFilterChange={setFilterStatus} />
-            </div>
-            <div className="subbar-group subbar-group-end">
-              <span className="subbar-label">Fulfillment</span>
-              <div className="delivery-filter-toggle" role="group" aria-label="Filter by fulfillment method">
-                {(["all", "pickup", "delivery"] as const).map((f) => (
-                  <button type="button" key={f} className={`delivery-filter-btn ${deliveryFilter === f ? "active" : ""}`}
-                    onClick={() => setDeliveryFilter(f)} aria-pressed={deliveryFilter === f}>
-                    {f === "all" ? "All Orders" : f === "pickup" ? "Pickup" : "Delivery"}
-                    {f === "delivery" && outForDeliveryCount > 0 && (
-                      <span className="delivery-filter-count" title={`${outForDeliveryCount} out for delivery`}>
-                        <Truck size={12} aria-hidden="true" />{outForDeliveryCount}
-                      </span>
-                    )}
-                  </button>
-                ))}
-              </div>
-              <StatsBar activeJobs={activeJobs.length} todayRevenue={summary?.totalPaise ?? 0} />
+            <FilterTabs filters={statusFilters} activeFilter={filterStatus} counts={counts} onFilterChange={setFilterStatus} />
+            <div className="topbar-filter-divider" aria-hidden="true" />
+            <div className="delivery-filter-toggle" role="group" aria-label="Filter by fulfillment method">
+              {(["all", "pickup", "delivery"] as const).map((f) => (
+                <button type="button" key={f} className={`delivery-filter-btn ${deliveryFilter === f ? "active" : ""}`}
+                  onClick={() => setDeliveryFilter(f)} aria-pressed={deliveryFilter === f}>
+                  {f === "all" ? "All Orders" : f === "pickup" ? "Pickup" : "Delivery"}
+                  {f === "delivery" && outForDeliveryCount > 0 && (
+                    <span className="delivery-filter-count" title={`${outForDeliveryCount} out for delivery`}>
+                      <Truck size={12} aria-hidden="true" />{outForDeliveryCount}
+                    </span>
+                  )}
+                </button>
+              ))}
             </div>
           </>
         }

@@ -19,8 +19,7 @@ export default function AdminTopbar({
   staffName,
   showPricing,
   onToggleSidebar,
-  pageTitle,
-  subbar,
+  filterBar,
 }: {
   printerName: string;
   newJobCount: number;
@@ -35,10 +34,7 @@ export default function AdminTopbar({
   staffName?: string;
   showPricing: boolean;
   onToggleSidebar?: () => void;
-  /** Optional heading shown in the navbar centre-left, e.g. "Job Queue" */
-  pageTitle?: string;
-  /** Optional JSX rendered as a full-width second row inside the topbar */
-  subbar?: React.ReactNode;
+  filterBar?: React.ReactNode;
 }) {
   return (
     <header className="admin-topbar">
@@ -58,10 +54,9 @@ export default function AdminTopbar({
           </div>
         </div>
 
-        {pageTitle && (
-          <div className="topbar-page-title" aria-current="page">
-            <span className="topbar-page-title-sep" aria-hidden="true">/</span>
-            <span className="topbar-page-title-text">{pageTitle}</span>
+        {filterBar && (
+          <div className="topbar-filter-bar">
+            {filterBar}
           </div>
         )}
 
@@ -78,7 +73,6 @@ export default function AdminTopbar({
         </button>
 
         <div className="topbar-actions">
-          {/* Group 1 — live monitoring: stay-in-place actions, used constantly. */}
           <div className="action-group">
             <button
               type="button"
@@ -114,9 +108,6 @@ export default function AdminTopbar({
 
           <div className="topbar-divider" aria-hidden="true" />
 
-          {/* Group 2 — everything that navigates away to its own full page,
-              collapsed into one labeled menu instead of 4 bare icons that
-              looked identical to the stay-in-place buttons above. */}
           <div className="action-group">
             <ManageMenu />
 
@@ -153,14 +144,6 @@ export default function AdminTopbar({
           </div>
         </div>
       </div>
-
-      {subbar && (
-        <div className="topbar-subbar">
-          <div className="topbar-subbar-inner">
-            {subbar}
-          </div>
-        </div>
-      )}
     </header>
   );
 }

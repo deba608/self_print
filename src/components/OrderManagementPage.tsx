@@ -152,20 +152,17 @@ export default function OrderManagementPage() {
   }, [jobs, query, fulfilment, stage]);
 
   return (
-    <AdminManagementNav>
+    <AdminManagementNav
+      title="Order management"
+      subtitle="Search, prioritize, and dispatch print orders from one focused view."
+      actions={
+        <button type="button" className="management-refresh" onClick={() => mutate()} disabled={isLoading}>
+          <RefreshCw size={16} className={isLoading ? "spin" : ""} aria-hidden="true" />
+          Refresh
+        </button>
+      }
+    >
       <main className="management-page">
-        <section className="management-hero">
-          <div>
-            <span className="management-eyebrow">Operations workspace</span>
-            <h1>Order management</h1>
-            <p>Search, prioritize, and dispatch print orders from one focused view.</p>
-          </div>
-          <button type="button" className="management-refresh" onClick={() => mutate()} disabled={isLoading}>
-            <RefreshCw size={16} className={isLoading ? "spin" : ""} aria-hidden="true" />
-            Refresh
-          </button>
-        </section>
-
         {authExpired ? (
           <div className="management-locked">
             <Lock size={30} aria-hidden="true" />
