@@ -77,20 +77,17 @@ export default function CustomerManagementPage() {
   }, [customers, query, kind]);
 
   return (
-    <AdminManagementNav>
+    <AdminManagementNav
+      title="User management"
+      subtitle="Registered users and delivery customers with order history and contacts."
+      actions={
+        <button type="button" className="management-refresh" onClick={load} disabled={loading}>
+          <RefreshCw size={16} className={loading ? "spin" : ""} aria-hidden="true" />
+          Refresh
+        </button>
+      }
+    >
       <main className="management-page">
-        <section className="management-hero customers">
-          <div>
-            <span className="management-eyebrow">Customer directory</span>
-            <h1>User management</h1>
-            <p>See registered users and delivery customers with their order history and contact details.</p>
-          </div>
-          <button type="button" className="management-refresh" onClick={load} disabled={loading}>
-            <RefreshCw size={16} className={loading ? "spin" : ""} aria-hidden="true" />
-            Refresh
-          </button>
-        </section>
-
         {authExpired ? (
           <div className="management-locked">
             <Lock size={30} aria-hidden="true" />
