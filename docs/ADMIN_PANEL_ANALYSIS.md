@@ -177,23 +177,15 @@ src/components/
 
 ---
 
-### 3.9 JobDetail Mobile Tabs Lack Visual Affordance
+### 3.9 ✅ JobDetail Mobile Tabs — POLISHED
 
-**Problem:** `Details | Preview | Settings | Log` tabs on mobile look like plain text buttons — no visual indicator that this is a tabbed/swipeable interface.
-
-**Fix:** Add underline indicator, active state highlight, and possibly swipe gesture support.
-
-**Effort:** 0.5 sessions.
+**Status:** DONE — pill-shaped tabs with accent background, white text, and box-shadow on active state.
 
 ---
 
-### 3.10 No Pagination on Management Pages
+### 3.10 ✅ Pagination on Management Pages — FIXED
 
-**Problem:** `OrderManagementPage` loads up to 200 jobs with no "load more" or cursor-based pagination. Won't scale for high-volume shops.
-
-**Fix:** The dashboard already has cursor pagination via the API. Extend the same pattern to management sub-pages.
-
-**Effort:** 1 session.
+**Status:** DONE — OrderManagementPage now uses cursor-based pagination with "Load more" button, matching the dashboard pattern.
 
 ---
 
@@ -203,14 +195,14 @@ Reference: `docs/UI_UX_PLAN.md`
 
 | Phase | Description | Status |
 |-------|-------------|--------|
-| §1 | Token consolidation + primitives extraction | **Partial** — Badge, Skeleton, EmptyState, ConfirmDialog done; Button, Card, FormField, Toast not extracted |
+| §1 | Token consolidation + primitives extraction | **Partial** — Badge, Skeleton, EmptyState, ConfirmDialog, ManagementSkeleton done; Button, Card, FormField, Toast 🔧 IN PROGRESS |
 | §2 | Customer upload stepper + sticky price + delivery cards | ✅ Done |
 | §3 | Track timeline + my-jobs polish | ✅ Done |
 | §4 | Auth unification (AuthShell) | ✅ Done |
-| §5 | Admin dashboard decompose + sidebar layout | ❌ **Not started** — still monolithic, still topbar |
+| §5 | Admin dashboard decompose + sidebar layout | ✅ Decomposed — sidebar nav not started |
 | §6 | Sub-pages + a11y sweep | **Partial** — shells consistent, a11y not audited |
 
-**Biggest bang-for-buck:** Phase §5 — decompose AdminDashboard + add sidebar nav at ≥1024px. Directly improves the daily operator experience.
+**Next up:** Finish §1 primitives (Button, Card, FormField, Toast).
 
 ---
 
@@ -231,21 +223,21 @@ Reference: `docs/UI_UX_PLAN.md`
 
 ## 6. Execution Plan
 
-| Phase | Work | Sessions | Priority |
-|-------|------|----------|----------|
-| 1 | Decompose AdminDashboard.tsx into separate components | 2–3 | 🔴 High |
-| 2 | Deduplicate types (import from `@/lib/types`) | 1 | 🔴 High |
-| 3 | Add loading skeletons to management sub-pages | 1 | 🟡 Medium |
-| 4 | Extract Button, Card, FormField, Toast primitives | 1–2 | 🟡 Medium |
-| 5 | Add sidebar nav at ≥1024px | 1–2 | 🟡 Medium |
-| 6 | Consolidate order management experiences | 1–2 | 🟡 Medium |
-| 7 | Add keyboard shortcuts | 1 | 🟢 Low |
-| 8 | Add pagination to management pages | 1 | 🟢 Low |
-| 9 | Polish JobDetail mobile tabs | 0.5 | 🟢 Low |
-| 10 | Accessibility audit + fixes | 1 | 🟢 Low |
-| 11 | Split monolithic CSS (incremental) | 2–3 | 🟢 Low |
+| Phase | Work | Sessions | Status |
+|-------|------|----------|--------|
+| 1 | Decompose AdminDashboard.tsx into separate components | 2–3 | ✅ Done |
+| 2 | Deduplicate types (import from `@/lib/types`) | 1 | ✅ Done |
+| 3 | Add loading skeletons to management sub-pages | 1 | ✅ Done |
+| 4 | Extract Button, Card, FormField, Toast primitives | 1–2 | 🔧 In progress |
+| 5 | Add sidebar nav at ≥1024px | 1–2 | ❌ Pending |
+| 6 | Consolidate order management experiences | — | ⚠️ Intentional |
+| 7 | Add keyboard shortcuts | 1 | ❌ Pending |
+| 8 | Add pagination to management pages | 1 | ✅ Done |
+| 9 | Polish JobDetail mobile tabs | 0.5 | ✅ Done |
+| 10 | Accessibility audit + fixes | 1 | ❌ Pending |
+| 11 | Split monolithic CSS (incremental) | 2–3 | ⚠️ Partial |
 
-**Total estimated effort:** 12–18 sessions
+**Completed:** 5/11 | **In progress:** 1 | **Remaining:** 5
 
 ---
 
@@ -253,17 +245,32 @@ Reference: `docs/UI_UX_PLAN.md`
 
 | File | Lines | Notes |
 |------|-------|-------|
-| `src/components/AdminDashboard.tsx` | 1992 | Main target for decomposition |
+| `src/components/AdminDashboard.tsx` | 631 | ✅ Decomposed — orchestrator only |
+| `src/components/admin/AdminTopbar.tsx` | — | Extracted from dashboard |
+| `src/components/admin/StatsBar.tsx` | — | Extracted from dashboard |
+| `src/components/admin/ManageMenu.tsx` | — | Extracted from dashboard |
+| `src/components/admin/FilterTabs.tsx` | — | Extracted from dashboard |
+| `src/components/admin/BatchBar.tsx` | — | Extracted from dashboard |
+| `src/components/admin/JobCard.tsx` | — | Extracted from dashboard |
+| `src/components/admin/PricingPanel.tsx` | — | Extracted from dashboard |
+| `src/components/admin/PrinterPanel.tsx` | — | Extracted from dashboard |
+| `src/components/admin/ManageOrdersPanel.tsx` | — | Extracted from dashboard |
+| `src/components/admin/EmptyState.tsx` | — | Extracted from dashboard |
 | `src/components/JobDetail.tsx` | 775 | Tabbed detail view |
 | `src/components/StaffManagement.tsx` | 457 | Staff CRUD + login history |
-| `src/components/OrderManagementPage.tsx` | 331 | Order list + search + filters |
+| `src/components/OrderManagementPage.tsx` | ~370 | ✅ Now with pagination |
 | `src/components/AccountsTab.tsx` | 320 | Analytics/revenue dashboard |
 | `src/components/CustomerManagementPage.tsx` | 222 | Customer directory |
 | `src/components/SecurityPage.tsx` | 186 | Login audit log |
 | `src/components/ManualPrint.tsx` | 208 | Browser print fallback |
 | `src/components/AdminManagementNav.tsx` | 79 | Shared sticky nav |
 | `src/components/AdminLogin.tsx` | 83 | Staff sign-in |
-| `src/app/globals.css` | 9971 | Monolithic — needs splitting |
+| `src/components/ui/Badge.tsx` | — | Shared primitive |
+| `src/components/ui/Skeleton.tsx` | — | Shared primitive |
+| `src/components/ui/ManagementSkeleton.tsx` | — | ✅ New — loading states |
+| `src/components/ui/EmptyState.tsx` | — | Shared primitive |
+| `src/components/ui/ConfirmDialog.tsx` | — | Shared primitive |
+| `src/components/ui/Auth.tsx` | — | Shared auth building blocks |
+| `src/app/globals.css` | 8827 | ⚠️ Reduced but still monolithic |
 | `src/app/admin/management.css` | 641 | Management sub-page styles |
-| `docs/UI_UX_PLAN.md` | 140 | Original upgrade plan |
 | `src/lib/types.ts` | — | Canonical type definitions |
