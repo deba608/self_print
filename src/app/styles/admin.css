@@ -4002,42 +4002,54 @@
 .staff-member-list { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; }
 
 .staff-member-card {
-  display: grid;
-  grid-template-columns: auto minmax(180px, 1fr) minmax(210px, auto) minmax(92px, auto);
-  align-items: center;
-  gap: 14px;
-  min-height: 76px;
-  padding: 13px 4px;
   border-bottom: 1px solid var(--bg);
   transition: background var(--duration-fast) var(--ease-out);
 }
 
 .staff-member-card:last-child { border-bottom: none; }
-.staff-member-card:hover { background: rgba(13, 122, 116, 0.025); }
-.staff-member-card.is-current { background: linear-gradient(90deg, var(--accent-bg), transparent 75%); }
+.staff-member-card:hover { background: rgba(13, 122, 116, 0.02); }
+.staff-member-card.is-current { background: linear-gradient(90deg, var(--accent-bg), transparent 70%); }
+
+.staff-member-main {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  align-items: center;
+  gap: 14px;
+  min-height: 68px;
+  padding: 14px 16px;
+}
 
 .staff-avatar {
-  width: 42px;
-  height: 42px;
+  width: 44px;
+  height: 44px;
   display: grid;
   place-items: center;
   flex-shrink: 0;
   color: var(--accent-strong);
   background: var(--accent-light);
-  border: 1px solid rgba(13, 122, 116, 0.13);
+  border: 1.5px solid rgba(13, 122, 116, 0.15);
   border-radius: 13px;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 700;
 }
 
 .staff-avatar.super_admin,
-.staff-avatar.owner { color: var(--accent-strong); background: var(--accent-light); border-color: rgba(13, 122, 116, 0.13); }
+.staff-avatar.owner { color: var(--accent-strong); background: var(--accent-light); border-color: rgba(13, 122, 116, 0.2); }
+
 .staff-member-identity { min-width: 0; }
-.staff-member-name { display: flex; align-items: center; gap: 7px; }
+
+.staff-member-name {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
 .staff-member-name strong {
   overflow: hidden;
   color: var(--ink);
-  font-size: 13.5px;
+  font-size: 14px;
+  font-weight: 700;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -4058,54 +4070,64 @@
   overflow: hidden;
   margin-top: 3px;
   color: var(--muted);
-  font-size: 11.5px;
+  font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .staff-member-meta {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 6px;
-}
-
-.staff-role-badge,
-.staff-joined-date {
-  display: inline-flex;
   align-items: center;
-  gap: 5px;
-  white-space: nowrap;
+  gap: 12px;
 }
 
 .staff-role-badge {
-  padding: 3px 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
   color: var(--accent-strong);
   background: var(--accent-light);
-  border-radius: 6px;
+  border-radius: 7px;
   font-size: 11px;
   font-weight: 700;
+  white-space: nowrap;
 }
 
 .staff-role-badge.super_admin,
 .staff-role-badge.owner { color: var(--accent-strong); background: var(--accent-light); }
-.staff-joined-date { color: var(--muted); font-size: 10.5px; font-weight: 650; }
+
+.staff-joined-date {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 11.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
 .staff-member-actions { display: flex; justify-content: flex-end; }
+
+.staff-member-history {
+  padding: 0 16px 14px;
+}
 
 .staff-revoke-btn,
 .staff-cancel-btn,
 .staff-revoke-confirm-btn,
 .staff-empty-state button {
-  min-height: 38px;
+  min-height: 36px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  padding: 0 11px;
-  border-radius: 9px;
-  font-size: 11.5px;
-  font-weight: 800;
+  padding: 0 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
   cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-out);
 }
 
 .staff-revoke-btn {
@@ -4115,22 +4137,27 @@
 }
 
 .staff-revoke-btn:hover { color: var(--danger); background: var(--danger-light); border-color: rgba(185, 28, 28, 0.12); }
+
 .staff-revoke-confirm {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 6px;
+  gap: 8px;
 }
 
 .staff-revoke-confirm > span {
   grid-column: 1 / -1;
   color: var(--danger);
-  font-size: 10.5px;
-  font-weight: 750;
+  font-size: 11px;
+  font-weight: 700;
   text-align: center;
 }
 
 .staff-cancel-btn { color: var(--ink); background: #fff; border: 1px solid var(--line); }
+.staff-cancel-btn:hover { background: var(--bg); border-color: var(--accent); }
+
 .staff-revoke-confirm-btn { color: #fff; background: var(--danger); border: 1px solid var(--danger); }
+.staff-revoke-confirm-btn:hover { background: #b91c1c; }
+
 .staff-cancel-btn:disabled,
 .staff-revoke-confirm-btn:disabled { cursor: wait; opacity: 0.6; }
 
@@ -4167,9 +4194,12 @@
   .staff-invite-form { grid-template-columns: 1fr 1fr; }
   .staff-email-field { grid-column: 1 / -1; }
   .staff-invite-btn { width: 100%; }
-  .staff-member-card { grid-template-columns: auto minmax(0, 1fr) auto; }
-  .staff-member-meta { grid-column: 2; }
-  .staff-member-actions { grid-column: 3; grid-row: 1 / span 2; }
+  .staff-member-main {
+    grid-template-columns: auto 1fr auto;
+    gap: 12px;
+  }
+  .staff-member-actions { grid-column: 3; grid-row: 1; }
+  .staff-member-meta { display: none; }
 }
 
 @media (max-width: 560px) {
@@ -4186,22 +4216,22 @@
   .staff-invite-btn { min-height: 46px; }
   .staff-list-header { align-items: flex-start; }
   .staff-refresh-btn { min-height: 44px; }
-  .staff-member-card {
-    grid-template-columns: auto minmax(0, 1fr);
-    gap: 10px 11px;
-    padding: 14px 0;
+  .staff-member-main {
+    grid-template-columns: auto 1fr;
+    gap: 10px;
+    padding: 12px 0;
   }
-  .staff-member-meta { grid-column: 2; }
   .staff-member-actions {
     grid-column: 1 / -1;
     grid-row: auto;
     justify-content: stretch;
   }
-  .staff-revoke-btn { width: 100%; min-height: 42px; border-color: var(--line); }
+  .staff-revoke-btn { width: 100%; min-height: 40px; border-color: var(--line); }
   .staff-revoke-confirm { width: 100%; grid-template-columns: 1fr 1fr; }
   .staff-revoke-confirm > span { text-align: left; }
   .staff-cancel-btn,
-  .staff-revoke-confirm-btn { min-height: 42px; }
+  .staff-revoke-confirm-btn { min-height: 40px; }
+  .staff-member-history { padding: 0 0 12px; }
 }
 
 .acct-header {

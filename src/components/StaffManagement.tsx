@@ -85,15 +85,25 @@ function LoginHistoryPanel({ staffId }: { staffId: string }) {
   }
 
   if (error) {
-    return <p style={{ color: "var(--error, #dc2626)", fontSize: 13 }}>{error}</p>;
+    return (
+      <div className="staff-login-history-empty">
+        <AlertCircle size={16} aria-hidden="true" />
+        {error}
+      </div>
+    );
   }
 
   if (!events || events.length === 0) {
-    return <p style={{ color: "var(--muted)", fontSize: 13 }}>No login events yet.</p>;
+    return (
+      <div className="staff-login-history-empty">
+        <ShieldCheck size={16} aria-hidden="true" />
+        No login events yet.
+      </div>
+    );
   }
 
   return (
-    <div style={{ overflowX: "auto" }}>
+    <div className="staff-login-history-table-wrap">
       <table className="staff-login-history-table">
         <thead>
           <tr>
@@ -369,77 +379,80 @@ export default function StaffManagement({ currentStaff }: { currentStaff: StaffP
             {staff.map((member) => {
               const isCurrentUser = member.id === currentStaff.id;
               const isConfirming = confirmRevoke === member.id;
+              const isExpanded = expandedLoginId === member.id;
               return (
                 <li key={member.id} className={`staff-member-card${isCurrentUser ? " is-current" : ""}`}>
-                  <span className={`staff-avatar ${member.role}`}>
-                    {getInitials(member)}
-                  </span>
-
-                  <div className="staff-member-identity">
-                    <div className="staff-member-name">
-                      <strong>{member.displayName || member.email.split("@")[0]}</strong>
-                      {isCurrentUser && <span className="staff-you-badge">You</span>}
-                    </div>
-                    <span className="staff-member-email">{member.email}</span>
-                  </div>
-
-                  <div className="staff-member-meta">
-                    <span className={`staff-role-badge ${member.role}`}>
-                      <ShieldCheck size={13} aria-hidden="true" />
-                      {member.role === "super_admin" ? "Owner" : "Admin"}
+                  <div className="staff-member-main">
+                    <span className={`staff-avatar ${member.role}`}>
+                      {getInitials(member)}
                     </span>
-                    <span className="staff-joined-date">
-                      <CalendarDays size={14} aria-hidden="true" />
-                      Joined {formatJoinedDate(member.createdAt)}
-                    </span>
-                  </div>
 
-                  {isSuperAdmin && !isCurrentUser && (
-                    <div className="staff-member-actions">
-                      {isConfirming ? (
-                        <div className="staff-revoke-confirm" role="group" aria-label={`Confirm removal of ${member.email}`}>
-                          <span>Remove access?</span>
-                          <button type="button" className="staff-cancel-btn" onClick={() => setConfirmRevoke(null)} disabled={revokingId === member.id}>
-                            Cancel
-                          </button>
-                          <button type="button" className="staff-revoke-confirm-btn" onClick={() => handleRevoke(member.id)} disabled={revokingId === member.id}>
-                            {revokingId === member.id && <Loader2 size={14} className="spin" aria-hidden="true" />}
-                            {revokingId === member.id ? "Removing..." : "Remove"}
-                          </button>
-                        </div>
-                      ) : (
-                        <button
-                          type="button"
-                          className="staff-revoke-btn"
-                          onClick={() => { setConfirmRevoke(member.id); setRevokeError(""); }}
-                          aria-label={`Remove access for ${member.email}`}
-                        >
-                          <Trash2 size={15} aria-hidden="true" />
-                          Remove
-                        </button>
-                      )}
+                    <div className="staff-member-identity">
+                      <div className="staff-member-name">
+                        <strong>{member.displayName || member.email.split("@")[0]}</strong>
+                        {isCurrentUser && <span className="staff-you-badge">You</span>}
+                        <span className={`staff-role-badge ${member.role}`}>
+                          <ShieldCheck size={12} aria-hidden="true" />
+                          {member.role === "super_admin" ? "Owner" : "Admin"}
+                        </span>
+                      </div>
+                      <span className="staff-member-email">{member.email}</span>
                     </div>
-                  )}
+
+                    <div className="staff-member-meta">
+                      <span className="staff-joined-date">
+                        <CalendarDays size={13} aria-hidden="true" />
+                        Joined {formatJoinedDate(member.createdAt)}
+                      </span>
+                    </div>
+
+                    {isSuperAdmin && !isCurrentUser && (
+                      <div className="staff-member-actions">
+                        {isConfirming ? (
+                          <div className="staff-revoke-confirm" role="group" aria-label={`Confirm removal of ${member.email}`}>
+                            <span>Remove access?</span>
+                            <button type="button" className="staff-cancel-btn" onClick={() => setConfirmRevoke(null)} disabled={revokingId === member.id}>
+                              Cancel
+                            </button>
+                            <button type="button" className="staff-revoke-confirm-btn" onClick={() => handleRevoke(member.id)} disabled={revokingId === member.id}>
+                              {revokingId === member.id && <Loader2 size={14} className="spin" aria-hidden="true" />}
+                              {revokingId === member.id ? "Removing..." : "Remove"}
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            className="staff-revoke-btn"
+                            onClick={() => { setConfirmRevoke(member.id); setRevokeError(""); }}
+                            aria-label={`Remove access for ${member.email}`}
+                          >
+                            <Trash2 size={14} aria-hidden="true" />
+                            Remove
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
 
                   {isSuperAdmin && (
-                    <div style={{ width: "100%" }}>
+                    <div className="staff-member-history">
                       <button
                         type="button"
                         className="staff-history-toggle"
                         onClick={() =>
-                          setExpandedLoginId(expandedLoginId === member.id ? null : member.id)
+                          setExpandedLoginId(isExpanded ? null : member.id)
                         }
-                        aria-expanded={expandedLoginId === member.id}
+                        aria-expanded={isExpanded}
                       >
-                        {expandedLoginId === member.id ? (
+                        {isExpanded ? (
                           <ChevronUp size={13} aria-hidden="true" />
                         ) : (
                           <ChevronDown size={13} aria-hidden="true" />
                         )}
-                        {expandedLoginId === member.id ? "Hide" : "Login history"}
+                        {isExpanded ? "Hide login history" : "Show login history"}
                       </button>
 
-                      {expandedLoginId === member.id && (
+                      {isExpanded && (
                         <div className="staff-login-history">
                           <LoginHistoryPanel staffId={member.id} />
                         </div>
