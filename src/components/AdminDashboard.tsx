@@ -165,13 +165,14 @@ export default function AdminDashboard() {
     }
     function onKey(e: KeyboardEvent) {
       if (isTypingTarget(document.activeElement)) return;
-      const panelOpen = showSettings || showPrinter || showManageOrders || confirmAction !== null;
+      const panelOpen = showSettings || showPrinter || showManageOrders || confirmAction !== null || sidebarOpen;
       if (panelOpen) {
         if (e.key === "Escape") {
           if (confirmAction) setConfirmAction(null);
           else if (showSettings) setShowSettings(false);
           else if (showPrinter) setShowPrinter(false);
           else if (showManageOrders) setShowManageOrders(false);
+          else if (sidebarOpen) setSidebarOpen(false);
         }
         return;
       }
@@ -190,7 +191,7 @@ export default function AdminDashboard() {
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [mutateJobs, mutateSummary, showSettings, showPrinter, showManageOrders, confirmAction]);
+  }, [mutateJobs, mutateSummary, showSettings, showPrinter, showManageOrders, confirmAction, sidebarOpen]);
 
   // ── Actions ─────────────────────────────────────────────────────
   async function logout() {
