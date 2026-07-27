@@ -8,6 +8,7 @@ import {
   ChevronDown,
   ChevronUp,
   Loader2,
+  Lock,
   Mail,
   Monitor,
   RefreshCw,
@@ -169,6 +170,17 @@ export default function StaffManagement({ currentStaff }: { currentStaff: StaffP
   const [revokeError, setRevokeError] = useState("");
   const [confirmRevoke, setConfirmRevoke] = useState<string | null>(null);
   const [expandedLoginId, setExpandedLoginId] = useState<string | null>(null);
+  const [roleChangingId, setRoleChangingId] = useState<string | null>(null);
+
+  // Create account form state
+  const [createMode, setCreateMode] = useState(false);
+  const [createEmail, setCreateEmail] = useState("");
+  const [createPassword, setCreatePassword] = useState("");
+  const [createDisplayName, setCreateDisplayName] = useState("");
+  const [createRole, setCreateRole] = useState<"admin" | "super_admin">("admin");
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState("");
+  const [createOk, setCreateOk] = useState(false);
 
   const isSuperAdmin = currentStaff.role === "super_admin";
   const superAdminCount = staff.filter((member) => member.role === "super_admin").length;
@@ -234,6 +246,69 @@ export default function StaffManagement({ currentStaff }: { currentStaff: StaffP
     }
   }
 
+  async function handleRoleChange(member: StaffRow) {
+    if (roleChangingId) return;
+    const newRole = member.role === "super_admin" ? "admin" : "super_admin";
+    // Prevent demoting the last super admin
+    if (newRole === "admin" && member.role === "super_admin" && superAdminCount <= 1) {
+      setRevokeError("Cannot demote the last owner.");
+      return;
+    }
+    setRoleChangingId(member.id);
+    setRevokeError("");
+    try {
+      const res = await fetch(`/api/admin/staff/${member.id}`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role: newRole }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error ?? "Unable to change role.");
+      setStaff((previous) =>
+        previous.map((m) => (m.id === member.id ? { ...m, role: newRole } : m))
+      );
+    } catch (roleFailure) {
+      setRevokeError(roleFailure instanceof Error ? roleFailure.message : "Unable to change role.");
+    } finally {
+      setRoleChangingId(null);
+    }
+  }
+
+  async function handleCreate(event: React.FormEvent) {
+    event.preventDefault();
+    if (creating) return;
+    setCreating(true);
+    setCreateError("");
+    setCreateOk(false);
+    try {
+      const res = await fetch("/api/admin/staff/create", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: createEmail.trim(),
+          password: createPassword,
+          displayName: createDisplayName.trim(),
+          role: createRole,
+        }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error ?? "Unable to create account.");
+      setCreateEmail("");
+      setCreatePassword("");
+      setCreateDisplayName("");
+      setCreateRole("admin");
+      setCreateOk(true);
+      setTimeout(() => setCreateOk(false), 3500);
+      await load();
+    } catch (createFailure) {
+      setCreateError(createFailure instanceof Error ? createFailure.message : "Unable to create account.");
+    } finally {
+      setCreating(false);
+    }
+  }
+
   return (
     <div className="staff-page">
       <header className="staff-hero">
@@ -275,52 +350,151 @@ export default function StaffManagement({ currentStaff }: { currentStaff: StaffP
           <div className="staff-section-heading">
             <span className="staff-section-icon"><UserPlus size={20} aria-hidden="true" /></span>
             <div>
-              <h2 id="invite-staff-title">Invite a staff member</h2>
-              <p>They’ll receive an email to create their password and join this shop.</p>
+              <h2 id="invite-staff-title">Add staff</h2>
+              <p>Invite via email or create an account directly.</p>
             </div>
           </div>
 
-          <form className="staff-invite-form" onSubmit={handleInvite}>
-            <div className="staff-field staff-email-field">
-              <label htmlFor="staff-email">Work email</label>
-              <div className="staff-input-wrap">
-                <Mail size={17} aria-hidden="true" />
-                <input
-                  id="staff-email"
-                  type="email"
-                  required
-                  placeholder="name@example.com"
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  autoComplete="email"
-                  disabled={inviting}
-                />
-              </div>
-            </div>
-
-            <div className="staff-field">
-              <label htmlFor="staff-role">Access level</label>
-              <select
-                id="staff-role"
-                value={role}
-                onChange={(event) => setRole(event.target.value as "admin" | "super_admin")}
-                disabled={inviting}
-              >
-                <option value="admin">Admin</option>
-                <option value="super_admin">Owner</option>
-              </select>
-            </div>
-
-            <button type="submit" className="staff-invite-btn" disabled={inviting || !email.trim()}>
-              {inviting ? <Loader2 size={17} className="spin" aria-hidden="true" /> : <UserPlus size={17} aria-hidden="true" />}
-              {inviting ? "Sending invite..." : "Send invite"}
+          <div className="staff-mode-tabs" role="tablist">
+            <button
+              type="button"
+              role="tab"
+              className={`staff-mode-tab ${!createMode ? "active" : ""}`}
+              onClick={() => { setCreateMode(false); setCreateError(""); setCreateOk(false); }}
+              aria-selected={!createMode}
+            >
+              <Mail size={14} aria-hidden="true" />
+              Invite
             </button>
-          </form>
+            <button
+              type="button"
+              role="tab"
+              className={`staff-mode-tab ${createMode ? "active" : ""}`}
+              onClick={() => { setCreateMode(true); setInviteError(""); setInviteOk(false); }}
+              aria-selected={createMode}
+            >
+              <UserPlus size={14} aria-hidden="true" />
+              Create account
+            </button>
+          </div>
+
+          {!createMode ? (
+            <form className="staff-invite-form" onSubmit={handleInvite}>
+              <div className="staff-field staff-email-field">
+                <label htmlFor="staff-email">Work email</label>
+                <div className="staff-input-wrap">
+                  <Mail size={17} aria-hidden="true" />
+                  <input
+                    id="staff-email"
+                    type="email"
+                    required
+                    placeholder="name@example.com"
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                    autoComplete="email"
+                    disabled={inviting}
+                  />
+                </div>
+              </div>
+
+              <div className="staff-field">
+                <label htmlFor="staff-role">Access level</label>
+                <select
+                  id="staff-role"
+                  value={role}
+                  onChange={(event) => setRole(event.target.value as "admin" | "super_admin")}
+                  disabled={inviting}
+                >
+                  <option value="admin">Admin</option>
+                  <option value="super_admin">Owner</option>
+                </select>
+              </div>
+
+              <button type="submit" className="staff-invite-btn" disabled={inviting || !email.trim()}>
+                {inviting ? <Loader2 size={17} className="spin" aria-hidden="true" /> : <Mail size={17} aria-hidden="true" />}
+                {inviting ? "Sending invite..." : "Send invite"}
+              </button>
+            </form>
+          ) : (
+            <form className="staff-invite-form staff-create-form" onSubmit={handleCreate}>
+              <div className="staff-field staff-email-field">
+                <label htmlFor="create-email">Email</label>
+                <div className="staff-input-wrap">
+                  <Mail size={17} aria-hidden="true" />
+                  <input
+                    id="create-email"
+                    type="email"
+                    required
+                    placeholder="name@example.com"
+                    value={createEmail}
+                    onChange={(event) => setCreateEmail(event.target.value)}
+                    autoComplete="email"
+                    disabled={creating}
+                  />
+                </div>
+              </div>
+
+              <div className="staff-field">
+                <label htmlFor="create-password">Password</label>
+                <div className="staff-input-wrap">
+                  <Lock size={17} aria-hidden="true" />
+                  <input
+                    id="create-password"
+                    type="text"
+                    required
+                    placeholder="Min. 6 characters"
+                    value={createPassword}
+                    onChange={(event) => setCreatePassword(event.target.value)}
+                    autoComplete="new-password"
+                    disabled={creating}
+                    minLength={6}
+                  />
+                </div>
+              </div>
+
+              <div className="staff-field">
+                <label htmlFor="create-name">Display name (optional)</label>
+                <div className="staff-input-wrap">
+                  <Users size={17} aria-hidden="true" />
+                  <input
+                    id="create-name"
+                    type="text"
+                    placeholder="John"
+                    value={createDisplayName}
+                    onChange={(event) => setCreateDisplayName(event.target.value)}
+                    disabled={creating}
+                  />
+                </div>
+              </div>
+
+              <div className="staff-field">
+                <label htmlFor="create-role">Access level</label>
+                <select
+                  id="create-role"
+                  value={createRole}
+                  onChange={(event) => setCreateRole(event.target.value as "admin" | "super_admin")}
+                  disabled={creating}
+                >
+                  <option value="admin">Admin</option>
+                  <option value="super_admin">Owner</option>
+                </select>
+              </div>
+
+              <button type="submit" className="staff-invite-btn" disabled={creating || !createEmail.trim() || createPassword.length < 6}>
+                {creating ? <Loader2 size={17} className="spin" aria-hidden="true" /> : <UserPlus size={17} aria-hidden="true" />}
+                {creating ? "Creating..." : "Create account"}
+              </button>
+            </form>
+          )}
 
           <p className="staff-role-help">
-            {role === "admin"
-              ? "Admins can manage print jobs, pricing, accounts, and view staff."
-              : "Owners can do everything an admin can, plus invite and remove staff."}
+            {!createMode
+              ? role === "admin"
+                ? "Admins can manage print jobs, pricing, accounts, and view staff."
+                : "Owners can do everything an admin can, plus invite and remove staff."
+              : createRole === "admin"
+                ? "Admins can manage print jobs, pricing, accounts, and view staff."
+                : "Owners can do everything an admin can, plus invite and remove staff."}
           </p>
 
           {inviteOk && (
@@ -333,6 +507,18 @@ export default function StaffManagement({ currentStaff }: { currentStaff: StaffP
             <div className="staff-message error" role="alert">
               <AlertCircle size={17} aria-hidden="true" />
               {inviteError}
+            </div>
+          )}
+          {createOk && (
+            <div className="staff-message success" role="status">
+              <CheckCircle2 size={17} aria-hidden="true" />
+              Account created successfully.
+            </div>
+          )}
+          {createError && (
+            <div className="staff-message error" role="alert">
+              <AlertCircle size={17} aria-hidden="true" />
+              {createError}
             </div>
           )}
         </section>
@@ -391,9 +577,22 @@ export default function StaffManagement({ currentStaff }: { currentStaff: StaffP
                       <div className="staff-member-name">
                         <strong>{member.displayName || member.email.split("@")[0]}</strong>
                         {isCurrentUser && <span className="staff-you-badge">(You)</span>}
-                        <span className={`staff-role-badge ${member.role}`}>
-                          {member.role === "super_admin" ? "Owner" : "Admin"}
-                        </span>
+                        {isSuperAdmin && !isCurrentUser && !isCurrentUser ? (
+                          <button
+                            type="button"
+                            className={`staff-role-badge staff-role-toggle ${member.role}`}
+                            onClick={() => handleRoleChange(member)}
+                            disabled={roleChangingId === member.id}
+                            title={member.role === "super_admin" ? "Demote to Admin" : "Promote to Owner"}
+                          >
+                            {roleChangingId === member.id && <Loader2 size={11} className="spin" aria-hidden="true" />}
+                            {member.role === "super_admin" ? "Owner" : "Admin"}
+                          </button>
+                        ) : (
+                          <span className={`staff-role-badge ${member.role}`}>
+                            {member.role === "super_admin" ? "Owner" : "Admin"}
+                          </span>
+                        )}
                       </div>
                       <span className="staff-member-email">{member.email}</span>
                     </div>

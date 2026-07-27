@@ -2,6 +2,58 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/security";
 import { createAdminClient } from "@/lib/supabase/admin";
 
+const VALID_ROLES = ["super_admin", "admin"];
+
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const admin = await requireAdmin();
+  if (!admin) {
+    return NextResponse.json({ error: "Admin login required" }, { status: 401 });
+  }
+  if (admin.role !== "super_admin") {
+    return NextResponse.json({ error: "Only super admins can change roles" }, { status: 403 });
+  }
+
+  const { id } = await params;
+  if (!id) {
+    return NextResponse.json({ error: "Missing staff id" }, { status: 400 });
+  }
+
+  const body = await request.json().catch(() => null);
+  const role = body?.role;
+  if (!role || !VALID_ROLES.includes(role)) {
+    return NextResponse.json({ error: "Role must be 'super_admin' or 'admin'" }, { status: 400 });
+  }
+
+  const adminClient = createAdminClient();
+
+  // Prevent demoting the last super admin
+  if (role === "admin") {
+    const { count: superAdminCount } = await adminClient
+      .from("staff_profiles")
+      .select("id", { count: "exact", head: true })
+      .eq("role", "super_admin");
+    const { data: target } = await adminClient
+      .from("staff_profiles")
+      .select("role")
+      .eq("id", id)
+      .maybeSingle();
+    if (target?.role === "super_admin" && (superAdminCount ?? 0) <= 1) {
+      return NextResponse.json({ error: "Cannot demote the last super admin" }, { status: 400 });
+    }
+  }
+
+  const { error } = await adminClient
+    .from("staff_profiles")
+    .update({ role })
+    .eq("id", id);
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ ok: true, role });
+}
+
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const admin = await requireAdmin();
   if (!admin) {
