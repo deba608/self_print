@@ -137,7 +137,7 @@ export default function SecurityPage() {
   }, []);
 
   return (
-    <AdminManagementNav>
+    <AdminManagementNav title="Security log" subtitle="All admin login attempts — device, location, and outcome.">
       <main className="management-page">
         {authState === "checking" ? (
           <div className="staff-page-loading" role="status">
@@ -158,13 +158,6 @@ export default function SecurityPage() {
           </div>
         ) : (
           <>
-            <section className="management-hero">
-              <div>
-                <span className="management-eyebrow">Audit trail</span>
-                <h1>Security log</h1>
-                <p>All admin login attempts — device, location, and outcome.</p>
-              </div>
-            </section>
 
             <section className="management-workspace">
               {loading ? (
