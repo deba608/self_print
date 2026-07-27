@@ -6,11 +6,12 @@ import { AlertTriangle, Loader2, Truck, X } from "lucide-react";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { ToastStack, useToasts } from "@/components/ui/Toast";
 import type { Job, PricingConfig as Pricing } from "@/lib/types";
-import { useJobs, usePricing, usePrinter, usePrinters, useCurrentStaff } from "@/hooks/useAdmin";
+import { useJobs, useSummary, usePricing, usePrinter, usePrinters, useCurrentStaff } from "@/hooks/useAdmin";
 import { useSidebarCollapse } from "@/hooks/useSidebarCollapse";
 
 import AdminTopbar from "@/components/admin/AdminTopbar";
 import AdminSidebar from "@/components/admin/AdminSidebar";
+import StatsBar from "@/components/admin/StatsBar";
 import FilterTabs from "@/components/admin/FilterTabs";
 import BatchBar from "@/components/admin/BatchBar";
 import JobCard from "@/components/admin/JobCard";
@@ -337,6 +338,7 @@ export default function AdminDashboard() {
         : methodFilteredJobs.filter((j) => j.status === filterStatus);
   const pending = jobs.filter((j) => !j.paidAt && j.status !== "cancelled");
   const outForDeliveryCount = jobs.filter((j) => j.deliveryStatus === "out_for_delivery").length;
+  const activeJobs = jobs.filter((j) => j.status !== "cancelled" && j.status !== "printed");
 
   const recentAttempts = [...jobs]
     .filter((j) => j.status === "printed" || j.status === "failed")
