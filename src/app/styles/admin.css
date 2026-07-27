@@ -4752,6 +4752,62 @@
   animation: sidebarSlideIn 0.25s var(--ease-out);
 }
 
+/* .sidebar-brand and .sidebar-nav default to display:none (they only
+   reveal via the desktop media query below) — the mobile drawer needs its
+   own override so the drawer isn't just an empty animated box. */
+.admin-sidebar.mobile-open .sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 18px 20px;
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--ink);
+  border-bottom: 1px solid var(--line);
+  flex-shrink: 0;
+}
+
+.admin-sidebar.mobile-open .sidebar-brand svg {
+  color: var(--accent);
+}
+
+.admin-sidebar.mobile-open .sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 10px;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.admin-sidebar.mobile-open .sidebar-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--muted);
+  text-decoration: none;
+  transition: all var(--duration-fast) var(--ease-out);
+}
+
+.admin-sidebar.mobile-open .sidebar-link:hover {
+  color: var(--ink);
+  background: var(--accent-bg);
+}
+
+.admin-sidebar.mobile-open .sidebar-link.active {
+  color: var(--accent);
+  background: var(--accent-light);
+  font-weight: 700;
+}
+
+.admin-sidebar.mobile-open .sidebar-link svg {
+  flex-shrink: 0;
+}
+
 @keyframes sidebarSlideIn {
   from { transform: translateX(-100%); }
   to { transform: translateX(0); }
