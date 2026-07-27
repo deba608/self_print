@@ -137,8 +137,7 @@ export default function SecurityPage() {
   }, []);
 
   return (
-    <div className="management-page-shell">
-      <AdminManagementNav />
+    <AdminManagementNav>
       <main className="management-page">
         {authState === "checking" ? (
           <div className="staff-page-loading" role="status">
