@@ -5,16 +5,22 @@ import {
   AlertCircle,
   CalendarDays,
   CheckCircle2,
+  ChevronDown,
+  ChevronUp,
   Loader2,
   Mail,
+  Monitor,
   RefreshCw,
   ShieldCheck,
+  Smartphone,
+  Tablet,
   Trash2,
   UserCog,
   UserPlus,
   Users,
+  XCircle,
 } from "lucide-react";
-import type { StaffProfile } from "@/lib/types";
+import type { LoginEvent, StaffProfile } from "@/lib/types";
 
 type StaffRow = {
   id: string;
@@ -39,6 +45,107 @@ function formatJoinedDate(value: string) {
   });
 }
 
+function formatEventDate(iso: string) {
+  return new Date(iso).toLocaleString(undefined, {
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function DeviceIcon({ device }: { device: string | null }) {
+  if (device === "Mobile") return <Smartphone size={13} aria-hidden="true" />;
+  if (device === "Tablet") return <Tablet size={13} aria-hidden="true" />;
+  return <Monitor size={13} aria-hidden="true" />;
+}
+
+function LoginHistoryPanel({ staffId }: { staffId: string }) {
+  const [events, setEvents] = useState<LoginEvent[] | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    fetch(`/api/admin/login-events?staffId=${staffId}`, { credentials: "include" })
+      .then(async (res) => {
+        if (!res.ok) throw new Error("Failed to load");
+        setEvents(await res.json());
+      })
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false));
+  }, [staffId]);
+
+  if (loading) {
+    return (
+      <div className="staff-login-history-loading">
+        <Loader2 size={14} className="spin" aria-hidden="true" />
+        Loading login history…
+      </div>
+    );
+  }
+
+  if (error) {
+    return <p style={{ color: "var(--error, #dc2626)", fontSize: 13 }}>{error}</p>;
+  }
+
+  if (!events || events.length === 0) {
+    return <p style={{ color: "var(--muted)", fontSize: 13 }}>No login events yet.</p>;
+  }
+
+  return (
+    <div style={{ overflowX: "auto" }}>
+      <table className="staff-login-history-table">
+        <thead>
+          <tr>
+            <th>Date / Time</th>
+            <th>IP</th>
+            <th>Browser</th>
+            <th>OS</th>
+            <th>Device</th>
+            <th>Location</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {events.map((ev) => (
+            <tr key={ev.id}>
+              <td className="security-date-cell">{formatEventDate(ev.loggedAt)}</td>
+              <td className="login-event-mono">{ev.ip ?? "—"}</td>
+              <td>{ev.browser ?? "—"}</td>
+              <td>{ev.os ?? "—"}</td>
+              <td className="security-device-cell">
+                <DeviceIcon device={ev.device} />
+                {ev.device ?? "—"}
+              </td>
+              <td>
+                {ev.city || ev.country
+                  ? [ev.city, ev.country].filter(Boolean).join(", ")
+                  : <span className="login-event-muted">—</span>}
+              </td>
+              <td>
+                {ev.success ? (
+                  <span className="login-status login-status--success">
+                    <CheckCircle2 size={12} aria-hidden="true" /> Success
+                  </span>
+                ) : (
+                  <span className="login-status login-status--fail">
+                    <XCircle size={12} aria-hidden="true" />
+                    {ev.failureReason === "invalid_credentials"
+                      ? "Wrong password"
+                      : ev.failureReason === "not_staff"
+                      ? "Not staff"
+                      : "Failed"}
+                  </span>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 export default function StaffManagement({ currentStaff }: { currentStaff: StaffProfile }) {
   const [staff, setStaff] = useState<StaffRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -51,6 +158,7 @@ export default function StaffManagement({ currentStaff }: { currentStaff: StaffP
   const [revokingId, setRevokingId] = useState<string | null>(null);
   const [revokeError, setRevokeError] = useState("");
   const [confirmRevoke, setConfirmRevoke] = useState<string | null>(null);
+  const [expandedLoginId, setExpandedLoginId] = useState<string | null>(null);
 
   const isSuperAdmin = currentStaff.role === "super_admin";
   const superAdminCount = staff.filter((member) => member.role === "super_admin").length;
