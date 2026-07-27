@@ -19,7 +19,7 @@ The admin panel is **functionally complete** with a rich feature set: real-time 
 | 3.2 | Deduplicate types | ✅ DONE — imports from `@/lib/types` |
 | 3.3 | Consolidate order management | ⚠️ Intentional — different purposes |
 | 3.4 | Loading skeletons on sub-pages | ✅ DONE — ManagementSkeleton in all sub-pages |
-| 3.5 | Split monolithic CSS | ⚠️ Partial — 9971→8827 lines |
+| 3.5 | Split monolithic CSS | ✅ DONE — 5 feature-scoped files, globals.css now 10 lines |
 | 3.6 | Shared data-fetching | ✅ DONE — SWR hooks in `src/hooks/useAdmin.ts` |
 | 3.7 | Extract UI primitives | ✅ DONE — Button, Card, FormField, Toast all exist |
 | 3.8 | Keyboard shortcuts | ✅ DONE — R=refresh, 1-6=filters, P=pricing, Esc=close panels |
@@ -126,9 +126,14 @@ src/components/
 
 ---
 
-### 3.5 ⚠️ Monolithic CSS — PARTIALLY FIXED
+### 3.5 ✅ Monolithic CSS — SPLIT
 
-**Status:** globals.css reduced from 9971 → 8827 lines. Still a single file — full split pending.
+**Status:** DONE — `globals.css` reduced from 9971 → 10 lines (just imports). Split into 5 feature-scoped files:
+- `base-and-customer.css` (3121 lines) — tokens, reset, customer nav/upload/delivery/result
+- `auth-shared.css` (300 lines) — login/register/forgot-password
+- `shared-ui-primitives.css` (264 lines) — Badge, Button, Card, FormField, Dialog, Skeleton
+- `admin.css` (4600 lines) — topbar, panels, jobs, detail, accounts, staff
+- `mixed-remainder.css` (1771 lines) — toasts, tracking, my-jobs, animations
 
 ---
 
@@ -233,7 +238,7 @@ Reference: `docs/UI_UX_PLAN.md`
 | 10 | Accessibility audit + fixes | 1 | ✅ Done |
 | 11 | Split monolithic CSS (incremental) | 2–3 | ⚠️ Partial |
 
-**Completed:** 10/11 | **Remaining:** 1 (3.5 CSS split)
+**Completed:** 11/11 — All original issues resolved!
 
 ---
 
