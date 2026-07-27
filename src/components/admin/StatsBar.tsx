@@ -34,23 +34,15 @@ export default function StatsBar({ activeJobs, todayRevenue }: { activeJobs: num
 
   return (
     <div className="stats-bar">
-      <div className="stat-card">
-        <div className="stat-icon active">
-          <Inbox size={20} />
-        </div>
-        <div className="stat-content">
-          <span className="stat-label">Active Jobs</span>
-          <span className="stat-value">{Math.round(animatedJobs)}</span>
-        </div>
+      <div className="stat-pill">
+        <Inbox size={13} className="stat-pill-icon" />
+        <span className="stat-pill-label">Active</span>
+        <span className="stat-pill-value">{Math.round(animatedJobs)}</span>
       </div>
-      <div className="stat-card">
-        <div className="stat-icon revenue">
-          <TrendingUp size={20} />
-        </div>
-        <div className="stat-content">
-          <span className="stat-label">Today&apos;s Revenue</span>
-          <span className="stat-value">{formatRupees(animatedRevenue)}</span>
-        </div>
+      <div className="stat-pill">
+        <TrendingUp size={13} className="stat-pill-icon" />
+        <span className="stat-pill-label">Revenue</span>
+        <span className="stat-pill-value">{formatRupees(animatedRevenue)}</span>
       </div>
     </div>
   );
