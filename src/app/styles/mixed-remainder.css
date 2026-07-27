@@ -642,29 +642,27 @@
 /* === Admin: pickup/delivery filter toggle === */
 .delivery-filter-toggle {
   display: flex;
-  gap: 8px;
+  gap: 4px;
   margin: 0;
 }
 .delivery-filter-btn {
-  padding: 8px 16px;
-  border: 1px solid rgba(13, 122, 116, 0.15);
-  border-radius: 999px;
-  background: #ffffff;
+  padding: 6px 10px;
+  border: none;
+  border-radius: 6px;
+  background: none;
   color: var(--muted);
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 600;
   cursor: pointer;
-  transition: all var(--duration-base) var(--ease-out);
+  transition: all var(--duration-fast) var(--ease-out);
 }
 .delivery-filter-btn:hover {
-  border-color: rgba(13, 122, 116, 0.3);
   color: var(--accent);
+  background: rgba(13, 122, 116, 0.06);
 }
 .delivery-filter-btn.active {
-  background: var(--accent-light);
-  border-color: var(--accent);
   color: var(--accent-strong);
-  box-shadow: inset 0 0 0 1px var(--accent);
+  background: rgba(13, 122, 116, 0.1);
 }
 
 /* === Admin: delivery contact info on job cards === */

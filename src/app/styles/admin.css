@@ -1428,13 +1428,12 @@
   padding: 16px 0 40px;
 }
 
-/* === Filter Bar with enhanced interactions === */
+/* === Filter Bar — minimalist inline tabs in navbar === */
 .filter-bar {
   display: flex;
-  gap: 8px;
-  margin-bottom: 16px;
+  gap: 4px;
   overflow-x: auto;
-  padding: 4px 0 8px;
+  padding: 2px 0;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
 }
@@ -1446,65 +1445,45 @@
 .filter-tab {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 18px;
-  background: rgba(255, 255, 255, 0.6);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border: 1px solid rgba(13, 122, 116, 0.08);
-  border-radius: 999px;
-  font-size: 13px;
+  gap: 5px;
+  padding: 6px 10px;
+  background: none;
+  border: none;
+  border-radius: 6px;
+  font-size: 12.5px;
   font-weight: 600;
   color: var(--muted);
   cursor: pointer;
   white-space: nowrap;
   flex-shrink: 0;
-  transition: all var(--duration-base) var(--ease-out);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+  transition: all var(--duration-fast) var(--ease-out);
 }
 
 .filter-tab:hover {
-  border-color: rgba(13, 122, 116, 0.2);
   color: var(--accent);
-  background: rgba(255, 255, 255, 0.8);
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(13, 122, 116, 0.06);
+  background: rgba(13, 122, 116, 0.06);
 }
 
 .filter-tab:active {
-  transform: scale(0.97);
+  transform: scale(0.96);
 }
 
 .filter-tab.active {
-  background: rgba(13, 122, 116, 0.1);
-  border-color: rgba(13, 122, 116, 0.2);
   color: var(--accent-strong);
-  box-shadow: 0 1px 4px rgba(13, 122, 116, 0.08);
-}
-
-.filter-tab.active:hover {
-  transform: translateY(0);
+  background: rgba(13, 122, 116, 0.1);
 }
 
 .filter-count {
-  background: rgba(13, 122, 116, 0.1);
-  color: var(--accent-strong);
-  border-radius: 999px;
-  padding: 2px 9px;
+  color: var(--muted);
   font-size: 11px;
   font-weight: 700;
-  transition: transform var(--duration-fast) var(--ease-spring);
-  min-width: 20px;
+  font-variant-numeric: tabular-nums;
+  min-width: 14px;
   text-align: center;
 }
 
 .filter-tab.active .filter-count {
-  background: rgba(13, 122, 116, 0.2);
   color: var(--accent-strong);
-}
-
-.filter-tab:active .filter-count {
-  transform: scale(0.9);
 }
 
 /* === Batch Bar === */
@@ -2907,20 +2886,6 @@
     padding: 10px 0;
   }
 
-  .topbar-subbar-inner {
-    width: calc(100% - 28px);
-    gap: 10px;
-    overflow-x: auto;
-    flex-wrap: nowrap;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-  }
-  .topbar-subbar-inner::-webkit-scrollbar { display: none; }
-
-  .subbar-group-end {
-    margin-left: 0;
-  }
-
   .topbar-brand .brand-text {
     display: none;
   }
@@ -2934,19 +2899,9 @@
   }
 
 
-  .filter-bar {
-    gap: 6px;
-    padding: 4px 0 10px;
-  }
-
   .filter-tab {
-    padding: 9px 14px;
-    font-size: 12px;
-  }
-
-  .filter-count {
-    padding: 2px 7px;
-    font-size: 10px;
+    padding: 5px 8px;
+    font-size: 11.5px;
   }
 
   .job-card {
@@ -3024,8 +2979,8 @@
   }
 
   .filter-tab {
-    padding: 8px 12px;
-    font-size: 12px;
+    padding: 5px 8px;
+    font-size: 11.5px;
   }
 
   .batch-bar {
@@ -3111,14 +3066,9 @@
     height: 36px;
   }
 
-  .filter-bar {
-    gap: 6px;
-    padding: 2px 0 8px;
-  }
-
   .filter-tab {
-    padding: 8px 14px;
-    font-size: 12px;
+    padding: 5px 8px;
+    font-size: 11.5px;
   }
 
   .summary-grid {
@@ -3776,27 +3726,29 @@
   font-size: 14px;
 }
 
+/* Lives in the plain white navbar now (moved out of the old gradient
+   hero card), so this uses dark-on-light styling instead of the previous
+   white-on-glass treatment designed for a colored background. */
 .staff-current-user {
-  min-width: 220px;
+  min-width: 0;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 14px;
-  backdrop-filter: blur(10px);
+  gap: 8px;
+  padding: 6px 10px;
+  background: var(--accent-bg);
+  border: 1px solid rgba(13, 122, 116, 0.12);
+  border-radius: 12px;
 }
 
 .staff-current-icon {
-  width: 36px;
-  height: 36px;
+  width: 28px;
+  height: 28px;
   display: grid;
   place-items: center;
   flex-shrink: 0;
-  color: #fff;
-  background: rgba(255, 255, 255, 0.13);
-  border-radius: 10px;
+  color: var(--accent);
+  background: var(--accent-light);
+  border-radius: 8px;
 }
 
 .staff-current-user > span:last-child {
@@ -3806,15 +3758,15 @@
 }
 
 .staff-current-user small {
-  color: rgba(255, 255, 255, 0.65);
-  font-size: 10.5px;
+  color: var(--muted);
+  font-size: 10px;
   font-weight: 700;
 }
 
 .staff-current-user strong {
   overflow: hidden;
-  color: #fff;
-  font-size: 12.5px;
+  color: var(--ink);
+  font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -4267,8 +4219,6 @@
 .staff-empty-state button { margin-top: 14px; color: var(--accent); background: var(--accent-bg); border: 1px solid var(--accent-light); }
 
 @media (max-width: 820px) {
-  .staff-hero { align-items: flex-start; flex-direction: column; }
-  .staff-current-user { width: 100%; min-width: 0; }
   .staff-invite-form { grid-template-columns: 1fr 1fr; }
   .staff-email-field { grid-column: 1 / -1; }
   .staff-invite-btn { width: 100%; }

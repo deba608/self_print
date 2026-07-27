@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Loader2, Lock } from "lucide-react";
+import { Loader2, Lock, ShieldCheck } from "lucide-react";
 import { useEffect, useState } from "react";
 import StaffManagement from "./StaffManagement";
 import type { StaffProfile } from "@/lib/types";
@@ -26,8 +26,28 @@ export default function StaffPage() {
       .catch(() => setAuthState("ok"));
   }, []);
 
+  const isSuperAdmin = currentStaff?.role === "super_admin";
+
   return (
-    <AdminManagementNav>
+    <AdminManagementNav
+      title="Staff management"
+      subtitle={
+        isSuperAdmin
+          ? "Invite teammates, assign access, and keep your shop account secure."
+          : "See who currently has access to the shop dashboard."
+      }
+      actions={
+        currentStaff && (
+          <div className="staff-current-user" aria-label={`Signed in as ${currentStaff.email}`}>
+            <span className="staff-current-icon"><ShieldCheck size={16} aria-hidden="true" /></span>
+            <span>
+              <small>Signed in as</small>
+              <strong>{currentStaff.displayName || currentStaff.email}</strong>
+            </span>
+          </div>
+        )
+      }
+    >
       <main className="admin-shell accounts-shell">
         {authState === "checking" ? (
           <div className="staff-page-loading" role="status">

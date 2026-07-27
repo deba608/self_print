@@ -311,25 +311,6 @@ export default function StaffManagement({ currentStaff }: { currentStaff: StaffP
 
   return (
     <div className="staff-page">
-      <header className="staff-hero">
-        <div className="staff-hero-copy">
-          <span className="staff-eyebrow">Access control</span>
-          <h1>Staff management</h1>
-          <p>
-            {isSuperAdmin
-              ? "Invite teammates, assign access, and keep your shop account secure."
-              : "See who currently has access to the shop dashboard."}
-          </p>
-        </div>
-        <div className="staff-current-user" aria-label={`Signed in as ${currentStaff.email}`}>
-          <span className="staff-current-icon"><ShieldCheck size={18} aria-hidden="true" /></span>
-          <span>
-            <small>Signed in as</small>
-            <strong>{currentStaff.displayName || currentStaff.email}</strong>
-          </span>
-        </div>
-      </header>
-
       <section className="staff-summary" aria-label="Staff summary">
         <div className="staff-summary-card">
           <span className="staff-summary-icon total"><Users size={20} aria-hidden="true" /></span>
