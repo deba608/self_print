@@ -22,7 +22,7 @@ The admin panel is **functionally complete** with a rich feature set: real-time 
 | 3.5 | Split monolithic CSS | ⚠️ Partial — 9971→8827 lines |
 | 3.6 | Shared data-fetching | ❌ Not done |
 | 3.7 | Extract UI primitives | ✅ DONE — Button, Card, FormField, Toast all exist |
-| 3.8 | Keyboard shortcuts | ❌ Not done |
+| 3.8 | Keyboard shortcuts | ✅ DONE — R=refresh, 1-6=filters, P=pricing, Esc=close panels |
 | 3.9 | JobDetail mobile tabs | ✅ DONE — pill-shaped with active state |
 | 3.10 | Pagination on management pages | ✅ DONE — cursor-based load more |
 
