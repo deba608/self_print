@@ -164,3 +164,24 @@ export type AccountsSummary = {
   colorJobs: number;
   photoJobs: number;
 };
+
+export type ParsedUA = {
+  browser: string;
+  os: string;
+  device: string;
+};
+
+export type LoginEvent = {
+  id: string;
+  staffId: string | null;
+  email: string;
+  ip: string | null;
+  browser: string | null;
+  os: string | null;
+  device: string | null;
+  city: string | null;
+  country: string | null;
+  success: boolean;
+  failureReason: string | null;
+  loggedAt: string;
+};
