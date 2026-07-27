@@ -9,6 +9,7 @@ import type { Job, PricingConfig as Pricing } from "@/lib/types";
 import { useJobs, useSummary, usePricing, usePrinter, usePrinters, useCurrentStaff } from "@/hooks/useAdmin";
 
 import AdminTopbar from "@/components/admin/AdminTopbar";
+import AdminSidebar from "@/components/admin/AdminSidebar";
 import StatsBar from "@/components/admin/StatsBar";
 import FilterTabs from "@/components/admin/FilterTabs";
 import BatchBar from "@/components/admin/BatchBar";
@@ -371,7 +372,7 @@ export default function AdminDashboard() {
   }, {} as Record<string, number>);
 
   return (
-    <>
+    <div className="admin-layout">
       <AdminTopbar
         printerName={printerName}
         newJobCount={newJobCount}
@@ -386,6 +387,7 @@ export default function AdminDashboard() {
         staffName={staff?.displayName || staff?.email}
         showPricing={showSettings}
       />
+      <AdminSidebar />
       <main className="admin-shell">
 
       {showSettings && pricing && (
@@ -528,6 +530,6 @@ export default function AdminDashboard() {
 
       <ToastStack toasts={toasts} />
       </main>
-    </>
+    </div>
   );
 }
