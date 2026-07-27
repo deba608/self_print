@@ -4014,26 +4014,29 @@
   grid-template-columns: auto 1fr auto auto;
   align-items: center;
   gap: 14px;
-  min-height: 68px;
-  padding: 14px 16px;
+  min-height: 72px;
+  padding: 16px;
 }
 
 .staff-avatar {
-  width: 44px;
-  height: 44px;
+  width: 46px;
+  height: 46px;
   display: grid;
   place-items: center;
   flex-shrink: 0;
-  color: var(--accent-strong);
-  background: var(--accent-light);
-  border: 1.5px solid rgba(13, 122, 116, 0.15);
-  border-radius: 13px;
-  font-size: 14px;
+  color: var(--accent);
+  background: var(--accent-bg);
+  border: none;
+  border-radius: 12px;
+  font-size: 15px;
   font-weight: 700;
 }
 
 .staff-avatar.super_admin,
-.staff-avatar.owner { color: var(--accent-strong); background: var(--accent-light); border-color: rgba(13, 122, 116, 0.2); }
+.staff-avatar.owner {
+  color: #fff;
+  background: var(--accent);
+}
 
 .staff-member-identity { min-width: 0; }
 
@@ -4041,7 +4044,7 @@
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 7px;
+  gap: 8px;
 }
 
 .staff-member-name strong {
@@ -4054,15 +4057,18 @@
 }
 
 .staff-you-badge {
-  padding: 2px 7px;
-  color: var(--accent);
-  background: none;
-  border: 1px solid var(--accent);
-  border-radius: 5px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  color: #fff;
+  background: var(--accent);
+  border-radius: 20px;
   font-size: 10px;
   font-weight: 700;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.02em;
   text-transform: uppercase;
+  line-height: 1;
 }
 
 .staff-member-email {
@@ -4086,16 +4092,22 @@
   align-items: center;
   gap: 5px;
   padding: 4px 10px;
-  color: var(--accent-strong);
-  background: var(--accent-light);
-  border-radius: 7px;
+  color: var(--muted);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 20px;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 600;
   white-space: nowrap;
+  line-height: 1;
 }
 
 .staff-role-badge.super_admin,
-.staff-role-badge.owner { color: var(--accent-strong); background: var(--accent-light); }
+.staff-role-badge.owner {
+  color: var(--accent);
+  background: var(--accent-bg);
+  border-color: rgba(13, 122, 116, 0.15);
+}
 
 .staff-joined-date {
   display: inline-flex;
