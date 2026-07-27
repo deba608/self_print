@@ -11,7 +11,7 @@ export async function geoLookup(ip: string): Promise<GeoResult> {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 1500);
     const res = await fetch(
-      `https://ip-api.com/json/${ip}?fields=status,city,country`,
+      `http://ip-api.com/json/${ip}?fields=status,city,country`,
       { signal: controller.signal }
     );
     clearTimeout(timer);
