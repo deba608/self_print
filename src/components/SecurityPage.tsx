@@ -181,6 +181,6 @@ export default function SecurityPage() {
           </>
         )}
       </main>
-    </div>
+    </AdminManagementNav>
   );
 }

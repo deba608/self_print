@@ -27,8 +27,7 @@ export default function StaffPage() {
   }, []);
 
   return (
-    <div className="management-page-shell">
-      <AdminManagementNav />
+    <AdminManagementNav>
       <main className="admin-shell accounts-shell">
         {authState === "checking" ? (
           <div className="staff-page-loading" role="status">
