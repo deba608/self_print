@@ -377,7 +377,7 @@ export default function AdminDashboard() {
         newJobCount={newJobCount}
         soundOn={soundOn}
         onToggleSound={toggleSound}
-        onRefresh={() => { mutateJobs(); mutateSummary(); }}}
+        onRefresh={() => { mutateJobs(); mutateSummary(); }}
         onOpenPricing={() => { setShowSettings(true); setShowPrinter(false); setShowManageOrders(false); }}
         onOpenPrinter={() => { setShowPrinter(true); setShowSettings(false); setShowManageOrders(false); }}
         onOpenManageOrders={() => { setShowManageOrders(true); setShowSettings(false); setShowPrinter(false); }}
@@ -452,7 +452,7 @@ export default function AdminDashboard() {
             pricePaise: j.pricePaise, createdAt: j.createdAt, file: j.file
           }))}
           onClose={() => setShowManageOrders(false)}
-          onRefresh={() => { mutateJobs(); mutateSummary(); }}}
+          onRefresh={() => { mutateJobs(); mutateSummary(); }}
         />
       )}
 
