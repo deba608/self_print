@@ -10,6 +10,7 @@ import {
   Loader2,
   LogOut,
   Printer,
+  ShieldCheck,
   UsersRound,
   UserRoundCog,
 } from "lucide-react";
@@ -19,6 +20,7 @@ const managementLinks = [
   { href: "/admin/customers", label: "Customers", icon: UsersRound },
   { href: "/admin/accounts", label: "Accounts", icon: BarChart3 },
   { href: "/admin/staff", label: "Staff", icon: UserRoundCog },
+  { href: "/admin/security", label: "Security", icon: ShieldCheck },
 ] as const;
 
 export default function AdminManagementNav() {
