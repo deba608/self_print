@@ -2,8 +2,9 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, Check, Loader2, Truck, X } from "lucide-react";
+import { AlertTriangle, Loader2, Truck, X } from "lucide-react";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
+import { ToastStack, useToasts } from "@/components/ui/Toast";
 import type { StaffProfile, Job, PricingConfig as Pricing, PrinterOption } from "@/lib/types";
 
 import AdminTopbar from "@/components/admin/AdminTopbar";
@@ -45,8 +46,7 @@ export default function AdminDashboard() {
   const [batchLoading, setBatchLoading] = useState(false);
   const [dismissedFailStreak, setDismissedFailStreak] = useState(0);
   const [jobsLoaded, setJobsLoaded] = useState(false);
-  const [toasts, setToasts] = useState<Array<{ id: number; kind: "ok" | "err"; msg: string; leaving?: boolean }>>([]);
-  const toastIdRef = useRef(0);
+  const { toasts, push: pushToast } = useToasts();
   const esRef = useRef<EventSource | null>(null);
 
   // New-job chime + tab-title flash so a busy counter notices uploads (ON by default).
@@ -143,13 +143,6 @@ export default function AdminDashboard() {
     }, 5000);
     return () => clearInterval(iv);
   }, [loggedIn, playChime]);
-
-  const pushToast = useCallback((kind: "ok" | "err", msg: string) => {
-    const id = ++toastIdRef.current;
-    setToasts((prev) => [...prev, { id, kind, msg }]);
-    setTimeout(() => setToasts((prev) => prev.map((t) => t.id === id ? { ...t, leaving: true } : t)), 3200);
-    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 3500);
-  }, []);
 
   const load = useCallback(async () => {
     const response = await fetch("/api/admin/jobs", { credentials: "include" });
@@ -657,16 +650,7 @@ export default function AdminDashboard() {
         onCancel={() => setConfirmAction(null)}
       />
 
-      {toasts.length > 0 && (
-        <div className="toast-stack" role="status" aria-live="polite">
-          {toasts.map((t) => (
-            <div key={t.id} className={`toast ${t.kind} ${t.leaving ? "leaving" : ""}`}>
-              {t.kind === "ok" ? <Check size={16} /> : <X size={16} />}
-              <span>{t.msg}</span>
-            </div>
-          ))}
-        </div>
-      )}
+      <ToastStack toasts={toasts} />
       </main>
     </>
   );
