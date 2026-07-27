@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Loader2, Printer, AlertCircle, ChevronLeft, ExternalLink } from "lucide-react";
+import AdminManagementNav from "@/components/AdminManagementNav";
 
 type JobFile = { id: string; originalName: string; mimeType: string; fileKind: string };
 type JobInfo = {
@@ -140,6 +141,7 @@ export default function ManualPrint({ id }: { id: string }) {
 
   return (
     <main className="admin-shell manual-print-shell">
+      <AdminManagementNav />
       <Link href={`/admin/jobs/${id}`} className="back-link">
         <ChevronLeft size={18} />
         <span>Back to Job</span>
