@@ -13,7 +13,17 @@ import { useSidebarCollapse } from "@/hooks/useSidebarCollapse";
  * hamburger and logout — matches the main dashboard's admin-layout grid so
  * every admin page shares one consistent nav instead of two different ones.
  */
-export default function AdminManagementNav({ children }: { children: ReactNode }) {
+export default function AdminManagementNav({
+  title,
+  subtitle,
+  actions,
+  children,
+}: {
+  title?: string;
+  subtitle?: string;
+  actions?: ReactNode;
+  children: ReactNode;
+}) {
   const router = useRouter();
   const [loggingOut, setLoggingOut] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -47,7 +57,14 @@ export default function AdminManagementNav({ children }: { children: ReactNode }
           >
             <Menu size={20} />
           </button>
+          {title && (
+            <div className="admin-page-title">
+              <h1>{title}</h1>
+              {subtitle && <span>{subtitle}</span>}
+            </div>
+          )}
           <div className="admin-topbar-spacer" />
+          {actions && <div className="admin-topbar-page-actions">{actions}</div>}
           <button type="button" className="management-logout" onClick={logout} disabled={loggingOut}>
             {loggingOut
               ? <Loader2 size={16} className="spin" aria-hidden="true" />
