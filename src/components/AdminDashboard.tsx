@@ -6,12 +6,11 @@ import { AlertTriangle, Loader2, Truck, X } from "lucide-react";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { ToastStack, useToasts } from "@/components/ui/Toast";
 import type { Job, PricingConfig as Pricing } from "@/lib/types";
-import { useJobs, useSummary, usePricing, usePrinter, usePrinters, useCurrentStaff } from "@/hooks/useAdmin";
+import { useJobs, usePricing, usePrinter, usePrinters, useCurrentStaff } from "@/hooks/useAdmin";
 import { useSidebarCollapse } from "@/hooks/useSidebarCollapse";
 
 import AdminTopbar from "@/components/admin/AdminTopbar";
 import AdminSidebar from "@/components/admin/AdminSidebar";
-import StatsBar from "@/components/admin/StatsBar";
 import FilterTabs from "@/components/admin/FilterTabs";
 import BatchBar from "@/components/admin/BatchBar";
 import JobCard from "@/components/admin/JobCard";
@@ -26,7 +25,6 @@ export default function AdminDashboard() {
   // ── SWR data hooks ──────────────────────────────────────────────
   const { data: staff } = useCurrentStaff();
   const { data: jobsData, mutate: mutateJobs } = useJobs();
-  const { data: summary, mutate: mutateSummary } = useSummary();
   const { data: pricing, mutate: mutatePricing } = usePricing();
   const { data: printerConfig, mutate: mutatePrinter } = usePrinter();
   const { data: printersData } = usePrinters();
@@ -142,7 +140,6 @@ export default function AdminDashboard() {
           playChime();
           setUnseen((n) => n + 1);
           mutateJobs();
-          mutateSummary();
         }
       } catch {
         mutateJobs();
@@ -185,7 +182,6 @@ export default function AdminDashboard() {
       } else if (e.key === "r" || e.key === "R") {
         e.preventDefault();
         mutateJobs();
-        mutateSummary();
       } else if (e.key === "p" || e.key === "P") {
         e.preventDefault();
         setShowSettings((v) => !v);
@@ -193,7 +189,7 @@ export default function AdminDashboard() {
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [mutateJobs, mutateSummary, showSettings, showPrinter, showManageOrders, confirmAction, sidebarOpen]);
+  }, [mutateJobs, showSettings, showPrinter, showManageOrders, confirmAction, sidebarOpen]);
 
   // ── Actions ─────────────────────────────────────────────────────
   async function logout() {
@@ -221,7 +217,6 @@ export default function AdminDashboard() {
     if (!response.ok) throw new Error(body.error ?? "Pricing update failed");
     mutatePricing(body);
     mutateJobs();
-    mutateSummary();
   }
 
   async function jobAction(jobId: string, action: string) {
@@ -265,7 +260,6 @@ export default function AdminDashboard() {
         delivered: "Marked delivered",
       };
       pushToast("ok", toastMsg[action] ?? "Job updated");
-      mutateSummary();
     } catch (error) {
       const msg = error instanceof Error ? error.message : "Unable to update this order.";
       setActionError(msg);
@@ -294,7 +288,6 @@ export default function AdminDashboard() {
       const failed = responses.find(({ response }) => !response.ok);
       if (failed) throw new Error(failed.body.error ?? "Unable to update selected orders.");
       mutateJobs();
-      mutateSummary();
       setSelectedJobs(new Set());
     } catch (error) {
       setActionError(error instanceof Error ? error.message : "Unable to update selected orders.");
@@ -344,7 +337,6 @@ export default function AdminDashboard() {
         : methodFilteredJobs.filter((j) => j.status === filterStatus);
   const pending = jobs.filter((j) => !j.paidAt && j.status !== "cancelled");
   const outForDeliveryCount = jobs.filter((j) => j.deliveryStatus === "out_for_delivery").length;
-  const activeJobs = jobs.filter((j) => !["printed", "cancelled", "failed"].includes(j.status));
 
   const recentAttempts = [...jobs]
     .filter((j) => j.status === "printed" || j.status === "failed")
@@ -382,7 +374,7 @@ export default function AdminDashboard() {
         newJobCount={newJobCount}
         soundOn={soundOn}
         onToggleSound={toggleSound}
-        onRefresh={() => { mutateJobs(); mutateSummary(); }}
+        onRefresh={() => { mutateJobs(); }}
         onOpenPricing={() => { setShowSettings(true); setShowPrinter(false); setShowManageOrders(false); }}
         onOpenPrinter={() => { setShowPrinter(true); setShowSettings(false); setShowManageOrders(false); }}
         onOpenManageOrders={() => { setShowManageOrders(true); setShowSettings(false); setShowPrinter(false); }}
@@ -413,7 +405,6 @@ export default function AdminDashboard() {
                   </button>
                 ))}
               </div>
-              <StatsBar activeJobs={activeJobs.length} todayRevenue={summary?.totalPaise ?? 0} />
             </div>
           </>
         }
@@ -457,7 +448,7 @@ export default function AdminDashboard() {
             pricePaise: j.pricePaise, createdAt: j.createdAt, file: j.file
           }))}
           onClose={() => setShowManageOrders(false)}
-          onRefresh={() => { mutateJobs(); mutateSummary(); }}
+          onRefresh={() => { mutateJobs(); }}
         />
       )}
 

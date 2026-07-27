@@ -637,38 +637,7 @@
 }
 .job-issue-flag .job-issue-resolve:hover { background: var(--danger); color: #fff; }
 
-/* === Admin: filter row — Status (left) + Fulfillment (right), one row === */
-.admin-filter-row {
-  display: flex;
-  align-items: flex-start;
-  flex-wrap: wrap;
-  gap: 20px;
-  margin: 0 0 14px;
-}
-.admin-filter-group {
-  margin: 0;
-  min-width: 0;
-}
-/* Status group can shrink and let its own pill row scroll horizontally
-   (.filter-bar already handles that) instead of forcing Fulfillment to
-   wrap before it needs to. */
-.admin-filter-group:not(.admin-filter-group-end) {
-  flex: 1 1 auto;
-}
-/* Fulfillment sits at the row's end, but wraps onto its own line as a whole
-   unit (not split mid-pill) once the row runs out of width. */
-.admin-filter-group-end {
-  margin-left: auto;
-}
-.admin-filter-label {
-  display: block;
-  margin: 0 0 6px 2px;
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
+
 
 /* === Admin: pickup/delivery filter toggle === */
 .delivery-filter-toggle {
