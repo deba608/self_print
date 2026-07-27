@@ -19,7 +19,6 @@ export default function AdminTopbar({
   staffName,
   showPricing,
   onToggleSidebar,
-  filterBar,
 }: {
   printerName: string;
   newJobCount: number;
@@ -34,7 +33,6 @@ export default function AdminTopbar({
   staffName?: string;
   showPricing: boolean;
   onToggleSidebar?: () => void;
-  filterBar?: React.ReactNode;
 }) {
   return (
     <header className="admin-topbar">
@@ -53,12 +51,6 @@ export default function AdminTopbar({
             <span className="brand-tag">Admin</span>
           </div>
         </div>
-
-        {filterBar && (
-          <div className="topbar-filter-bar">
-            {filterBar}
-          </div>
-        )}
 
         <button
           className={`printer-btn ${printerName ? "active" : "empty"}`}
