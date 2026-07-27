@@ -18,7 +18,9 @@ export default function AdminTopbar({
   loggingOut,
   staffName,
   showPricing,
-  onToggleSidebar
+  onToggleSidebar,
+  pageTitle,
+  subbar,
 }: {
   printerName: string;
   newJobCount: number;
@@ -33,113 +35,132 @@ export default function AdminTopbar({
   staffName?: string;
   showPricing: boolean;
   onToggleSidebar?: () => void;
+  /** Optional heading shown in the navbar centre-left, e.g. "Job Queue" */
+  pageTitle?: string;
+  /** Optional JSX rendered as a full-width second row inside the topbar */
+  subbar?: React.ReactNode;
 }) {
   return (
     <header className="admin-topbar">
       <div className="admin-topbar-inner">
-      {onToggleSidebar && (
-        <button type="button" className="sidebar-toggle-btn" onClick={onToggleSidebar} aria-label="Toggle navigation menu">
-          <Menu size={20} />
+        {onToggleSidebar && (
+          <button type="button" className="sidebar-toggle-btn" onClick={onToggleSidebar} aria-label="Toggle navigation menu">
+            <Menu size={20} />
+          </button>
+        )}
+        <div className="topbar-brand">
+          <div className="brand-logo">
+            <Printer size={24} strokeWidth={1.5} />
+          </div>
+          <div className="brand-text">
+            <span className="brand-name">SelfPrint</span>
+            <span className="brand-tag">Admin</span>
+          </div>
+        </div>
+
+        {pageTitle && (
+          <div className="topbar-page-title" aria-current="page">
+            <span className="topbar-page-title-sep" aria-hidden="true">/</span>
+            <span className="topbar-page-title-text">{pageTitle}</span>
+          </div>
+        )}
+
+        <button
+          className={`printer-btn ${printerName ? "active" : "empty"}`}
+          onClick={onOpenPrinter}
+          type="button"
+          aria-label={printerName ? `Selected printer ${printerName}` : "Select printer"}
+        >
+          <Monitor size={18} />
+          <span className="printer-label">{printerName || "Select Printer"}</span>
+          {printerName && <span className="printer-dot"></span>}
+          <ChevronDown size={16} className="chevron" />
         </button>
+
+        <div className="topbar-actions">
+          {/* Group 1 — live monitoring: stay-in-place actions, used constantly. */}
+          <div className="action-group">
+            <button
+              type="button"
+              className={`action-btn notification ${soundOn ? "chime-on" : ""} ${newJobCount > 0 ? "has-new" : ""}`}
+              onClick={() => {
+                if (newJobCount > 0) onRefresh();
+                onToggleSound();
+              }}
+              title={`Notifications: ${newJobCount} new orders. Chime alert is ${soundOn ? "ON" : "OFF"}. Click to ${newJobCount > 0 ? "refresh & " : ""}toggle chime sound.`}
+              aria-label="Notifications and chime alert settings"
+            >
+              {soundOn ? <BellRing size={18} className="bell-ring-icon" /> : <Bell size={18} />}
+              {newJobCount > 0 && (
+                <span className="notif-badge">{newJobCount}</span>
+              )}
+              {soundOn && <span className="chime-dot" title="New-order chime active"></span>}
+            </button>
+
+            <button type="button" className="action-btn" onClick={onRefresh} title="Refresh" aria-label="Refresh jobs">
+              <RefreshCw size={18} />
+            </button>
+
+            <button
+              type="button"
+              className="action-btn"
+              onClick={onOpenManageOrders}
+              title="Cleanup: select and delete old orders"
+              aria-label="Cleanup orders"
+            >
+              <Inbox size={18} />
+            </button>
+          </div>
+
+          <div className="topbar-divider" aria-hidden="true" />
+
+          {/* Group 2 — everything that navigates away to its own full page,
+              collapsed into one labeled menu instead of 4 bare icons that
+              looked identical to the stay-in-place buttons above. */}
+          <div className="action-group">
+            <ManageMenu />
+
+            <button
+              type="button"
+              className={`action-btn action-btn-labeled ${showPricing ? "active" : ""}`}
+              onClick={onOpenPricing}
+              title="Pricing Settings"
+              aria-label="Pricing settings"
+            >
+              <Settings size={18} />
+              <span>Pricing</span>
+            </button>
+          </div>
+
+          <div className="topbar-divider" aria-hidden="true" />
+
+          <div className="action-group">
+            <button
+              type="button"
+              className="action-btn danger logout-action"
+              onClick={onLogout}
+              title={staffName ? `Log out ${staffName}` : "Log out"}
+              aria-label={staffName ? `Log out ${staffName}` : "Log out"}
+              disabled={loggingOut}
+            >
+              {loggingOut ? (
+                <Loader2 size={18} className="spin" aria-hidden="true" />
+              ) : (
+                <LogOut size={18} aria-hidden="true" />
+              )}
+              <span className="logout-label">{loggingOut ? "Signing out..." : "Log out"}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {subbar && (
+        <div className="topbar-subbar">
+          <div className="topbar-subbar-inner">
+            {subbar}
+          </div>
+        </div>
       )}
-      <div className="topbar-brand">
-        <div className="brand-logo">
-          <Printer size={24} strokeWidth={1.5} />
-        </div>
-        <div className="brand-text">
-          <span className="brand-name">SelfPrint</span>
-          <span className="brand-tag">Admin</span>
-        </div>
-      </div>
-
-      <button
-        className={`printer-btn ${printerName ? "active" : "empty"}`}
-        onClick={onOpenPrinter}
-        type="button"
-        aria-label={printerName ? `Selected printer ${printerName}` : "Select printer"}
-      >
-        <Monitor size={18} />
-        <span className="printer-label">{printerName || "Select Printer"}</span>
-        {printerName && <span className="printer-dot"></span>}
-        <ChevronDown size={16} className="chevron" />
-      </button>
-
-      <div className="topbar-actions">
-        {/* Group 1 — live monitoring: stay-in-place actions, used constantly. */}
-        <div className="action-group">
-          <button
-            type="button"
-            className={`action-btn notification ${soundOn ? "chime-on" : ""} ${newJobCount > 0 ? "has-new" : ""}`}
-            onClick={() => {
-              if (newJobCount > 0) onRefresh();
-              onToggleSound();
-            }}
-            title={`Notifications: ${newJobCount} new orders. Chime alert is ${soundOn ? "ON" : "OFF"}. Click to ${newJobCount > 0 ? "refresh & " : ""}toggle chime sound.`}
-            aria-label="Notifications and chime alert settings"
-          >
-            {soundOn ? <BellRing size={18} className="bell-ring-icon" /> : <Bell size={18} />}
-            {newJobCount > 0 && (
-              <span className="notif-badge">{newJobCount}</span>
-            )}
-            {soundOn && <span className="chime-dot" title="New-order chime active"></span>}
-          </button>
-
-          <button type="button" className="action-btn" onClick={onRefresh} title="Refresh" aria-label="Refresh jobs">
-            <RefreshCw size={18} />
-          </button>
-
-          <button
-            type="button"
-            className="action-btn"
-            onClick={onOpenManageOrders}
-            title="Cleanup: select and delete old orders"
-            aria-label="Cleanup orders"
-          >
-            <Inbox size={18} />
-          </button>
-        </div>
-
-        <div className="topbar-divider" aria-hidden="true" />
-
-        {/* Group 2 — everything that navigates away to its own full page,
-            collapsed into one labeled menu instead of 4 bare icons that
-            looked identical to the stay-in-place buttons above. */}
-        <div className="action-group">
-          <ManageMenu />
-
-          <button
-            type="button"
-            className={`action-btn action-btn-labeled ${showPricing ? "active" : ""}`}
-            onClick={onOpenPricing}
-            title="Pricing Settings"
-            aria-label="Pricing settings"
-          >
-            <Settings size={18} />
-            <span>Pricing</span>
-          </button>
-        </div>
-
-        <div className="topbar-divider" aria-hidden="true" />
-
-        <div className="action-group">
-          <button
-            type="button"
-            className="action-btn danger logout-action"
-            onClick={onLogout}
-            title={staffName ? `Log out ${staffName}` : "Log out"}
-            aria-label={staffName ? `Log out ${staffName}` : "Log out"}
-            disabled={loggingOut}
-          >
-            {loggingOut ? (
-              <Loader2 size={18} className="spin" aria-hidden="true" />
-            ) : (
-              <LogOut size={18} aria-hidden="true" />
-            )}
-            <span className="logout-label">{loggingOut ? "Signing out..." : "Log out"}</span>
-          </button>
-        </div>
-      </div>
-      </div>
     </header>
   );
 }
