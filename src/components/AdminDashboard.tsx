@@ -391,6 +391,32 @@ export default function AdminDashboard() {
         staffName={staff?.displayName || staff?.email}
         showPricing={showSettings}
         onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
+        pageTitle="Job Queue"
+        subbar={
+          <>
+            <div className="subbar-group">
+              <span className="subbar-label">Status</span>
+              <FilterTabs filters={statusFilters} activeFilter={filterStatus} counts={counts} onFilterChange={setFilterStatus} />
+            </div>
+            <div className="subbar-group subbar-group-end">
+              <span className="subbar-label">Fulfillment</span>
+              <div className="delivery-filter-toggle" role="group" aria-label="Filter by fulfillment method">
+                {(["all", "pickup", "delivery"] as const).map((f) => (
+                  <button type="button" key={f} className={`delivery-filter-btn ${deliveryFilter === f ? "active" : ""}`}
+                    onClick={() => setDeliveryFilter(f)} aria-pressed={deliveryFilter === f}>
+                    {f === "all" ? "All Orders" : f === "pickup" ? "Pickup" : "Delivery"}
+                    {f === "delivery" && outForDeliveryCount > 0 && (
+                      <span className="delivery-filter-count" title={`${outForDeliveryCount} out for delivery`}>
+                        <Truck size={12} aria-hidden="true" />{outForDeliveryCount}
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+              <StatsBar activeJobs={activeJobs.length} todayRevenue={summary?.totalPaise ?? 0} />
+            </div>
+          </>
+        }
       />
       <AdminSidebar
         open={sidebarOpen}
@@ -448,29 +474,6 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      <div className="admin-filter-row">
-        <div className="admin-filter-group">
-          <span className="admin-filter-label">Status</span>
-          <FilterTabs filters={statusFilters} activeFilter={filterStatus} counts={counts} onFilterChange={setFilterStatus} />
-        </div>
-        <div className="admin-filter-group admin-filter-group-end">
-          <span className="admin-filter-label">Fulfillment</span>
-          <div className="delivery-filter-toggle" role="group" aria-label="Filter by fulfillment method">
-            {(["all", "pickup", "delivery"] as const).map((f) => (
-              <button type="button" key={f} className={`delivery-filter-btn ${deliveryFilter === f ? "active" : ""}`}
-                onClick={() => setDeliveryFilter(f)} aria-pressed={deliveryFilter === f}>
-                {f === "all" ? "All Orders" : f === "pickup" ? "Pickup" : "Delivery"}
-                {f === "delivery" && outForDeliveryCount > 0 && (
-                  <span className="delivery-filter-count" title={`${outForDeliveryCount} out for delivery`}>
-                    <Truck size={12} aria-hidden="true" />{outForDeliveryCount}
-                  </span>
-                )}
-              </button>
-            ))}
-          </div>
-          <StatsBar activeJobs={activeJobs.length} todayRevenue={summary?.totalPaise ?? 0} />
-        </div>
-      </div>
 
       {pending.length > 0 && (
         <BatchBar selectedCount={selectedJobs.size} totalUnpaid={pending.length}
