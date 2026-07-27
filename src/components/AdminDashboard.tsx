@@ -42,6 +42,7 @@ export default function AdminDashboard() {
   const [showSettings, setShowSettings] = useState(false);
   const [showPrinter, setShowPrinter] = useState(false);
   const [showManageOrders, setShowManageOrders] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [newJobCount, setNewJobCount] = useState(0);
   const [selectedJobs, setSelectedJobs] = useState<Set<string>>(new Set());
   const [filterStatus, setFilterStatus] = useState("all");
@@ -386,8 +387,9 @@ export default function AdminDashboard() {
         loggingOut={loggingOut}
         staffName={staff?.displayName || staff?.email}
         showPricing={showSettings}
+        onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
       />
-      <AdminSidebar />
+      <AdminSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <main className="admin-shell">
 
       {showSettings && pricing && (

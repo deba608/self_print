@@ -4789,6 +4789,14 @@
     min-height: 100dvh;
   }
 
+  .sidebar-toggle-btn {
+    display: none;
+  }
+
+  .sidebar-close-btn {
+    display: none;
+  }
+
   .admin-sidebar {
     grid-area: sidebar;
     display: flex;
@@ -4871,6 +4879,12 @@
 
   /* Hide ManageMenu dropdown on desktop — sidebar replaces it */
   .manage-menu {
+    display: none;
+  }
+
+  /* Hide topbar's own brand mark on desktop — the sidebar already
+     establishes brand identity, so showing it twice was redundant. */
+  .topbar-brand {
     display: none;
   }
 }
