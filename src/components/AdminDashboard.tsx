@@ -448,8 +448,6 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      <StatsBar activeJobs={activeJobs.length} todayRevenue={summary?.totalPaise ?? 0} />
-
       <div className="admin-filter-row">
         <div className="admin-filter-group">
           <span className="admin-filter-label">Status</span>
@@ -470,6 +468,7 @@ export default function AdminDashboard() {
               </button>
             ))}
           </div>
+          <StatsBar activeJobs={activeJobs.length} todayRevenue={summary?.totalPaise ?? 0} />
         </div>
       </div>
 
