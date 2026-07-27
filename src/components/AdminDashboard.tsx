@@ -11,7 +11,6 @@ import { useSidebarCollapse } from "@/hooks/useSidebarCollapse";
 
 import AdminTopbar from "@/components/admin/AdminTopbar";
 import AdminSidebar from "@/components/admin/AdminSidebar";
-import StatsBar from "@/components/admin/StatsBar";
 import FilterTabs from "@/components/admin/FilterTabs";
 import BatchBar from "@/components/admin/BatchBar";
 import JobCard from "@/components/admin/JobCard";
@@ -339,7 +338,6 @@ export default function AdminDashboard() {
         : methodFilteredJobs.filter((j) => j.status === filterStatus);
   const pending = jobs.filter((j) => !j.paidAt && j.status !== "cancelled");
   const outForDeliveryCount = jobs.filter((j) => j.deliveryStatus === "out_for_delivery").length;
-  const activeJobs = jobs.filter((j) => j.status !== "cancelled" && j.status !== "printed");
 
   const recentAttempts = [...jobs]
     .filter((j) => j.status === "printed" || j.status === "failed")
@@ -443,8 +441,6 @@ export default function AdminDashboard() {
         </div>
       )}
 
-
-      <StatsBar activeJobs={activeJobs.length} todayRevenue={summary?.totalPaise ?? 0} />
 
       <div className="admin-filter-row">
         <div className="admin-filter-group">
