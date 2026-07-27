@@ -2902,7 +2902,21 @@
 
   .admin-topbar-inner {
     width: calc(100% - 28px);
-    padding: 12px 0;
+    padding: 10px 0;
+  }
+
+  .topbar-subbar-inner {
+    width: calc(100% - 28px);
+    gap: 10px;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .topbar-subbar-inner::-webkit-scrollbar { display: none; }
+
+  .subbar-group-end {
+    margin-left: 0;
   }
 
   .topbar-brand .brand-text {

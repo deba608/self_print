@@ -405,6 +405,7 @@ export default function AdminDashboard() {
                   </button>
                 ))}
               </div>
+              <StatsBar activeJobs={activeJobs.length} todayRevenue={summary?.totalPaise ?? 0} />
             </div>
           </>
         }

@@ -32,18 +32,6 @@ export function useJobs(opts?: SWRConfiguration<JobsResponse>) {
   });
 }
 
-// ─── Summary (active jobs + revenue) ───────────────────────────────
-
-export type SummaryResponse = { jobs: number; totalPaise: number };
-
-export function useSummary(opts?: SWRConfiguration<SummaryResponse>) {
-  return useSWR<SummaryResponse>("/api/admin/summary", fetcher, {
-    refreshInterval: 5000,
-    revalidateOnFocus: true,
-    ...opts,
-  });
-}
-
 // ─── Pricing config ────────────────────────────────────────────────
 
 export function usePricing(opts?: SWRConfiguration<PricingConfig>) {
