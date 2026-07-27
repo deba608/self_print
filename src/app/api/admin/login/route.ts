@@ -41,7 +41,20 @@ async function logLoginEvent(payload: EventPayload): Promise<void> {
       .select("id")
       .single();
 
-    if (insertError || !inserted || !payload.staffId) return;
+    if (insertError || !inserted) return;
+
+    if (!payload.staffId) {
+      // Trim null-staffId (unknown email) failure rows older than 30 days
+      await admin
+        .from("admin_login_events")
+        .delete()
+        .is("staff_id", null)
+        .lt(
+          "logged_at",
+          new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+        );
+      return;
+    }
 
     // Trim to 50 most-recent rows for this staff member
     const { data: toKeep } = await admin
@@ -94,7 +107,7 @@ export async function POST(request: NextRequest) {
   });
 
   if (error || !data.user) {
-    void logLoginEvent({
+    await logLoginEvent({
       staffId: null,
       email,
       ip,
@@ -119,7 +132,7 @@ export async function POST(request: NextRequest) {
 
   if (profileError || !profile) {
     await supabase.auth.signOut();
-    void logLoginEvent({
+    await logLoginEvent({
       staffId: data.user.id,
       email,
       ip,
@@ -136,7 +149,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  void logLoginEvent({
+  await logLoginEvent({
     staffId: data.user.id,
     email,
     ip,
