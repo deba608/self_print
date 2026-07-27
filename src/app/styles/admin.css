@@ -4057,18 +4057,10 @@
 }
 
 .staff-you-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 3px 8px;
-  color: #fff;
-  background: var(--accent);
-  border-radius: 20px;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  line-height: 1;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+  font-style: italic;
 }
 
 .staff-member-email {
