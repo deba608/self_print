@@ -135,8 +135,8 @@
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: 12px 0;
-  flex-wrap: wrap;
+  padding: 10px 0;
+  flex-wrap: nowrap;
 }
 
 .topbar-brand {
