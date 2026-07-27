@@ -7,6 +7,7 @@ import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { ToastStack, useToasts } from "@/components/ui/Toast";
 import type { Job, PricingConfig as Pricing } from "@/lib/types";
 import { useJobs, useSummary, usePricing, usePrinter, usePrinters, useCurrentStaff } from "@/hooks/useAdmin";
+import { useSidebarCollapse } from "@/hooks/useSidebarCollapse";
 
 import AdminTopbar from "@/components/admin/AdminTopbar";
 import AdminSidebar from "@/components/admin/AdminSidebar";
@@ -43,6 +44,7 @@ export default function AdminDashboard() {
   const [showPrinter, setShowPrinter] = useState(false);
   const [showManageOrders, setShowManageOrders] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { collapsed: sidebarCollapsed, toggle: toggleSidebarCollapse } = useSidebarCollapse();
   const [newJobCount, setNewJobCount] = useState(0);
   const [selectedJobs, setSelectedJobs] = useState<Set<string>>(new Set());
   const [filterStatus, setFilterStatus] = useState("all");
@@ -374,7 +376,7 @@ export default function AdminDashboard() {
   }, {} as Record<string, number>);
 
   return (
-    <div className="admin-layout">
+    <div className={`admin-layout${sidebarCollapsed ? " sidebar-collapsed" : ""}`}>
       <AdminTopbar
         printerName={printerName}
         newJobCount={newJobCount}
@@ -390,7 +392,12 @@ export default function AdminDashboard() {
         showPricing={showSettings}
         onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
       />
-      <AdminSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <AdminSidebar
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        collapsed={sidebarCollapsed}
+        onToggleCollapse={toggleSidebarCollapse}
+      />
       <main className="admin-shell">
 
       {showSettings && pricing && (
