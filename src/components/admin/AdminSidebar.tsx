@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { X } from "lucide-react";
+import { ChevronsLeft, ChevronsRight, X } from "lucide-react";
 import {
   BarChart2,
   LayoutDashboard,
@@ -22,13 +22,26 @@ const navItems = [
   { href: "/admin/security", icon: ShieldCheck, label: "Security" },
 ];
 
-export default function AdminSidebar({ open, onClose }: { open?: boolean; onClose?: () => void }) {
+export default function AdminSidebar({
+  open,
+  onClose,
+  collapsed,
+  onToggleCollapse,
+}: {
+  open?: boolean;
+  onClose?: () => void;
+  collapsed?: boolean;
+  onToggleCollapse?: () => void;
+}) {
   const pathname = usePathname();
 
   return (
     <>
       {open && <div className="sidebar-overlay" onClick={onClose} aria-hidden="true" />}
-      <aside className={`admin-sidebar ${open ? "mobile-open" : ""}`} aria-label="Admin navigation">
+      <aside
+        className={`admin-sidebar ${open ? "mobile-open" : ""} ${collapsed ? "collapsed" : ""}`}
+        aria-label="Admin navigation"
+      >
         <div className="sidebar-brand">
           <Printer size={20} strokeWidth={1.5} />
           <span>SelfPrint</span>
@@ -45,6 +58,7 @@ export default function AdminSidebar({ open, onClose }: { open?: boolean; onClos
                 href={href}
                 className={`sidebar-link ${active ? "active" : ""}`}
                 aria-current={active ? "page" : undefined}
+                title={collapsed ? label : undefined}
                 onClick={onClose}
               >
                 <Icon size={18} aria-hidden="true" />
@@ -53,6 +67,18 @@ export default function AdminSidebar({ open, onClose }: { open?: boolean; onClos
             );
           })}
         </nav>
+        {onToggleCollapse && (
+          <button
+            type="button"
+            className="sidebar-collapse-btn"
+            onClick={onToggleCollapse}
+            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            {collapsed ? <ChevronsRight size={17} /> : <ChevronsLeft size={17} />}
+            <span>Collapse</span>
+          </button>
+        )}
       </aside>
     </>
   );
