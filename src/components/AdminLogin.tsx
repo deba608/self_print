@@ -76,8 +76,6 @@ export default function AdminLogin() {
         <AuthSubmit loading={loading} loadingLabel="Signing in..." label="Log in" />
         <p className="login-footer">
           <Link href="/forgot-password?from=admin">Forgot password?</Link>
-          <span style={{ margin: "0 6px", color: "var(--muted)" }}>·</span>
-          <Link href="/admin/setup">First time? Set up admin</Link>
         </p>
       </form>
     </AuthShell>
