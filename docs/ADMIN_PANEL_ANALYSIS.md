@@ -227,10 +227,10 @@ Reference: `docs/UI_UX_PLAN.md`
 | 7 | Add keyboard shortcuts | 1 | ✅ Done |
 | 8 | Add pagination to management pages | 1 | ✅ Done |
 | 9 | Polish JobDetail mobile tabs | 0.5 | ✅ Done |
-| 10 | Accessibility audit + fixes | 1 | ❌ Pending |
+| 10 | Accessibility audit + fixes | 1 | ✅ Done |
 | 11 | Split monolithic CSS (incremental) | 2–3 | ⚠️ Partial |
 
-**Completed:** 8/11 | **Remaining:** 3 (3.5 CSS split, 3.6 data-fetching, 3.10 a11y audit)
+**Completed:** 9/11 | **Remaining:** 2 (3.5 CSS split, 3.6 data-fetching)
 
 ---
 
