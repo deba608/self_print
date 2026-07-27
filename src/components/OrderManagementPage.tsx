@@ -18,6 +18,7 @@ import {
   WalletCards,
 } from "lucide-react";
 import AdminManagementNav from "./AdminManagementNav";
+import ManagementSkeleton from "./ui/ManagementSkeleton";
 import type { Job } from "@/lib/types";
 
 type FulfilmentFilter = "all" | "pickup" | "delivery";
