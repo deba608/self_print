@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { paperSizeLabels } from "@/lib/pricing";
 import { manualPrint } from "@/lib/manualPrint";
+import AdminManagementNav from "@/components/AdminManagementNav";
 
 type Detail = {
   job: {
@@ -205,6 +206,7 @@ export default function JobDetail({ id }: { id: string }) {
 
   return (
     <main className="admin-shell job-detail-shell">
+      <AdminManagementNav />
       {/* Back navigation */}
       <Link href="/admin" className="back-link">
         <ChevronLeft size={18} />
