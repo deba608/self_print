@@ -390,7 +390,7 @@ export default function StaffManagement({ currentStaff }: { currentStaff: StaffP
                     <div className="staff-member-identity">
                       <div className="staff-member-name">
                         <strong>{member.displayName || member.email.split("@")[0]}</strong>
-                        {isCurrentUser && <span className="staff-you-badge">You</span>}
+                        {isCurrentUser && <span className="staff-you-badge">(You)</span>}
                         <span className={`staff-role-badge ${member.role}`}>
                           {member.role === "super_admin" ? "Owner" : "Admin"}
                         </span>
