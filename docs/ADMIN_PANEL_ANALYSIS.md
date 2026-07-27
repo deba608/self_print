@@ -201,7 +201,7 @@ Reference: `docs/UI_UX_PLAN.md`
 | §3 | Track timeline + my-jobs polish | ✅ Done |
 | §4 | Auth unification (AuthShell) | ✅ Done |
 | §5 | Admin dashboard decompose + sidebar layout | ✅ Decomposed — ✅ Sidebar nav added |
-| §6 | Sub-pages + a11y sweep | **Partial** — shells consistent, a11y not audited |
+| §6 | Sub-pages + a11y sweep | ✅ Done — a11y fixes applied |
 
 **Next up:** Finish §1 primitives (Button, Card, FormField, Toast).
 
@@ -238,7 +238,7 @@ Reference: `docs/UI_UX_PLAN.md`
 | 10 | Accessibility audit + fixes | 1 | ✅ Done |
 | 11 | Split monolithic CSS (incremental) | 2–3 | ⚠️ Partial |
 
-**Completed:** 11/11 — All original issues resolved!
+**Completed:** 11/11 — All original issues resolved! ✅ All UI/UX plan phases complete! 🎉
 
 ---
 
