@@ -12,7 +12,7 @@ import type { Job } from "@/lib/types";
 
 export default function JobCard({
   job,
-  isSelected,
+  selectionIndex,
   index,
   onToggleSelect,
   onAction,
@@ -21,7 +21,7 @@ export default function JobCard({
   onNotify
 }: {
   job: Job;
-  isSelected: boolean;
+  selectionIndex: number;   // 0 = not selected; 1+ = print order position
   index: number;
   onToggleSelect: () => void;
   onAction: (action: string) => void;
@@ -29,6 +29,7 @@ export default function JobCard({
   actionLoading: boolean;
   onNotify: (kind: "ok" | "err", msg: string) => void;
 }) {
+  const isSelected = selectionIndex > 0;
   // Print-progress status only — payment is tracked separately via job.paidAt
   // (see the paid pill below) so a job can be released/printed before it's paid.
   // Variant mapping follows docs/UI_UX_PLAN.md §1.2.
@@ -79,11 +80,11 @@ export default function JobCard({
         <button
           className={`job-checkbox ${isSelected ? "selected" : ""}`}
           onClick={(e) => { e.stopPropagation(); onToggleSelect(); }}
-          aria-label={isSelected ? "Deselect job" : "Select job"}
+          aria-label={isSelected ? `Deselect job (position ${selectionIndex})` : "Select job for batch action"}
           type="button"
         >
-          <span className={`checkbox-circle ${isSelected ? "checked" : ""}`}>
-            {isSelected && <Check size={15} strokeWidth={3.5} />}
+          <span className={`checkbox-circle ${isSelected ? "checked numbered" : ""}`}>
+            {isSelected ? selectionIndex : null}
           </span>
         </button>
       )}
