@@ -161,10 +161,8 @@ runtime by the `/api/pricing` route:
 
 ## Known edge cases
 
-- `even` page range on a 1-page document returns 0 from `floor(1/2)` — the
-  minimum-1 guard in `selectedPageCount` does **not** apply to the `even`/`odd`
-  early-return path. Customer would be charged for 0 pages (₹0). Low real-world
-  risk since 1-page docs are rarely printed double-sided.
+- `even` page range on a 1-page document: `floor(1/2) = 0` is clamped to 1
+  so the customer is charged for at least 1 page.
 - `copyMultiplier` name is misleading — it is a global price multiplier, not a
   per-copy rate. Leaving it at 1.0 (the default) makes it a no-op.
 - Letter paper silently uses `a4Multiplier`. There is no separate Letter rate.
