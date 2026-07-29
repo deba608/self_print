@@ -68,7 +68,7 @@ export default function AdminTopbar({
           <div className="action-group">
             <button
               type="button"
-              className={`action-btn notification ${soundOn ? "chime-on" : ""} ${newJobCount > 0 ? "has-new" : ""}`}
+              className={`action-btn action-btn-labeled notification ${soundOn ? "chime-on" : ""} ${newJobCount > 0 ? "has-new" : ""}`}
               onClick={() => {
                 if (newJobCount > 0) onRefresh();
                 onToggleSound();
@@ -81,20 +81,23 @@ export default function AdminTopbar({
                 <span className="notif-badge">{newJobCount}</span>
               )}
               {soundOn && <span className="chime-dot" title="New-order chime active"></span>}
+              <span>Alerts</span>
             </button>
 
-            <button type="button" className="action-btn" onClick={onRefresh} title="Refresh" aria-label="Refresh jobs">
+            <button type="button" className="action-btn action-btn-labeled" onClick={onRefresh} title="Refresh" aria-label="Refresh jobs">
               <RefreshCw size={18} />
+              <span>Refresh</span>
             </button>
 
             <button
               type="button"
-              className="action-btn"
+              className="action-btn action-btn-labeled"
               onClick={onOpenManageOrders}
               title="Cleanup: select and delete old orders"
               aria-label="Cleanup orders"
             >
               <Inbox size={18} />
+              <span>Orders</span>
             </button>
           </div>
 
