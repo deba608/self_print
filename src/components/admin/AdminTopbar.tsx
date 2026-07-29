@@ -97,7 +97,7 @@ export default function AdminTopbar({
               aria-label="Cleanup orders"
             >
               <Inbox size={18} />
-              <span>Orders</span>
+              <span>Manage Orders</span>
             </button>
           </div>
 
