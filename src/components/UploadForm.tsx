@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, useRef } from "react";
 import { UploadCloud, FileText, Image, ArrowLeft, ArrowRight, Check, Eye, Loader2, File, Settings2, Maximize2, Minimize2, Printer, Smartphone, Copy, Store, X, Search, CreditCard, RefreshCw, Info, Truck, MapPin, Navigation } from "lucide-react";
 import { formatRupees, paperSizeLabels, allPaperSizes } from "@/lib/pricing";
+import { estimatePdfPages } from "@/lib/pdf-pages";
 import BillReceipt, { type BillData } from "./BillReceipt";
 import { QRCodeSVG } from "qrcode.react";
 
@@ -2789,13 +2790,3 @@ function estimateRange(value: string) {
   return Math.max(pages.size, 1);
 }
 
-async function estimatePdfPages(file: File) {
-  try {
-    const bytes = await file.arrayBuffer();
-    const text = new TextDecoder("latin1").decode(bytes);
-    const matches = text.match(/\/Type\s*\/Page\b/g);
-    return Math.max(matches?.length ?? 1, 1);
-  } catch {
-    return 1;
-  }
-}

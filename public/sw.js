@@ -1,7 +1,7 @@
 // Minimal offline shell — no attempt to cache job/pricing data (that must
 // always be fresh). Only static, rarely-changing assets are cached so a
 // dropped connection shows the branded offline page instead of Chrome's.
-const CACHE = "selfprint-shell-v1";
+const CACHE = "selfprint-shell-v2";
 const SHELL_URLS = ["/offline.html", "/web-app-manifest-192x192.png"];
 
 self.addEventListener("install", (event) => {
@@ -34,20 +34,26 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Static assets (icons, css, js chunks): cache-first, and stash fresh
-  // fetches as they come in so a later offline visit has more to serve.
+  // Only truly immutable assets are cache-first: Next.js build output under
+  // /_next/static/ (content-hashed filenames) and the small offline shell.
+  // Everything else — RSC payloads, Link prefetches, any dynamic GET — must
+  // hit the network untouched. The old catch-all cache-first here served
+  // stale RSC/page data from previous deploys until a hard refresh, which
+  // showed up as an intermittently broken/unresponsive UI.
+  const isImmutable =
+    url.pathname.startsWith("/_next/static/") || SHELL_URLS.includes(url.pathname);
+  if (!isImmutable) return;
+
   event.respondWith(
     caches.match(request).then((cached) => {
       if (cached) return cached;
-      return fetch(request)
-        .then((response) => {
-          if (response.ok) {
-            const copy = response.clone();
-            caches.open(CACHE).then((cache) => cache.put(request, copy));
-          }
-          return response;
-        })
-        .catch(() => cached);
+      return fetch(request).then((response) => {
+        if (response.ok) {
+          const copy = response.clone();
+          caches.open(CACHE).then((cache) => cache.put(request, copy));
+        }
+        return response;
+      });
     })
   );
 });
