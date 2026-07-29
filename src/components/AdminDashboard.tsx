@@ -45,7 +45,8 @@ export default function AdminDashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { collapsed: sidebarCollapsed, toggle: toggleSidebarCollapse } = useSidebarCollapse();
   const [newJobCount, setNewJobCount] = useState(0);
-  const [selectedJobs, setSelectedJobs] = useState<Set<string>>(new Set());
+  const [selectedJobs, setSelectedJobs] = useState<string[]>([]);
+  const [batchReleaseLoading, setBatchReleaseLoading] = useState(false);
   const [filterStatus, setFilterStatus] = useState("all");
   const [deliveryFilter, setDeliveryFilter] = useState<"all" | "pickup" | "delivery">("all");
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -270,13 +271,12 @@ export default function AdminDashboard() {
     }
   }
 
-  async function batchAction() {
-    const ids = Array.from(selectedJobs);
-    if (ids.length === 0) return;
+  async function batchPaid() {
+    if (selectedJobs.length === 0) return;
     setBatchLoading(true);
     setActionError("");
     try {
-      const responses = await Promise.all(ids.map(async (id) => {
+      const responses = await Promise.all(selectedJobs.map(async (id) => {
         const response = await fetch(`/api/admin/jobs/${id}/status`, {
           method: "POST", credentials: "include",
           headers: { "Content-Type": "application/json" },
@@ -289,11 +289,40 @@ export default function AdminDashboard() {
       const failed = responses.find(({ response }) => !response.ok);
       if (failed) throw new Error(failed.body.error ?? "Unable to update selected orders.");
       mutateJobs();
-      setSelectedJobs(new Set());
+      setSelectedJobs([]);
     } catch (error) {
       setActionError(error instanceof Error ? error.message : "Unable to update selected orders.");
     } finally {
       setBatchLoading(false);
+    }
+  }
+
+  // Releases jobs to the print queue one-by-one in the exact order the admin
+  // tapped them. Sequential awaits ensure the agent picks them up in order.
+  async function batchRelease() {
+    if (selectedJobs.length === 0) return;
+    setBatchReleaseLoading(true);
+    setActionError("");
+    try {
+      for (const id of selectedJobs) {
+        const response = await fetch(`/api/admin/jobs/${id}/status`, {
+          method: "POST", credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: "approved" })
+        });
+        if (response.status === 401) { router.push("/admin"); return; }
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(body.error ?? "Unable to release one or more jobs.");
+      }
+      mutateJobs();
+      setSelectedJobs([]);
+      pushToast("ok", `${selectedJobs.length} job${selectedJobs.length > 1 ? "s" : ""} released to print queue`);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : "Unable to release selected orders.";
+      setActionError(msg);
+      pushToast("err", msg);
+    } finally {
+      setBatchReleaseLoading(false);
     }
   }
 
@@ -314,15 +343,16 @@ export default function AdminDashboard() {
   }
 
   function toggleSelect(id: string) {
-    const next = new Set(selectedJobs);
-    if (next.has(id)) next.delete(id); else next.add(id);
-    setSelectedJobs(next);
+    setSelectedJobs((prev) => {
+      if (prev.includes(id)) return prev.filter((x) => x !== id);
+      return [...prev, id];
+    });
   }
 
   function selectAll() {
-    const unpaid = filteredJobs.filter((j) => !j.paidAt && j.status !== "cancelled").map((j) => j.id);
-    const allSelected = selectedJobs.size === unpaid.length && unpaid.length > 0;
-    setSelectedJobs(allSelected ? new Set() : new Set(unpaid));
+    const eligible = filteredJobs.filter((j) => !j.paidAt && j.status !== "cancelled").map((j) => j.id);
+    const allSelected = selectedJobs.length === eligible.length && eligible.length > 0;
+    setSelectedJobs(allSelected ? [] : eligible);
   }
 
   // ── Derived data ────────────────────────────────────────────────
@@ -466,9 +496,16 @@ export default function AdminDashboard() {
       </div>
 
       {pending.length > 0 && (
-        <BatchBar selectedCount={selectedJobs.size} totalUnpaid={pending.length}
-          onSelectAll={selectAll} onBatchPaid={batchAction}
-          onClear={() => setSelectedJobs(new Set())} loading={batchLoading} />
+        <BatchBar
+          selectedCount={selectedJobs.length}
+          totalUnpaid={pending.length}
+          onSelectAll={selectAll}
+          onBatchPaid={batchPaid}
+          onBatchRelease={batchRelease}
+          onClear={() => setSelectedJobs([])}
+          loading={batchLoading}
+          releaseLoading={batchReleaseLoading}
+        />
       )}
 
       {actionError && (
@@ -491,7 +528,11 @@ export default function AdminDashboard() {
       ) : (
         <div className="job-list">
           {filteredJobs.map((job, index) => (
-            <JobCard key={job.id} job={job} isSelected={selectedJobs.has(job.id)} index={index}
+            <JobCard
+              key={job.id}
+              job={job}
+              selectionIndex={selectedJobs.indexOf(job.id) + 1}
+              index={index}
               onToggleSelect={() => toggleSelect(job.id)}
               onAction={(action) => action === "cancelled" || action === "delivered"
                 ? setConfirmAction({ action, jobId: job.id })
