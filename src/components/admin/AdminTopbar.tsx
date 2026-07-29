@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  Bell, BellRing, ChevronDown, Inbox, LogOut, Loader2, Menu, Monitor, Printer, RefreshCw, Settings,
+  Bell, BellRing, ChevronDown, LogOut, Loader2, Menu, Monitor, Printer, RefreshCw, Settings,
 } from "lucide-react";
 import ManageMenu from "./ManageMenu";
 
@@ -13,7 +13,6 @@ export default function AdminTopbar({
   onRefresh,
   onOpenPricing,
   onOpenPrinter,
-  onOpenManageOrders,
   onLogout,
   loggingOut,
   staffName,
@@ -27,7 +26,6 @@ export default function AdminTopbar({
   onRefresh: () => void;
   onOpenPricing: () => void;
   onOpenPrinter: () => void;
-  onOpenManageOrders: () => void;
   onLogout: () => Promise<void>;
   loggingOut: boolean;
   staffName?: string;
@@ -89,21 +87,7 @@ export default function AdminTopbar({
               <span>Refresh</span>
             </button>
 
-            <button
-              type="button"
-              className="action-btn action-btn-labeled"
-              onClick={onOpenManageOrders}
-              title="Cleanup: select and delete old orders"
-              aria-label="Cleanup orders"
-            >
-              <Inbox size={18} />
-              <span>Manage Orders</span>
-            </button>
-          </div>
 
-          <div className="topbar-divider" aria-hidden="true" />
-
-          <div className="action-group">
             <ManageMenu />
 
             <button
