@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   CalendarDays,
+  Check,
   Download,
   Lock,
   Mail,
@@ -27,6 +28,7 @@ export default function CustomerManagementPage() {
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
   const [kind, setKind] = useState<"all" | "registered" | "guest">("all");
+  const [exported, setExported] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -115,15 +117,19 @@ export default function CustomerManagementPage() {
       escapeCsvField(c.lastOrderAt ? new Date(c.lastOrderAt).toLocaleDateString() : "")
     ].join(","));
 
-    const csvContent = "data:text/csv;charset=utf-8,\uFEFF" + [headers.join(","), ...rows].join("\n");
-    const encodedUri = encodeURI(csvContent);
+    const csvContent = "\uFEFF" + [headers.join(","), ...rows].join("\r\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
+    link.href = url;
     const dateStr = new Date().toISOString().slice(0, 10);
-    link.setAttribute("download", `customers_export_${dateStr}.csv`);
+    link.download = `customers_export_${dateStr}.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    setExported(true);
+    window.setTimeout(() => setExported(false), 2000);
   }, [filteredCustomers]);
 
   return (
@@ -134,13 +140,13 @@ export default function CustomerManagementPage() {
         <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
           <button
             type="button"
-            className="management-refresh"
+            className={`management-refresh management-export${exported ? " exported" : ""}`}
             onClick={exportToCsv}
             disabled={loading || filteredCustomers.length === 0}
             title="Export current view to CSV"
           >
-            <Download size={16} aria-hidden="true" />
-            Export CSV
+            {exported ? <Check size={16} aria-hidden="true" /> : <Download size={16} aria-hidden="true" />}
+            {exported ? "Exported" : "Export CSV"}
           </button>
           <button type="button" className="management-refresh" onClick={load} disabled={loading}>
             <RefreshCw size={16} className={loading ? "spin" : ""} aria-hidden="true" />
