@@ -17,7 +17,7 @@ export function selectedPageCount(pageCount: number, pageRange: string | null) {
   // otherwise the final charge differs from the price shown to the customer.
   const normalized = pageRange.trim().toLowerCase();
   const total = Math.max(pageCount, 1);
-  if (normalized === "even") return Math.floor(total / 2);
+  if (normalized === "even") return Math.max(Math.floor(total / 2), 1);
   if (normalized === "odd") return Math.ceil(total / 2);
   const pages = new Set<number>();
   for (const part of pageRange.split(",")) {
