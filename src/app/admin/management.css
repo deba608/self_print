@@ -160,6 +160,19 @@
 .management-refresh:hover:not(:disabled) { background: rgba(255, 255, 255, 0.2); }
 .management-refresh:disabled { cursor: wait; opacity: 0.7; }
 
+.management-export {
+  min-height: 36px;
+  color: #fff;
+  background: var(--accent);
+  border-color: var(--accent);
+  box-shadow: var(--shadow-accent);
+  transition: background 0.18s ease, border-color 0.18s ease, transform 0.12s ease;
+}
+.management-export:hover:not(:disabled) { background: var(--accent-strong); border-color: var(--accent-strong); }
+.management-export:active:not(:disabled) { transform: translateY(1px); }
+.management-export:disabled { background: var(--line); border-color: var(--line); color: var(--muted); cursor: not-allowed; opacity: 1; box-shadow: none; }
+.management-export.exported { background: var(--accent-strong); border-color: var(--accent-strong); }
+
 .management-kpis {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
