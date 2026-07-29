@@ -47,6 +47,7 @@ export default function AdminDashboard() {
   const [newJobCount, setNewJobCount] = useState(0);
   const [selectedJobs, setSelectedJobs] = useState<string[]>([]);
   const [batchReleaseLoading, setBatchReleaseLoading] = useState(false);
+  const [batchDeleteLoading, setBatchDeleteLoading] = useState(false);
   const [filterStatus, setFilterStatus] = useState("all");
   const [deliveryFilter, setDeliveryFilter] = useState<"all" | "pickup" | "delivery">("all");
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -326,6 +327,32 @@ export default function AdminDashboard() {
     }
   }
 
+  async function batchDelete() {
+    if (selectedJobs.length === 0) return;
+    setBatchDeleteLoading(true);
+    setActionError("");
+    try {
+      const response = await fetch("/api/admin/jobs/bulk-delete", {
+        method: "POST", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: selectedJobs })
+      });
+      if (response.status === 401) { router.push("/admin"); return; }
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.error ?? "Unable to delete selected orders.");
+      mutateJobs();
+      mutateSummary();
+      setSelectedJobs([]);
+      pushToast("ok", `${body.deleted ?? selectedJobs.length} job${(body.deleted ?? selectedJobs.length) > 1 ? "s" : ""} deleted`);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : "Unable to delete selected orders.";
+      setActionError(msg);
+      pushToast("err", msg);
+    } finally {
+      setBatchDeleteLoading(false);
+    }
+  }
+
   async function loadMore() {
     if (!hasMore || loadingMore || !cursor) return;
     setLoadingMore(true);
@@ -350,7 +377,7 @@ export default function AdminDashboard() {
   }
 
   function selectAll() {
-    const eligible = filteredJobs.filter((j) => !j.paidAt && j.status !== "cancelled").map((j) => j.id);
+    const eligible = filteredJobs.map((j) => j.id);
     const allSelected = selectedJobs.length === eligible.length && eligible.length > 0;
     setSelectedJobs(allSelected ? [] : eligible);
   }
@@ -406,9 +433,8 @@ export default function AdminDashboard() {
         soundOn={soundOn}
         onToggleSound={toggleSound}
         onRefresh={() => { mutateJobs(); }}
-        onOpenPricing={() => { setShowSettings(true); setShowPrinter(false); setShowManageOrders(false); }}
-        onOpenPrinter={() => { setShowPrinter(true); setShowSettings(false); setShowManageOrders(false); }}
-        onOpenManageOrders={() => { setShowManageOrders(true); setShowSettings(false); setShowPrinter(false); }}
+        onOpenPricing={() => { setShowSettings(true); setShowPrinter(false); }}
+        onOpenPrinter={() => { setShowPrinter(true); setShowSettings(false); }}
         onLogout={logout}
         loggingOut={loggingOut}
         staffName={staff?.displayName || staff?.email}
@@ -495,18 +521,21 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {pending.length > 0 && (
+      {filteredJobs.length > 0 && (
         <BatchBar
           selectedCount={selectedJobs.length}
-          totalUnpaid={pending.length}
+          totalUnpaid={filteredJobs.length}
           onSelectAll={selectAll}
           onBatchPaid={batchPaid}
           onBatchRelease={batchRelease}
+          onBatchDelete={batchDelete}
           onClear={() => setSelectedJobs([])}
           loading={batchLoading}
           releaseLoading={batchReleaseLoading}
+          deleteLoading={batchDeleteLoading}
         />
       )}
+
 
       {actionError && (
         <div className="admin-action-error" role="alert">
