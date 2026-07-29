@@ -76,18 +76,16 @@ export default function JobCard({
 
   return (
     <div className={`job-card ${job.status} ${flash ? "flash" : ""}`} style={{ animationDelay: `${Math.min(index, 8) * 35}ms` }}>
-      {!job.paidAt && job.status !== "cancelled" && (
-        <button
+      <button
           className={`job-checkbox ${isSelected ? "selected" : ""}`}
           onClick={(e) => { e.stopPropagation(); onToggleSelect(); }}
-          aria-label={isSelected ? `Deselect job (position ${selectionIndex})` : "Select job for batch action"}
+          aria-label={isSelected ? `Deselect job (position ${selectionIndex})` : "Select job"}
           type="button"
         >
           <span className={`checkbox-circle ${isSelected ? "checked numbered" : ""}`}>
             {isSelected ? selectionIndex : null}
           </span>
         </button>
-      )}
 
       <div className="job-content">
         <div className="job-header">
