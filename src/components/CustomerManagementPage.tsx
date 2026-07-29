@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   CalendarDays,
+  Download,
   Lock,
   Mail,
   MapPin,
@@ -76,15 +77,76 @@ export default function CustomerManagementPage() {
     });
   }, [customers, query, kind]);
 
+  const exportToCsv = useCallback(() => {
+    if (filteredCustomers.length === 0) return;
+
+    const headers = [
+      "Customer Name",
+      "Customer Type",
+      "Email",
+      "Phone",
+      "Address",
+      "Total Orders",
+      "Active Orders",
+      "Delivery Orders",
+      "Delivered Orders",
+      "Total Spent (INR)",
+      "Last Order Date"
+    ];
+
+    const escapeCsvField = (field: string | number | null | undefined): string => {
+      if (field === null || field === undefined) return '""';
+      const stringValue = String(field);
+      const escaped = stringValue.replace(/"/g, '""');
+      return `"${escaped}"`;
+    };
+
+    const rows = filteredCustomers.map((c) => [
+      escapeCsvField(c.displayName),
+      escapeCsvField(c.registeredAt ? "Registered" : "Guest Delivery"),
+      escapeCsvField(c.email ?? ""),
+      escapeCsvField(c.phone ?? ""),
+      escapeCsvField(c.latestAddress ?? ""),
+      escapeCsvField(c.totalOrders),
+      escapeCsvField(c.activeOrders),
+      escapeCsvField(c.deliveryOrders),
+      escapeCsvField(c.deliveredOrders),
+      escapeCsvField((c.totalSpentPaise / 100).toFixed(2)),
+      escapeCsvField(c.lastOrderAt ? new Date(c.lastOrderAt).toLocaleDateString() : "")
+    ].join(","));
+
+    const csvContent = "data:text/csv;charset=utf-8,\uFEFF" + [headers.join(","), ...rows].join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    const dateStr = new Date().toISOString().slice(0, 10);
+    link.setAttribute("download", `customers_export_${dateStr}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }, [filteredCustomers]);
+
   return (
     <AdminManagementNav
       title="User management"
       subtitle="Registered users and delivery customers with order history and contacts."
       actions={
-        <button type="button" className="management-refresh" onClick={load} disabled={loading}>
-          <RefreshCw size={16} className={loading ? "spin" : ""} aria-hidden="true" />
-          Refresh
-        </button>
+        <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+          <button
+            type="button"
+            className="management-refresh"
+            onClick={exportToCsv}
+            disabled={loading || filteredCustomers.length === 0}
+            title="Export current view to CSV"
+          >
+            <Download size={16} aria-hidden="true" />
+            Export CSV
+          </button>
+          <button type="button" className="management-refresh" onClick={load} disabled={loading}>
+            <RefreshCw size={16} className={loading ? "spin" : ""} aria-hidden="true" />
+            Refresh
+          </button>
+        </div>
       }
     >
       <main className="management-page">
