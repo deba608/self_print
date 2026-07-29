@@ -795,6 +795,10 @@ input, select, button {
 /* Upload Zone */
 .upload-zone {
   position: relative;
+  /* No pan/zoom gestures start here, so the browser fires the tap's click
+     immediately instead of waiting on its double-tap-zoom heuristics —
+     "tap to select" must react on the first tap. */
+  touch-action: manipulation;
   border: 2px dashed var(--accent);
   border-radius: 16px;
   background: linear-gradient(135deg, #fafcfa 0%, var(--accent-bg) 100%);
@@ -825,6 +829,9 @@ input, select, button {
 }
 
 .upload-zone input[type="file"] {
+  /* touch-action is not inherited — the invisible input is what taps
+     actually hit, so it needs the same immediate-tap behavior. */
+  touch-action: manipulation;
   position: absolute;
   inset: 0;
   opacity: 0;
