@@ -136,42 +136,46 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* --- Order flow stepper --- */
+/* --- Order flow stepper ---
+   3-column grid, one step per column, dot centered on top with the
+   connector running through its own row behind it, label wraps below.
+   This stays legible at any label length instead of truncating. */
 .delivery-flow {
-  display: flex;
-  align-items: center;
-  gap: 4px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
   list-style: none;
   margin: 0;
-  padding: 0;
+  padding: 6px 0 2px;
 }
 .delivery-flow-step {
+  position: relative;
   display: flex;
+  flex-direction: column;
   align-items: center;
   gap: 5px;
-  flex: 1;
-  min-width: 0;
+  text-align: center;
+  padding: 0 2px;
 }
-/* connector line between steps */
-.delivery-flow-step + .delivery-flow-step::before {
-  content: "";
-  flex: 1;
+.delivery-flow-connector {
+  position: absolute;
+  top: 12px;
+  left: -50%;
+  width: 100%;
   height: 2px;
-  min-width: 10px;
-  border-radius: 1px;
   background: var(--border, #e2e8f0);
-  order: -1;
+  z-index: 0;
 }
-.delivery-flow-step.done + .delivery-flow-step.done::before,
-.delivery-flow-step.done + .delivery-flow-step.next::before {
+.delivery-flow-step.done .delivery-flow-connector {
   background: var(--accent, #0d7a74);
 }
 .delivery-flow-dot {
+  position: relative;
+  z-index: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: 25px;
+  height: 25px;
   flex-shrink: 0;
   border-radius: 50%;
   border: 1.5px solid var(--border, #e2e8f0);
@@ -188,12 +192,11 @@
   color: var(--accent-strong, #0a5f5a);
 }
 .delivery-flow-label {
-  font-size: 11px;
+  font-size: 10.5px;
+  line-height: 1.25;
   font-weight: 600;
   color: var(--muted, #64748b);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  max-width: 72px;
 }
 .delivery-flow-step.done .delivery-flow-label,
 .delivery-flow-step.next .delivery-flow-label {
