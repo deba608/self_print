@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { getAgentToken } from "./db";
 import { createClient } from "@/lib/supabase/server";
 import type { StaffProfile } from "./types";
 
