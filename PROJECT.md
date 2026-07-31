@@ -70,7 +70,7 @@ printer_name, config_version (bumped so agents detect changes), updated_at.
 name (PK), driver_name, port_name, is_default, seen_at (heartbeat; stale >5min = offline).
 
 ### `agent_tokens`
-id, name, token_hash (hashed via token-hash.ts) — bearer auth for agent API.
+id, name, token_hash (hashed via token-hash.ts) — legacy of the removed HTTP agent API; still seeded but no longer consulted (the agent uses the Supabase service-role key).
 
 ### `print_events`
 Append-only audit log: id, job_id (FK cascade), event_type (created/paid/printing/printed/converted/customer_report/issue_resolved/reprint/out_for_delivery/delivered/...), message, created_at. Drives admin job timeline + agent progress reporting.
@@ -86,7 +86,7 @@ Append-only audit log: id, job_id (FK cascade), event_type (created/paid/printin
 
 | Var | Purpose |
 |---|---|
-| `AGENT_TOKEN` | required — print agent bearer auth |
+| `AGENT_TOKEN` | dev fallback secret for `/api/cleanup` (prod uses `CRON_SECRET`); seeded into `agent_tokens` |
 | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | server-side Supabase (DB+Storage). Empty → falls back to SQLite/filesystem |
 | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` | browser Supabase (RLS) for Auth |
 | `NEXT_PUBLIC_SITE_URL` | base URL for auth emails |
@@ -98,7 +98,7 @@ Append-only audit log: id, job_id (FK cascade), event_type (created/paid/printin
 
 Agent config: `agent/config.json` (copy `config.example.json`) — supabaseUrl, supabaseKey, tempDir, maxRetries, fallbackPrinter (or falls back to SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY env).
 
-Default credentials (dev): Admin `admin`/`1234`, agent token `dev-agent-token-change-me`.
+No hardcoded credentials: staff login is Supabase Auth (invite-only via `staff_profiles`); the agent uses the service-role key from `agent/config.json`.
 
 Production hardening: config.ts logs console error at boot if NODE_ENV=production and SESSION_SECRET/AGENT_TOKEN unset/default.
 
