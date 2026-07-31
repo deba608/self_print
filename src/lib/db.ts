@@ -1113,10 +1113,12 @@ export async function getJobsNeedingConversion(): Promise<Job[]> {
     return mod.getJobsNeedingConversion();
   }
   const sqlite = await getDbInstance();
+  const pricing = await getPricing();
   const rows = sqlite
     .prepare("SELECT * FROM jobs WHERE needs_conversion = 1 ORDER BY created_at ASC")
     .all() as Record<string, unknown>[];
-  return rows.map(mapJob);
+  // NOT rows.map(mapJob) — map would pass the array index as expiryMinutes.
+  return rows.map(row => mapJob(row, pricing.expiryMinutes));
 }
 
 // Replaces a job's file with the converted PDF and clears the conversion flag.
@@ -1183,7 +1185,7 @@ export async function getDailyAnalytics(from: string, to: string): Promise<Daily
   const fromTs = `${from}T00:00:00.000Z`;
   const toTs   = `${to}T23:59:59.999Z`;
   const rows = sqlite.prepare(
-    `SELECT created_at, status, print_type, page_count, price_paise, paid_at
+    `SELECT created_at, status, print_type, paper_size, page_count, price_paise, paid_at
      FROM jobs
      WHERE created_at >= ? AND created_at <= ?
      ORDER BY created_at ASC`
@@ -1209,9 +1211,11 @@ export async function getDailyAnalytics(from: string, to: string): Promise<Daily
     if (status === 'printed')          d.printedJobs++;
     if (status === 'cancelled')        d.cancelledJobs++;
     if (status === 'pending_payment')  d.pendingJobs++;
-    if (printType === 'color')         d.colorJobs++;
-    else if (printType === 'photo')    d.photoJobs++;
-    else                               d.bwJobs++;
+    // Photo is a paper size, not a print type — classify it first so photo
+    // jobs aren't miscounted as bw/color.
+    if (String(row.paper_size) === 'Photo') d.photoJobs++;
+    else if (printType === 'color')         d.colorJobs++;
+    else                                    d.bwJobs++;
   }
   return Object.values(byDate).sort((a, b) => a.date.localeCompare(b.date));
 }

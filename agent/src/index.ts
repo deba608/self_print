@@ -75,6 +75,8 @@ async function main() {
 
   cachedPrinterName = config.fallbackPrinter;
   await fs.mkdir(config.tempDir, { recursive: true });
+  await rotateLogIfNeeded();
+  await sweepStaleTempFiles();
 
   log("=== SelfPrint Agent (Supabase Realtime + Polling) ===");
   log(`Supabase: ${config.supabaseUrl}`);
@@ -438,22 +440,39 @@ async function claimJob(jobId: string, token: string): Promise<boolean> {
 }
 
 async function updateStatus(jobId: string, status: string, message: string) {
-  try {
-    const now = new Date().toISOString();
-    const updates: Record<string, unknown> = { status, updated_at: now };
-    if (status === "printed") updates.printed_at = now;
+  // Terminal statuses MUST stick: if "printed" is lost, the cleanup cron resets
+  // the stale "printing" lease back to "approved" and the job prints AGAIN.
+  // supabase-js does not throw on query errors — it returns { error } — so we
+  // check it explicitly and retry with backoff.
+  const isTerminal = status === "printed" || status === "failed";
+  const maxAttempts = isTerminal ? 5 : 1;
 
-    await (supabase.from("jobs") as any).update(updates).eq("id", jobId).in("status", ["approved", "printing"]);
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const now = new Date().toISOString();
+      const updates: Record<string, unknown> = { status, updated_at: now };
+      if (status === "printed") updates.printed_at = now;
 
-    await (supabase.from("print_events") as any).insert([{
-      id: crypto.randomUUID(),
-      job_id: jobId,
-      event_type: status,
-      message,
-      created_at: now
-    }]);
-  } catch (error) {
-    log(`Failed to update status: ${error instanceof Error ? error.message : String(error)}`);
+      const { error } = await (supabase.from("jobs") as any)
+        .update(updates).eq("id", jobId).in("status", ["approved", "printing"]);
+      if (error) throw new Error(error.message);
+
+      await (supabase.from("print_events") as any).insert([{
+        id: crypto.randomUUID(),
+        job_id: jobId,
+        event_type: status,
+        message,
+        created_at: now
+      }]);
+      return;
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      log(`Failed to update status to "${status}" (attempt ${attempt}/${maxAttempts}): ${msg}`);
+      if (attempt < maxAttempts) await sleep(2000 * attempt);
+    }
+  }
+  if (isTerminal) {
+    log(`GIVING UP updating job ${jobId} to "${status}" — job may be re-run by the stale-lease cron. Check manually.`);
   }
 }
 
@@ -737,6 +756,40 @@ function safeFileName(originalName: string, fallbackExtension: string) {
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// Remove downloads/rendered PNGs left behind by a crash mid-print. Anything in
+// tempDir older than an hour can't belong to the job currently printing.
+async function sweepStaleTempFiles() {
+  try {
+    const cutoff = Date.now() - 60 * 60 * 1000;
+    const entries = await fs.readdir(config.tempDir);
+    let removed = 0;
+    for (const name of entries) {
+      const p = path.resolve(config.tempDir, name);
+      try {
+        const stat = await fs.stat(p);
+        if (stat.isFile() && stat.mtimeMs < cutoff) {
+          await fs.rm(p, { force: true });
+          removed++;
+        }
+      } catch {}
+    }
+    if (removed) log(`Startup sweep: removed ${removed} stale temp file(s).`);
+  } catch (error) {
+    log(`Temp sweep failed: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
+// Keep agent.log bounded: past 5 MB, roll to agent.log.old (previous roll is
+// overwritten — one generation of history is enough for a shop PC).
+async function rotateLogIfNeeded() {
+  try {
+    const stat = await fs.stat("agent/agent.log");
+    if (stat.size > 5 * 1024 * 1024) {
+      await fs.rename("agent/agent.log", "agent/agent.log.old");
+    }
+  } catch {}
 }
 
 async function log(message: string) {

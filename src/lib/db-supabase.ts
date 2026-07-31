@@ -956,7 +956,7 @@ export async function getDailyAnalytics(from: string, to: string): Promise<Daily
 
   const { data, error } = await supabase
     .from('jobs')
-    .select('created_at, status, print_type, page_count, price_paise, paid_at')
+    .select('created_at, status, print_type, paper_size, page_count, price_paise, paid_at')
     .gte('created_at', fromTs)
     .lte('created_at', toTs)
     .order('created_at', { ascending: true });
@@ -999,8 +999,10 @@ export async function getDailyAnalytics(from: string, to: string): Promise<Daily
     if (status === 'cancelled') d.cancelledJobs++;
     if (status === 'pending_payment') d.pendingJobs++;
 
-    if (printType === 'color') d.colorJobs++;
-    else if (printType === 'photo') d.photoJobs++;
+    // Photo is a paper size, not a print type — classify it first so photo
+    // jobs aren't miscounted as bw/color.
+    if (String(row.paper_size) === 'Photo') d.photoJobs++;
+    else if (printType === 'color') d.colorJobs++;
     else d.bwJobs++;
   }
 
