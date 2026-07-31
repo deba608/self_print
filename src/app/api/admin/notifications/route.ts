@@ -1,11 +1,12 @@
 import { NextRequest } from "next/server";
 import { sseClients } from "@/lib/db";
-import { requireAdminResponse } from "@/lib/security";
+import { requireStaffResponse } from "@/lib/security";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
-  const unauthorized = await requireAdminResponse();
+  // Any staff role may subscribe: delivery riders need live job updates too.
+  const unauthorized = await requireStaffResponse();
   if (unauthorized) return unauthorized;
 
   const stream = new ReadableStream({

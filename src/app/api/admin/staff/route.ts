@@ -5,7 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getAuthRedirectUrl } from "@/lib/site-url";
 import type { StaffRole } from "@/lib/types";
 
-const VALID_ROLES: StaffRole[] = ["super_admin", "admin"];
+const VALID_ROLES: StaffRole[] = ["super_admin", "admin", "delivery"];
 
 export async function GET() {
   const unauthorized = await requireAdminResponse();
