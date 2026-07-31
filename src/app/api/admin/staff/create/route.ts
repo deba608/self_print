@@ -3,7 +3,7 @@ import { requireAdmin } from "@/lib/security";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
-const VALID_ROLES = ["super_admin", "admin"];
+const VALID_ROLES = ["super_admin", "admin", "delivery"];
 
 export async function POST(request: NextRequest) {
   const admin = await requireAdmin();
@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Password must be at least 6 characters" }, { status: 400 });
   }
   if (!role || !VALID_ROLES.includes(role)) {
-    return NextResponse.json({ error: "Role must be 'super_admin' or 'admin'" }, { status: 400 });
+    return NextResponse.json({ error: "Role must be 'super_admin', 'admin' or 'delivery'" }, { status: 400 });
   }
 
   const adminClient = createAdminClient();
