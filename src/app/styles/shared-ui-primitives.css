@@ -262,3 +262,19 @@
   cursor: wait;
 }
 
+/* Mobile: 16px inputs prevent iOS Safari focus zoom; full-width buttons + dialogs */
+@media (max-width: 640px) {
+  .ui-field input,
+  .ui-field select,
+  .ui-field textarea,
+  .management-search input,
+  .management-select select {
+    min-height: 44px;
+    font-size: 16px;
+  }
+  .ui-btn { min-height: 44px; }
+  .ui-dialog { max-width: 100%; }
+  .ui-dialog-actions { flex-direction: column-reverse; }
+  .ui-dialog-actions button { width: 100%; }
+}
+

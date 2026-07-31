@@ -457,7 +457,7 @@
 .customer-management-card footer span { color: var(--muted); font-size: 10.5px; }
 
 .job-delivery-map,
-.detail-map-link { display: inline-flex; align-items: center; gap: 5px; color: var(--accent-strong); font-size: 11.5px; font-weight: 800; text-decoration: none; }
+.detail-map-link { display: inline-flex; align-items: center; gap: 5px; min-height: 32px; color: var(--accent-strong); font-size: 12.5px; font-weight: 800; text-decoration: none; }
 .job-delivery-map:hover,
 .detail-map-link:hover { text-decoration: underline; }
 .delivery-payment-lock { display: inline-flex; align-items: center; gap: 7px; padding: 9px 11px; color: var(--accent-strong); background: var(--accent-light); border: 1px solid rgba(13, 122, 116, 0.13); border-radius: 6px; font-size: 12px; font-weight: 700; }
@@ -477,12 +477,12 @@
 @media (max-width: 640px) {
   .management-nav-inner { width: 100%; min-height: auto; display: grid; grid-template-columns: 1fr auto; gap: 8px; padding: 8px 12px 0; }
   .management-brand { grid-column: 1; grid-row: 1; }
-  .management-logout { grid-column: 2; grid-row: 1; min-height: 36px; margin-left: 0; }
+  .management-logout { grid-column: 2; grid-row: 1; min-height: 44px; margin-left: 0; }
   .management-logout span { display: none; }
   .management-tabs { grid-column: 1 / -1; grid-row: 2; width: 100%; margin-left: 0; padding: 0 0 8px; overflow-x: auto; }
-  .management-tabs a { min-height: 36px; padding: 0 12px; }
+  .management-tabs a { min-height: 44px; padding: 0 12px; }
   .management-tabs a span { display: inline; }
-  .management-page { width: calc(100% - 20px); gap: 12px; padding: 12px 0 32px; }
+  .management-page { width: 100%; gap: 12px; padding: 12px 10px 32px; }
   .management-hero { align-items: flex-start; flex-direction: column; padding: 19px; border-radius: 16px; }
   .management-refresh { width: 100%; }
   .management-kpis { gap: 8px; }
@@ -506,14 +506,25 @@
   .customer-order-stats { grid-template-columns: repeat(2, 1fr); }
 }
 
+@media (max-width: 480px) {
+  .management-kpis { grid-template-columns: 1fr 1fr; }
+  .management-kpis strong { font-size: 18px; }
+  .management-hero { padding: 16px; }
+  .customer-order-stats { grid-template-columns: 1fr 1fr; }
+  .order-card-finance { padding-left: 0; }
+  .order-action { flex: 1 1 100%; }
+}
+
 /* ── Security / Login Events ─────────────────────────────────── */
 
 .security-table-wrap {
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .security-table {
   width: 100%;
+  min-width: 720px;
   border-collapse: collapse;
   font-size: 13.5px;
 }
@@ -590,10 +601,12 @@
 
 .staff-login-history-table-wrap {
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .staff-login-history-table {
   width: 100%;
+  min-width: 640px;
   border-collapse: collapse;
   font-size: 12px;
 }

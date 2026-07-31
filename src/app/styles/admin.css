@@ -415,7 +415,7 @@
   position: absolute;
   top: calc(100% + 8px);
   right: 0;
-  width: 280px;
+  width: min(280px, calc(100vw - 24px));
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: var(--radius-md);
@@ -2602,7 +2602,7 @@
 
 .job-detail-grid {
   display: grid;
-  grid-template-columns: minmax(0, 0.9fr) minmax(420px, 1.1fr);
+  grid-template-columns: minmax(0, 0.9fr) minmax(min(420px, 100%), 1.1fr);
   grid-template-areas:
     "details preview"
     "details settings"
@@ -2774,7 +2774,7 @@
 }
 
 .admin-preview-area .preview-iframe {
-  height: 520px;
+  height: min(60vh, 520px);
   background: #fff;
 }
 
@@ -3306,7 +3306,7 @@
   }
 }
 
-@media (max-width: 760px) {
+@media (max-width: 900px) {
   .job-detail-grid {
     grid-template-columns: 1fr;
     grid-template-areas: "main";
@@ -4986,7 +4986,7 @@
   position: fixed;
   top: 0;
   left: 0;
-  width: 260px;
+  width: min(260px, 82vw);
   height: 100dvh;
   z-index: 100;
   background: var(--panel);
@@ -5265,3 +5265,51 @@
   flex: 1;
 }
 
+
+/* === Responsive/touch polish (2026-08) === */
+
+/* Horizontal-scroll tables: momentum scrolling + right-edge fade affordance */
+.acct-table-wrapper {
+  -webkit-overflow-scrolling: touch;
+}
+.acct-table-wrapper,
+.security-table-wrap,
+.staff-login-history-table-wrap {
+  background:
+    linear-gradient(to right, var(--panel) 30%, transparent),
+    linear-gradient(to left, var(--panel) 30%, transparent) right,
+    radial-gradient(farthest-side at 0 50%, rgba(15, 23, 42, 0.12), transparent),
+    radial-gradient(farthest-side at 100% 50%, rgba(15, 23, 42, 0.12), transparent) right;
+  background-repeat: no-repeat;
+  background-size: 40px 100%, 40px 100%, 14px 100%, 14px 100%;
+  background-attachment: local, local, scroll, scroll;
+}
+
+/* Touch devices: enforce 44px minimum hit areas without changing desktop density */
+@media (pointer: coarse) {
+  .bulk-clear-btn,
+  .manage-order-checkbox,
+  .manage-order-delete,
+  .printer-check,
+  .checkbox-circle,
+  .error-banner button,
+  .preview-file-btn,
+  .acct-refresh-btn,
+  .sidebar-close-btn,
+  .delivery-filter-btn,
+  .jobs-filter-chip,
+  .jobs-empty-cta,
+  .staff-history-toggle {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .management-search-clear {
+    width: 36px;
+    height: 36px;
+  }
+  .order-action,
+  .mobile-tab,
+  .print-mode-opt {
+    min-height: 44px;
+  }
+}
