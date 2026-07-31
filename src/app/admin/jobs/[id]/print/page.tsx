@@ -1,4 +1,4 @@
-import ManualPrint from "@/components/ManualPrint";
+import ManualPrint from "@/components/pages/ManualPrint";
 
 export default async function ManualPrintPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

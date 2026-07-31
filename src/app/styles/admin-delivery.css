@@ -1,0 +1,775 @@
+/* === Admin: pickup/delivery filter toggle === */
+.delivery-filter-toggle {
+  display: flex;
+  gap: 4px;
+  margin: 0;
+}
+.delivery-filter-btn {
+  padding: 6px 10px;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: var(--muted);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-out);
+}
+.delivery-filter-btn:hover {
+  color: var(--accent);
+  background: rgba(13, 122, 116, 0.06);
+}
+.delivery-filter-btn.active {
+  color: var(--accent-strong);
+  background: rgba(13, 122, 116, 0.1);
+}
+
+/* === Admin: delivery contact info on job cards === */
+.job-delivery-info {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 8px 10px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--ink);
+  background: var(--accent-light);
+  border-radius: 10px;
+  border-left: 3px solid var(--accent);
+}
+.job-delivery-tag {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--accent-strong);
+  background: #ffffff;
+  border-radius: 999px;
+}
+.job-delivery-address {
+  flex-basis: 100%;
+  color: var(--muted);
+}
+
+/* Repeat-print chip — one tap re-applies the customer's last job settings */
+.repeat-settings-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 14px;
+  margin-bottom: 4px;
+  background: var(--accent-bg);
+  border: 1.5px dashed var(--accent);
+  border-radius: 12px;
+  color: var(--accent-strong);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-out);
+}
+.repeat-settings-chip:hover { background: var(--accent-light); }
+.repeat-settings-chip svg { flex-shrink: 0; }
+.repeat-settings-sub {
+  margin-left: auto;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Printer trouble banner — a failure streak stands in for a real ink/paper
+   sensor, which the Windows GDI print path doesn't expose. */
+.printer-trouble-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  margin-bottom: 14px;
+  background: var(--danger-light);
+  border: 1px solid #f3c6c6;
+  border-left: 4px solid var(--danger);
+  border-radius: 12px;
+  color: var(--danger);
+  animation: fadeInUp 0.3s var(--ease-out) both;
+}
+.printer-trouble-banner > svg { flex-shrink: 0; margin-top: 1px; }
+.printer-trouble-banner > div { flex: 1; }
+.printer-trouble-banner strong { display: block; font-size: 14px; }
+.printer-trouble-banner p { margin: 2px 0 0; font-size: 13px; color: var(--ink); font-weight: 500; }
+.printer-trouble-banner > button {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: var(--danger);
+  cursor: pointer;
+  padding: 2px;
+}
+
+/* ---------- Phase 4: /my-jobs + /track polish ---------- */
+
+/* Account bar (logged-in identity + logout) */
+/* Filter chips: All / Active / Done */
+.jobs-filter-chips {
+  display: flex;
+  gap: var(--space-2);
+}
+.jobs-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 0 16px;
+  border: 1.5px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--muted);
+  font-size: 12.5px;
+  font-weight: 700;
+  text-decoration: none;
+  transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out);
+}
+.jobs-filter-chip:hover { border-color: var(--accent); color: var(--accent-strong); }
+.jobs-filter-chip.is-active {
+  background: rgba(13, 122, 116, 0.1);
+  border-color: var(--accent);
+  color: var(--accent-strong);
+}
+
+/* Job card badge column + tabular prices */
+.jobs-card-badges {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-1);
+}
+.jobs-price { font-variant-numeric: tabular-nums; }
+
+/* My Jobs: keep a consistent header → details → summary rhythm at every
+   viewport. This intentionally avoids the generic admin job-card wrapping
+   rules, which made customer cards feel cramped on phones.
+   NB: `.panel`/`.stack` (the section's other classes) have no CSS of their
+   own anywhere in this file — `gap` here was silently a no-op without an
+   explicit flex column, and the negative margins tuned "on top of" that
+   phantom gap actually produced a -4px overlap above the filter chips and a
+   flat 0px gap before the job list. Fixed by making .jobs-page itself the
+   flex container. */
+.jobs-page { display: flex; flex-direction: column; gap: var(--space-4); }
+.jobs-page .intro { margin-bottom: 0; }
+.jobs-page .job-list { gap: var(--space-3); }
+.jobs-list-card {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  color: inherit;
+  text-decoration: none;
+}
+.jobs-card-main { min-width: 0; }
+.jobs-card-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.jobs-list-card .token-value { font-size: 18px; letter-spacing: 0.01em; }
+.jobs-card-date {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+.jobs-card-arrow { margin-left: auto; flex: 0 0 auto; color: var(--muted); }
+.jobs-card-specs { margin-top: 7px; font-size: 13px; line-height: 1.45; }
+.jobs-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--line);
+}
+.jobs-card-badges { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.jobs-list-card .jobs-price { flex: 0 0 auto; font-size: 20px; line-height: 1; }
+.jobs-list-card:hover .jobs-card-arrow { color: var(--accent); transform: translateX(2px); }
+.jobs-card-arrow { transition: color var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out); }
+
+@media (max-width: 600px) {
+  .jobs-page { gap: var(--space-4); }
+  .jobs-page .jobs-filter-chips { gap: var(--space-2); }
+  .jobs-page .jobs-filter-chip { flex: 1; padding: 0 var(--space-2); }
+  .jobs-page .jobs-list-card {
+    display: grid;
+    gap: var(--space-3);
+    padding: var(--space-4);
+  }
+  .jobs-page .jobs-card-footer {
+    width: auto;
+    justify-content: space-between;
+    margin-top: 0;
+  }
+}
+
+/* Skeleton job cards while the list streams in */
+.jobs-skeleton-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.jobs-skeleton-lines {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* Empty-state CTA link sized as a touch target */
+.jobs-empty-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 36px;
+  padding: 0 14px;
+  color: #fff;
+  background: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+}
+.jobs-empty-cta:hover {
+  background: var(--accent-strong);
+  border-color: var(--accent-strong);
+}
+.jobs-empty-cta svg {
+  color: inherit;
+  opacity: 1;
+}
+
+/* "Updated Xs ago" under the tracking timeline */
+.track-updated {
+  margin: 0;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Delivery filter chip: count of orders currently out for delivery */
+.delivery-filter-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--warn-light);
+  color: var(--warn);
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Disabled customer SaaS redesign
+body {
+  font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.user-navbar {
+  min-height: 72px;
+  padding-top: env(safe-area-inset-top, 0px);
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.user-navbar-inner {
+  min-height: 71px;
+}
+
+.user-navbar-logo {
+  gap: 10px;
+  color: var(--ink);
+  font-size: 18px;
+  letter-spacing: -0.035em;
+}
+
+.user-navbar-logo svg {
+  width: 36px;
+  height: 36px;
+  padding: 8px;
+  color: #ffffff;
+  background: var(--accent);
+  border-radius: 11px;
+}
+
+.user-navbar-nav {
+  gap: 4px;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+}
+
+.user-navbar-link {
+  min-height: 42px;
+  padding: 0 14px;
+  border-radius: 11px;
+  font-size: 13px;
+  font-weight: 600;
+  transition:
+    color 200ms ease,
+    background 200ms ease,
+    transform 200ms ease;
+}
+
+.user-navbar-link.active {
+  color: var(--accent-strong);
+  background: var(--accent-bg);
+  box-shadow: none;
+}
+
+.user-navbar-link:hover:not(.active) {
+  color: var(--ink);
+  background: #f1f5f9;
+}
+
+.user-navbar-login-link,
+.user-navbar-signup-btn,
+.user-navbar-logout {
+  min-height: 44px;
+  transition:
+    color 200ms ease,
+    background 200ms ease,
+    border-color 200ms ease,
+    box-shadow 200ms ease,
+    transform 200ms ease;
+}
+
+.user-navbar-logout:hover {
+  transform: translateY(-2px);
+}
+
+.customer-home {
+  width: min(760px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 70px 0 calc(112px + env(safe-area-inset-bottom, 0px));
+}
+
+.customer-hero {
+  max-width: 700px;
+  margin: 0 auto 36px;
+  text-align: center;
+  animation: customerFadeIn 300ms ease both;
+}
+
+.customer-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  margin-bottom: 16px;
+  padding: 0 12px;
+  border: 1px solid #99f6e4;
+  border-radius: 999px;
+  color: var(--accent-strong);
+  background: var(--accent-bg);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.customer-hero h1 {
+  margin: 0 0 14px;
+  color: var(--ink);
+  font-size: clamp(32px, 5vw, 48px);
+  line-height: 1.08;
+  letter-spacing: -0.045em;
+}
+
+.customer-hero p {
+  max-width: 650px;
+  margin: 0 auto;
+  color: #475569;
+  font-size: clamp(15px, 2vw, 18px);
+  line-height: 1.65;
+}
+
+.customer-upload-card {
+  padding: 28px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  box-shadow: var(--shadow-md);
+  animation: customerFadeIn 300ms 80ms ease both;
+}
+
+.customer-upload-card .upload-form {
+  gap: 24px;
+}
+
+.customer-upload-card .step-indicator {
+  max-width: 500px;
+  margin-bottom: 4px;
+}
+
+.customer-upload-card .step-num {
+  width: 36px;
+  height: 36px;
+  color: var(--muted);
+  background: #f1f5f9;
+  border: 1px solid var(--line);
+  box-shadow: none;
+}
+
+.customer-upload-card .step.current .step-num {
+  color: #ffffff;
+  background: var(--accent);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 5px rgba(15, 118, 110, 0.1);
+  animation: stepPulseRedesign 2s ease-in-out infinite;
+}
+
+.customer-upload-card .step.completed .step-num {
+  color: #ffffff;
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.customer-upload-card .step.current .step-label,
+.customer-upload-card .step.completed .step-label {
+  color: var(--accent-strong);
+}
+
+.customer-upload-card .step-label {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.customer-upload-card .step-line {
+  height: 2px;
+  margin-top: 17px;
+  background: var(--line);
+}
+
+.customer-upload-card .upload-zone {
+  overflow: hidden;
+  min-height: 270px;
+  border: 2px dashed var(--accent);
+  border-radius: 20px;
+  background: var(--panel);
+  box-shadow: none;
+  transition:
+    background 250ms ease,
+    border-color 250ms ease,
+    box-shadow 250ms ease,
+    transform 250ms ease;
+}
+
+.customer-upload-card .upload-zone:hover {
+  border-style: solid;
+  background: var(--accent-bg);
+  box-shadow: 0 12px 35px rgba(15, 118, 110, 0.1);
+  transform: translateY(-4px);
+}
+
+.customer-upload-card .upload-zone.drag-over {
+  border-style: solid;
+  background: var(--accent-bg);
+  box-shadow: 0 0 0 6px rgba(15, 118, 110, 0.1);
+  transform: scale(1.01);
+}
+
+.customer-upload-card .upload-zone input[type="file"] {
+  min-height: 270px;
+}
+
+.customer-upload-card .upload-label {
+  min-height: 270px;
+  justify-content: center;
+  padding: 44px 24px;
+}
+
+.upload-icon-wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  margin-bottom: 2px;
+  color: var(--accent);
+  background: var(--accent-bg);
+  border: 1px solid #99f6e4;
+  border-radius: 18px;
+  animation: uploadFloat 2.5s ease-in-out infinite;
+}
+
+.customer-upload-card .upload-label strong {
+  font-size: 19px;
+  letter-spacing: -0.02em;
+}
+
+.customer-upload-card .upload-label .muted {
+  font-size: 14px;
+}
+
+.upload-limit {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.customer-upload-card .supported-formats {
+  margin-top: 0;
+}
+
+.customer-upload-card .format-badge {
+  padding: 6px 12px;
+  color: #475569;
+  background: #f1f5f9;
+  border: 1px solid var(--line);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+}
+
+.customer-upload-card .btn-primary,
+.customer-upload-card .btn-secondary {
+  min-height: 48px;
+  border-radius: 12px;
+  transition:
+    background 200ms ease,
+    border-color 200ms ease,
+    box-shadow 200ms ease,
+    transform 200ms ease;
+}
+
+.customer-upload-card .btn-primary:hover:not(:disabled),
+.customer-upload-card .btn-secondary:hover:not(:disabled) {
+  transform: translateY(-2px);
+}
+
+.customer-upload-card .btn-primary {
+  background: var(--accent);
+  box-shadow: none;
+}
+
+.customer-upload-card .btn-primary:hover:not(:disabled) {
+  background: var(--accent-strong);
+  box-shadow: var(--shadow-accent-strong);
+}
+
+.customer-upload-card .form-group,
+.customer-upload-card .advanced-section,
+.customer-upload-card .price-box,
+.customer-upload-card .delivery-method-section {
+  border-color: var(--line);
+  border-radius: 16px;
+}
+
+.customer-assurance {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin: 20px 0 0;
+}
+
+.customer-assurance > div {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 48px;
+  color: #475569;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.customer-assurance svg {
+  color: var(--accent);
+}
+
+.customer-help {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 28px;
+  padding: 18px 18px 0;
+  color: var(--muted);
+  text-align: center;
+}
+
+.customer-help::before {
+  content: "";
+  display: block;
+  width: 48px;
+  height: 1px;
+  background: var(--line);
+  margin-bottom: 16px;
+}
+
+.customer-help h2 {
+  margin: 0 0 3px;
+  color: var(--ink);
+  font-size: 15px;
+}
+
+.customer-help p {
+  margin: 0;
+  font-size: 13px;
+}
+
+.user-bottom-nav {
+  background: var(--panel);
+  border-color: var(--line);
+  box-shadow: 0 -6px 20px rgba(15, 23, 42, 0.05);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.user-bottom-nav-inner {
+  min-height: 68px;
+  padding: 6px 8px;
+  gap: 6px;
+}
+
+.user-bottom-link {
+  min-height: 56px;
+  border-radius: 12px;
+  transition:
+    color 200ms ease,
+    background 200ms ease,
+    transform 200ms ease;
+}
+
+.user-bottom-link.active {
+  color: var(--accent-strong);
+  background: #ecfdf5;
+}
+
+.user-bottom-link.active::before {
+  display: none;
+}
+
+@keyframes customerFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes uploadFloat {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+@keyframes stepPulseRedesign {
+  0%,
+  100% {
+    box-shadow: 0 0 0 5px rgba(15, 118, 110, 0.1);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(15, 118, 110, 0.06);
+  }
+}
+
+@media (max-width: 599px) {
+  .user-navbar {
+    min-height: 64px;
+  }
+
+  .user-navbar-inner {
+    min-height: 63px;
+  }
+
+  .user-navbar-logo svg {
+    width: 34px;
+    height: 34px;
+  }
+
+  .customer-home {
+    width: min(100% - 24px, 760px);
+    padding-top: 42px;
+  }
+
+  .customer-hero {
+    margin-bottom: 26px;
+  }
+
+  .customer-eyebrow {
+    margin-bottom: 14px;
+    font-size: 10px;
+  }
+
+  .customer-hero h1 {
+    font-size: 32px;
+  }
+
+  .customer-hero p {
+    font-size: 15px;
+  }
+
+  .customer-upload-card {
+    padding: 20px 16px;
+    border-radius: 18px;
+  }
+
+  .customer-upload-card .upload-zone,
+  .customer-upload-card .upload-zone input[type="file"],
+  .customer-upload-card .upload-label {
+    min-height: 230px;
+  }
+
+  .customer-upload-card .upload-label {
+    padding: 32px 18px;
+  }
+
+  .customer-assurance {
+    grid-template-columns: 1fr;
+    gap: 0;
+    padding: 10px 0;
+  }
+
+  .customer-assurance > div {
+    min-height: 40px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .customer-hero,
+  .customer-upload-card,
+  .upload-icon-wrap,
+  .customer-upload-card .step.current .step-num {
+    animation: none;
+  }
+
+  .customer-upload-card .upload-zone:hover,
+  .customer-upload-card .btn-primary:hover:not(:disabled),
+  .customer-upload-card .btn-secondary:hover:not(:disabled),
+  .user-navbar-login-link:hover,
+  .user-navbar-signup-btn:hover,
+  .user-navbar-logout:hover {
+    transform: none;
+  }
+}
+
+*/
+

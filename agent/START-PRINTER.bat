@@ -1,7 +1,7 @@
 @echo off
 title SelfPrint - Printer Service
 color 0A
-cd /d "%~dp0"
+cd /d "%~dp0.."
 
 echo ================================================
 echo            SELFPRINT - PRINTER SERVICE

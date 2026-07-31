@@ -1,7 +1,7 @@
 @echo off
 title SelfPrint - Test Printer
 color 0B
-cd /d "%~dp0"
+cd /d "%~dp0.."
 
 echo ================================================
 echo            SELFPRINT - TEST PRINTER

@@ -14,8 +14,8 @@ import {
   XCircle,
 } from "lucide-react";
 import type { LoginEvent, StaffProfile } from "@/lib/types";
-import AdminManagementNav from "./AdminManagementNav";
-import ManagementSkeleton from "./ui/ManagementSkeleton";
+import AdminManagementNav from "../AdminManagementNav";
+import ManagementSkeleton from "../ui/ManagementSkeleton";
 
 function DeviceIcon({ device }: { device: string | null }) {
   if (device === "Mobile") return <Smartphone size={14} aria-hidden="true" />;

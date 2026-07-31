@@ -1,7 +1,7 @@
 @echo off
 title SelfPrint - One-Time Auto-Start Installer
 color 0B
-cd /d "%~dp0"
+cd /d "%~dp0.."
 
 REM --- Self-elevate to Administrator (needed to register startup task) ---
 net session >nul 2>nul

@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import AccountEditor from "@/components/AccountEditor";
+import AccountEditor from "@/components/pages/AccountEditor";
 
 export default async function AccountPage() {
   let user = null;
