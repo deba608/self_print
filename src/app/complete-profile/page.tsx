@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import CompleteProfileForm from "@/components/CompleteProfileForm";
+import CompleteProfileForm from "@/components/pages/CompleteProfileForm";
 
 export default async function CompleteProfilePage() {
   const supabase = await createClient();

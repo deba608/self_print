@@ -7,4 +7,9 @@
 @import "./styles/auth-shared.css";
 @import "./styles/shared-ui-primitives.css";
 @import "./styles/admin.css";
-@import "./styles/mixed-remainder.css";
+/* The four below were one "mixed-remainder.css" — split by theme, still in
+   the original rule order (cascade-safe contiguous cuts). */
+@import "./styles/effects-and-feedback.css";
+@import "./styles/track-and-timeline.css";
+@import "./styles/admin-delivery.css";
+@import "./styles/workspace-and-account.css";

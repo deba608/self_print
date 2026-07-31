@@ -5,7 +5,7 @@ import { Loader2, Lock, ShieldCheck } from "lucide-react";
 import { useEffect, useState } from "react";
 import StaffManagement from "./StaffManagement";
 import type { StaffProfile } from "@/lib/types";
-import AdminManagementNav from "./AdminManagementNav";
+import AdminManagementNav from "../AdminManagementNav";
 
 export default function StaffPage() {
   // Mirrors AccountsPage's auth probe: fetch the current staff profile so we

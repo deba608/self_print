@@ -1,0 +1,59 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { FileText } from "lucide-react";
+
+// Tiny first-page thumbnail for a bulk-selected PDF. Renders once per file at a
+// fixed small width; falls back to the generic file icon if pdf.js can't render
+// on this device (the file still uploads and prints fine).
+export default function BulkThumb({ file, grayscale, width = 44 }: { file: File; grayscale: boolean; width?: number }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let disposed = false;
+    let pdf: { destroy: () => Promise<void> | void } | null = null;
+
+    async function renderThumb() {
+      try {
+        const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+        pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
+        const data = await file.arrayBuffer();
+        const loaded = await pdfjs.getDocument({
+          data: new Uint8Array(data),
+          disableFontFace: true,
+          isEvalSupported: false,
+          useWorkerFetch: false,
+        } as unknown as Parameters<typeof pdfjs.getDocument>[0]).promise;
+        if (disposed) { await loaded.destroy(); return; }
+        pdf = loaded;
+        const page = await loaded.getPage(1);
+        const canvas = canvasRef.current;
+        if (disposed || !canvas) return;
+        const base = page.getViewport({ scale: 1 });
+        const scale = width / base.width;
+        const viewport = page.getViewport({ scale });
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+        const ratio = window.devicePixelRatio || 1;
+        canvas.width = Math.floor(viewport.width * ratio);
+        canvas.height = Math.floor(viewport.height * ratio);
+        canvas.style.width = `${Math.floor(viewport.width)}px`;
+        canvas.style.height = `${Math.floor(viewport.height)}px`;
+        ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+        await page.render({ canvas, canvasContext: ctx, viewport } as Parameters<typeof page.render>[0]).promise;
+      } catch {
+        if (!disposed) setFailed(true);
+      }
+    }
+
+    renderThumb();
+    return () => {
+      disposed = true;
+      pdf?.destroy?.();
+    };
+  }, [file, width]);
+
+  if (failed) return <FileText size={18} aria-hidden="true" />;
+  return <canvas ref={canvasRef} className={`bulk-thumb ${grayscale ? "bw-sim-img" : ""}`} aria-hidden="true" />;
+}

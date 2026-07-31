@@ -70,7 +70,7 @@ Copy `agent/config.example.json` to `agent/config.json` and configure:
 }
 ```
 
-Run `.\START-PRINTER.bat`. For auto-start on boot, run `INSTALL-AUTOSTART.bat` once.
+Run `.\agent\START-PRINTER.bat`. For auto-start on boot, run `agent\INSTALL-AUTOSTART.bat` once.
 
 ## Features
 

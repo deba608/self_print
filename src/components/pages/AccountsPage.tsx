@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Lock } from "lucide-react";
 import { useEffect, useState } from "react";
 import AccountsTab from "./AccountsTab";
-import AdminManagementNav from "./AdminManagementNav";
+import AdminManagementNav from "../AdminManagementNav";
 
 export default function AccountsPage() {
   // A lightweight auth probe so an expired/missing admin session shows a

@@ -17,8 +17,8 @@ import {
   Truck,
   WalletCards,
 } from "lucide-react";
-import AdminManagementNav from "./AdminManagementNav";
-import ManagementSkeleton from "./ui/ManagementSkeleton";
+import AdminManagementNav from "../AdminManagementNav";
+import ManagementSkeleton from "../ui/ManagementSkeleton";
 import { useJobs } from "@/hooks/useAdmin";
 import type { Job } from "@/lib/types";
 

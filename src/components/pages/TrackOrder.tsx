@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { BadgeCheck, Check, Loader2, Printer, Search, Store, Truck, X, PackageCheck, UploadCloud, Download, MessageCircleWarning } from "lucide-react";
-import BillReceipt, { type BillData } from "./BillReceipt";
+import BillReceipt, { type BillData } from "../BillReceipt";
 
 type TrackData = {
   status: string;

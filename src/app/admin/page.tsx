@@ -1,5 +1,5 @@
-import AdminDashboard from "@/components/AdminDashboard";
-import AdminLogin from "@/components/AdminLogin";
+import AdminDashboard from "@/components/pages/AdminDashboard";
+import AdminLogin from "@/components/pages/AdminLogin";
 import { createClient } from "@/lib/supabase/server";
 
 // /admin is both the staff login page and the dashboard: with no staff

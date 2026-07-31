@@ -1,4 +1,4 @@
-import TrackOrder from "@/components/TrackOrder";
+import TrackOrder from "@/components/pages/TrackOrder";
 
 export default async function TrackPage({ searchParams }: { searchParams: Promise<{ token?: string }> }) {
   const { token } = await searchParams;

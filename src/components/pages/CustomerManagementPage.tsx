@@ -17,8 +17,8 @@ import {
   UserCheck,
   UsersRound,
 } from "lucide-react";
-import AdminManagementNav from "./AdminManagementNav";
-import ManagementSkeleton from "./ui/ManagementSkeleton";
+import AdminManagementNav from "../AdminManagementNav";
+import ManagementSkeleton from "../ui/ManagementSkeleton";
 import type { CustomerManagementRow } from "@/lib/types";
 
 export default function CustomerManagementPage() {
