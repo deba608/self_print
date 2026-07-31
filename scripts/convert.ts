@@ -30,14 +30,16 @@ async function main() {
       const pdf = await convertDocToPdf(inputBytes, ext);
       const saved = await saveBuffer(pdf, ".pdf", "document", "application/pdf");
       const pageCount = estimatePageCount("pdf", pdf);
-      const pricePaise = calculatePrice({
-        printType: job.printType,
-        copies: job.copies,
-        pageRange: job.pageRange,
-        paperSize: job.paperSize,
-        pageCount,
-        pricing
-      });
+      const pricePaise =
+        calculatePrice({
+          printType: job.printType,
+          copies: job.copies,
+          pageRange: job.pageRange,
+          paperSize: job.paperSize,
+          pageCount,
+          pricing,
+          duplex: job.duplex
+        }) + (job.deliveryMethod === "delivery" ? job.deliveryFeePaise : 0);
 
       await markJobConverted(job.id, file.id, {
         storedName: saved.storedName,

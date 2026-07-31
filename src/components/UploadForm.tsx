@@ -781,6 +781,7 @@ export default function UploadForm() {
     if (id !== undefined) {
       bulkUploadsRef.current?.delete(id);
     }
+    setError("");
     setBulkFiles((prev) => prev.filter((_, idx) => idx !== i));
     setBulkPageCounts((prev) => prev.filter((_, idx) => idx !== i));
     setBulkIds((prev) => prev.filter((_, idx) => idx !== i));
@@ -1673,7 +1674,22 @@ export default function UploadForm() {
                       type="button"
                       className="file-thumb-remove"
                       aria-label="Remove file and choose another"
-                      onClick={() => setStep("upload")}
+                      onClick={() => {
+                        if (uploadAbortControllerRef.current) {
+                          uploadAbortControllerRef.current.abort();
+                          uploadAbortControllerRef.current = null;
+                        }
+                        uploadPromiseRef.current = null;
+                        setFile(null);
+                        setFilePageCount(null);
+                        if (previewUrl) {
+                          URL.revokeObjectURL(previewUrl);
+                          setPreviewUrl(null);
+                        }
+                        setError("");
+                        if (fileInputRef.current) fileInputRef.current.value = "";
+                        setStep("upload");
+                      }}
                     >
                       <X size={13} />
                     </button>
