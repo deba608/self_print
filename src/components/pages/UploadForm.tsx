@@ -8,7 +8,7 @@ import { estimatePdfPages } from "@/lib/pdf-pages";
 import BulkThumb from "../upload/BulkThumb";
 import PdfCanvasPreview from "../upload/PdfCanvasPreview";
 import ResultScreen from "../upload/ResultScreen";
-import { estimateRange, type Pricing } from "../upload/shared";
+import { estimateRange, formatMb, MAX_UPLOAD_BYTES, MAX_UPLOAD_MB, type Pricing } from "../upload/shared";
 
 type Step = "upload" | "settings" | "preview" | "converting" | "done" | "docx-warning";
 type PageRangeMode = "all" | "custom";
@@ -581,11 +581,9 @@ export default function UploadForm() {
       return;
     }
 
-    const MAX_FILE_SIZE_BYTES = 25 * 1024 * 1024;
-    const oversized = added.find((f) => f.size > MAX_FILE_SIZE_BYTES);
+    const oversized = added.find((f) => f.size > MAX_UPLOAD_BYTES);
     if (oversized) {
-      const sizeMb = (oversized.size / (1024 * 1024)).toFixed(1);
-      setError(`"${oversized.name}" exceeds the 25MB file size limit (${sizeMb}MB). Please select files under 25MB.`);
+      setError(`"${oversized.name}" is ${formatMb(oversized.size)}MB — over the ${MAX_UPLOAD_MB}MB limit. Please select files under ${MAX_UPLOAD_MB}MB.`);
       return;
     }
 
@@ -607,7 +605,6 @@ export default function UploadForm() {
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const selectedFiles = Array.from(e.target.files ?? []);
-    const MAX_FILE_SIZE_BYTES = 25 * 1024 * 1024;
 
     if (selectedFiles.length > 1) {
       // Bulk mode: 2+ files selected. PDF-only, shared settings, no page range.
@@ -618,10 +615,9 @@ export default function UploadForm() {
         return;
       }
 
-      const oversized = selectedFiles.find((f) => f.size > MAX_FILE_SIZE_BYTES);
+      const oversized = selectedFiles.find((f) => f.size > MAX_UPLOAD_BYTES);
       if (oversized) {
-        const sizeMb = (oversized.size / (1024 * 1024)).toFixed(1);
-        setError(`"${oversized.name}" exceeds the 25MB file size limit (${sizeMb}MB). Please select files under 25MB.`);
+        setError(`"${oversized.name}" is ${formatMb(oversized.size)}MB — over the ${MAX_UPLOAD_MB}MB limit. Please select files under ${MAX_UPLOAD_MB}MB.`);
         if (fileInputRef.current) fileInputRef.current.value = "";
         return;
       }
@@ -654,9 +650,8 @@ export default function UploadForm() {
 
     const selectedFile = selectedFiles[0] ?? null;
 
-    if (selectedFile && selectedFile.size > MAX_FILE_SIZE_BYTES) {
-      const sizeMb = (selectedFile.size / (1024 * 1024)).toFixed(1);
-      setError(`"${selectedFile.name}" exceeds the 25MB file size limit (${sizeMb}MB). Please select a file under 25MB.`);
+    if (selectedFile && selectedFile.size > MAX_UPLOAD_BYTES) {
+      setError(`"${selectedFile.name}" is ${formatMb(selectedFile.size)}MB — over the ${MAX_UPLOAD_MB}MB limit. Please select a file under ${MAX_UPLOAD_MB}MB.`);
       if (fileInputRef.current) fileInputRef.current.value = "";
       return;
     }
