@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/security";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-const VALID_ROLES = ["super_admin", "admin"];
+const VALID_ROLES = ["super_admin", "admin", "delivery"];
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const admin = await requireAdmin();
@@ -21,13 +21,13 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const body = await request.json().catch(() => null);
   const role = body?.role;
   if (!role || !VALID_ROLES.includes(role)) {
-    return NextResponse.json({ error: "Role must be 'super_admin' or 'admin'" }, { status: 400 });
+    return NextResponse.json({ error: "Role must be 'super_admin', 'admin' or 'delivery'" }, { status: 400 });
   }
 
   const adminClient = createAdminClient();
 
   // Prevent demoting the last super admin
-  if (role === "admin") {
+  if (role !== "super_admin") {
     const { count: superAdminCount } = await adminClient
       .from("staff_profiles")
       .select("id", { count: "exact", head: true })

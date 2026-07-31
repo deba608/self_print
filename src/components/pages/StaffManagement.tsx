@@ -27,10 +27,14 @@ type StaffRow = {
   id: string;
   email: string;
   displayName: string | null;
-  role: "super_admin" | "admin";
+  role: "super_admin" | "admin" | "delivery";
   invitedBy: string | null;
   createdAt: string;
 };
+
+function roleLabel(role: StaffRow["role"]) {
+  return role === "super_admin" ? "Owner" : role === "delivery" ? "Delivery" : "Admin";
+}
 
 function getInitials(staff: StaffRow) {
   const source = staff.displayName?.trim() || staff.email.split("@")[0];
@@ -162,7 +166,7 @@ export default function StaffManagement({ currentStaff }: { currentStaff: StaffP
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [email, setEmail] = useState("");
-  const [role, setRole] = useState<"admin" | "super_admin">("admin");
+  const [role, setRole] = useState<"admin" | "super_admin" | "delivery">("admin");
   const [inviting, setInviting] = useState(false);
   const [inviteError, setInviteError] = useState("");
   const [inviteOk, setInviteOk] = useState(false);
@@ -177,7 +181,7 @@ export default function StaffManagement({ currentStaff }: { currentStaff: StaffP
   const [createEmail, setCreateEmail] = useState("");
   const [createPassword, setCreatePassword] = useState("");
   const [createDisplayName, setCreateDisplayName] = useState("");
-  const [createRole, setCreateRole] = useState<"admin" | "super_admin">("admin");
+  const [createRole, setCreateRole] = useState<"admin" | "super_admin" | "delivery">("admin");
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState("");
   const [createOk, setCreateOk] = useState(false);
@@ -383,11 +387,12 @@ export default function StaffManagement({ currentStaff }: { currentStaff: StaffP
                 <select
                   id="staff-role"
                   value={role}
-                  onChange={(event) => setRole(event.target.value as "admin" | "super_admin")}
+                  onChange={(event) => setRole(event.target.value as "admin" | "super_admin" | "delivery")}
                   disabled={inviting}
                 >
                   <option value="admin">Admin</option>
                   <option value="super_admin">Owner</option>
+                  <option value="delivery">Delivery</option>
                 </select>
               </div>
 
@@ -453,11 +458,12 @@ export default function StaffManagement({ currentStaff }: { currentStaff: StaffP
                 <select
                   id="create-role"
                   value={createRole}
-                  onChange={(event) => setCreateRole(event.target.value as "admin" | "super_admin")}
+                  onChange={(event) => setCreateRole(event.target.value as "admin" | "super_admin" | "delivery")}
                   disabled={creating}
                 >
                   <option value="admin">Admin</option>
                   <option value="super_admin">Owner</option>
+                  <option value="delivery">Delivery</option>
                 </select>
               </div>
 
@@ -469,13 +475,12 @@ export default function StaffManagement({ currentStaff }: { currentStaff: StaffP
           )}
 
           <p className="staff-role-help">
-            {!createMode
-              ? role === "admin"
-                ? "Admins can manage print jobs, pricing, accounts, and view staff."
-                : "Owners can do everything an admin can, plus invite and remove staff."
-              : createRole === "admin"
-                ? "Admins can manage print jobs, pricing, accounts, and view staff."
-                : "Owners can do everything an admin can, plus invite and remove staff."}
+            {(() => {
+              const selected = !createMode ? role : createRole;
+              if (selected === "delivery") return "Delivery riders can only see and complete delivery orders.";
+              if (selected === "admin") return "Admins can manage print jobs, pricing, accounts, and view staff.";
+              return "Owners can do everything an admin can, plus invite and remove staff.";
+            })()}
           </p>
 
           {inviteOk && (
@@ -558,7 +563,7 @@ export default function StaffManagement({ currentStaff }: { currentStaff: StaffP
                       <div className="staff-member-name">
                         <strong>{member.displayName || member.email.split("@")[0]}</strong>
                         {isCurrentUser && <span className="staff-you-badge">(You)</span>}
-                        {isSuperAdmin && !isCurrentUser && !isCurrentUser ? (
+                        {isSuperAdmin && !isCurrentUser && member.role !== "delivery" ? (
                           <button
                             type="button"
                             className={`staff-role-badge staff-role-toggle ${member.role}`}
@@ -567,11 +572,11 @@ export default function StaffManagement({ currentStaff }: { currentStaff: StaffP
                             title={member.role === "super_admin" ? "Demote to Admin" : "Promote to Owner"}
                           >
                             {roleChangingId === member.id && <Loader2 size={11} className="spin" aria-hidden="true" />}
-                            {member.role === "super_admin" ? "Owner" : "Admin"}
+                            {roleLabel(member.role)}
                           </button>
                         ) : (
                           <span className={`staff-role-badge ${member.role}`}>
-                            {member.role === "super_admin" ? "Owner" : "Admin"}
+                            {roleLabel(member.role)}
                           </span>
                         )}
                       </div>
