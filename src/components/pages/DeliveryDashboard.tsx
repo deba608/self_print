@@ -1,6 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import {
+  AlertCircle,
+  Inbox,
+  LogOut,
+  PackageCheck,
+  Printer,
+  RefreshCw,
+  Truck,
+} from "lucide-react";
 import type { DeliveryOrderView } from "@/lib/delivery";
 import DeliveryOrderCard from "@/components/delivery/DeliveryOrderCard";
 
@@ -12,6 +21,7 @@ export default function DeliveryDashboard({ staffName }: Props) {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
 
   const load = useCallback(async () => {
@@ -26,6 +36,7 @@ export default function DeliveryDashboard({ staffName }: Props) {
       setError(loadError instanceof Error ? loadError.message : "Failed to load orders");
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, []);
 
@@ -71,51 +82,110 @@ export default function DeliveryDashboard({ staffName }: Props) {
   }
 
   return (
-    <main className="delivery-page">
-      <header className="delivery-header">
-        <h1>Deliveries</h1>
-        <div className="delivery-header-right">
-          <span className="delivery-staff-name">{staffName}</span>
-          <button type="button" className="delivery-logout" onClick={logout} disabled={loggingOut}>
-            {loggingOut ? "Signing out…" : "Log out"}
+    <div className="delivery-shell">
+      <header className="delivery-topbar">
+        <span className="delivery-brand">
+          <Printer size={18} aria-hidden="true" />
+          SelfPrint <em>Delivery</em>
+        </span>
+        <div className="delivery-topbar-actions">
+          <button
+            type="button"
+            className="delivery-icon-btn"
+            onClick={() => { setRefreshing(true); load(); }}
+            disabled={refreshing}
+            aria-label="Refresh orders"
+          >
+            <RefreshCw size={17} className={refreshing ? "spin" : ""} aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            className="delivery-icon-btn"
+            onClick={logout}
+            disabled={loggingOut}
+            aria-label="Log out"
+          >
+            <LogOut size={17} aria-hidden="true" />
           </button>
         </div>
       </header>
 
-      {error && <p className="delivery-error" role="alert">{error}</p>}
-      {loading && <p className="delivery-loading">Loading orders…</p>}
+      <main className="delivery-page">
+        <p className="delivery-greeting">
+          Hi <strong>{staffName}</strong> — {mine.length === 0
+            ? "no active deliveries."
+            : `${mine.length} order${mine.length === 1 ? "" : "s"} on the road.`}
+        </p>
 
-      <section className="delivery-section">
-        <h2>My deliveries ({mine.length})</h2>
-        {mine.length === 0 && !loading && <p className="delivery-empty">No active deliveries.</p>}
-        <div className="delivery-grid">
-          {mine.map((order) => (
-            <DeliveryOrderCard
-              key={order.id}
-              order={order}
-              actionLabel="Mark delivered"
-              busy={busyId === order.id}
-              onAction={() => act(order.id, "delivered")}
-            />
-          ))}
-        </div>
-      </section>
+        {error && (
+          <p className="delivery-error" role="alert">
+            <AlertCircle size={15} aria-hidden="true" />
+            {error}
+          </p>
+        )}
 
-      <section className="delivery-section">
-        <h2>Available ({available.length})</h2>
-        {available.length === 0 && !loading && <p className="delivery-empty">No orders waiting.</p>}
-        <div className="delivery-grid">
-          {available.map((order) => (
-            <DeliveryOrderCard
-              key={order.id}
-              order={order}
-              actionLabel="Claim"
-              busy={busyId === order.id}
-              onAction={() => act(order.id, "claim")}
-            />
-          ))}
-        </div>
-      </section>
-    </main>
+        <section className="delivery-section" aria-labelledby="mine-title">
+          <h2 id="mine-title">
+            <Truck size={16} aria-hidden="true" />
+            My deliveries
+            <span className="delivery-count">{mine.length}</span>
+          </h2>
+          {loading ? (
+            <div className="delivery-grid" aria-busy="true" aria-label="Loading your deliveries">
+              <div className="delivery-card-skeleton" />
+            </div>
+          ) : mine.length === 0 ? (
+            <div className="delivery-empty">
+              <PackageCheck size={22} aria-hidden="true" />
+              Nothing on the road. Claim an order below.
+            </div>
+          ) : (
+            <div className="delivery-grid">
+              {mine.map((order) => (
+                <DeliveryOrderCard
+                  key={order.id}
+                  order={order}
+                  claimed
+                  actionLabel="Mark delivered"
+                  busy={busyId === order.id}
+                  onAction={() => act(order.id, "delivered")}
+                />
+              ))}
+            </div>
+          )}
+        </section>
+
+        <section className="delivery-section" aria-labelledby="pool-title">
+          <h2 id="pool-title">
+            <Inbox size={16} aria-hidden="true" />
+            Available
+            <span className="delivery-count">{available.length}</span>
+          </h2>
+          {loading ? (
+            <div className="delivery-grid" aria-busy="true" aria-label="Loading available orders">
+              <div className="delivery-card-skeleton" />
+              <div className="delivery-card-skeleton" />
+            </div>
+          ) : available.length === 0 ? (
+            <div className="delivery-empty">
+              <Inbox size={22} aria-hidden="true" />
+              No orders waiting — new paid orders appear here automatically.
+            </div>
+          ) : (
+            <div className="delivery-grid">
+              {available.map((order) => (
+                <DeliveryOrderCard
+                  key={order.id}
+                  order={order}
+                  actionLabel="Claim this order"
+                  busy={busyId === order.id}
+                  onAction={() => act(order.id, "claim")}
+                />
+              ))}
+            </div>
+          )}
+        </section>
+      </main>
+    </div>
   );
 }

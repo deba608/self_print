@@ -43,7 +43,13 @@ Two sections:
 - **My deliveries** — orders you have claimed and are currently carrying.
 - **Available** — paid, printed delivery orders nobody has claimed yet, oldest first.
 
-Each order card shows: token, amount, customer name, tappable phone number, delivery address, page/copy count, and an **Open in Maps** link when the customer shared a location pin.
+Each order card shows: token, amount, customer name, delivery address, page/copy count, and three action chips:
+
+- **Call** — dials the customer.
+- **Navigate** — opens Google Maps turn-by-turn directions. When the customer shared a GPS pin at upload, directions target the exact pin; otherwise the written address is used.
+- **View pin** — shows the customer's exact location pin on the map (only when a pin was shared).
+
+When a GPS pin exists the card shows an **"Exact GPS pin"** badge with its accuracy (e.g. `±12 m`) and when it was shared — trust the pin over the written address; it was captured on the customer's own phone.
 
 The list updates live — when another rider claims an order it disappears from your Available list within seconds (plus a 15-second refresh fallback).
 

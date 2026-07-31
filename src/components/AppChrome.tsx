@@ -6,6 +6,9 @@ import UserNavbar from "@/components/UserNavbar";
 export default function AppChrome({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isAdminRoute = pathname.startsWith("/admin");
+  // Rider dashboard ships its own topbar — the customer navbar (login/track
+  // links) would be confusing for staff.
+  const isDeliveryRoute = pathname.startsWith("/delivery");
   const isStaffInviteRoute = pathname.startsWith("/staff/");
   const isAuthRoute =
     pathname === "/login" ||
@@ -13,7 +16,7 @@ export default function AppChrome({ children }: { children: React.ReactNode }) {
     pathname === "/forgot-password" ||
     pathname.startsWith("/reset-password");
 
-  if (isAdminRoute || isStaffInviteRoute || isAuthRoute) {
+  if (isAdminRoute || isDeliveryRoute || isStaffInviteRoute || isAuthRoute) {
     return children;
   }
 

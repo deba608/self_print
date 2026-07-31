@@ -8,6 +8,8 @@ export type DeliveryJobRow = {
   delivery_address: string | null;
   delivery_latitude: number | null;
   delivery_longitude: number | null;
+  delivery_accuracy_meters: number | null;
+  delivery_location_captured_at: string | null;
   page_count: number;
   copies: number;
   price_paise: number;
@@ -17,7 +19,7 @@ export type DeliveryJobRow = {
 };
 
 export const DELIVERY_JOB_COLUMNS =
-  "id, token, customer_name, customer_phone, delivery_address, delivery_latitude, delivery_longitude, page_count, copies, price_paise, delivery_fee_paise, created_at, delivery_status";
+  "id, token, customer_name, customer_phone, delivery_address, delivery_latitude, delivery_longitude, delivery_accuracy_meters, delivery_location_captured_at, page_count, copies, price_paise, delivery_fee_paise, created_at, delivery_status";
 
 export type DeliveryOrderView = {
   id: string;
@@ -27,6 +29,8 @@ export type DeliveryOrderView = {
   deliveryAddress: string | null;
   deliveryLatitude: number | null;
   deliveryLongitude: number | null;
+  deliveryAccuracyMeters: number | null;
+  deliveryLocationCapturedAt: string | null;
   pageCount: number;
   copies: number;
   amountPaise: number;
@@ -43,6 +47,8 @@ export function toDeliveryOrderView(row: DeliveryJobRow): DeliveryOrderView {
     deliveryAddress: row.delivery_address,
     deliveryLatitude: row.delivery_latitude,
     deliveryLongitude: row.delivery_longitude,
+    deliveryAccuracyMeters: row.delivery_accuracy_meters,
+    deliveryLocationCapturedAt: row.delivery_location_captured_at,
     pageCount: row.page_count,
     copies: row.copies,
     amountPaise: row.price_paise + row.delivery_fee_paise,
