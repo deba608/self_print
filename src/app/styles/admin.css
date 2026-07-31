@@ -3886,6 +3886,58 @@
 .accounts-locked svg { color: var(--accent); }
 .accounts-locked p { margin: 0; font-size: 14px; font-weight: 600; color: var(--ink); }
 
+/* === Security page: self-service "sign out other sessions" === */
+
+.security-self-card-body {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 20px;
+  flex-wrap: wrap;
+}
+
+.security-self-card-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+  border-radius: 12px;
+  background: var(--accent-light);
+  color: var(--accent-strong);
+}
+
+.security-self-card-body > div:nth-child(2) {
+  flex: 1 1 260px;
+  min-width: 200px;
+}
+
+.security-self-card-body h2 {
+  margin: 0 0 4px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.security-self-card-body p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.security-self-card-btn {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.security-self-card-btn--done {
+  color: #fff;
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
 /* === Staff management === */
 .staff-page {
   display: flex;
