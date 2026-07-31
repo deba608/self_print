@@ -157,7 +157,7 @@ API (`src/app/api/admin/*`): jobs, jobs/[id], jobs/[id]/status, jobs/[id]/delive
 7. Success → status='printed'; exhausted retries → status='failed' w/ error naming the broken file; stale printing jobs (agent crash mid-print) auto-reset to approved by cleanup cron (PRINTING_LEASE_MINUTES=10 in db.ts).
 8. Crash-proofed via top-level uncaughtException/unhandledRejection handlers; graceful shutdown on SIGINT/SIGTERM finishes current job first.
 
-Agent API (`/api/agent/*`): jobs/next, jobs/[id]/status, jobs/[id]/file (download proxy), printer/printers. All gated by verifyAgentToken (bearer hashed against agent_tokens).
+The agent talks to Supabase directly (service-role key); there is no HTTP agent API. (The old `/api/agent/*` routes were removed as dead code — the agent never called them.)
 
 ## Cron/maintenance
 
