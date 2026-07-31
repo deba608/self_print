@@ -18,7 +18,7 @@ export type FileKind = "pdf" | "image" | "document";
 export type DeliveryMethod = "pickup" | "delivery";
 export type DeliveryStatus = "pending" | "out_for_delivery" | "delivered";
 
-export type StaffRole = "super_admin" | "admin";
+export type StaffRole = "super_admin" | "admin" | "delivery";
 
 export type StaffProfile = {
   id: string;
