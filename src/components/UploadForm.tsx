@@ -307,8 +307,8 @@ export default function UploadForm() {
 
   useEffect(() => {
     fetch("/api/pricing")
-      .then((res) => res.json())
-      .then(setPricing)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => { if (data) setPricing(data); })
       .catch(() => {});
   }, []);
 
@@ -1238,7 +1238,7 @@ export default function UploadForm() {
                 <button
                   type="button"
                   className={`pay-choice-btn ${payMethod === "online" ? "active" : ""}`}
-                  onClick={() => setPayMethod("online")}
+                  onClick={() => { setPayError(""); setPayMethod("online"); }}
                   aria-pressed={payMethod === "online"}
                 >
                   <Smartphone size={22} aria-hidden="true" />
@@ -1248,7 +1248,7 @@ export default function UploadForm() {
                 <button
                   type="button"
                   className={`pay-choice-btn ${payMethod === "offline" ? "active" : ""}`}
-                  onClick={() => setPayMethod("offline")}
+                  onClick={() => { setPayError(""); setPayMethod("offline"); }}
                   aria-pressed={payMethod === "offline"}
                 >
                   <Store size={22} aria-hidden="true" />
@@ -1571,8 +1571,8 @@ export default function UploadForm() {
             <div style={{ display: "flex", gap: "1rem", justifyContent: "center", flexWrap: "wrap" }}>
               <button 
                 type="button" 
-                className="btn-secondary" 
-                onClick={() => setStep("upload")}
+                className="btn-secondary"
+                onClick={() => { setError(""); setStep("upload"); }}
               >
                 Go Back
               </button>
@@ -1713,7 +1713,25 @@ export default function UploadForm() {
             <>
           {/* File summary */}
           {isBulk ? (
-            <button className="file-summary" onClick={() => setStep("upload")} aria-label="Change files">
+            <button
+              className="file-summary"
+              onClick={() => {
+                if (bulkUploadAbortControllerRef.current) {
+                  bulkUploadAbortControllerRef.current.abort();
+                  bulkUploadAbortControllerRef.current = null;
+                }
+                bulkUploadsRef.current = null;
+                setBulkFiles([]);
+                setBulkPageCounts([]);
+                setBulkIds([]);
+                setBulkMode(false);
+                setBulkUploading(false);
+                setError("");
+                if (fileInputRef.current) fileInputRef.current.value = "";
+                setStep("upload");
+              }}
+              aria-label="Change files"
+            >
               <span className="file-icon">
                 <FileText size={24} aria-hidden="true" />
               </span>
@@ -1724,7 +1742,26 @@ export default function UploadForm() {
               <span className="change-link">Change</span>
             </button>
           ) : (
-            <button className="file-summary" onClick={() => setStep("upload")} aria-label="Change file">
+            <button
+              className="file-summary"
+              onClick={() => {
+                if (uploadAbortControllerRef.current) {
+                  uploadAbortControllerRef.current.abort();
+                  uploadAbortControllerRef.current = null;
+                }
+                uploadPromiseRef.current = null;
+                setFile(null);
+                setFilePageCount(null);
+                if (previewUrl) {
+                  URL.revokeObjectURL(previewUrl);
+                  setPreviewUrl(null);
+                }
+                setError("");
+                if (fileInputRef.current) fileInputRef.current.value = "";
+                setStep("upload");
+              }}
+              aria-label="Change file"
+            >
               <span className="file-icon">
                 {fileTypeLabel === "PDF" ? <FileText size={24} aria-hidden="true" /> : fileTypeLabel === "Image" ? <Image size={24} aria-hidden="true" /> : <File size={24} aria-hidden="true" />}
               </span>
@@ -2177,7 +2214,7 @@ export default function UploadForm() {
             <button
               type="button"
               className="btn-secondary"
-              onClick={() => setStep("upload")}
+              onClick={() => { setError(""); setStep("upload"); }}
               aria-label="Go back to upload step"
             >
               <ArrowLeft size={20} aria-hidden="true" /> Back
@@ -2416,7 +2453,7 @@ export default function UploadForm() {
             <button
               type="button"
               className="btn-secondary"
-              onClick={() => setStep("settings")}
+              onClick={() => { setError(""); setStep("settings"); }}
               aria-label="Go back to edit settings"
             >
               <ArrowLeft size={20} aria-hidden="true" /> Edit

@@ -48,7 +48,8 @@ export async function POST(_: NextRequest, { params }: { params: Promise<{ id: s
         pageRange: job.pageRange,
         paperSize: job.paperSize,
         pageCount,
-        pricing
+        pricing,
+        duplex: job.duplex
       }) + (job.deliveryMethod === "delivery" ? job.deliveryFeePaise : 0);
 
     await markJobConverted(id, file.id, {

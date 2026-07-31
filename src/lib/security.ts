@@ -36,10 +36,3 @@ export async function requireAdminResponse(): Promise<NextResponse | null> {
   }
   return null;
 }
-
-export async function verifyAgentToken(authHeader: string | null) {
-  const token = authHeader?.replace(/^Bearer\s+/i, "");
-  if (!token) return false;
-  const row = await getAgentToken(token);
-  return Boolean(row);
-}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Camera, Loader2, CheckCircle2, AlertCircle, User as UserIcon, Mail } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
@@ -26,6 +26,11 @@ export default function AccountEditor({
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => () => {
+    if (savedTimerRef.current) clearTimeout(savedTimerRef.current);
+  }, []);
 
   function pickAvatar() {
     fileInputRef.current?.click();
@@ -87,7 +92,8 @@ export default function AccountEditor({
       setAvatarUrl(nextAvatarUrl);
       setAvatarFile(null);
       setSaved(true);
-      setTimeout(() => setSaved(false), 3000);
+      if (savedTimerRef.current) clearTimeout(savedTimerRef.current);
+      savedTimerRef.current = setTimeout(() => setSaved(false), 3000);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to save changes.");
     } finally {

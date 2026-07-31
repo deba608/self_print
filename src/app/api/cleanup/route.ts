@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { timingSafeEqual } from "node:crypto";
 import { cleanupOldJobs, filterActiveStoragePaths } from "@/lib/db";
 import { deleteFile, listOldFiles } from "@/lib/storage";
 
@@ -15,8 +16,12 @@ function authorized(request: NextRequest): boolean {
   if (!secret) return false;
 
   const header = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
-  const query = new URL(request.url).searchParams.get("key");
-  return header === secret || query === secret;
+  if (!header) return false;
+  const a = Buffer.from(header);
+  const b = Buffer.from(secret);
+  // Constant-time comparison; length check alone leaks nothing an attacker
+  // can't already learn from a rejected guess.
+  return a.length === b.length && timingSafeEqual(a, b);
 }
 
 async function runCleanup() {

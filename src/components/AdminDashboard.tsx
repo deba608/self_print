@@ -58,6 +58,7 @@ export default function AdminDashboard() {
   const [loadingMore, setLoadingMore] = useState(false);
   const { toasts, push: pushToast } = useToasts();
   const esRef = useRef<EventSource | null>(null);
+  const sseRetryRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ── Sound + chime ───────────────────────────────────────────────
   const [soundOn, setSoundOn] = useState(true);
@@ -148,13 +149,16 @@ export default function AdminDashboard() {
         mutateJobs();
       }
     };
-    es.onerror = () => { setTimeout(connectSSE, 5000); };
+    es.onerror = () => { sseRetryRef.current = setTimeout(connectSSE, 5000); };
     esRef.current = es;
   }
 
   useEffect(() => {
     connectSSE();
-    return () => { if (esRef.current) esRef.current.close(); };
+    return () => {
+      if (sseRetryRef.current) clearTimeout(sseRetryRef.current);
+      if (esRef.current) esRef.current.close();
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
