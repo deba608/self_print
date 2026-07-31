@@ -47,8 +47,9 @@ function OrderFlowSteps({ claimed }: { claimed: boolean }) {
 
   return (
     <ol className="delivery-flow" aria-label="Order progress">
-      {steps.map((step) => (
+      {steps.map((step, i) => (
         <li key={step.label} className={`delivery-flow-step ${step.state}`}>
+          {i > 0 && <span className="delivery-flow-connector" aria-hidden="true" />}
           <span className="delivery-flow-dot">{step.icon}</span>
           <span className="delivery-flow-label">{step.label}</span>
         </li>
