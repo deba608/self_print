@@ -5,9 +5,11 @@ import {
   Copy as CopyIcon,
   Crosshair,
   FileText,
+  Hand,
   Loader2,
   MapPin,
   Navigation,
+  Package,
   PackageCheck,
   Phone,
   Printer,
@@ -23,6 +25,24 @@ type Props = {
   claimed?: boolean;
 };
 
+// printed → packed → picked_up → out_for_delivery → delivered
+const FLOW = [
+  { key: "printed", label: "Printed", icon: Printer },
+  { key: "packed", label: "Packed", icon: Package },
+  { key: "picked_up", label: "Picked up", icon: Hand },
+  { key: "out_for_delivery", label: "On the way", icon: Truck },
+  { key: "delivered", label: "Delivered", icon: PackageCheck },
+] as const;
+
+// Index of the last completed step for a given delivery_status. Everything in
+// the rider views is already printed, so that step is always done.
+function doneIndex(status: DeliveryOrderView["deliveryStatus"]): number {
+  if (status === "out_for_delivery") return 3;
+  if (status === "picked_up") return 2;
+  if (status === "packed") return 1;
+  return 0;
+}
+
 function formatCapturedAt(iso: string) {
   return new Date(iso).toLocaleString(undefined, {
     day: "numeric",
@@ -32,28 +52,22 @@ function formatCapturedAt(iso: string) {
   });
 }
 
-// Rider-relevant slice of the order lifecycle. Everything in the pool is
-// already printed + paid, so the stepper starts at Printed.
-function OrderFlowSteps({ claimed }: { claimed: boolean }) {
-  const steps = [
-    { label: "Printed", icon: <Printer size={13} aria-hidden="true" />, state: "done" },
-    {
-      label: "Out for delivery",
-      icon: claimed ? <Check size={13} aria-hidden="true" /> : <Truck size={13} aria-hidden="true" />,
-      state: claimed ? "done" : "next",
-    },
-    { label: "Delivered", icon: <PackageCheck size={13} aria-hidden="true" />, state: claimed ? "next" : "todo" },
-  ] as const;
+function OrderFlowSteps({ status }: { status: DeliveryOrderView["deliveryStatus"] }) {
+  const done = doneIndex(status);
 
   return (
-    <ol className="delivery-flow" aria-label="Order progress">
-      {steps.map((step, i) => (
-        <li key={step.label} className={`delivery-flow-step ${step.state}`}>
-          {i > 0 && <span className="delivery-flow-connector" aria-hidden="true" />}
-          <span className="delivery-flow-dot">{step.icon}</span>
-          <span className="delivery-flow-label">{step.label}</span>
-        </li>
-      ))}
+    <ol className="delivery-flow delivery-flow-5" aria-label="Order progress">
+      {FLOW.map((step, i) => {
+        const state = i <= done ? "done" : i === done + 1 ? "next" : "todo";
+        const Icon = i <= done && i > 0 ? Check : step.icon;
+        return (
+          <li key={step.key} className={`delivery-flow-step ${state}`}>
+            {i > 0 && <span className="delivery-flow-connector" aria-hidden="true" />}
+            <span className="delivery-flow-dot"><Icon size={12} aria-hidden="true" /></span>
+            <span className="delivery-flow-label">{step.label}</span>
+          </li>
+        );
+      })}
     </ol>
   );
 }
@@ -81,7 +95,7 @@ export default function DeliveryOrderCard({ order, actionLabel, onAction, busy, 
         <span className="delivery-card-amount">₹{(order.amountPaise / 100).toFixed(2)}</span>
       </header>
 
-      <OrderFlowSteps claimed={claimed} />
+      <OrderFlowSteps status={order.deliveryStatus} />
 
       <div className="delivery-card-body">
         <p className="delivery-card-name">{order.customerName ?? "Customer"}</p>
@@ -148,10 +162,12 @@ export default function DeliveryOrderCard({ order, actionLabel, onAction, busy, 
       <button type="button" className="delivery-card-action" onClick={onAction} disabled={busy}>
         {busy ? (
           <Loader2 size={17} className="spin" aria-hidden="true" />
-        ) : claimed ? (
+        ) : order.deliveryStatus === "out_for_delivery" ? (
           <PackageCheck size={17} aria-hidden="true" />
-        ) : (
+        ) : order.deliveryStatus === "picked_up" ? (
           <Truck size={17} aria-hidden="true" />
+        ) : (
+          <Hand size={17} aria-hidden="true" />
         )}
         {busy ? "Working…" : actionLabel}
       </button>

@@ -147,6 +147,10 @@
   margin: 0;
   padding: 6px 0 2px;
 }
+.delivery-flow-5 { grid-template-columns: repeat(5, 1fr); }
+.delivery-flow-5 .delivery-flow-dot { width: 23px; height: 23px; }
+.delivery-flow-5 .delivery-flow-connector { top: 11px; }
+.delivery-flow-5 .delivery-flow-label { font-size: 10px; max-width: 60px; }
 .delivery-flow-step {
   position: relative;
   display: flex;
