@@ -51,6 +51,8 @@ function deliveryLabel(job: Job) {
   if (job.deliveryMethod !== "delivery") return "Shop pickup";
   if (job.deliveryStatus === "delivered") return "Delivered";
   if (job.deliveryStatus === "out_for_delivery") return "Out for delivery";
+  if (job.deliveryStatus === "picked_up") return "Picked up by rider";
+  if (job.deliveryStatus === "packed") return "Packed";
   if (job.status === "printed") return "Awaiting dispatch";
   return "Delivery order";
 }
