@@ -298,3 +298,29 @@
 .password-hint.met { color: var(--ok); }
 .password-hint.met svg { opacity: 1; }
 
+@media (max-width: 480px) {
+  /* Shrink decorative blur orbs — cheaper paint, no viewport-width push */
+  .admin-login-shell::before,
+  .admin-login-shell::after {
+    width: 220px;
+    height: 220px;
+    filter: blur(50px);
+  }
+  .login-card {
+    padding: 28px 20px;
+    border-radius: 20px;
+  }
+  /* 16px stops iOS Safari focus zoom */
+  .input-wrapper input { font-size: 16px; }
+  .password-toggle { width: 44px; height: 44px; right: 2px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-login-shell::before,
+  .admin-login-shell::after,
+  .login-container,
+  .login-error {
+    animation: none;
+  }
+}
+
