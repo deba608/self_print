@@ -144,9 +144,8 @@ async function connectRealtime() {
           const needsConversion = (payload.new as any)?.needs_conversion;
           log(`Realtime event: ${payload.eventType} job ${jobId} status=${newStatus}`);
           
-          if (newStatus === "approved" && !needsConversion && !isProcessing && !isShuttingDown) {
-            isProcessing = true; // claim synchronously before any await to prevent double-processing
-            processJob(jobId).finally(() => { isProcessing = false; });
+          if (newStatus === "approved" && !needsConversion && !isShuttingDown) {
+            processJob(jobId); // processJob guards isProcessing itself
           }
         }
       )
@@ -221,10 +220,11 @@ function scheduleReconnect() {
 }
 
 async function processJob(jobId: string) {
-  // Callers must check isProcessing before calling. isProcessing is set true
-  // synchronously by the caller (Realtime handler) or here (poll path) before
-  // any await, preventing concurrent execution.
-  if (isShuttingDown) return;
+  // Sole owner of isProcessing: checked and set synchronously before the first
+  // await, so a Realtime event and the poll timer can never run two jobs at
+  // once (callers previously each managed the flag, which raced — the poll
+  // checked it, awaited its query, then called in while Realtime was printing).
+  if (isProcessing || isShuttingDown) return;
   isProcessing = true;
 
   try {
