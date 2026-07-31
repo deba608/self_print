@@ -19,6 +19,130 @@ npm run dev
 | `/track` | Customer | Track an order by token |
 | `/admin` | Staff | Login and dashboard |
 
+## How It Works
+
+### System Architecture
+
+```mermaid
+flowchart LR
+    subgraph Client
+        C[Customer phone<br/>upload + track]
+        S[Staff browser<br/>/admin dashboard]
+    end
+
+    subgraph Vercel["Next.js on Vercel"]
+        API[API routes<br/>jobs / uploads / payments / admin]
+    end
+
+    subgraph Supabase
+        DB[(Postgres<br/>jobs, job_files,<br/>staff_profiles)]
+        ST[(Storage<br/>bucket: selfprint)]
+        AU[Auth<br/>staff + customers]
+        RT[Realtime]
+    end
+
+    subgraph Shop["Shop PC (Windows)"]
+        AG[Print agent<br/>agent/src/index.ts]
+        PR[Printer<br/>via GDI spooler]
+    end
+
+    C --> API
+    S --> API
+    API --> DB
+    API --> ST
+    API --> AU
+    C -.direct signed upload.-> ST
+    DB -.job approved.-> RT
+    RT --> AG
+    AG -.5s polling fallback.-> DB
+    AG --> ST
+    AG --> PR
+```
+
+### Customer Order Flow
+
+```mermaid
+sequenceDiagram
+    participant U as Customer
+    participant W as Web app
+    participant API as API routes
+    participant ST as Supabase Storage
+    participant DB as Database
+
+    U->>W: Scan QR, open /
+    U->>W: Pick file + print settings
+    W->>API: POST /api/uploads/sign
+    API-->>W: Signed upload URL + HMAC
+    W->>ST: PUT file directly
+    W->>API: POST /api/jobs (settings, storedName, sig)
+    API->>API: Verify HMAC, validate type/size, calculate price
+    API->>DB: Insert job (status=pending, token)
+    API-->>U: 6-digit token + price
+    U->>W: Pay online (Razorpay/UPI) or at counter
+    U->>W: Track at /track with token
+```
+
+### Staff & Print Flow
+
+```mermaid
+sequenceDiagram
+    participant S as Staff (/admin)
+    participant API as API routes
+    participant DB as Database
+    participant AG as Print agent
+    participant PR as Printer
+
+    S->>API: Login (Supabase Auth)
+    API->>DB: Check staff_profiles row
+    API-->>S: Dashboard (live SSE updates)
+    S->>API: Preview job, mark paid, Approve
+    API->>DB: status = approved
+    DB-->>AG: Realtime event (or 5s poll)
+    AG->>DB: Claim job, status = printing
+    AG->>AG: Download file, rasterize PDF (PDFium)
+    AG->>PR: print-image.ps1 (Windows GDI)
+    AG->>DB: status = printed
+    DB-->>S: SSE update on dashboard
+```
+
+### Job Status Lifecycle
+
+```mermaid
+stateDiagram-v2
+    [*] --> pending: Customer submits
+    pending --> approved: Staff releases
+    pending --> rejected: Staff rejects
+    approved --> printing: Agent claims
+    printing --> printed: Print succeeds
+    printing --> failed: Print error
+    printing --> approved: Stale >10 min (cleanup cron)
+    failed --> approved: Staff retries
+    printed --> [*]: Cleanup removes job + files
+    rejected --> [*]
+```
+
+Payment is tracked independently of status: `paidAt` is the single source of truth, so a job can print before or after payment.
+
+### Auth & Access Control
+
+```mermaid
+flowchart TD
+    R[Request] --> M[middleware.ts<br/>refresh session cookie<br/>verify via getClaims]
+    M --> T{Route type}
+    T -->|Public: / /track| OK[Serve]
+    T -->|/admin page| A{Valid session AND<br/>staff_profiles row?}
+    A -->|Yes| D[Render dashboard]
+    A -->|No| L[Render login form]
+    T -->|/api/admin/*| B{requireAdminResponse}
+    B -->|Pass| H[Handler]
+    B -->|Fail| E401[401 Admin login required]
+    T -->|/api/cleanup| CS{CRON_SECRET<br/>timing-safe compare}
+    CS -->|Pass| CL[Run cleanup]
+    CS -->|Fail| E403[401]
+```
+
+Staff accounts are invite-only — there is no self-service path into `staff_profiles`. Destructive staff-management routes additionally require `role = 'super_admin'`.
+
 ## Commands
 
 ```powershell

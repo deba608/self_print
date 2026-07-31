@@ -10,6 +10,9 @@ Add a new staff role, `delivery`, so print-shop delivery riders can log in, see 
 - Delivery staff authenticate through the same Supabase Auth flow as admin (magic-link/password per existing user-management system). No separate credential system.
 - Super admins create delivery accounts via the existing staff-invite UI, with `Delivery` added to the role picker.
 - A `delivery`-role user hitting `/admin` is redirected to `/delivery`; a `delivery` user is blocked from admin-only API routes (pricing, customer management, non-delivery job actions) by `requireAdmin`-equivalent checks scoped to role.
+- **Implementation note (2026-08-01):** the current `requireAdmin()` in `src/lib/security.ts` accepts *any* `staff_profiles` row with no role check — adding a `delivery` role without changing it would grant riders full admin API access. `requireAdmin` must be changed to reject `role = 'delivery'`, and a separate `requireStaff()` (any role) guard added for the delivery API routes.
+- **Implementation note:** the shipped migration `20260728000000_add_delivery_role.sql` references `auth.users(id)` for `jobs.delivery_person_id` (not `staff_profiles(id)` as originally drafted) — equivalent in practice since staff_profiles.id = auth user id; keep as shipped.
+- **Implementation note:** delivery dashboard is Supabase-only (staff auth doesn't exist in the SQLite fallback), same as the admin login. API routes call Supabase directly (RPCs), not the dual-db `src/lib/db.ts` layer.
 
 ## Assignment Model — Pool / Self-Claim
 
