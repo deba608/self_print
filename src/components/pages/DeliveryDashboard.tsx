@@ -53,14 +53,21 @@ export default function DeliveryDashboard({ staffName }: Props) {
     };
   }, [load]);
 
-  async function act(id: string, path: "claim" | "delivered") {
+  async function act(id: string, action: "claim" | "out_for_delivery" | "delivered") {
     setBusyId(id);
     setError(null);
     try {
-      const res = await fetch(`/api/delivery/jobs/${id}/${path}`, {
-        method: "POST",
-        credentials: "include",
-      });
+      const res = await fetch(
+        action === "claim" ? `/api/delivery/jobs/${id}/claim` : `/api/delivery/jobs/${id}/advance`,
+        {
+          method: "POST",
+          credentials: "include",
+          ...(action !== "claim" && {
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ next: action }),
+          }),
+        }
+      );
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body.error ?? "Action failed");
     } catch (actionError) {
@@ -146,9 +153,11 @@ export default function DeliveryDashboard({ staffName }: Props) {
                   key={order.id}
                   order={order}
                   claimed
-                  actionLabel="Mark delivered"
+                  actionLabel={order.deliveryStatus === "picked_up" ? "Start delivery" : "Mark delivered"}
                   busy={busyId === order.id}
-                  onAction={() => act(order.id, "delivered")}
+                  onAction={() =>
+                    act(order.id, order.deliveryStatus === "picked_up" ? "out_for_delivery" : "delivered")
+                  }
                 />
               ))}
             </div>
@@ -177,7 +186,7 @@ export default function DeliveryDashboard({ staffName }: Props) {
                 <DeliveryOrderCard
                   key={order.id}
                   order={order}
-                  actionLabel="Claim this order"
+                  actionLabel="Claim & pick up"
                   busy={busyId === order.id}
                   onAction={() => act(order.id, "claim")}
                 />
