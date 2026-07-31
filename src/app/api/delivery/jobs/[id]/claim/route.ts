@@ -22,7 +22,8 @@ export async function POST(_request: NextRequest, { params }: { params: Promise<
     return NextResponse.json({ error: "This order is not ready for delivery." }, { status: 400 });
   }
 
-  broadcast({ type: "job_update", jobId: id, deliveryStatus: "out_for_delivery" });
+  // Claiming = rider collects the package at the shop.
+  broadcast({ type: "job_update", jobId: id, deliveryStatus: "picked_up" });
   return NextResponse.json({ ok: true });
 }
 

@@ -16,7 +16,7 @@ export type PrintDuplex = "simplex" | "long-edge" | "short-edge";
 export type FileKind = "pdf" | "image" | "document";
 
 export type DeliveryMethod = "pickup" | "delivery";
-export type DeliveryStatus = "pending" | "out_for_delivery" | "delivered";
+export type DeliveryStatus = "pending" | "packed" | "picked_up" | "out_for_delivery" | "delivered";
 
 export type StaffRole = "super_admin" | "admin" | "delivery";
 

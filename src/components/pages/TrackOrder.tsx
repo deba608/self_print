@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { BadgeCheck, Check, Loader2, Printer, Search, Store, Truck, X, PackageCheck, UploadCloud, Download, MessageCircleWarning } from "lucide-react";
+import { BadgeCheck, Check, Hand, Loader2, Package, Printer, Search, Store, Truck, X, PackageCheck, UploadCloud, Download, MessageCircleWarning } from "lucide-react";
 import BillReceipt, { type BillData } from "../BillReceipt";
 
 type TrackData = {
@@ -17,19 +17,20 @@ type TrackData = {
   // Optional — the public status endpoint may not include delivery fields
   // yet; absence is treated as a pickup order.
   deliveryMethod?: "pickup" | "delivery" | null;
-  deliveryStatus?: "pending" | "out_for_delivery" | "delivered" | null;
+  deliveryStatus?: "pending" | "packed" | "picked_up" | "out_for_delivery" | "delivered" | null;
 };
 
 const TOKEN_LEN = 6;
 const LAST_TOKEN_KEY = "selfprint:lastToken";
 
 // Print progress timeline: Uploaded → Approved → Printed, then branching by
-// fulfilment — delivery orders continue to Out for delivery → Delivered,
-// pickup orders end with Ready for pickup. Payment is decoupled from print
-// progress and is shown separately (receipt button), not as a timeline step.
+// fulfilment — delivery orders continue Packed → Picked up → Out for delivery
+// → Delivered, pickup orders end with Ready for pickup. Payment is decoupled
+// from print progress and is shown separately (receipt button), not as a
+// timeline step.
 function timelineFor(job: TrackData): { done: boolean[]; failed: boolean } {
   const isDelivery = job.deliveryMethod === "delivery";
-  const stepCount = isDelivery ? 5 : 4;
+  const stepCount = isDelivery ? 7 : 4;
   if (!["pending_payment", "paid", "approved", "printing", "printed"].includes(job.status)) {
     // failed / cancelled / expired
     return { done: [true, ...Array.from({ length: stepCount - 1 }, () => false)], failed: true };
@@ -37,9 +38,18 @@ function timelineFor(job: TrackData): { done: boolean[]; failed: boolean } {
   const approvedOrBeyond = job.status === "approved" || job.status === "printing" || job.status === "printed";
   const printed = job.status === "printed";
   if (isDelivery) {
-    const outForDelivery = job.deliveryStatus === "out_for_delivery" || job.deliveryStatus === "delivered";
+    const stageOrder = ["packed", "picked_up", "out_for_delivery", "delivered"] as const;
+    const stageIdx = stageOrder.indexOf(job.deliveryStatus as (typeof stageOrder)[number]); // -1 if none
     return {
-      done: [true, approvedOrBeyond, printed, outForDelivery, job.deliveryStatus === "delivered"],
+      done: [
+        true,
+        approvedOrBeyond,
+        printed,
+        stageIdx >= 0, // packed (or beyond)
+        stageIdx >= 1, // picked up
+        stageIdx >= 2, // out for delivery
+        stageIdx >= 3, // delivered
+      ],
       failed: false,
     };
   }
@@ -160,9 +170,15 @@ export default function TrackOrder({ initialToken }: { initialToken?: string }) 
   }, [token, activeToken, checking, lookup]);
 
   // Poll a loaded job every 5s so the timeline moves while the customer watches.
+  // Delivery orders keep polling after "printed" — the delivery stages
+  // (packed / picked up / out for delivery / delivered) still advance.
   useEffect(() => {
     if (!activeToken || !job) return;
-    if (job.status === "printed" || timelineFor(job).failed) return;
+    const settled =
+      job.deliveryMethod === "delivery"
+        ? job.deliveryStatus === "delivered"
+        : job.status === "printed";
+    if (settled || timelineFor(job).failed) return;
     const iv = setInterval(async () => {
       try {
         const res = await fetch(`/api/jobs/${activeToken}/status`, { cache: "no-store" });
@@ -216,6 +232,8 @@ export default function TrackOrder({ initialToken }: { initialToken?: string }) 
     { label: "Printed", sub: "Your pages are printing", icon: <Printer size={18} /> },
     ...(isDelivery
       ? [
+          { label: "Packed", sub: "Your prints are packed and ready", icon: <Package size={18} /> },
+          { label: "Picked up", sub: "A delivery rider has your order", icon: <Hand size={18} /> },
           { label: "Out for delivery", sub: "On its way to you", icon: <Truck size={18} /> },
           { label: "Delivered", sub: "Handed over", icon: <PackageCheck size={18} /> },
         ]

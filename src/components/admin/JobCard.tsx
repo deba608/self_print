@@ -144,6 +144,10 @@ export default function JobCard({
               <Badge variant="warning" icon={Truck}>Out for delivery</Badge>
             ) : job.deliveryStatus === "delivered" ? (
               <Badge variant="success" icon={Truck}>Delivered</Badge>
+            ) : job.deliveryStatus === "picked_up" ? (
+              <Badge variant="warning" icon={Truck}>Picked up by rider</Badge>
+            ) : job.deliveryStatus === "packed" ? (
+              <Badge variant="info" icon={Truck}>Packed</Badge>
             ) : (
               <Badge variant="info" icon={Truck}>Delivery</Badge>
             )}
@@ -206,7 +210,13 @@ export default function JobCard({
               <span>Done</span>
             </button>
           )}
-          {job.deliveryMethod === "delivery" && job.status === "printed" && job.deliveryStatus !== "out_for_delivery" && job.deliveryStatus !== "delivered" && (
+          {job.deliveryMethod === "delivery" && job.status === "printed" && (!job.deliveryStatus || job.deliveryStatus === "pending") && (
+            <button type="button" className="job-btn release" onClick={() => handleActionClick("packed")} disabled={actionLoading}>
+              {actionLoading ? <Loader2 size={14} className="spin" /> : <Check size={14} />}
+              <span>Mark Packed</span>
+            </button>
+          )}
+          {job.deliveryMethod === "delivery" && job.status === "printed" && ["packed", "picked_up"].includes(job.deliveryStatus ?? "") && (
             <button type="button" className="job-btn release" onClick={() => handleActionClick("out_for_delivery")} disabled={actionLoading}>
               {actionLoading ? <Loader2 size={14} className="spin" /> : <Truck size={14} />}
               <span>Out for Delivery</span>
