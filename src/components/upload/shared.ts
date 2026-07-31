@@ -1,6 +1,6 @@
 // Client-side mirror of the server's MAX_UPLOAD_MB (src/lib/config.ts) so an
 // oversized file is rejected the moment it's picked, not at submit time.
-export const MAX_UPLOAD_MB = 25;
+export const MAX_UPLOAD_MB = 50;
 export const MAX_UPLOAD_BYTES = MAX_UPLOAD_MB * 1024 * 1024;
 
 export function formatMb(bytes: number) {
