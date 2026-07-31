@@ -67,7 +67,7 @@ All limited routes respond `429` with a generic "Too many requests" message.
 ## Upload & File Safety
 
 - **Type allow-list** — `validateUpload()` in `src/lib/files.ts`: MIME **and** extension must both match the allow-list (PDF, JPG/JPEG, PNG). Mismatched pairs (e.g. `.exe` with a PDF MIME) are rejected.
-- **Size cap** — `MAX_UPLOAD_MB` (default 25 MB) enforced server-side.
+- **Size cap** — `MAX_UPLOAD_MB` (default 50 MB) enforced server-side.
 - **Stored names are never user-controlled** — always `<uuid>.<ext>`, validated against `STORED_NAME_RE` in `src/lib/storage.ts`, which blocks path traversal outright.
 - **Signed serving** — locally-served files use an HMAC-SHA256 signature (`SESSION_SECRET`-keyed) over the stored name, verified with `timingSafeEqual`. Supabase files are served via short-lived signed URLs from a **private** bucket.
 - **Download headers** — `Content-Disposition` filenames are ASCII-sanitized plus RFC 5987 `filename*` encoding, so quotes/CR/LF/non-ASCII in an upload name cannot inject headers.
