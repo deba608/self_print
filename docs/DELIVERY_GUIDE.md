@@ -75,6 +75,39 @@ Only you (or an admin) can complete an order you claimed — "You did not claim 
 - **Claimed by mistake** — tell an admin; there is no self-unclaim, but an admin can reset the order's delivery status.
 - **App shows stale orders** — pull-to-refresh / reload the page; the list also self-refreshes every 15 seconds.
 
+## Order Flow — Who Updates What, When
+
+Full lifecycle of a delivery order, from upload to handover:
+
+```mermaid
+flowchart TD
+    A[Customer uploads files\nchooses Home Delivery\nshares GPS pin + address] --> B[pending_payment]
+    B -->|Customer pays online\nUPI / Razorpay → paidAt set| C[paid]
+    C -->|Admin approves\nfrom dashboard| D[approved]
+    D -->|Print agent picks up job\nSupabase Realtime / polling| E[printing]
+    E -->|Agent finishes\nGDI spooler done| F[printed]
+    F -->|"printed + paid + unclaimed\n= enters rider pool"| G[Available pool\non /delivery]
+    G -->|Rider taps Claim\nclaim_delivery_job RPC\ndelivery_status = out_for_delivery| H[Out for delivery\nMy deliveries]
+    H -->|Rider taps Mark delivered\ncomplete_delivery_job RPC\ndelivery_status = delivered| I[Delivered ✓]
+    G -.->|Admin override\ndelivery-status route| H
+    H -.->|Admin override /\nforce-complete| I
+```
+
+Update sources at each step:
+
+| Step | Status change | Who / what updates it | Rider sees |
+|---|---|---|---|
+| Upload | job created, `pending_payment` | Customer via upload form | nothing yet |
+| Payment | `paidAt` set (`paid`) | Payment webhook / admin marks paid at counter | nothing yet |
+| Approval | `approved` | Admin dashboard release action | nothing yet |
+| Printing | `printing` → `printed` | Windows print agent (automatic) | order appears in **Available** the moment it's `printed` + paid |
+| Claim | `delivery_status = out_for_delivery`, `delivery_person_id = rider` | Rider taps **Claim** (atomic RPC) | moves to **My deliveries**; vanishes from other riders' pool via SSE within seconds |
+| Handover | `delivery_status = delivered` | Rider taps **Mark delivered** (owner-checked RPC) | disappears from dashboard; admin sees Delivered |
+
+Live updates: every claim/delivered action broadcasts over the shared SSE stream (`/api/admin/notifications`), so rider dashboards and the admin dashboard refresh in real time; a 15-second poll covers dropped connections. Each transition is also logged to `print_events` for the audit trail.
+
+Customer side: the customer tracking page (`/track`) shows the same journey as a 5-step timeline for delivery orders — Received → Approved → Printed → Out for delivery → Delivered — driven by the same status fields.
+
 ## Technical Reference
 
 | Surface | Path |
