@@ -11,7 +11,7 @@ export const UPLOAD_ROOT = path.resolve(
 );
 export const ORIGINALS_DIR = path.join(UPLOAD_ROOT, "originals");
 export const CONVERTED_DIR = path.join(UPLOAD_ROOT, "converted");
-export const MAX_UPLOAD_MB = Number(process.env.MAX_UPLOAD_MB ?? 25);
+export const MAX_UPLOAD_MB = Number(process.env.MAX_UPLOAD_MB ?? 50);
 export const MAX_UPLOAD_BYTES = MAX_UPLOAD_MB * 1024 * 1024;
 // Used for upload-signing (src/lib/storage.ts: signStoredName/verifyStoredNameSig),
 // unrelated to admin sessions (those are Supabase Auth now).

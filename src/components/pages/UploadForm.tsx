@@ -1054,7 +1054,7 @@ export default function UploadForm() {
             <label htmlFor="file-input" className="upload-label">
               <UploadCloud size={56} className="upload-icon" aria-hidden="true" />
               <strong>Tap or drag & drop files here</strong>
-              <span className="muted">PDF, JPG, PNG up to 25MB · or drag 2-10 PDFs at once</span>
+              <span className="muted">PDF, JPG, PNG up to 50MB · or drag 2-10 PDFs at once</span>
             </label>
           </div>
           <div className="supported-formats">
