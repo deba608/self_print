@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useRef } from "react";
-import { UploadCloud, FileText, Image, ArrowLeft, ArrowRight, Check, Eye, Loader2, File, Settings2, Printer, Copy, Store, X, Search, CreditCard, RefreshCw, Info, Truck, MapPin, Navigation } from "lucide-react";
+import { UploadCloud, FileText, Image, ArrowLeft, ArrowRight, Check, Eye, Loader2, File, Settings2, Printer, Copy, Store, X, Search, CreditCard, RefreshCw, Info, Truck, MapPin, Navigation, AlertCircle } from "lucide-react";
 import { formatRupees, paperSizeLabels, allPaperSizes } from "@/lib/pricing";
 import { estimatePdfPages } from "@/lib/pdf-pages";
 
@@ -581,6 +581,14 @@ export default function UploadForm() {
       return;
     }
 
+    const MAX_FILE_SIZE_BYTES = 25 * 1024 * 1024;
+    const oversized = added.find((f) => f.size > MAX_FILE_SIZE_BYTES);
+    if (oversized) {
+      const sizeMb = (oversized.size / (1024 * 1024)).toFixed(1);
+      setError(`"${oversized.name}" exceeds the 25MB file size limit (${sizeMb}MB). Please select files under 25MB.`);
+      return;
+    }
+
     const current = isBulk ? bulkFiles : file && file.type === "application/pdf" ? [file] : [];
     if (!isBulk && file && file.type !== "application/pdf") {
       setError("Adding more files needs a PDF batch — images print as single jobs.");
@@ -599,12 +607,21 @@ export default function UploadForm() {
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const selectedFiles = Array.from(e.target.files ?? []);
+    const MAX_FILE_SIZE_BYTES = 25 * 1024 * 1024;
 
     if (selectedFiles.length > 1) {
       // Bulk mode: 2+ files selected. PDF-only, shared settings, no page range.
       const nonPdf = selectedFiles.find((f) => f.type !== "application/pdf");
       if (nonPdf) {
         setError(`Bulk upload only supports PDF files. Remove "${nonPdf.name}" and try again.`);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+        return;
+      }
+
+      const oversized = selectedFiles.find((f) => f.size > MAX_FILE_SIZE_BYTES);
+      if (oversized) {
+        const sizeMb = (oversized.size / (1024 * 1024)).toFixed(1);
+        setError(`"${oversized.name}" exceeds the 25MB file size limit (${sizeMb}MB). Please select files under 25MB.`);
         if (fileInputRef.current) fileInputRef.current.value = "";
         return;
       }
@@ -636,6 +653,14 @@ export default function UploadForm() {
     bulkUploadsRef.current = null;
 
     const selectedFile = selectedFiles[0] ?? null;
+
+    if (selectedFile && selectedFile.size > MAX_FILE_SIZE_BYTES) {
+      const sizeMb = (selectedFile.size / (1024 * 1024)).toFixed(1);
+      setError(`"${selectedFile.name}" exceeds the 25MB file size limit (${sizeMb}MB). Please select a file under 25MB.`);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+
     // A fresh valid selection clears any stale error (e.g. a rejected bulk
     // attempt's "PDF only" message must not stick to the next file).
     if (selectedFile) setError("");
@@ -1053,7 +1078,8 @@ export default function UploadForm() {
           )}
           {error && (
             <div className="error-msg" role="alert">
-              {error}
+              <AlertCircle size={18} aria-hidden="true" style={{ flexShrink: 0 }} />
+              <span>{error}</span>
             </div>
           )}
         </div>
@@ -1674,7 +1700,8 @@ export default function UploadForm() {
           {/* Errors render once, in the fulfillment zone, in both modes. */}
           {error && (
             <div className="error-msg" role="alert">
-              {error}
+              <AlertCircle size={18} aria-hidden="true" style={{ flexShrink: 0 }} />
+              <span>{error}</span>
             </div>
           )}
 
