@@ -1009,8 +1009,11 @@ export default function UploadForm() {
         <div className={`step-content ${stepAnim}`} key={step}>
           <div
             className={`upload-zone ${file ? "has-file" : ""} ${dragOver ? "drag-over" : ""}`}
-            onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-            onDragLeave={() => setDragOver(false)}
+            onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "copy"; setDragOver(true); }}
+            onDragLeave={(e) => {
+              if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+              setDragOver(false);
+            }}
             onDrop={(e) => {
               e.preventDefault();
               setDragOver(false);
@@ -1030,8 +1033,8 @@ export default function UploadForm() {
             />
             <label htmlFor="file-input" className="upload-label">
               <UploadCloud size={56} className="upload-icon" aria-hidden="true" />
-              <strong>Tap to select file</strong>
-              <span className="muted">PDF, JPG, PNG up to 25MB · or select 2-10 PDFs at once</span>
+              <strong>Tap or drag & drop files here</strong>
+              <span className="muted">PDF, JPG, PNG up to 25MB · or drag 2-10 PDFs at once</span>
             </label>
           </div>
           <div className="supported-formats">
@@ -1198,7 +1201,15 @@ export default function UploadForm() {
                     className="file-thumb-add"
                     onClick={() => addMoreInputRef.current?.click()}
                     disabled={isBulk && bulkFiles.length >= 10}
-                    title={isBulk && bulkFiles.length >= 10 ? "Maximum 10 files per job" : "Add more PDFs to this job"}
+                    title={isBulk && bulkFiles.length >= 10 ? "Maximum 10 files per job" : "Add more PDFs to this job (click or drag files here)"}
+                    onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "copy"; }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      const dropped = e.dataTransfer?.files;
+                      if (dropped?.length) {
+                        handleAddMoreFiles({ target: { files: dropped } } as unknown as React.ChangeEvent<HTMLInputElement>);
+                      }
+                    }}
                   >
                     <UploadCloud size={22} aria-hidden="true" />
                     Add more
