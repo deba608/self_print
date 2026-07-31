@@ -12,12 +12,17 @@ npm run dev
 
 | URL | For | What |
 |---|---|---|
-| `/` | Customer | Upload files and configure print settings |
-| `/login` | Customer | Sign in (optional — guests can upload without an account) |
-| `/register` | Customer | Create an account for order history |
+| `/` | Customer | Upload files (single or 2-10 PDF batch) and configure print settings |
+| `/login` / `/register` | Customer | Optional account — guests can upload without one |
+| `/account` | Customer | Profile editor (name, avatar) |
 | `/my-jobs` | Customer | Past orders (requires login) |
 | `/track` | Customer | Track an order by token |
-| `/admin` | Staff | Login and dashboard |
+| `/admin` | Staff | Login and live job dashboard |
+| `/admin/orders` | Staff | Order management with filters and search |
+| `/admin/customers` | Staff | Customer directory with order history and CSV export |
+| `/admin/accounts` | Staff | Customer account administration |
+| `/admin/staff` | Staff | Staff invitations and role management |
+| `/admin/security` | Staff | Login events and security review |
 
 ## How It Works
 
@@ -160,16 +165,18 @@ npm run agent      # Start Windows print agent
 
 ### Environment
 
-```env
-AGENT_TOKEN=change-me-to-a-random-secret
-```
+Copy `.env.example` to `.env` and fill in what you need. Key variables:
 
-Supabase is required for customer/staff login. Add these for auth:
-
-```env
-NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
-```
+| Variable | Required | Purpose |
+|---|---|---|
+| `AGENT_TOKEN` | Yes | Shared secret; protects `/api/cleanup` in dev when `CRON_SECRET` is unset |
+| `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` | Production | Switches the app from local SQLite to Supabase (Postgres + Storage) |
+| `NEXT_PUBLIC_SUPABASE_URL` + `NEXT_PUBLIC_SUPABASE_ANON_KEY` | For login | Supabase Auth for staff + customer accounts |
+| `NEXT_PUBLIC_SITE_URL` | Production | Canonical base URL for auth emails (falls back to Vercel URL) |
+| `SHOP_UPI_ID` / `SHOP_UPI_QR` + `SHOP_NAME` | Optional | UPI QR payment on the token screen (`SHOP_UPI_QR` for merchant stickers) |
+| `RAZORPAY_KEY_ID` + `RAZORPAY_KEY_SECRET` (+ `RAZORPAY_WEBHOOK_SECRET`) | Optional | Razorpay checkout with auto payment confirmation |
+| `CRON_SECRET` | Production | Protects the cleanup cron endpoint |
+| `MAX_UPLOAD_MB` | Optional | Per-file upload cap (default 50) |
 
 Without Supabase env vars, the app runs on local SQLite — guest upload works, login is unavailable.
 
