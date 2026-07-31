@@ -1072,7 +1072,7 @@ export default function UploadForm() {
             </div>
           )}
           {error && (
-            <div className="error-msg" role="alert">
+            <div key={error} className="error-msg" role="alert">
               <AlertCircle size={18} aria-hidden="true" style={{ flexShrink: 0 }} />
               <span>{error}</span>
             </div>
@@ -1694,7 +1694,7 @@ export default function UploadForm() {
 
           {/* Errors render once, in the fulfillment zone, in both modes. */}
           {error && (
-            <div className="error-msg" role="alert">
+            <div key={error} className="error-msg" role="alert">
               <AlertCircle size={18} aria-hidden="true" style={{ flexShrink: 0 }} />
               <span>{error}</span>
             </div>
@@ -1972,7 +1972,7 @@ export default function UploadForm() {
           {/* Submit errors must be visible HERE — Confirm lives on this step,
               and the settings-step error block is not rendered here. */}
           {!onePage && error && (
-            <div className="error-msg" role="alert">
+            <div key={error} className="error-msg" role="alert">
               {error}
             </div>
           )}
