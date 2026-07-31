@@ -420,7 +420,7 @@ export async function updateJobStatus(id: string, status: string) {
     }]);
 }
 
-export async function updateDeliveryStatus(id: string, deliveryStatus: 'out_for_delivery' | 'delivered'): Promise<void> {
+export async function updateDeliveryStatus(id: string, deliveryStatus: 'packed' | 'picked_up' | 'out_for_delivery' | 'delivered'): Promise<void> {
   const now = new Date().toISOString();
   const { error } = await supabase
     .from('jobs')

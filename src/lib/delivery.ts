@@ -15,7 +15,7 @@ export type DeliveryJobRow = {
   price_paise: number;
   delivery_fee_paise: number;
   created_at: string;
-  delivery_status: "out_for_delivery" | null;
+  delivery_status: "packed" | "picked_up" | "out_for_delivery" | null;
 };
 
 export const DELIVERY_JOB_COLUMNS =
@@ -35,7 +35,7 @@ export type DeliveryOrderView = {
   copies: number;
   amountPaise: number;
   createdAt: string;
-  deliveryStatus: "out_for_delivery" | null;
+  deliveryStatus: "packed" | "picked_up" | "out_for_delivery" | null;
 };
 
 export function toDeliveryOrderView(row: DeliveryJobRow): DeliveryOrderView {

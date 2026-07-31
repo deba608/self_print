@@ -422,6 +422,8 @@ function DeliveryCard({ job }: { job: Detail["job"] }) {
 }
 
 function deliveryStatusLabel(status?: string | null) {
+  if (status === "packed") return "Packed";
+  if (status === "picked_up") return "Picked up by rider";
   if (status === "out_for_delivery") return "Out for Delivery";
   if (status === "delivered") return "Delivered";
   return "Pending";

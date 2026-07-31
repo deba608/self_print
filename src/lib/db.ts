@@ -707,7 +707,7 @@ export async function updateJobStatus(id: string, status: string): Promise<void>
 // Delivery hand-off status, tracked independently of the print-progress
 // `status` column — mirrors how `paidAt` is decoupled from `status`. Only
 // ever set on delivery-method jobs; the API route enforces that.
-export async function updateDeliveryStatus(id: string, deliveryStatus: "out_for_delivery" | "delivered"): Promise<void> {
+export async function updateDeliveryStatus(id: string, deliveryStatus: "packed" | "picked_up" | "out_for_delivery" | "delivered"): Promise<void> {
   if (isSupabase) {
     const mod = await import('./db-supabase');
     return mod.updateDeliveryStatus(id, deliveryStatus);

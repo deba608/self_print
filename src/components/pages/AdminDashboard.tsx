@@ -230,7 +230,7 @@ export default function AdminDashboard() {
     setActionLoading(jobId);
     setActionError("");
     try {
-      const isDeliveryAction = action === "out_for_delivery" || action === "delivered";
+      const isDeliveryAction = ["packed", "picked_up", "out_for_delivery", "delivered"].includes(action);
       const endpoint = action === "convert"
         ? `/api/admin/jobs/${jobId}/convert`
         : action === "reprint"
@@ -263,7 +263,8 @@ export default function AdminDashboard() {
       const toastMsg: Record<string, string> = {
         paid: "Marked as paid", approved: "Print released", printed: "Marked as done",
         reprint: "Reprint queued", cancelled: "Job cancelled", convert: "Conversion started",
-        resolve_issue: "Issue marked resolved", out_for_delivery: "Marked out for delivery",
+        resolve_issue: "Issue marked resolved", packed: "Marked packed",
+        picked_up: "Marked picked up", out_for_delivery: "Marked out for delivery",
         delivered: "Marked delivered",
       };
       pushToast("ok", toastMsg[action] ?? "Job updated");
