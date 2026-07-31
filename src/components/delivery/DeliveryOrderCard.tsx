@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Check,
   Copy as CopyIcon,
   Crosshair,
   FileText,
@@ -9,6 +10,7 @@ import {
   Navigation,
   PackageCheck,
   Phone,
+  Printer,
   Truck,
 } from "lucide-react";
 import type { DeliveryOrderView } from "@/lib/delivery";
@@ -28,6 +30,31 @@ function formatCapturedAt(iso: string) {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+// Rider-relevant slice of the order lifecycle. Everything in the pool is
+// already printed + paid, so the stepper starts at Printed.
+function OrderFlowSteps({ claimed }: { claimed: boolean }) {
+  const steps = [
+    { label: "Printed", icon: <Printer size={13} aria-hidden="true" />, state: "done" },
+    {
+      label: "Out for delivery",
+      icon: claimed ? <Check size={13} aria-hidden="true" /> : <Truck size={13} aria-hidden="true" />,
+      state: claimed ? "done" : "next",
+    },
+    { label: "Delivered", icon: <PackageCheck size={13} aria-hidden="true" />, state: claimed ? "next" : "todo" },
+  ] as const;
+
+  return (
+    <ol className="delivery-flow" aria-label="Order progress">
+      {steps.map((step) => (
+        <li key={step.label} className={`delivery-flow-step ${step.state}`}>
+          <span className="delivery-flow-dot">{step.icon}</span>
+          <span className="delivery-flow-label">{step.label}</span>
+        </li>
+      ))}
+    </ol>
+  );
 }
 
 export default function DeliveryOrderCard({ order, actionLabel, onAction, busy, claimed = false }: Props) {
@@ -52,6 +79,8 @@ export default function DeliveryOrderCard({ order, actionLabel, onAction, busy, 
         </span>
         <span className="delivery-card-amount">₹{(order.amountPaise / 100).toFixed(2)}</span>
       </header>
+
+      <OrderFlowSteps claimed={claimed} />
 
       <div className="delivery-card-body">
         <p className="delivery-card-name">{order.customerName ?? "Customer"}</p>
