@@ -1,5 +1,16 @@
 "use client";
 
+import {
+  Copy as CopyIcon,
+  Crosshair,
+  FileText,
+  Loader2,
+  MapPin,
+  Navigation,
+  PackageCheck,
+  Phone,
+  Truck,
+} from "lucide-react";
 import type { DeliveryOrderView } from "@/lib/delivery";
 
 type Props = {
@@ -7,39 +18,111 @@ type Props = {
   actionLabel: string;
   onAction: () => void;
   busy: boolean;
+  claimed?: boolean;
 };
 
-export default function DeliveryOrderCard({ order, actionLabel, onAction, busy }: Props) {
-  const mapUrl =
-    order.deliveryLatitude != null && order.deliveryLongitude != null
-      ? `https://www.google.com/maps?q=${order.deliveryLatitude},${order.deliveryLongitude}`
+function formatCapturedAt(iso: string) {
+  return new Date(iso).toLocaleString(undefined, {
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+export default function DeliveryOrderCard({ order, actionLabel, onAction, busy, claimed = false }: Props) {
+  const hasPin = order.deliveryLatitude != null && order.deliveryLongitude != null;
+  // GPS pin captured on the customer's phone at upload time — far more precise
+  // than geocoding the written address. Prefer it for navigation.
+  const directionsUrl = hasPin
+    ? `https://www.google.com/maps/dir/?api=1&destination=${order.deliveryLatitude},${order.deliveryLongitude}`
+    : order.deliveryAddress
+      ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(order.deliveryAddress)}`
       : null;
+  const pinUrl = hasPin
+    ? `https://www.google.com/maps/search/?api=1&query=${order.deliveryLatitude},${order.deliveryLongitude}`
+    : null;
 
   return (
-    <article className="delivery-card">
+    <article className={`delivery-card${claimed ? " is-claimed" : ""}`}>
       <header className="delivery-card-head">
-        <span className="delivery-card-token">{order.token}</span>
+        <span className="delivery-card-token">
+          <FileText size={14} aria-hidden="true" />
+          {order.token}
+        </span>
         <span className="delivery-card-amount">₹{(order.amountPaise / 100).toFixed(2)}</span>
       </header>
+
       <div className="delivery-card-body">
         <p className="delivery-card-name">{order.customerName ?? "Customer"}</p>
+        {order.deliveryAddress && (
+          <p className="delivery-card-address">
+            <MapPin size={14} aria-hidden="true" />
+            <span>{order.deliveryAddress}</span>
+          </p>
+        )}
+        {hasPin && (
+          <p className="delivery-card-gps">
+            <Crosshair size={13} aria-hidden="true" />
+            <span>
+              Exact GPS pin
+              {order.deliveryAccuracyMeters != null && ` · ±${Math.round(order.deliveryAccuracyMeters)} m`}
+              {order.deliveryLocationCapturedAt && ` · shared ${formatCapturedAt(order.deliveryLocationCapturedAt)}`}
+            </span>
+          </p>
+        )}
+        <p className="delivery-card-meta">
+          <CopyIcon size={13} aria-hidden="true" />
+          {order.pageCount} page{order.pageCount === 1 ? "" : "s"} × {order.copies}{" "}
+          {order.copies === 1 ? "copy" : "copies"} · paid online
+        </p>
+      </div>
+
+      <div className="delivery-card-links">
         {order.customerPhone && (
-          <a className="delivery-card-phone" href={`tel:${order.customerPhone}`}>
-            {order.customerPhone}
+          <a
+            className="delivery-chip-btn"
+            href={`tel:${order.customerPhone}`}
+            aria-label={`Call ${order.customerName ?? "customer"} at ${order.customerPhone}`}
+          >
+            <Phone size={15} aria-hidden="true" />
+            Call
           </a>
         )}
-        {order.deliveryAddress && <p className="delivery-card-address">{order.deliveryAddress}</p>}
-        <p className="delivery-card-meta">
-          {order.pageCount} page{order.pageCount === 1 ? "" : "s"} × {order.copies}{" "}
-          {order.copies === 1 ? "copy" : "copies"}
-        </p>
-        {mapUrl && (
-          <a className="delivery-card-map" href={mapUrl} target="_blank" rel="noreferrer">
-            Open in Maps
+        {directionsUrl && (
+          <a
+            className="delivery-chip-btn primary-chip"
+            href={directionsUrl}
+            target="_blank"
+            rel="noreferrer"
+            aria-label={hasPin ? "Navigate to the customer's GPS pin" : "Navigate to the delivery address"}
+          >
+            <Navigation size={15} aria-hidden="true" />
+            Navigate
+          </a>
+        )}
+        {pinUrl && (
+          <a
+            className="delivery-chip-btn"
+            href={pinUrl}
+            target="_blank"
+            rel="noreferrer"
+            aria-label="View the customer's exact pin on the map"
+          >
+            <MapPin size={15} aria-hidden="true" />
+            View pin
           </a>
         )}
       </div>
+
       <button type="button" className="delivery-card-action" onClick={onAction} disabled={busy}>
+        {busy ? (
+          <Loader2 size={17} className="spin" aria-hidden="true" />
+        ) : claimed ? (
+          <PackageCheck size={17} aria-hidden="true" />
+        ) : (
+          <Truck size={17} aria-hidden="true" />
+        )}
         {busy ? "Working…" : actionLabel}
       </button>
     </article>
