@@ -34,7 +34,9 @@ type Detail = {
     customerName?: string | null;
     customerPhone?: string | null;
     deliveryAddress?: string | null;
-    deliveryStatus?: "pending" | "out_for_delivery" | "delivered" | null;
+    deliveryStatus?: "pending" | "packed" | "picked_up" | "out_for_delivery" | "delivered" | null;
+    deliveryPersonId?: string | null;
+    deliveryPersonName?: string | null;
     deliveryLatitude?: number | null;
     deliveryLongitude?: number | null;
     deliveryAccuracyMeters?: number | null;
@@ -416,6 +418,9 @@ function DeliveryCard({ job }: { job: Detail["job"] }) {
           </strong>
         </div>
         <div className="summary-row"><span>Status</span><strong>{deliveryStatusLabel(job.deliveryStatus)}</strong></div>
+        {job.deliveryPersonId && (
+          <div className="summary-row"><span>Rider</span><strong>{job.deliveryPersonName ?? "Assigned"}</strong></div>
+        )}
       </div>
     </div>
   );
@@ -491,6 +496,11 @@ function ActionsCard({
         {(job.status === "approved" || job.status === "printing" || job.status === "failed") && (
           <button type="button" className="job-btn done" onClick={() => setStatus("printed")}>
             <CheckCircle2 size={16} /> Mark Done
+          </button>
+        )}
+        {job.deliveryMethod === "delivery" && job.status === "printed" && job.deliveryStatus == null && (
+          <button type="button" className="job-btn reprint" onClick={() => setDeliveryStatus("packed")}>
+            <Send size={16} /> Mark Packed
           </button>
         )}
         {job.deliveryMethod === "delivery" && job.status === "printed" && job.deliveryStatus !== "out_for_delivery" && job.deliveryStatus !== "delivered" && (
