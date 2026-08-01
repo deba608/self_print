@@ -3,7 +3,7 @@
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
-import { Check, CircleDot, Globe, Hash, Hexagon, Loader2, Lock, MapPin, Navigation, Undo2, X } from "lucide-react";
+import { Check, CircleDot, Globe, Hash, Hexagon, Loader2, Lock, MapPin, Navigation, Search, Undo2, X } from "lucide-react";
 import AdminManagementNav from "../AdminManagementNav";
 import ManagementSkeleton from "../ui/ManagementSkeleton";
 import type { PricingConfig as Pricing } from "@/lib/types";
@@ -14,6 +14,41 @@ const ServiceAreaMap = dynamic(() => import("./ServiceAreaMap"), {
   ssr: false,
   loading: () => <div className="sa-map sa-map-loading">Loading map…</div>,
 });
+
+type PlaceSuggestion = {
+  displayName: string;
+  lat: number;
+  lng: number;
+  // Boundary rings as [lat, lng] vertices; empty when the result is a point.
+  rings: Array<Array<[number, number]>>;
+};
+
+// GeoJSON coords are [lng, lat]; flip and keep the outer ring of each polygon.
+// Rings are capped so a very detailed city boundary doesn't become an
+// unmanageable vertex list in the text editor.
+const MAX_RING_POINTS = 120;
+function ringsFromGeoJson(geojson: { type?: string; coordinates?: unknown } | undefined): Array<Array<[number, number]>> {
+  if (!geojson) return [];
+  const flip = (ring: Array<[number, number]>): Array<[number, number]> => {
+    const step = Math.max(1, Math.ceil(ring.length / MAX_RING_POINTS));
+    const out: Array<[number, number]> = [];
+    for (let i = 0; i < ring.length; i += step) out.push([ring[i][1], ring[i][0]]);
+    return out;
+  };
+  try {
+    if (geojson.type === "Polygon") {
+      const rings = geojson.coordinates as Array<Array<[number, number]>>;
+      return rings.length ? [flip(rings[0])] : [];
+    }
+    if (geojson.type === "MultiPolygon") {
+      const polys = geojson.coordinates as Array<Array<Array<[number, number]>>>;
+      return polys.map((p) => flip(p[0])).filter((r) => r.length >= 3);
+    }
+  } catch {
+    /* malformed geometry — treat as point result */
+  }
+  return [];
+}
 
 const modeCards: Array<{ mode: ServiceAreaMode; icon: typeof Globe; label: string; description: string }> = [
   { mode: "off", icon: Globe, label: "No restriction", description: "Deliver everywhere — no gating." },
@@ -160,6 +195,60 @@ export default function ServiceAreaEditor() {
   const [detectingShop, setDetectingShop] = useState(false);
   const [detectError, setDetectError] = useState("");
 
+  // --- Area search (Nominatim typeahead + boundary highlight) ---
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<PlaceSuggestion[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [selectedPlace, setSelectedPlace] = useState<PlaceSuggestion | null>(null);
+
+  useEffect(() => {
+    const query = searchQuery.trim();
+    if (query.length < 3) {
+      setSearchResults([]);
+      setSearchLoading(false);
+      return;
+    }
+    setSearchLoading(true);
+    // Debounce keystrokes; Nominatim asks for ≤1 request/second.
+    const timer = setTimeout(async () => {
+      try {
+        const response = await fetch(
+          `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&countrycodes=in&limit=5&format=jsonv2&polygon_geojson=1&polygon_threshold=0.002&addressdetails=0`,
+          { headers: { Accept: "application/json" } }
+        );
+        const body: Array<{ display_name: string; lat: string; lon: string; geojson?: { type?: string; coordinates?: unknown } }> =
+          await response.json();
+        setSearchResults(
+          body.map((r) => ({
+            displayName: r.display_name,
+            lat: Number(r.lat),
+            lng: Number(r.lon),
+            rings: ringsFromGeoJson(r.geojson),
+          }))
+        );
+      } catch {
+        setSearchResults([]);
+      } finally {
+        setSearchLoading(false);
+      }
+    }, 450);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  function selectPlace(place: PlaceSuggestion) {
+    setSelectedPlace(place);
+    setSearchResults([]);
+    setSearchQuery(place.displayName.split(",")[0]);
+  }
+
+  // Adopt the highlighted boundary as the delivery polygon (largest ring wins).
+  function useBoundaryAsPolygon() {
+    if (!selectedPlace || selectedPlace.rings.length === 0) return;
+    clearFeedback();
+    const ring = [...selectedPlace.rings].sort((a, b) => b.length - a.length)[0];
+    setSaPolygonText(ring.map(([lat, lng]) => `${lat}, ${lng}`).join("\n"));
+  }
+
   // Admin is normally standing in the shop — one tap fills the coordinates.
   function detectShopLocation() {
     setDetectError("");
@@ -257,6 +346,41 @@ export default function ServiceAreaEditor() {
 
   const currentBanner = pricing ? banner() : null;
 
+  const searchBox = (
+    <div className="sa-search">
+      <div className="sa-search-input-row">
+        <Search size={15} aria-hidden="true" className="sa-search-icon" />
+        <input
+          type="text"
+          value={searchQuery}
+          placeholder="Search an area, locality, or city…"
+          onChange={(e) => {
+            setSearchQuery(e.target.value);
+            setSelectedPlace(null);
+          }}
+          aria-label="Search area"
+        />
+        {searchLoading && <Loader2 size={15} className="spin sa-search-spinner" aria-hidden="true" />}
+      </div>
+      {searchResults.length > 0 && (
+        <ul className="sa-search-results" role="listbox">
+          {searchResults.map((place, index) => (
+            <li key={`${place.displayName}-${index}`}>
+              <button type="button" role="option" aria-selected="false" onClick={() => selectPlace(place)}>
+                <MapPin size={13} aria-hidden="true" />
+                <span>{place.displayName}</span>
+                {place.rings.length > 0 && <span className="sa-search-badge">boundary</span>}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      {selectedPlace && selectedPlace.rings.length === 0 && (
+        <span className="pricing-hint">This place has no boundary shape on the map — it is shown as a location only.</span>
+      )}
+    </div>
+  );
+
   return (
     <AdminManagementNav
       title="Delivery area"
@@ -322,12 +446,15 @@ export default function ServiceAreaEditor() {
                 <>
                   <div className="pricing-field sa-map-field">
                     <label>Pick your shop on the map</label>
+                    {searchBox}
                     <ServiceAreaMap
                       mode="radius"
                       shopLat={mapShopLat}
                       shopLng={mapShopLng}
                       radiusKm={mapRadiusKm}
                       polygon={[]}
+                      highlight={selectedPlace?.rings}
+                      focusCenter={selectedPlace ? [selectedPlace.lat, selectedPlace.lng] : null}
                       onPick={handleMapPick}
                     />
                     <div className="sa-map-actions">
@@ -384,15 +511,23 @@ export default function ServiceAreaEditor() {
                 <>
                   <div className="pricing-field sa-map-field">
                     <label>Draw your delivery boundary</label>
+                    {searchBox}
                     <ServiceAreaMap
                       mode="polygon"
                       shopLat={null}
                       shopLng={null}
                       radiusKm={null}
                       polygon={mapPolygon}
+                      highlight={selectedPlace?.rings}
+                      focusCenter={selectedPlace ? [selectedPlace.lat, selectedPlace.lng] : null}
                       onPick={handleMapPick}
                     />
                     <div className="sa-map-actions">
+                      {selectedPlace && selectedPlace.rings.length > 0 && (
+                        <button type="button" className="btn-primary sa-use-boundary" onClick={useBoundaryAsPolygon}>
+                          <Check size={15} aria-hidden="true" /> Use as delivery boundary
+                        </button>
+                      )}
                       <button type="button" className="btn-secondary" onClick={handlePolygonUndo} disabled={mapPolygon.length === 0}>
                         <Undo2 size={15} aria-hidden="true" /> Undo point
                       </button>

@@ -14,13 +14,18 @@ export type ServiceAreaMapProps = {
   shopLng: number | null;
   radiusKm: number | null;
   polygon: Array<[number, number]>;
+  // Search-result boundary rings ([lat, lng] per vertex) shown as a separate
+  // highlight layer; the map flies to them when they change.
+  highlight?: Array<Array<[number, number]>>;
+  // Fly here when a boundary-less (point) search result is picked.
+  focusCenter?: [number, number] | null;
   onPick: (lat: number, lng: number) => void;
 };
 
 // Plain-Leaflet wrapper (no react-leaflet): the library touches `window` at
 // import time, so it is loaded inside useEffect and this component must only
 // ever render client-side (parent imports it via next/dynamic ssr:false).
-export default function ServiceAreaMap({ mode, shopLat, shopLng, radiusKm, polygon, onPick }: ServiceAreaMapProps) {
+export default function ServiceAreaMap({ mode, shopLat, shopLng, radiusKm, polygon, highlight, focusCenter, onPick }: ServiceAreaMapProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<LeafletMap | null>(null);
   const layersRef = useRef<LayerGroup | null>(null);
@@ -100,11 +105,28 @@ export default function ServiceAreaMap({ mode, shopLat, shopLng, radiusKm, polyg
           map.setView(polygon[0], 13);
         }
       }
+
+      // Search highlight rings — drawn on top in a contrasting colour, and the
+      // map always flies to them (that's the point of picking a suggestion).
+      if (focusCenter && (!highlight || highlight.length === 0)) {
+        map.setView(focusCenter, 14);
+      }
+      if (highlight && highlight.length > 0) {
+        const shape = L.polygon(highlight, {
+          color: "#ea580c",
+          weight: 2,
+          dashArray: "6 4",
+          fillColor: "#fb923c",
+          fillOpacity: 0.15,
+        });
+        layers.addLayer(shape);
+        map.fitBounds(shape.getBounds(), { padding: [24, 24] });
+      }
     })();
     return () => {
       cancelled = true;
     };
-  }, [ready, mode, shopLat, shopLng, radiusKm, polygon]);
+  }, [ready, mode, shopLat, shopLng, radiusKm, polygon, highlight, focusCenter]);
 
   return <div ref={containerRef} className="sa-map" aria-label="Delivery area map" />;
 }
