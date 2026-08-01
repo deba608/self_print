@@ -432,13 +432,13 @@ Let me verify the second one.
 
 ## 9. Implementation Priority
 
-| Priority | Task | Files Involved |
-|----------|------|----------------|
-| **P1** | Fix `.job-btn` responsive stacking (5.1) | `admin.css:3246` |
-| **P1** | Replace undefined CSS vars `--border`/`--surface` (5.3) | `admin.css:2346-2347` |
-| **P1** | Fix password `type="text"` in StaffManagement (7.5) | `StaffManagement.tsx:429` |
-| **P1** | Add `prefers-reduced-motion` to all animations (8.3) | `admin.css` global sweep |
-| **P1** | Unify breakpoints (staff page 820px/560px) (5.8) | `admin.css`, `StaffManagement` CSS |
+| Priority | Task | Files Involved | Status |
+|----------|------|----------------|--------|
+| **P1** | Fix `.job-btn` responsive stacking (5.1) | `admin.css:3246` | ✅ Done |
+| **P1** | Replace undefined CSS vars `--border`/`--surface` (5.3) | `admin.css:2346-2347` | ✅ Done |
+| **P1** | Fix password `type="text"` in StaffManagement (7.5) | `StaffManagement.tsx:429` | ✅ Done |
+| **P1** | Add `prefers-reduced-motion` to all animations (8.3) | `admin.css` global sweep | ✅ Done |
+| **P1** | Unify breakpoints (staff page 820px/560px) (5.8) | `admin.css`, `StaffManagement` CSS | ✅ Done |
 | **P2** | Convert Security table to cards on mobile (5.7) | `SecurityPage.tsx`, `admin.css` |
 | **P2** | Fix Job Detail tab `hidden` → `aria-hidden` (5.10) | `JobDetail.tsx`, `admin.css:2566` |
 | **P2** | Consolidate topbar buttons at 480px (5.2) | `admin.css:3157` |
