@@ -243,7 +243,7 @@ export default function AdminDashboard() {
     }
   }
 
-  async function savePricing(data: Pricing) {
+  async function savePricing(data: Omit<Pricing, "serviceArea">) {
     const response = await fetch("/api/admin/pricing", {
       method: "PUT",
       credentials: "include",
