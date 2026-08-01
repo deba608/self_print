@@ -144,14 +144,14 @@ The following issues from the original audit have been **fixed**:
 
 | # | File | Issue | Fix |
 |:---:|------|-------|-----|
-| 24 | `src/app/styles/admin.css:880` | `gap: px;` — missing unit value. Should be `gap: 4px;`. This causes the entire `.manage-filter-tab` rule to fail silently in browsers. | Fix to `gap: 4px;`. |
-| 25 | `src/app/styles/admin.css:1487` | `color: var(--text)` — `--text` is not defined anywhere in the variable palette. Falls back to `currentColor` which may not be the intended muted text color. | Replace with `var(--muted)`. |
+| 24 | `src/app/styles/admin.css:880` | `gap: px;` — missing unit value. Should be `gap: 4px;`. This causes the entire `.manage-filter-tab` rule to fail silently in browsers. | **FIXED**: Corrected to `gap: 4px;`. |
+| 25 | `src/app/styles/admin.css:1487` | `color: var(--text)` — `--text` is not defined anywhere in the variable palette. Falls back to `currentColor` which may not be the intended muted text color. | **VERIFIED**: `--text` is not used in current code — no fix needed. |
 
 ### 5.2 Duplicate/Conflicting CSS Rules
 
 | # | File | Issue | Fix |
 |:---:|------|-------|-----|
-| 26 | `src/app/styles/base-and-customer.css:1352,1527` | `.mobile-select` is defined twice — once at line 1220 (basic styling) and again at line 1527 (enhanced styling). The second definition overrides the first, but creates maintenance confusion. | Merge into a single `.mobile-select` rule block. |
+| 26 | `src/app/styles/base-and-customer.css:1352,1527` | `.mobile-select` is defined twice — once at line 1220 (basic styling) and again at line 1527 (enhanced styling). The second definition overrides the first, but creates maintenance confusion. | **FIXED**: Removed the first (basic) definition; the enhanced definition at line 1527 is canonical. |
 | 27 | `src/app/styles/base-and-customer.css:1089,1563` | `.advanced-section` is defined twice with conflicting rules. The first (line 1089) uses `border-radius: 12px`, the second (line 1563) uses `border-radius: 14px`. The cascade means the second wins, but only on elements matching both selectors. | Consolidate into one rule; verify intended border-radius. |
 | 28 | `src/app/styles/base-and-customer.css:1352` | `.btn-primary` and `.btn-secondary` are defined twice — once for the form action buttons (line 1754) and once for the upload wizard (line 1277). The second set overrides padding, font-size, and min-height. | Consider using more specific class names (e.g., `.wizard-btn-primary`) instead of overriding shared classes. |
 
