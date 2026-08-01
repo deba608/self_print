@@ -320,34 +320,6 @@ export default function ResultScreen({
                   <li><span className="upi-step-num">3</span> {isDeliveryOrder ? "Track dispatch and delivery here" : "Collect your print"}</li>
                 </ol>
               </div>
-            ) : (
-              <div className="upi-card">
-                <div className="upi-card-top">
-                  <span className="upi-tag"><CreditCard size={13} aria-hidden="true" /> UPI Payment</span>
-                  <div className="upi-amount">₹{amountRupees}</div>
-                  <p className="upi-payee">to {shopName}</p>
-                </div>
-
-                {/* QR payment — intent links get blocked by UPI risk policy
-                    for this VPA, so scan-to-pay is the only offered flow. */}
-                <div className="upi-qr-box">
-                  <QRCodeSVG value={upiLink} size={184} level="M" marginSize={2} />
-                </div>
-                <p className="upi-apps">Scan with GPay · PhonePe · Paytm · BHIM &amp; all UPI apps</p>
-
-                {/* Manual fallback — copy the UPI ID */}
-                <button type="button" className="upi-copy" onClick={copyUpiId} aria-live="polite">
-                  {copied ? <Check size={15} aria-hidden="true" /> : <Copy size={15} aria-hidden="true" />}
-                  <span className="upi-copy-id">{copied ? "Copied!" : upiId_forCopy}</span>
-                </button>
-
-                <ol className="upi-steps">
-                  <li><span className="upi-step-num">1</span> On this phone? Screenshot the QR, then scan it from gallery in your UPI app</li>
-                  <li><span className="upi-step-num">2</span> Pay ₹{amountRupees}{isDeliveryOrder ? "" : " and show this screen to staff"}</li>
-                  <li><span className="upi-step-num">3</span> {isDeliveryOrder ? "Track preparation and delivery here" : "Collect your print"}</li>
-                </ol>
-              </div>
-            )
           )}
 
           {payMethod === "offline" && (
