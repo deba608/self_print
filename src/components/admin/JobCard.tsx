@@ -152,7 +152,11 @@ export default function JobCard({
               <Badge variant="info" icon={Truck}>Delivery</Badge>
             )}
             <span>{job.customerName} · {job.customerPhone}</span>
-            <span className="job-delivery-address">{job.deliveryAddress}</span>
+            <span className="job-delivery-address">
+              {job.deliveryAddress}
+              {job.deliveryPincode ? ` — ${job.deliveryPincode}` : ""}
+              {job.deliveryArea ? ` (${job.deliveryArea})` : ""}
+            </span>
             {job.deliveryLatitude != null && job.deliveryLongitude != null && (
               <a
                 className="job-delivery-map"

@@ -360,6 +360,109 @@ export default function PricingPanel({
               </div>
             </div>
           </section>
+
+          <section className="pricing-section">
+            <h3>Delivery Area</h3>
+            <div className="pricing-grid single">
+              <div className="pricing-field">
+                <label>Mode</label>
+                <select
+                  value={saMode}
+                  onChange={(e) => {
+                    setSaMode(e.target.value as ServiceAreaMode);
+                    setSaved(false);
+                    setError("");
+                  }}
+                >
+                  <option value="off">No restriction</option>
+                  <option value="pincode">By pincode</option>
+                  <option value="pincode_area">By pincode + area</option>
+                  <option value="radius">By distance (radius)</option>
+                  <option value="polygon">By map boundary (polygon)</option>
+                </select>
+              </div>
+
+              {(saMode === "pincode" || saMode === "pincode_area") && (
+                <div className="pricing-field">
+                  <label>Pincodes</label>
+                  <textarea
+                    value={saPincodesText}
+                    onChange={(e) => {
+                      setSaPincodesText(e.target.value);
+                      setSaved(false);
+                      setError("");
+                    }}
+                  />
+                  <span className="pricing-hint">
+                    {saMode === "pincode_area"
+                      ? "One per line: 713347: Sitarampur, Chelidanga (areas optional — bare pincode = whole pincode)"
+                      : "One 6-digit pincode per line"}
+                  </span>
+                </div>
+              )}
+
+              {saMode === "radius" && (
+                <>
+                  <div className="pricing-field">
+                    <label>Radius (km)</label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      value={saRadius}
+                      onChange={(e) => {
+                        setSaRadius(e.target.value);
+                        setSaved(false);
+                        setError("");
+                      }}
+                    />
+                  </div>
+                  <div className="pricing-field">
+                    <label>Shop latitude</label>
+                    <input
+                      type="number"
+                      step="any"
+                      value={saShopLat}
+                      onChange={(e) => {
+                        setSaShopLat(e.target.value);
+                        setSaved(false);
+                        setError("");
+                      }}
+                    />
+                  </div>
+                  <div className="pricing-field">
+                    <label>Shop longitude</label>
+                    <input
+                      type="number"
+                      step="any"
+                      value={saShopLng}
+                      onChange={(e) => {
+                        setSaShopLng(e.target.value);
+                        setSaved(false);
+                        setError("");
+                      }}
+                    />
+                    <span className="pricing-hint">Get shop lat/lng from Google Maps (right-click your shop → copy coordinates)</span>
+                  </div>
+                </>
+              )}
+
+              {saMode === "polygon" && (
+                <div className="pricing-field">
+                  <label>Polygon corners</label>
+                  <textarea
+                    value={saPolygonText}
+                    onChange={(e) => {
+                      setSaPolygonText(e.target.value);
+                      setSaved(false);
+                      setError("");
+                    }}
+                  />
+                  <span className="pricing-hint">One corner per line as "lat, lng"; at least 3 lines. Right-click points on Google Maps to copy coordinates.</span>
+                </div>
+              )}
+            </div>
+          </section>
         </div>
 
         {error && <p className="panel-error" role="alert">{error}</p>}
