@@ -249,9 +249,9 @@ The following issues from the original audit have been **fixed**:
 | # | File | Issue | Fix |
 |:---:|------|-------|-----|
 | 54 | `src/components/pages/DeliveryDashboard.tsx:141,174` | Skeleton loaders show only one or two card placeholders (`aria-busy="true"` on the `.delivery-grid`), but the actual grid might render 3-4 cards side by side on tablet. The skeleton count doesn't match the visual density. | Match skeleton count to expected card count per viewport width. |
-| 55 | `src/components/delivery/DeliveryOrderCard.tsx:59` | The `<ol className="delivery-flow">` doesn't have `role="list"` — `<ol>` implies this semantically, but add for robustness. | Not needed — `<ol>` has implicit `list` role. |
+| 55 | `src/components/delivery/DeliveryOrderCard.tsx:59` | The `<ol className="delivery-flow">` doesn't have `role="list"` — `<ol>` implies this semantically, but add for robustness. | **VERIFIED**: `<ol>` has implicit `list` role — no change needed. |
 | 56 | `src/components/delivery/DeliveryOrderCard.tsx:121` | The meta line says "paid online" (hardcoded) but this should reflect actual payment status. If staff releases a print before payment, the delivery rider sees a false "paid" claim. | Use `order.paidAt` to determine payment status display; show "Unpaid" badge if not paid. |
-| 57 | `src/components/delivery/DeliveryOrderCard.tsx:95` | Currency is hardcoded as `₹` without formatting. The `(order.amountPaise / 100).toFixed(2)` is correct but doesn't handle locale properly. | Use `Intl.NumberFormat` for proper currency formatting. |
+| 57 | `src/components/delivery/DeliveryOrderCard.tsx:95` | Currency is hardcoded as `₹` without formatting. The `(order.amountPaise / 100).toFixed(2)` is correct but doesn't handle locale properly. | **FIXED**: Now uses `Intl.NumberFormat("en-IN", ...)` for proper currency formatting. |
 
 ### 6.12 Auth Pages (Login, Register, Forgot, Accept Invite, Complete Profile, Delivery Login)
 
@@ -285,11 +285,11 @@ The following files were not read due to length constraints and should be audite
 
 | # | File | Issue | Fix |
 |:---:|------|-------|-----|
-| 61 | `admin.css:646` | `gap: px;` — missing unit (CSS syntax error, silently fails). | Should be `gap: 4px;`. |
-| 62 | `base-and-customer.css:911` | `.file-summary` declares `border: 1px solid #b8ded7;` on line 904 and again `border: 1px solid #b8ded7;` on line 911 — duplicate declaration. | Remove the duplicate. |
-| 63 | `admin.css:2032` | `.file-count-inline` uses `var(--surface-2, #f1f5f9)` with a fallback color that's not in the design system palette. | Use `var(--bg)` or define `--surface-2` in `:root`. |
-| 64 | `base-and-customer.css:1744` | `.form-actions` z-index is 40, but `.admin-sidebar.mobile-open` z-index is 100 (line 5004). On mobile admin pages that also have the wizard, the sidebar could overlap the form actions. | Align z-index scales between admin and customer UI (admin uses 30/40/50/60/90/100; customer uses 40/50). |
-| 65 | `admin.css:5394-5403` | `prefers-reduced-motion` only targets `.admin-shell *` — content outside `.admin-shell` (e.g., `AdminManagementNav` topbar) is not covered. | Add a global `prefers-reduced-motion` rule in `base-and-customer.css`. |
+| 61 | `admin.css:646` | `gap: px;` — missing unit (CSS syntax error, silently fails). | **FIXED**: Corrected to `gap: 4px;`. |
+| 62 | `base-and-customer.css:911` | `.file-summary` declares `border: 1px solid #b8ded7;` on line 904 and again `border: 1px solid #b8ded7;` on line 911 — duplicate declaration. | **FIXED**: Removed the duplicate declaration. |
+| 63 | `admin.css:2032` | `.file-count-inline` uses `var(--surface-2, #f1f5f9)` with a fallback color that's not in the design system palette. | **FIXED**: `--surface-2` now defined in `:root` in `base-and-customer.css`. |
+| 64 | `base-and-customer.css:1744` | `.form-actions` z-index is 40, but `.admin-sidebar.mobile-open` z-index is 100 (line 5004). On mobile admin pages that also have the wizard, the sidebar could overlap the form actions. | **PARTIALLY FIXED**: Added standardized `--z-*` variables to `:root`; full migration of existing values deferred to larger refactor. |
+| 65 | `admin.css:5394-5403` | `prefers-reduced-motion` only targets `.admin-shell *` — content outside `.admin-shell` (e.g., `AdminManagementNav` topbar) is not covered. | **FIXED**: Added global `prefers-reduced-motion` query in `base-and-customer.css` covering all elements. |
 
 ---
 
@@ -297,7 +297,7 @@ The following files were not read due to length constraints and should be audite
 
 | # | File | Issue | Fix |
 |:---:|------|-------|-----|
-| 66 | `src/components/delivery/DeliveryOrderCard.tsx:95,120-121` | `₹` currency symbol is hardcoded, "paid online" text is hardcoded. | Use `Intl.NumberFormat` and i18n strings. |
+| 66 | `src/components/delivery/DeliveryOrderCard.tsx:95,120-121` | `₹` currency symbol is hardcoded, "paid online" text is hardcoded. | **FIXED**: Currency now uses `Intl.NumberFormat`; "paid online" text still hardcoded. |
 | 67 | `src/components/pages/TrackOrder.tsx:364` | "Updated Xs ago", "min wait", "pages", "copy/copies" are English-only. | Extract to i18n keys. |
 | 68 | `src/components/upload/ResultScreen.tsx` | All payment instructions and button labels are hardcoded English strings. | Extract to i18n keys. |
 
@@ -305,15 +305,15 @@ The following files were not read due to length constraints and should be audite
 
 ## 10. Summary of Critical Issues
 
-1. **CSS syntax error** (`gap: px` in `admin.css:880`) — breaks `.manage-filter-tab` layout
-2. **Undefined CSS variable** (`var(--text)` in `admin.css:2349`) — causes invisible text
-3. **Password field as `type="text"`** in `StaffManagement.tsx` — security vulnerability
+~~1. **CSS syntax error** (`gap: px` in `admin.css:880`) — breaks `.manage-filter-tab` layout~~ **FIXED**
+~~2. **Undefined CSS variable** (`var(--text)` in `admin.css:2349`) — causes invisible text~~ **VERIFIED** (not present in current code)
+~~3. **Password field as `type="text"`** in `StaffManagement.tsx` — security vulnerability~~ **VERIFIED** (uses `type="password"`)
 4. **Inconsistent breakpoints** across 12+ values — should consolidate to 480/768/1024/1280
 5. **612-line monolithic `AdminDashboard.tsx`** and **3386-line monolithic `UploadForm.tsx`** — need decomposition
-6. **Missing `prefers-reduced-motion`** on several infinite animations
-7. **Duplicate `.mobile-select` and `.advanced-section` CSS rules** — cascade confusion
-8. **Inline styles** in `ResultScreen.tsx` buttons — should use CSS classes
+6. **Missing `prefers-reduced-motion`** on several infinite animations — **PARTIALLY FIXED** (global guard added; per-element checks remain)
+7. **Duplicate `.mobile-select` and `.advanced-section` CSS rules** — cascade confusion — **FIXED** (`.mobile-select` merged; `.advanced-section` verified non-duplicate)
+8. **Inline styles** in `ResultScreen.tsx` buttons — should use CSS classes — **FIXED** (uses `.result-screen-link` class)
 
 ---
 
-*End of audit. Recommended priority: fix syntax errors (#61, #62) and security issue (#41) first, then consolidate breakpoints (#4), then address monolithic component decomposition (#34, #45).*
+*End of audit. Fixes applied: CSS syntax errors, undefined CSS variables, hardcoded values, duplicate rules, reduced-motion guards, ARIA improvements, currency formatting. Remaining work: breakpoint consolidation, component decomposition, internationalization, payment status in delivery card.*

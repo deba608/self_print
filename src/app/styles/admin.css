@@ -3232,28 +3232,53 @@
     display: block;
   }
 
+  /* One compact row: hamburger, printer pill, spacer, more menu, logout.
+     Redundant with the wide two-row version this replaces (icon+label brand,
+     a full-width printer pill, then a wrapped second action row) — that
+     forced the topbar to nearly triple its height on phones. */
   .admin-topbar-inner {
-    height: auto;
-    min-height: 56px;
-    flex-wrap: wrap;
+    height: 56px;
+    flex-wrap: nowrap;
     gap: 8px;
-    align-items: stretch;
+    align-items: center;
+    padding: 0;
+  }
+
+  /* The sidebar drawer already shows the "SelfPrint" brand once opened —
+     repeating it in the cramped mobile bar just steals space from the
+     controls that matter here. */
+  .topbar-brand {
+    display: none;
   }
 
   .action-btn {
-    width: 40px;
-    height: 40px;
+    width: 36px;
+    height: 36px;
+    flex-shrink: 0;
+  }
+
+  .sidebar-toggle-btn {
+    flex-shrink: 0;
   }
 
   .printer-btn {
-    flex: 1 1 calc(100% - 56px);
+    flex: 1 1 auto;
+    min-width: 0;
     justify-content: center;
+    padding: 8px 10px;
+    min-height: 36px;
+  }
+
+  .printer-btn .printer-label {
+    max-width: none;
   }
 
   .topbar-actions {
-    width: 100%;
-    justify-content: flex-start;
-    flex-wrap: wrap;
+    width: auto;
+    margin-left: 0;
+    flex-shrink: 0;
+    justify-content: flex-end;
+    flex-wrap: nowrap;
   }
 
   .topbar-divider {

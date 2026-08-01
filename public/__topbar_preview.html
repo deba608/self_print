@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="http://localhost:3000/_next/static/css/app/layout.css">
+<style>body{margin:0;font-family:sans-serif;}</style>
+</head>
+<body>
+<div class="admin-layout">
+  <header class="admin-topbar">
+    <div class="admin-topbar-inner">
+      <button type="button" class="sidebar-toggle-btn" aria-label="Toggle navigation menu">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/></svg>
+      </button>
+      <div class="topbar-brand">
+        <div class="brand-logo">P</div>
+        <div class="brand-text"><span class="brand-name">SelfPrint</span><span class="brand-tag">Admin</span></div>
+      </div>
+      <button class="printer-btn active" type="button">
+        <span>M</span>
+        <span class="printer-label">KONICA MINOLTA bizhub 227</span>
+        <span class="printer-dot"></span>
+        <span class="chevron">v</span>
+      </button>
+      <div class="topbar-actions">
+        <div class="action-group">
+          <button type="button" class="action-btn action-btn-labeled notification"><span>B</span><span>Alerts</span></button>
+          <button type="button" class="action-btn action-btn-labeled"><span>R</span><span>Refresh</span></button>
+          <button type="button" class="action-btn action-btn-labeled"><span>S</span><span>Pricing</span></button>
+        </div>
+        <div class="topbar-more">
+          <button type="button" class="action-btn topbar-more-trigger">...</button>
+        </div>
+        <div class="topbar-divider"></div>
+        <div class="action-group">
+          <button type="button" class="action-btn danger logout-action"><span>L</span><span class="logout-label">Log out</span></button>
+        </div>
+      </div>
+    </div>
+  </header>
+  <main class="admin-shell">
+    <p style="padding:20px">Main content area</p>
+  </main>
+</div>
+</body>
+</html>
