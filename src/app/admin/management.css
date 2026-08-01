@@ -416,6 +416,8 @@
 .order-card-identity > p { margin: 5px 0 0; overflow: hidden; color: var(--muted); font-size: 11.5px; text-overflow: ellipsis; white-space: nowrap; }
 .order-card-identity address { display: flex; align-items: flex-start; gap: 5px; margin-top: 7px; color: #475569; font-size: 11.5px; font-style: normal; line-height: 1.4; }
 .order-card-identity address svg { flex: 0 0 auto; margin-top: 1px; color: var(--accent); }
+.order-card-rider { display: flex !important; align-items: center; gap: 5px; color: var(--accent-strong) !important; font-weight: 700; white-space: nowrap; }
+.order-card-rider svg { flex: 0 0 auto; }
 .order-status { display: inline-flex; align-items: center; min-height: 23px; padding: 0 8px; color: #1d4ed8; background: #dbeafe; border-radius: 6px; font-size: 10.5px; font-weight: 700; }
 .order-status.printed { color: var(--ok); background: var(--ok-light); }
 .order-status.failed,
