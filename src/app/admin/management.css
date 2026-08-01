@@ -238,7 +238,7 @@
   gap: 12px;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 768px) {
   .management-filter-group {
     flex-wrap: wrap;
     gap: 9px;
@@ -470,7 +470,7 @@
 .detail-map-link:hover { text-decoration: underline; }
 .delivery-payment-lock { display: inline-flex; align-items: center; gap: 7px; padding: 9px 11px; color: var(--accent-strong); background: var(--accent-light); border: 1px solid rgba(13, 122, 116, 0.13); border-radius: 6px; font-size: 12px; font-weight: 700; }
 
-@media (max-width: 900px) {
+@media (max-width: 1024px) {
   .management-nav-inner { gap: 10px; }
   .management-tabs a { padding: 0 10px; }
   .management-tabs a span { display: none; }
@@ -482,7 +482,7 @@
   .customer-toolbar-row .management-segmented { width: 100%; }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 768px) {
   .management-nav-inner { width: 100%; min-height: auto; display: grid; grid-template-columns: 1fr auto; gap: 8px; padding: 8px 12px 0; }
   .management-brand { grid-column: 1; grid-row: 1; }
   .management-logout { grid-column: 2; grid-row: 1; min-height: 44px; margin-left: 0; }

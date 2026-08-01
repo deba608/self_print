@@ -263,7 +263,7 @@
 }
 
 /* Mobile: 16px inputs prevent iOS Safari focus zoom; full-width buttons + dialogs */
-@media (max-width: 640px) {
+@media (max-width: 768px) {
   .ui-field input,
   .ui-field select,
   .ui-field textarea,

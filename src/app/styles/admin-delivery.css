@@ -199,7 +199,7 @@
 .jobs-list-card:hover .jobs-card-arrow { color: var(--accent); transform: translateX(2px); }
 .jobs-card-arrow { transition: color var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out); }
 
-@media (max-width: 600px) {
+@media (max-width: 480px) {
   .jobs-page { gap: var(--space-4); }
   .jobs-page .jobs-filter-chips { gap: var(--space-2); }
   .jobs-page .jobs-filter-chip { flex: 1; padding: 0 var(--space-2); }

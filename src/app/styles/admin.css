@@ -3486,7 +3486,7 @@
   }
 }
 
-@media (max-width: 360px) {
+@media (max-width: 480px) {
   .step-label {
     display: none;
   }
@@ -3973,7 +3973,7 @@
   }
 }
 
-@media (max-width: 400px) {
+@media (max-width: 480px) {
   .acct-cards {
     grid-template-columns: 1fr;
   }
