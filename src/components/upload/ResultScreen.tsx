@@ -457,7 +457,7 @@ export default function ResultScreen({
           a third peer of Track/Upload Another. */}
       {reviewUrl && (
         <div className="review-prompt">
-          <p>Got a moment? A quick rating helps others find us.</p>
+          <p>Your feedback fuels us.</p>
           <a
             className="result-screen-review"
             href={reviewUrl}
