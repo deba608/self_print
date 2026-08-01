@@ -5318,9 +5318,9 @@
     padding: 0;
   }
 
-  /* Hide ManageMenu dropdown — sidebar drawer replaces it on all non-desktop
-     screens (the hamburger sidebar is always accessible). On desktop (>=1024px)
-     the permanent sidebar replaces it. */
+  /* Hide ManageMenu dropdown — sidebar replaces it on all non-desktop screens
+     (sidebar is always accessible via hamburger). On desktop >=1024px the
+     permanent sidebar replaces it. */
   .manage-menu {
     display: none;
   }
