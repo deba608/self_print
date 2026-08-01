@@ -7,6 +7,8 @@ const row: DeliveryJobRow = {
   customer_name: "Asha",
   customer_phone: "9999999999",
   delivery_address: "12 Main St",
+  delivery_pincode: "713347",
+  delivery_area: "Sitarampur",
   delivery_latitude: 12.9,
   delivery_longitude: 77.6,
   delivery_accuracy_meters: 14.5,
@@ -28,6 +30,8 @@ describe("toDeliveryOrderView", () => {
       customerName: "Asha",
       customerPhone: "9999999999",
       deliveryAddress: "12 Main St",
+      deliveryPincode: "713347",
+      deliveryArea: "Sitarampur",
       deliveryLatitude: 12.9,
       deliveryLongitude: 77.6,
       deliveryAccuracyMeters: 14.5,
@@ -44,6 +48,6 @@ describe("toDeliveryOrderView", () => {
   it("never exposes extra columns", () => {
     const view = toDeliveryOrderView({ ...row, storage_path: "secret.pdf" } as never);
     expect(Object.keys(view)).not.toContain("storage_path");
-    expect(Object.keys(view)).toHaveLength(15);
+    expect(Object.keys(view)).toHaveLength(17);
   });
 });

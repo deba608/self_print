@@ -108,7 +108,11 @@ export default function DeliveryOrderCard({ order, actionLabel, onAction, busy, 
         {order.deliveryAddress && (
           <p className="delivery-card-address">
             <MapPin size={14} aria-hidden="true" />
-            <span>{order.deliveryAddress}</span>
+            <span>
+              {order.deliveryAddress}
+              {order.deliveryPincode ? ` — ${order.deliveryPincode}` : ""}
+              {order.deliveryArea ? ` (${order.deliveryArea})` : ""}
+            </span>
           </p>
         )}
         {hasPin && (
