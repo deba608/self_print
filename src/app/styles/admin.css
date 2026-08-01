@@ -3160,6 +3160,8 @@
   }
 
   .admin-topbar-inner {
+    height: auto;
+    min-height: 56px;
     flex-wrap: wrap;
     gap: 8px;
     align-items: stretch;
@@ -3190,14 +3192,9 @@
     gap: 8px;
   }
 
-  .job-meta {
-    width: 100%;
-    justify-content: space-between;
-  }
-
   .filter-tab {
-    padding: 5px 8px;
-    font-size: 11.5px;
+    padding: 6px 10px;
+    font-size: 12px;
   }
 
   .batch-float-inner {
@@ -3216,14 +3213,35 @@
   }
 
   .job-actions {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .job-actions-status,
+  .job-actions-primary,
+  .job-actions-utility {
+    flex: 1 1 100%;
+    justify-content: stretch;
+  }
+
+  .job-actions-primary > *,
+  .job-actions-utility > * {
+    flex: 1 1 auto;
+  }
+
+  .batch-float-bar.visible {
+    max-height: 200px;
   }
 
   .job-btn {
     justify-content: center;
     padding: 10px 8px;
+    min-height: 44px;
   }
+
+  .print-mode-switch { align-self: stretch; }
+  .print-mode-opt { min-height: 36px; }
 
   .job-btn.cancel,
   .job-btn.view {
@@ -3285,17 +3303,12 @@
     height: 36px;
   }
 
-  .filter-tab {
-    padding: 5px 8px;
-    font-size: 11.5px;
-  }
-
   .summary-grid {
-    grid-template-columns: 1fr 1fr;
-    gap: 10px 14px;
+    grid-template-columns: 1fr;
+    gap: 8px;
   }
 
-  .action-grid {
+  .page-mode-grid {
     grid-template-columns: 1fr;
   }
 }
@@ -5312,4 +5325,67 @@
   .print-mode-opt {
     min-height: 44px;
   }
+}
+
+/* === Admin dashboard mobile pass 2 (2026-08) === */
+
+@media (max-width: 480px) {
+  .admin-filter-row {
+    padding: 10px;
+    gap: 10px;
+  }
+
+  .job-pay-row {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .job-pay-row button {
+    flex: 1 1 100%;
+    min-height: 44px;
+  }
+
+  .job-side {
+    width: 100%;
+  }
+
+  .job-delivery-info {
+    font-size: 12px;
+  }
+
+  .status-badge,
+  .print-mode-opt,
+  .manage-filter-tab,
+  .file-count-pill {
+    font-size: 12px;
+  }
+
+  .detail-action-grid .job-btn {
+    flex: 1 1 calc(50% - 8px);
+    min-height: 44px;
+  }
+
+  .manual-print-msg { min-width: 0; }
+  .manual-print-go { min-width: 0; flex: 1 1 auto; }
+
+  .empty-state { padding: 40px 16px; }
+}
+
+/* Fulfilment filter toggle: scroll instead of overflow at narrow widths */
+.delivery-filter-toggle {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.delivery-filter-toggle::-webkit-scrollbar { display: none; }
+.delivery-filter-btn { white-space: nowrap; flex: 0 0 auto; }
+
+/* iOS safe-area for fixed overlays and the mobile drawer */
+.panel-overlay,
+.manage-bulk-confirm-overlay {
+  padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+}
+.admin-sidebar.mobile-open {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-top: env(safe-area-inset-top, 0px);
 }
