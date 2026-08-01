@@ -818,3 +818,47 @@
     grid-template-columns: 1fr 1fr;
   }
 }
+
+.sa-map {
+  height: 340px;
+  width: 100%;
+  border-radius: var(--radius-md, 10px);
+  overflow: hidden;
+  border: 1px solid var(--border, #e2e8f0);
+  /* Leaflet panes default to z-index 400+; keep them under panels/overlays. */
+  position: relative;
+  z-index: 0;
+}
+
+.sa-map-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted, #64748b);
+  background: var(--surface, #f8fafc);
+  font-size: 0.9rem;
+}
+
+.sa-map-field label {
+  margin-bottom: 6px;
+}
+
+.sa-map-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.sa-map-actions .btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  padding: 6px 12px;
+}
+
+@media (max-width: 640px) {
+  .sa-map {
+    height: 260px;
+  }
+}

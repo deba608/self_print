@@ -17,6 +17,7 @@
     "@hyzyla/pdfium": "^2.1.13",
     "@supabase/ssr": "^0.12.3",
     "@supabase/supabase-js": "^2.106.0",
+    "leaflet": "^1.9.4",
     "lucide-react": "^0.468.0",
     "next": "^15.1.3",
     "pdfjs-dist": "^5.7.284",
@@ -31,6 +32,7 @@
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.12",
+    "@types/leaflet": "^1.9.22",
     "@types/node": "^22.10.5",
     "@types/react": "^19.0.2",
     "@types/react-dom": "^19.0.2",

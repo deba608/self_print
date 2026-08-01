@@ -1,12 +1,19 @@
 "use client";
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
-import { Check, CircleDot, Globe, Hash, Hexagon, Loader2, Lock, MapPin } from "lucide-react";
+import { Check, CircleDot, Globe, Hash, Hexagon, Loader2, Lock, MapPin, Undo2, X } from "lucide-react";
 import AdminManagementNav from "../AdminManagementNav";
 import ManagementSkeleton from "../ui/ManagementSkeleton";
 import type { PricingConfig as Pricing } from "@/lib/types";
 import { DEFAULT_SERVICE_AREA, isValidPincode, type ServiceAreaConfig, type ServiceAreaMode } from "@/lib/service-area";
+
+// Leaflet touches `window` at import time — client-only.
+const ServiceAreaMap = dynamic(() => import("./ServiceAreaMap"), {
+  ssr: false,
+  loading: () => <div className="sa-map sa-map-loading">Loading map…</div>,
+});
 
 const modeCards: Array<{ mode: ServiceAreaMode; icon: typeof Globe; label: string; description: string }> = [
   { mode: "off", icon: Globe, label: "No restriction", description: "Deliver everywhere — no gating." },
@@ -73,10 +80,18 @@ export default function ServiceAreaEditor() {
   function buildServiceArea(): { config: ServiceAreaConfig } | { error: string } {
     const pincodes: ServiceAreaConfig["pincodes"] = [];
     for (const line of saPincodesText.split("\n").map((l) => l.trim()).filter(Boolean)) {
-      const [pinPart, areaPart] = line.split(":");
-      const pincode = pinPart.trim();
+      const colonIndex = line.indexOf(":");
+      if (colonIndex === -1) {
+        // No areas on this line — allow several comma/space-separated pincodes at once.
+        for (const token of line.split(/[\s,]+/).filter(Boolean)) {
+          if (!isValidPincode(token)) return { error: `Invalid pincode: "${token}" — must be 6 digits` };
+          pincodes.push({ pincode: token, areas: [] });
+        }
+        continue;
+      }
+      const pincode = line.slice(0, colonIndex).trim();
       if (!isValidPincode(pincode)) return { error: `Invalid pincode: "${pincode}" — must be 6 digits` };
-      const areas = (areaPart ?? "").split(",").map((a) => a.trim()).filter(Boolean);
+      const areas = line.slice(colonIndex + 1).split(",").map((a) => a.trim()).filter(Boolean);
       pincodes.push({ pincode, areas });
     }
     const polygon: Array<[number, number]> = [];
@@ -99,6 +114,47 @@ export default function ServiceAreaEditor() {
   function clearFeedback() {
     setSaved(false);
     setError("");
+  }
+
+  // Lenient numeric views of the text fields for the map preview — invalid or
+  // partial input simply renders nothing rather than blocking the map.
+  const looseNum = (s: string): number | null => {
+    const t = s.trim();
+    if (!t) return null;
+    const n = Number(t);
+    return Number.isFinite(n) ? n : null;
+  };
+  const mapShopLat = looseNum(saShopLat);
+  const mapShopLng = looseNum(saShopLng);
+  const mapRadiusKm = looseNum(saRadius);
+  const mapPolygon: Array<[number, number]> = saPolygonText
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const [latS, lngS] = line.split(",");
+      return [Number(latS), Number(lngS)] as [number, number];
+    })
+    .filter(([lat, lng]) => Number.isFinite(lat) && Number.isFinite(lng));
+
+  function handleMapPick(lat: number, lng: number) {
+    clearFeedback();
+    if (saMode === "radius") {
+      setSaShopLat(String(lat));
+      setSaShopLng(String(lng));
+    } else if (saMode === "polygon") {
+      setSaPolygonText((prev) => (prev.trim() ? `${prev.replace(/\n+$/, "")}\n${lat}, ${lng}` : `${lat}, ${lng}`));
+    }
+  }
+
+  function handlePolygonUndo() {
+    clearFeedback();
+    setSaPolygonText((prev) => prev.split("\n").filter(Boolean).slice(0, -1).join("\n"));
+  }
+
+  function handlePolygonClear() {
+    clearFeedback();
+    setSaPolygonText("");
   }
 
   // Effective-state banner: reflects what would actually be saved right now,
@@ -226,14 +282,26 @@ export default function ServiceAreaEditor() {
                   />
                   <span className="pricing-hint">
                     {saMode === "pincode_area"
-                      ? "One per line: 713347: Sitarampur, Chelidanga (areas optional — bare pincode = whole pincode)"
-                      : "One 6-digit pincode per line"}
+                      ? "One per line: 713347: Sitarampur, Chelidanga (areas optional — bare pincode = whole pincode). Lines without areas may list several pincodes: 768019, 768018"
+                      : "6-digit pincodes, separated by commas or new lines: 768019, 768018"}
                   </span>
                 </div>
               )}
 
               {saMode === "radius" && (
                 <>
+                  <div className="pricing-field sa-map-field">
+                    <label>Pick your shop on the map</label>
+                    <ServiceAreaMap
+                      mode="radius"
+                      shopLat={mapShopLat}
+                      shopLng={mapShopLng}
+                      radiusKm={mapRadiusKm}
+                      polygon={[]}
+                      onPick={handleMapPick}
+                    />
+                    <span className="pricing-hint">Click the map to set the shop location — the circle previews your delivery radius.</span>
+                  </div>
                   <div className="pricing-field">
                     <label>Radius (km)</label>
                     <input
@@ -276,17 +344,39 @@ export default function ServiceAreaEditor() {
               )}
 
               {saMode === "polygon" && (
-                <div className="pricing-field">
-                  <label>Polygon corners</label>
-                  <textarea
-                    value={saPolygonText}
-                    onChange={(e) => {
-                      setSaPolygonText(e.target.value);
-                      clearFeedback();
-                    }}
-                  />
-                  <span className="pricing-hint">One corner per line as "lat, lng"; at least 3 lines. Right-click points on Google Maps to copy coordinates.</span>
-                </div>
+                <>
+                  <div className="pricing-field sa-map-field">
+                    <label>Draw your delivery boundary</label>
+                    <ServiceAreaMap
+                      mode="polygon"
+                      shopLat={null}
+                      shopLng={null}
+                      radiusKm={null}
+                      polygon={mapPolygon}
+                      onPick={handleMapPick}
+                    />
+                    <div className="sa-map-actions">
+                      <button type="button" className="btn-secondary" onClick={handlePolygonUndo} disabled={mapPolygon.length === 0}>
+                        <Undo2 size={15} aria-hidden="true" /> Undo point
+                      </button>
+                      <button type="button" className="btn-secondary" onClick={handlePolygonClear} disabled={mapPolygon.length === 0}>
+                        <X size={15} aria-hidden="true" /> Clear
+                      </button>
+                    </div>
+                    <span className="pricing-hint">Click the map to add corners — at least 3 to close the boundary.</span>
+                  </div>
+                  <div className="pricing-field">
+                    <label>Polygon corners</label>
+                    <textarea
+                      value={saPolygonText}
+                      onChange={(e) => {
+                        setSaPolygonText(e.target.value);
+                        clearFeedback();
+                      }}
+                    />
+                    <span className="pricing-hint">One corner per line as "lat, lng" — edited automatically when you click the map.</span>
+                  </div>
+                </>
               )}
 
               {saMode === "off" && (
