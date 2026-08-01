@@ -1748,13 +1748,13 @@ input, select, button {
   background: var(--accent);
   color: #fff;
   border: none;
-  box-shadow: 0 4px 12px rgba(11, 122, 117, 0.3);
+  box-shadow: var(--shadow-accent);
 }
 
 .btn-primary:hover {
   background: var(--accent-strong);
   transform: translateY(-1px);
-  box-shadow: 0 6px 16px rgba(11, 122, 117, 0.4);
+  box-shadow: var(--shadow-accent-strong);
 }
 
 .btn-primary:disabled {
@@ -1776,7 +1776,7 @@ input, select, button {
 
 .btn-submit {
   background: linear-gradient(135deg, var(--accent) 0%, var(--accent-strong) 100%);
-  box-shadow: 0 4px 16px rgba(11, 122, 117, 0.4);
+  box-shadow: var(--shadow-accent-strong);
 }
 
 /* Help Text */
