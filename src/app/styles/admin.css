@@ -3095,7 +3095,7 @@
 }
 
 /* === Responsive - Tablet === */
-@media (min-width: 600px) {
+@media (min-width: 481px) {
   .customer-shell {
     max-width: 540px;
     padding: 24px 20px 60px;
@@ -3424,7 +3424,7 @@
   }
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1024px) {
   .job-detail-grid {
     grid-template-columns: 1fr;
     grid-template-areas: "main";
