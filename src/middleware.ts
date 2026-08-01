@@ -16,6 +16,19 @@ export async function middleware(request: NextRequest) {
     return response;
   }
 
+  // Guests (no Supabase session cookie at all) have nothing to refresh or
+  // verify. Skipping the network round-trip to Supabase Auth for them matters
+  // because most traffic on the busiest customer routes (/, /track) is
+  // guests — this app explicitly allows uploading without an account — so
+  // every tab switch was paying for an auth check that could never do
+  // anything. Logged-in users (any route, any role) are unaffected: their
+  // session cookie is present, so this check passes through to the real
+  // verification below exactly as before.
+  const hasSessionCookie = request.cookies.getAll().some((c) => /^sb-.*-auth-token/.test(c.name));
+  if (!hasSessionCookie) {
+    return response;
+  }
+
   const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
     cookies: {
       getAll() {

@@ -2343,8 +2343,8 @@
   gap: 6px;
   padding: 6px 14px;
   border-radius: 8px;
-  border: 1px solid var(--border);
-  background: var(--surface);
+  border: 1px solid var(--line);
+  background: var(--panel);
   color: var(--text);
   font-size: 0.8rem;
   cursor: pointer;
@@ -3243,8 +3243,8 @@
   .print-mode-switch { align-self: stretch; }
   .print-mode-opt { min-height: 36px; }
 
-  .job-btn.cancel,
-  .job-btn.view {
+  .job-btn {
+    flex: 1 1 100%;
     width: 100%;
   }
 
@@ -4502,7 +4502,7 @@
 .staff-empty-state p { max-width: 360px; margin: 0; font-size: 12.5px; }
 .staff-empty-state button { margin-top: 14px; color: var(--accent); background: var(--accent-bg); border: 1px solid var(--accent-light); }
 
-@media (max-width: 820px) {
+@media (max-width: 768px) {
   .staff-invite-form { grid-template-columns: 1fr 1fr; }
   .staff-email-field { grid-column: 1 / -1; }
   .staff-invite-btn { width: 100%; }
@@ -4514,7 +4514,7 @@
   .staff-member-meta { display: none; }
 }
 
-@media (max-width: 560px) {
+@media (max-width: 480px) {
   .accounts-shell { width: calc(100% - 20px); }
   .staff-page { gap: 14px; }
   .staff-hero { padding: 20px; border-radius: 16px; }
@@ -5388,4 +5388,16 @@
 .admin-sidebar.mobile-open {
   padding-bottom: env(safe-area-inset-bottom, 0px);
   padding-top: env(safe-area-inset-top, 0px);
+}
+
+/* Respect reduced-motion preference across all admin animations */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
 }

@@ -426,7 +426,7 @@ export default function StaffManagement({ currentStaff }: { currentStaff: StaffP
                   <Lock size={17} aria-hidden="true" />
                   <input
                     id="create-password"
-                    type="text"
+                    type="password"
                     required
                     placeholder="Min. 6 characters"
                     value={createPassword}
