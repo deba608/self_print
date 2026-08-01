@@ -205,6 +205,28 @@
   border-radius: 999px;
 }
 
+.mini-track-head-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Full track/timeline page link — lives in the status card itself instead
+   of a separate full-width button further down the screen. */
+.mini-track-view {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.mini-track-view:hover {
+  text-decoration: underline;
+}
+
 .mini-timeline {
   display: flex;
   align-items: flex-start;

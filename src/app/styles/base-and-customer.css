@@ -2443,8 +2443,7 @@ input, select, button {
   animation: fadeIn 0.4s ease;
 }
 
-.result-screen > .btn-secondary,
-.result-screen-actions > .btn-secondary {
+.result-screen > .btn-secondary {
   width: fit-content;
   min-width: 180px;
   margin: 0 auto;
@@ -2889,16 +2888,10 @@ button.upi-pay-btn:disabled {
   font-weight: 600;
 }
 
-/* Result screen action links (Track this order / Upload Another) — kept as
-   a tight pair, visually separate from the review panel above them. */
-.result-screen-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-top: 20px;
-}
-.result-screen-actions .result-screen-link {
-  margin-top: 0;
+/* Result screen action link (Upload Another) — Track this order now lives
+   in the live-status card header instead (see .mini-track-view). */
+.result-screen-link {
+  margin-top: 0.75rem;
 }
 
 /* "Rate us on Google" — its own tinted panel with a one-line prompt, not

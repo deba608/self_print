@@ -392,9 +392,14 @@ export default function ResultScreen({
           <div className="mini-track" aria-live="polite">
             <div className="mini-track-head">
               <span className="mini-track-title">Live status</span>
-              {st !== "printed" && !failed && (
-                <span className="mini-track-eta">~{Math.max(1, jobsAhead + 1) * 3} min wait</span>
-              )}
+              <div className="mini-track-head-right">
+                {st !== "printed" && !failed && (
+                  <span className="mini-track-eta">~{Math.max(1, jobsAhead + 1) * 3} min wait</span>
+                )}
+                <a className="mini-track-view" href={`/track?token=${result.token}`}>
+                  <Search size={13} aria-hidden="true" /> Track
+                </a>
+              </div>
             </div>
             {failed ? (
               <p className="mini-track-failed" role="alert">
@@ -440,7 +445,7 @@ export default function ResultScreen({
           a third peer of Track/Upload Another. */}
       {reviewUrl && (
         <div className="review-prompt">
-          <p>Enjoying the wait? Leave us a quick rating.</p>
+          <p>Got a moment? A quick rating helps others find us.</p>
           <a
             className="result-screen-review"
             href={reviewUrl}
@@ -452,12 +457,7 @@ export default function ResultScreen({
         </div>
       )}
 
-      <div className="result-screen-actions">
-        <a className="btn-secondary result-screen-link" href={`/track?token=${result.token}`}>
-          <Search size={16} aria-hidden="true" /> Track this order
-        </a>
-        <button className="btn-secondary result-screen-link" onClick={onReset}>Upload Another</button>
-      </div>
+      <button className="btn-secondary result-screen-link" onClick={onReset}>Upload Another</button>
       <div className="thank-you-note">
         <p>Thank you for using Self_Print</p>
         <p className="visit-again">We appreciate your business</p>
