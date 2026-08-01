@@ -52,6 +52,12 @@ function formatCapturedAt(iso: string) {
   });
 }
 
+const INR = new Intl.NumberFormat("en-IN", {
+  style: "currency",
+  currency: "INR",
+  maximumFractionDigits: 0,
+});
+
 function OrderFlowSteps({ status }: { status: DeliveryOrderView["deliveryStatus"] }) {
   const done = doneIndex(status);
 
@@ -92,7 +98,7 @@ export default function DeliveryOrderCard({ order, actionLabel, onAction, busy, 
           <FileText size={14} aria-hidden="true" />
           {order.token}
         </span>
-        <span className="delivery-card-amount">₹{(order.amountPaise / 100).toFixed(2)}</span>
+        <span className="delivery-card-amount">{INR.format(order.amountPaise / 100)}</span>
       </header>
 
       <OrderFlowSteps status={order.deliveryStatus} />
