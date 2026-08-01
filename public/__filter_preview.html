@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="http://localhost:3000/_next/static/css/app/layout.css">
+<style>body{margin:0;font-family:sans-serif;background:#f4f6f7;}</style>
+</head>
+<body>
+<div class="admin-shell">
+  <div class="admin-filter-row">
+    <div class="admin-filter-group">
+      <span class="admin-filter-label">Status</span>
+      <div class="filter-bar">
+        <button type="button" class="filter-tab active">All<span class="filter-count">25</span></button>
+        <button type="button" class="filter-tab">Queued<span class="filter-count">4</span></button>
+        <button type="button" class="filter-tab">Unpaid<span class="filter-count">3</span></button>
+        <button type="button" class="filter-tab">Released<span class="filter-count">2</span></button>
+        <button type="button" class="filter-tab">Printing<span class="filter-count">1</span></button>
+        <button type="button" class="filter-tab">Printed<span class="filter-count">14</span></button>
+        <button type="button" class="filter-tab">Failed<span class="filter-count">1</span></button>
+      </div>
+    </div>
+    <div class="admin-filter-group admin-filter-group-end">
+      <span class="admin-filter-label">Fulfillment</span>
+      <div class="delivery-filter-toggle" role="group">
+        <button type="button" class="delivery-filter-btn active">All Orders</button>
+        <button type="button" class="delivery-filter-btn">Pickup</button>
+        <button type="button" class="delivery-filter-btn">Delivery<span class="delivery-filter-count">3</span></button>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

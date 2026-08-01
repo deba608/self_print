@@ -3220,6 +3220,11 @@
 }
 
 @media (max-width: 480px) {
+  /* ManageMenu is redundant with the sidebar drawer — hide it */
+  .manage-menu {
+    display: none;
+  }
+
   .topbar-actions .action-btn span {
     display: none;
   }
@@ -5311,7 +5316,9 @@
     padding: 0;
   }
 
-  /* Hide ManageMenu dropdown on desktop — sidebar replaces it */
+  /* Hide ManageMenu dropdown — sidebar drawer replaces it on all non-desktop
+     screens (the hamburger sidebar is always accessible). On desktop (>=1024px)
+     the permanent sidebar replaces it. */
   .manage-menu {
     display: none;
   }
@@ -5435,8 +5442,38 @@
 
 @media (max-width: 480px) {
   .admin-filter-row {
-    padding: 10px;
-    gap: 10px;
+    padding: 8px 10px;
+    gap: 8px;
+  }
+
+  .admin-filter-group {
+    gap: 8px;
+  }
+
+  .admin-filter-label {
+    font-size: 10px;
+  }
+
+  /* Status (.filter-tab) and Fulfillment (.delivery-filter-btn) are visually
+     two rows of chips stacked on mobile — they read as one coherent control
+     only if both are the same size. Without this they diverge: the coarse-
+     pointer rule above forces delivery-filter-btn to a blocky 44px, while
+     filter-tab stays at its natural ~30px, so Fulfillment looks chunkier
+     than Status for no reason. Settle both on one compact, still-tappable
+     height instead of the default 12.5px/6px-10px chip. */
+  .filter-tab,
+  .delivery-filter-btn {
+    min-height: 34px;
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+
+  /* Fade the trailing edge of each scrollable chip row so truncation reads
+     as "more to scroll" rather than content getting cut off mid-word. */
+  .filter-bar,
+  .delivery-filter-toggle {
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 20px), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - 20px), transparent);
   }
 
   .job-pay-row {
