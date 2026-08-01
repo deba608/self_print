@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPricing, updatePricing } from "@/lib/db";
 import { requireAdminResponse } from "@/lib/security";
-import { DEFAULT_SERVICE_AREA, validateServiceAreaConfig } from "@/lib/service-area";
+import { validateServiceAreaConfig } from "@/lib/service-area";
 
 export async function GET() {
   const unauthorized = await requireAdminResponse();
@@ -26,7 +26,7 @@ export async function PUT(request: NextRequest) {
       }
     }
 
-    let serviceArea = DEFAULT_SERVICE_AREA;
+    let serviceArea = (await getPricing()).serviceArea;
     if (body.serviceArea !== undefined) {
       const validated = validateServiceAreaConfig(body.serviceArea);
       if ("error" in validated) {
