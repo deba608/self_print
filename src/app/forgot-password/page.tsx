@@ -48,7 +48,8 @@ function ForgotPasswordForm() {
       {sent ? (
         <div className="login-form">
           <AuthNotice icon={MailCheck}>
-            Reset link sent to {email}. Check your inbox (and spam folder).
+            If an account exists for {email}, a reset link is on its way. Check
+            your inbox (and spam folder).
           </AuthNotice>
           <p className="login-footer">
             <Link href={loginHref}>Back to log in</Link>
