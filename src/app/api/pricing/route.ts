@@ -10,6 +10,7 @@ export async function GET() {
     shopUpiId: (process.env.SHOP_UPI_ID ?? "").trim(),
     shopUpiQr: (process.env.SHOP_UPI_QR ?? "").trim(),
     shopName: (process.env.SHOP_NAME ?? "Print Shop").trim(),
+    shopReviewUrl: (process.env.SHOP_REVIEW_URL ?? "").trim(),
     // Publishable key id — safe on the client. Empty when Razorpay is disabled.
     razorpayKeyId: (process.env.RAZORPAY_KEY_ID ?? "").trim(),
   });
