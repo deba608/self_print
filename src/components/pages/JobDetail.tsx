@@ -512,9 +512,9 @@ function ActionsCard({
               type="button"
               className="job-btn release"
               onClick={() => printMode === "manual" ? handleManualPrint() : setStatus("approved")}
-              disabled={printMode === "manual" ? printing : false}
+              disabled={busy}
             >
-              {(printMode === "manual" && printing) ? <Loader2 size={16} className="spin" /> : <Printer size={16} />}
+              {((printMode === "manual" && printing) || acting === "approved") ? <Loader2 size={16} className="spin" /> : <Printer size={16} />}
               {printMode === "manual" ? "Manual Print" : "Release Print"}
             </button>
           </div>
@@ -526,33 +526,33 @@ function ActionsCard({
           </div>
         )}
         {!job.paidAt && job.status !== "cancelled" && (
-          <button type="button" className="job-btn paid" onClick={() => setStatus("paid")}>
-            <CreditCard size={16} /> Mark as Paid
+          <button type="button" className="job-btn paid" onClick={() => setStatus("paid")} disabled={busy}>
+            {acting === "paid" ? <Loader2 size={16} className="spin" /> : <CreditCard size={16} />} Mark as Paid
           </button>
         )}
         {(job.status === "approved" || job.status === "printing" || job.status === "failed") && (
-          <button type="button" className="job-btn done" onClick={() => setStatus("printed")}>
-            <CheckCircle2 size={16} /> Mark Done
+          <button type="button" className="job-btn done" onClick={() => setStatus("printed")} disabled={busy}>
+            {acting === "printed" ? <Loader2 size={16} className="spin" /> : <CheckCircle2 size={16} />} Mark Done
           </button>
         )}
         {job.deliveryMethod === "delivery" && job.status === "printed" && job.deliveryStatus == null && (
-          <button type="button" className="job-btn reprint" onClick={() => setDeliveryStatus("packed")}>
-            <Send size={16} /> Mark Packed
+          <button type="button" className="job-btn reprint" onClick={() => setDeliveryStatus("packed")} disabled={busy}>
+            {acting === "packed" ? <Loader2 size={16} className="spin" /> : <Send size={16} />} Mark Packed
           </button>
         )}
         {job.deliveryMethod === "delivery" && job.status === "printed" && job.deliveryStatus !== "out_for_delivery" && job.deliveryStatus !== "delivered" && (
-          <button type="button" className="job-btn release" onClick={() => setDeliveryStatus("out_for_delivery")}>
-            <Truck size={16} /> Out for Delivery
+          <button type="button" className="job-btn release" onClick={() => setDeliveryStatus("out_for_delivery")} disabled={busy}>
+            {acting === "out_for_delivery" ? <Loader2 size={16} className="spin" /> : <Truck size={16} />} Out for Delivery
           </button>
         )}
         {job.deliveryMethod === "delivery" && job.deliveryStatus === "out_for_delivery" && (
-          <button type="button" className="job-btn done" onClick={() => setDeliveryStatus("delivered")}>
-            <CheckCircle2 size={16} /> Delivered
+          <button type="button" className="job-btn done" onClick={() => setDeliveryStatus("delivered")} disabled={busy}>
+            {acting === "delivered" ? <Loader2 size={16} className="spin" /> : <CheckCircle2 size={16} />} Delivered
           </button>
         )}
         {(job.status === "printed" || job.status === "failed") && (
-          <button type="button" className="job-btn reprint" onClick={reprint}>
-            <RotateCcw size={16} /> {job.status === "failed" ? "Retry Print" : "Reprint"}
+          <button type="button" className="job-btn reprint" onClick={reprint} disabled={busy}>
+            {acting === "reprint" ? <Loader2 size={16} className="spin" /> : <RotateCcw size={16} />} {job.status === "failed" ? "Retry Print" : "Reprint"}
           </button>
         )}
         {!["pending_payment", "paid", "cancelled"].includes(job.status) && (
@@ -567,8 +567,8 @@ function ActionsCard({
           </button>
         )}
         {!["printed", "cancelled", "failed"].includes(job.status) && (
-          <button type="button" className="job-btn cancel-text" onClick={() => setStatus("cancelled")}>
-            <X size={16} /> Cancel
+          <button type="button" className="job-btn cancel-text" onClick={() => setStatus("cancelled")} disabled={busy}>
+            {acting === "cancelled" ? <Loader2 size={16} className="spin" /> : <X size={16} />} Cancel
           </button>
         )}
       </div>
