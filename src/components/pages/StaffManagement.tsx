@@ -519,7 +519,7 @@ export default function StaffManagement({ currentStaff }: { currentStaff: StaffP
             <h2 id="staff-list-title">People with access</h2>
             <p>{loading ? "Loading staff…" : `${staff.length} ${staff.length === 1 ? "person" : "people"} can access this dashboard`}</p>
           </div>
-          <button type="button" className="staff-refresh-btn" onClick={load} disabled={loading}>
+          <button type="button" className="staff-refresh-btn" onClick={() => load()} disabled={loading}>
             <RefreshCw size={16} className={loading ? "spin" : ""} aria-hidden="true" />
             Refresh
           </button>
@@ -541,7 +541,7 @@ export default function StaffManagement({ currentStaff }: { currentStaff: StaffP
             <AlertCircle size={28} aria-hidden="true" />
             <h3>Couldn’t load staff</h3>
             <p>{error}</p>
-            <button type="button" onClick={load}><RefreshCw size={15} aria-hidden="true" /> Try again</button>
+            <button type="button" onClick={() => load()}><RefreshCw size={15} aria-hidden="true" /> Try again</button>
           </div>
         ) : staff.length === 0 ? (
           <div className="staff-empty-state">

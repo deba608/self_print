@@ -1868,7 +1868,9 @@ export default function UploadForm() {
               aria-busy={busy || (isBulk && bulkUploading)}
             >
               {busy ? (
-                <><Loader2 size={20} className="spin" aria-hidden="true" /> Processing...</>
+                uploadPct > 0 && uploadPct < 100
+                  ? <><Loader2 size={20} className="spin" aria-hidden="true" /> Uploading… {uploadPct}%</>
+                  : <><Loader2 size={20} className="spin" aria-hidden="true" /> Processing...</>
               ) : isBulk && bulkUploading ? (
                 <><Loader2 size={20} className="spin" aria-hidden="true" /> Uploading files...</>
               ) : (
@@ -2139,7 +2141,9 @@ export default function UploadForm() {
               aria-busy={busy || (isBulk && bulkUploading)}
             >
               {busy ? (
-                <><Loader2 size={20} className="spin" aria-hidden="true" /> Processing...</>
+                uploadPct > 0 && uploadPct < 100
+                  ? <><Loader2 size={20} className="spin" aria-hidden="true" /> Uploading… {uploadPct}%</>
+                  : <><Loader2 size={20} className="spin" aria-hidden="true" /> Processing...</>
               ) : isBulk && bulkUploading ? (
                 <><Loader2 size={20} className="spin" aria-hidden="true" /> Uploading files...</>
               ) : (

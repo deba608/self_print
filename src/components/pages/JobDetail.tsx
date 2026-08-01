@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import {
   ChevronLeft, CreditCard, Printer, RotateCcw, Save, X,
   FileText, Image, CheckCircle2, AlertCircle, Loader2, Circle,
