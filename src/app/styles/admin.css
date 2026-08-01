@@ -3220,11 +3220,6 @@
 }
 
 @media (max-width: 480px) {
-  /* ManageMenu is redundant with the sidebar drawer — hide it */
-  .manage-menu {
-    display: none;
-  }
-
   .topbar-actions .action-btn span {
     display: none;
   }
@@ -3383,6 +3378,13 @@
 
   .manage-orders-list {
     padding: 12px 16px 20px;
+  }
+}
+
+/* Tablet and phone: sidebar drawer replaces topbar ManageMenu */
+@media (max-width: 1023px) {
+  .manage-menu {
+    display: none;
   }
 }
 
