@@ -35,6 +35,8 @@ type Detail = {
     customerName?: string | null;
     customerPhone?: string | null;
     deliveryAddress?: string | null;
+    deliveryPincode?: string | null;
+    deliveryArea?: string | null;
     deliveryStatus?: "pending" | "packed" | "picked_up" | "out_for_delivery" | "delivered" | null;
     deliveryPersonId?: string | null;
     deliveryPersonName?: string | null;
@@ -414,7 +416,7 @@ function DeliveryCard({ job }: { job: Detail["job"] }) {
       <div className="summary-list">
         <div className="summary-row"><span>Name</span><strong>{job.customerName ?? "—"}</strong></div>
         <div className="summary-row"><span>Phone</span><strong>{job.customerPhone ?? "—"}</strong></div>
-        <div className="summary-row"><span>Address</span><strong>{job.deliveryAddress ?? "—"}</strong></div>
+        <div className="summary-row"><span>Address</span><strong>{job.deliveryAddress ?? "—"}{job.deliveryPincode ? ` — ${job.deliveryPincode}` : ""}{job.deliveryArea ? ` (${job.deliveryArea})` : ""}</strong></div>
         <div className="summary-row">
           <span>Map pin</span>
           <strong>
