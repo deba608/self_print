@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { MAX_UPLOAD_BYTES } from "@/lib/config";
 import { MAX_BULK_FILES, parseBulkFiles } from "@/lib/bulk";
-import { createJob, createJobWithFiles, getPricing, nextQueuePosition, sseClients } from "@/lib/db";
+import { createJob, createJobWithFiles, getJobByToken, getPricing, nextQueuePosition, sseClients } from "@/lib/db";
 import { estimatePageCount, measureStoredFile, saveUpload, validateUpload } from "@/lib/files";
 import { bucketPathFor, isValidStoredName, verifyStoredNameSig } from "@/lib/storage";
 import { clientIp, isRateLimited } from "@/lib/ratelimit";
@@ -247,7 +247,7 @@ export async function POST(request: NextRequest) {
     const printPricePaise = calculatePrice({ printType, copies, pageRange, paperSize, pageCount: Math.max(pageCount, 1), pricing, duplex });
     const deliveryFeePaise = deliveryMethod === "delivery" ? pricing.deliveryFeePaise : 0;
     const pricePaise = printPricePaise + deliveryFeePaise;
-    const token = randomToken();
+    const token = await randomToken();
     const queuePos = await nextQueuePosition();
 
     const jobData = {
@@ -438,7 +438,7 @@ async function handleBulk(form: FormData, customerUserId: string | null): Promis
   const printPricePaise = calculatePrice({ printType, copies, pageRange: null, paperSize, pageCount: Math.max(pageCount, 1), pricing, duplex });
   const deliveryFeePaise = deliveryMethod === "delivery" ? pricing.deliveryFeePaise : 0;
   const pricePaise = printPricePaise + deliveryFeePaise;
-  const token = randomToken();
+  const token = await randomToken();
   const queuePos = await nextQueuePosition();
 
   const jobData = {
@@ -474,8 +474,22 @@ async function handleBulk(form: FormData, customerUserId: string | null): Promis
   return NextResponse.json({ jobId, token, pricePaise, deliveryFeePaise, needsConversion: false, pageCount, queuePosition: queuePos });
 }
 
-function randomToken() {
-  return crypto.randomInt(100000, 999999).toString();
+// Tokens are the counter-facing order code, so they stay 6 digits. Uniqueness
+// was never enforced, and with a live queue the birthday bound makes collisions
+// realistic — two active jobs sharing a token break every token lookup
+// (getJobByToken resolves one row, or errors outright). Retry until we find a
+// free one; the space is large enough that this almost always exits first try.
+async function randomToken(): Promise<string> {
+  for (let attempt = 0; attempt < 10; attempt++) {
+    const candidate = crypto.randomInt(100000, 999999).toString();
+    try {
+      await getJobByToken(candidate);
+      // Found an existing job with this token — collision, try again.
+    } catch {
+      return candidate;
+    }
+  }
+  throw new Error("Could not allocate a free order token");
 }
 
 function broadcast(data: object) {
