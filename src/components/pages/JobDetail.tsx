@@ -215,11 +215,20 @@ export default function JobDetail({ id }: { id: string }) {
   return (
     <AdminManagementNav>
     <main className="admin-shell job-detail-shell">
-      {/* Back navigation */}
-      <Link href="/admin" className="back-link">
-        <ChevronLeft size={18} />
-        <span>Back to Queue</span>
-      </Link>
+      {/* Back navigation — router.back() when we arrived from the queue so
+          its filter/sort state (kept in the URL) is preserved; plain Link
+          otherwise (direct link, new tab). */}
+      {cameFromQueue ? (
+        <button type="button" onClick={() => router.back()} className="back-link">
+          <ChevronLeft size={18} />
+          <span>Back to Queue</span>
+        </button>
+      ) : (
+        <Link href="/admin" className="back-link">
+          <ChevronLeft size={18} />
+          <span>Back to Queue</span>
+        </Link>
+      )}
 
       <div className="job-detail-header">
         <div className="job-detail-left">
