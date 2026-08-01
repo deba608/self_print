@@ -413,7 +413,7 @@ input, select, button {
   background-size: 200% 100%;
   animation: shimmer 1.5s ease-in-out infinite;
 }
-@media (max-width: 599px) {
+@media (max-width: 480px) {
   .user-navbar-email span { display: inline; max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .user-navbar-email { max-width: none; }
   .user-navbar-logout span { display: none; }
@@ -426,7 +426,7 @@ input, select, button {
   .user-navbar-login-link,
   .user-navbar-signup-btn { min-height: 40px; }
 }
-@media (min-width: 600px) {
+@media (min-width: 481px) {
   .user-navbar-inner {
     width: min(1120px, calc(100% - 32px));
     min-height: 65px;
@@ -436,10 +436,10 @@ input, select, button {
   .user-navbar-nav { display: flex; justify-self: center; }
   .user-navbar-user { justify-self: end; }
 }
-@media (min-width: 900px) {
+@media (min-width: 1024px) {
   .user-navbar-skeleton { width: 140px; }
 }
-@media (min-width: 600px) and (max-width: 1039px) {
+@media (min-width: 481px) and (max-width: 1279px) {
   .user-navbar-email span { display: inline; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .user-navbar-email { display: inline-flex; max-width: none; }
 }
@@ -502,7 +502,7 @@ input, select, button {
 }
 .user-bottom-link:hover { color: var(--accent); }
 .user-bottom-link svg { flex-shrink: 0; }
-@media (min-width: 600px) {
+@media (min-width: 481px) {
   .user-bottom-nav { display: none; }
 }
 
@@ -1706,7 +1706,7 @@ input, select, button {
   -webkit-backdrop-filter: blur(10px);
 }
 
-@media (max-width: 599px) {
+@media (max-width: 480px) {
   .form-actions {
     bottom: calc(var(--mobile-bottom-nav-h) + env(safe-area-inset-bottom, 0px));
   }
