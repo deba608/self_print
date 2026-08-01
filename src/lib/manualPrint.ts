@@ -19,28 +19,43 @@ export async function manualPrint(jobId: string): Promise<Result> {
     return { ok: false, error: "No file is attached to this job." };
   }
 
-  // 2. Point straight at the same-origin proxy — the server already sets the
-  // correct Content-Type, so the iframe can stream/render it directly. No
-  // need to fetch() the whole file into a Blob client-side first; that just
-  // adds a full extra download-then-rebuild round trip before printing can
-  // even start.
+  // 2. Fetch the file into a Blob with the KNOWN mime type first, same as
+  // ManualPrint.tsx. Pointing the iframe straight at the proxy URL let the
+  // iframe's `load` event fire as soon as Chrome's PDF viewer *shell* was up
+  // — before the document had actually painted — so on a slower shop PC
+  // print() would fire against a still-blank/loading preview and either lag
+  // or print nothing. A blob with a forced mime type renders synchronously
+  // once assigned, so `load` reliably means "content is there".
   const proxyUrl = `/api/uploads/${detail.file.id}?proxy=1`;
   const mime = detail.file.mimeType || "application/octet-stream";
   const isImage = mime.startsWith("image/");
 
-  // 3. Drop a hidden iframe, load the file, fire print on load.
+  const fileRes = await fetch(proxyUrl, { credentials: "include" });
+  if (!fileRes.ok) return { ok: false, error: `File download failed (${fileRes.status}).` };
+  const buf = await fileRes.arrayBuffer();
+  const blob = new Blob([buf], { type: mime });
+  const blobUrl = URL.createObjectURL(blob);
+
+  // 3. Drop an off-screen (but real-sized) iframe, load the file, fire print on load.
+  // A 0x0 iframe can make Chrome skip/defer laying out the PDF viewer entirely,
+  // which is the other half of the blank/laggy-print bug — give it real dimensions
+  // and push it off-screen instead of collapsing it to nothing.
   return new Promise<Result>((resolve) => {
     const iframe = document.createElement("iframe");
     iframe.style.position = "fixed";
-    iframe.style.right = "0";
-    iframe.style.bottom = "0";
-    iframe.style.width = "0";
-    iframe.style.height = "0";
+    iframe.style.top = "-10000px";
+    iframe.style.left = "-10000px";
+    iframe.style.width = "800px";
+    iframe.style.height = "1000px";
     iframe.style.border = "0";
 
     let done = false;
     const cleanup = () => {
-      setTimeout(() => iframe.remove(), 60_000); // keep alive long enough for the print dialog to read the doc
+      // keep alive long enough for the print dialog to read the doc
+      setTimeout(() => {
+        iframe.remove();
+        URL.revokeObjectURL(blobUrl);
+      }, 60_000);
     };
 
     iframe.onload = () => {
@@ -59,7 +74,7 @@ export async function manualPrint(jobId: string): Promise<Result> {
         resolve({ ok: true });
       } catch {
         // Fallback: open the file in a new tab for manual Ctrl+P.
-        window.open(proxyUrl, "_blank");
+        window.open(blobUrl, "_blank");
         cleanup();
         resolve({ ok: true });
       }
@@ -68,13 +83,15 @@ export async function manualPrint(jobId: string): Promise<Result> {
     document.body.appendChild(iframe);
 
     if (isImage) {
-      // Wrap so the image fits the page; same-origin proxy URL, no CORS issue.
+      // Wrap so the image fits the page; same-origin blob URL, no CORS issue.
+      iframe.removeAttribute("src");
       iframe.srcdoc = `<!doctype html><html><head><meta charset="utf-8">
         <style>@page{margin:8mm}html,body{margin:0;height:100%}
         img{display:block;max-width:100%;max-height:100vh;margin:0 auto;object-fit:contain}</style>
-        </head><body><img src="${proxyUrl}"></body></html>`;
+        </head><body><img src="${blobUrl}"></body></html>`;
     } else {
-      iframe.src = proxyUrl;
+      iframe.removeAttribute("srcdoc");
+      iframe.src = blobUrl;
     }
   });
 }
