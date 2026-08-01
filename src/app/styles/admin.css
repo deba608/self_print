@@ -5016,6 +5016,12 @@
 /* === Admin Sidebar (desktop ≥1024px) === */
 .admin-layout {
   display: flex;
+  /* Below 1024px (see the grid override further down) this must stack
+     topbar-then-main vertically. Without this, flex's default row direction
+     puts the topbar and <main> side by side, squeezing the topbar's own
+     icons into a narrow column and the job list into a narrow column next
+     to it — the mobile layout bug this rule fixes. */
+  flex-direction: column;
   min-height: 100dvh;
 }
 
