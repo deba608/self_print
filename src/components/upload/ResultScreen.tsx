@@ -428,22 +428,23 @@ export default function ResultScreen({
             {st === "printed" && !isDeliveryOrder && (
               <p className="track-collect"><Store size={14} aria-hidden="true" /> Ready — collect at the counter!</p>
             )}
-            {/* Order is only truly "done" once collected (pickup) or actually
-                delivered (delivery) — asking for a review before that would
-                be asking someone mid-wait, not someone who just got served. */}
-            {reviewUrl && st === "printed" && (!isDeliveryOrder || delivered) && (
-              <a
-                className="btn-secondary result-screen-link result-screen-review"
-                href={reviewUrl}
-                target="_blank"
-                rel="noreferrer"
-              >
-                <Star size={16} aria-hidden="true" /> Rate us on Google
-              </a>
-            )}
           </div>
         );
       })()}
+
+      {/* Shown as soon as the order is submitted — not gated on print/delivery
+          status. The customer is on this screen for the whole wait anyway,
+          so that's exactly when to ask, not after they've already left. */}
+      {reviewUrl && (
+        <a
+          className="btn-secondary result-screen-link result-screen-review"
+          href={reviewUrl}
+          target="_blank"
+          rel="noreferrer"
+        >
+          <Star size={16} aria-hidden="true" /> Rate us on Google
+        </a>
+      )}
 
       <a className="btn-secondary result-screen-link" href={`/track?token=${result.token}`}>
         <Search size={16} aria-hidden="true" /> Track this order
