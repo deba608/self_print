@@ -2436,6 +2436,12 @@ input, select, button {
   min-height: 56px;
 }
 
+.delivery-area-warning {
+  color: var(--danger);
+  font-size: 13px;
+  margin: -4px 0 0;
+}
+
 /* === Result Screen === */
 .result-screen {
   text-align: center;

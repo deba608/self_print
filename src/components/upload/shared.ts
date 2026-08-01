@@ -1,3 +1,5 @@
+import type { ServiceAreaConfig } from "@/lib/service-area";
+
 // Client-side mirror of the server's MAX_UPLOAD_MB (src/lib/config.ts) so an
 // oversized file is rejected the moment it's picked, not at submit time.
 export const MAX_UPLOAD_MB = 50;
@@ -24,6 +26,7 @@ export type Pricing = {
   shopName?: string;
   shopReviewUrl?: string;
   razorpayKeyId?: string;
+  serviceArea?: ServiceAreaConfig;
 };
 
 // Loads the Razorpay Standard Checkout script once and resolves when ready.
