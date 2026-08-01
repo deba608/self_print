@@ -53,6 +53,14 @@
   --shadow-accent: 0 4px 16px rgba(13,122,116,0.25);
   --shadow-accent-strong: 0 6px 20px rgba(13,122,116,0.35);
 
+  /* Surface variants (fallbacks used in legacy CSS, now canonical) */
+  --surface: #ffffff;
+  --surface-2: #f4f6f8;
+  --surface-hover: rgba(0,0,0,0.04);
+
+  /* Border variant */
+  --border: var(--line);
+
   /* Border Radius */
   --radius-sm: 8px;
   --radius-md: 12px;
@@ -908,7 +916,7 @@ input, select, button {
   width: 100%;
   min-width: 0;
   text-align: left;
-  border: 1px solid #b8ded7;
+}
 }
 
 .file-summary:active {
