@@ -1,3 +1,5 @@
+import type { ServiceAreaConfig } from "./service-area";
+
 export type JobStatus =
   | "pending_payment"
   | "paid"
@@ -69,6 +71,8 @@ export type Job = {
   customerName: string | null;
   customerPhone: string | null;
   deliveryAddress: string | null;
+  deliveryPincode: string | null;
+  deliveryArea: string | null;
   deliveryFeePaise: number;
   deliveryStatus: DeliveryStatus | null;
   deliveryLatitude: number | null;
@@ -131,6 +135,7 @@ export type PricingConfig = {
   duplexBwPerPagePaise: number;
   expiryMinutes: number;
   deliveryFeePaise: number;
+  serviceArea: ServiceAreaConfig;
 };
 
 export type SseClient = {
