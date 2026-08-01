@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import crypto from 'node:crypto';
 import type { CustomerManagementRow, Job, JobFile, PricingConfig, PrinterOption, SseClient } from './types';
 import { FILE_RETENTION_DAYS } from './config';
+import { DEFAULT_SERVICE_AREA, parseServiceAreaConfig, serializeServiceAreaConfig } from './service-area';
 
 const supabaseUrl = process.env.SUPABASE_URL?.trim();
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
@@ -50,6 +51,8 @@ function mapJob(row: any, expiryMinutes: number = 1440): Job {
     customerName: row.customer_name ? String(row.customer_name) : null,
     customerPhone: row.customer_phone ? String(row.customer_phone) : null,
     deliveryAddress: row.delivery_address ? String(row.delivery_address) : null,
+    deliveryPincode: row.delivery_pincode ? String(row.delivery_pincode) : null,
+    deliveryArea: row.delivery_area ? String(row.delivery_area) : null,
     deliveryFeePaise: Number(row.delivery_fee_paise ?? 0),
     deliveryStatus: row.delivery_status ? (row.delivery_status as Job['deliveryStatus']) : null,
     deliveryLatitude: row.delivery_latitude == null ? null : Number(row.delivery_latitude),
@@ -358,6 +361,8 @@ export async function createJobWithFiles(jobData: any, filesData: any[]) {
     customer_name: jobData.customer_name ?? jobData.customerName ?? null,
     customer_phone: jobData.customer_phone ?? jobData.customerPhone ?? null,
     delivery_address: jobData.delivery_address ?? jobData.deliveryAddress ?? null,
+    delivery_pincode: jobData.delivery_pincode ?? jobData.deliveryPincode ?? null,
+    delivery_area: jobData.delivery_area ?? jobData.deliveryArea ?? null,
     delivery_fee_paise: jobData.delivery_fee_paise ?? jobData.deliveryFeePaise ?? 0,
     delivery_latitude: jobData.delivery_latitude ?? jobData.deliveryLatitude ?? null,
     delivery_longitude: jobData.delivery_longitude ?? jobData.deliveryLongitude ?? null,
@@ -584,6 +589,7 @@ const PRICING_DEFAULTS: PricingConfig = {
   duplexBwPerPagePaise: 100,
   expiryMinutes: 1440,
   deliveryFeePaise: 0,
+  serviceArea: DEFAULT_SERVICE_AREA,
 };
 
 export async function getPricing(): Promise<PricingConfig> {
@@ -614,6 +620,7 @@ export async function getPricing(): Promise<PricingConfig> {
     duplexBwPerPagePaise: data.duplex_bw_per_page_paise ?? PRICING_DEFAULTS.duplexBwPerPagePaise,
     expiryMinutes: data.expiry_minutes ?? PRICING_DEFAULTS.expiryMinutes,
     deliveryFeePaise: data.delivery_fee_paise ?? PRICING_DEFAULTS.deliveryFeePaise,
+    serviceArea: parseServiceAreaConfig(data.service_area_config),
   };
 }
 
@@ -636,6 +643,7 @@ export async function updatePricing(pricing: PricingConfig) {
       duplex_bw_per_page_paise: pricing.duplexBwPerPagePaise,
       expiry_minutes: pricing.expiryMinutes,
       delivery_fee_paise: pricing.deliveryFeePaise,
+      service_area_config: serializeServiceAreaConfig(pricing.serviceArea),
       updated_at: now
     })
     .eq('id', 1);
