@@ -3,12 +3,14 @@
 import { useEffect, useState } from "react";
 import { Check, Clock, Loader2, X, Zap } from "lucide-react";
 import type { PricingConfig as Pricing } from "@/lib/types";
+import { DEFAULT_SERVICE_AREA, isValidPincode, type ServiceAreaConfig, type ServiceAreaMode } from "@/lib/service-area";
 
+type NumericPricing = Omit<Pricing, "serviceArea">;
 type PricingDraft = {
-  [Key in keyof Pricing]: Pricing[Key] | "";
+  [Key in keyof NumericPricing]: NumericPricing[Key] | "";
 };
 
-const defaultPricing: Pricing = {
+const defaultPricing: NumericPricing = {
   bwPerPagePaise: 200,
   colorPerPagePaise: 800,
   photoPrintPaise: 1000,
@@ -25,13 +27,13 @@ const defaultPricing: Pricing = {
   deliveryFeePaise: 0,
 };
 
-function normalizePricingDraft(draft: PricingDraft): Pricing | null {
-  const entries = Object.entries(draft) as Array<[keyof Pricing, number | ""]>;
+function normalizePricingDraft(draft: PricingDraft): NumericPricing | null {
+  const entries = Object.entries(draft) as Array<[keyof NumericPricing, number | ""]>;
   if (entries.some(([, value]) => value === "" || !Number.isFinite(value))) {
     return null;
   }
 
-  return Object.fromEntries(entries) as Pricing;
+  return Object.fromEntries(entries) as NumericPricing;
 }
 
 function formatPaiseInput(value: number | "") {
@@ -59,6 +61,16 @@ export default function PricingPanel({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
+  const initialSA = pricing?.serviceArea ?? DEFAULT_SERVICE_AREA;
+  const [saMode, setSaMode] = useState<ServiceAreaMode>(initialSA.mode);
+  const [saPincodesText, setSaPincodesText] = useState(
+    initialSA.pincodes.map((p) => (p.areas.length ? `${p.pincode}: ${p.areas.join(", ")}` : p.pincode)).join("\n")
+  );
+  const [saRadius, setSaRadius] = useState(initialSA.radiusKm?.toString() ?? "");
+  const [saShopLat, setSaShopLat] = useState(initialSA.shopLat?.toString() ?? "");
+  const [saShopLng, setSaShopLng] = useState(initialSA.shopLng?.toString() ?? "");
+  const [saPolygonText, setSaPolygonText] = useState(initialSA.polygon.map(([a, b]) => `${a}, ${b}`).join("\n"));
+
   useEffect(() => {
     const nextPricing = pricing || defaultPricing;
     setFormData(nextPricing);
@@ -69,7 +81,40 @@ export default function PricingPanel({
       duplexBwPerPagePaise: formatPaiseInput(nextPricing.duplexBwPerPagePaise),
       deliveryFeePaise: formatPaiseInput(nextPricing.deliveryFeePaise),
     });
+    const sa = pricing?.serviceArea ?? DEFAULT_SERVICE_AREA;
+    setSaMode(sa.mode);
+    setSaPincodesText(sa.pincodes.map((p) => (p.areas.length ? `${p.pincode}: ${p.areas.join(", ")}` : p.pincode)).join("\n"));
+    setSaRadius(sa.radiusKm?.toString() ?? "");
+    setSaShopLat(sa.shopLat?.toString() ?? "");
+    setSaShopLng(sa.shopLng?.toString() ?? "");
+    setSaPolygonText(sa.polygon.map(([a, b]) => `${a}, ${b}`).join("\n"));
   }, [pricing]);
+
+  function buildServiceArea(): { config: ServiceAreaConfig } | { error: string } {
+    const pincodes: ServiceAreaConfig["pincodes"] = [];
+    for (const line of saPincodesText.split("\n").map((l) => l.trim()).filter(Boolean)) {
+      const [pinPart, areaPart] = line.split(":");
+      const pincode = pinPart.trim();
+      if (!isValidPincode(pincode)) return { error: `Invalid pincode: "${pincode}" — must be 6 digits` };
+      const areas = (areaPart ?? "").split(",").map((a) => a.trim()).filter(Boolean);
+      pincodes.push({ pincode, areas });
+    }
+    const polygon: Array<[number, number]> = [];
+    for (const line of saPolygonText.split("\n").map((l) => l.trim()).filter(Boolean)) {
+      const [latS, lngS] = line.split(",");
+      const lat = Number(latS); const lng = Number(lngS);
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return { error: `Invalid polygon line: "${line}" — use "lat, lng"` };
+      polygon.push([lat, lng]);
+    }
+    const numOrNull = (s: string) => (s.trim() === "" ? null : Number(s));
+    const radiusKm = numOrNull(saRadius); const shopLat = numOrNull(saShopLat); const shopLng = numOrNull(saShopLng);
+    if ((radiusKm !== null && !(radiusKm > 0)) ||
+        (shopLat !== null && !(shopLat >= -90 && shopLat <= 90)) ||
+        (shopLng !== null && !(shopLng >= -180 && shopLng <= 180))) {
+      return { error: "Invalid radius or shop coordinates" };
+    }
+    return { config: { mode: saMode, pincodes, radiusKm, shopLat, shopLng, polygon } };
+  }
 
   const updateField = (field: keyof Pricing, value: string, transform: (value: string) => number = Number) => {
     if (value === "") {
@@ -101,9 +146,15 @@ export default function PricingPanel({
       return;
     }
 
+    const sa = buildServiceArea();
+    if ("error" in sa) {
+      setError(sa.error);
+      return;
+    }
+
     setSaving(true);
     try {
-      await onSave(nextPricing);
+      await onSave({ ...nextPricing, serviceArea: sa.config });
       setSaved(true);
       setTimeout(() => {
         setSaved(false);
