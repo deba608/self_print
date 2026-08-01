@@ -266,7 +266,7 @@ export default function JobDetail({ id }: { id: string }) {
           id="panel-details"
           role="tabpanel"
           aria-labelledby="tab-details"
-          hidden={activeTab !== "details"}
+          aria-hidden={activeTab !== "details"}
           className={`detail-pane detail-pane-details ${activeTab === "details" ? "active" : ""}`}
         >
           <FileCard files={files} />
@@ -279,7 +279,7 @@ export default function JobDetail({ id }: { id: string }) {
           id="panel-preview"
           role="tabpanel"
           aria-labelledby="tab-preview"
-          hidden={activeTab !== "preview"}
+          aria-hidden={activeTab !== "preview"}
           className={`detail-pane detail-pane-preview ${activeTab === "preview" ? "active" : ""}`}
         >
           <PreviewCard files={files} job={job} />
@@ -289,7 +289,7 @@ export default function JobDetail({ id }: { id: string }) {
           id="panel-settings"
           role="tabpanel"
           aria-labelledby="tab-settings"
-          hidden={activeTab !== "settings"}
+          aria-hidden={activeTab !== "settings"}
           className={`detail-pane detail-pane-settings ${activeTab === "settings" ? "active" : ""}`}
         >
           <SettingsCard
@@ -306,7 +306,7 @@ export default function JobDetail({ id }: { id: string }) {
           id="panel-log"
           role="tabpanel"
           aria-labelledby="tab-log"
-          hidden={activeTab !== "log"}
+          aria-hidden={activeTab !== "log"}
           className={`detail-pane detail-pane-log ${activeTab === "log" ? "active" : ""}`}
         >
           <EventLogCard events={detail.events} />

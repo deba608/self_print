@@ -137,7 +137,7 @@ export default function CustomerManagementPage() {
       title="User management"
       subtitle="Registered users and delivery customers with order history and contacts."
       actions={
-        <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+        <div className="management-actions-row">
           <button
             type="button"
             className={`management-refresh management-export${exported ? " exported" : ""}`}

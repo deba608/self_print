@@ -139,6 +139,12 @@
 .management-hero h1 { margin: 0; color: #fff; font-size: clamp(24px, 3vw, 32px); letter-spacing: -0.035em; }
 .management-hero p { max-width: 620px; margin: 7px 0 0; color: rgba(255, 255, 255, 0.76); font-size: 13.5px; }
 
+.management-actions-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
 .management-refresh {
   min-height: 42px;
   display: inline-flex;
