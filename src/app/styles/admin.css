@@ -3316,9 +3316,26 @@
     gap: 8px;
   }
 
-  .job-actions-status,
-  .job-actions-primary,
+  /* Two rows, not three: status + the utility icons (Eye/Cancel) share one
+     compact line via `order`, since combined they're nowhere near full
+     width. Only the primary action (Release/Done/etc) — the one thing that
+     actually needs a full-width tap target — gets its own row. Previously
+     each zone forced its own 100% row, so a single card could stack five
+     separate action rows before the price line even started. */
+  .job-actions-status {
+    order: 1;
+    flex: 0 1 auto;
+    justify-content: stretch;
+  }
+
   .job-actions-utility {
+    order: 2;
+    flex: 0 1 auto;
+    margin-left: auto;
+  }
+
+  .job-actions-primary {
+    order: 3;
     flex: 1 1 100%;
     justify-content: stretch;
   }
@@ -5478,13 +5495,23 @@
     mask-image: linear-gradient(to right, #000 calc(100% - 20px), transparent);
   }
 
+  /* Keep price, paid/unpaid badge, and the pay button on ONE line — forcing
+     the button to 100% width used to push it onto its own separate row
+     below the price, adding a whole extra row to every unpaid card. */
   .job-pay-row {
-    flex-wrap: wrap;
-    gap: 8px;
+    flex-wrap: nowrap;
+    gap: 6px;
+  }
+  .job-pay-row .job-price {
+    flex-shrink: 0;
   }
   .job-pay-row button {
-    flex: 1 1 100%;
-    min-height: 44px;
+    flex: 0 1 auto;
+    min-height: 38px;
+    padding: 8px 10px;
+  }
+  .job-pay-row .job-btn.paid span {
+    display: none;
   }
 
   .job-side {
