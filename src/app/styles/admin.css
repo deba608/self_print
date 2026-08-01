@@ -468,6 +468,66 @@
   white-space: nowrap;
 }
 
+/* === Topbar overflow menu (Alerts/Refresh/Manage/Pricing at <=480px) === */
+.topbar-more-trigger {
+  position: relative;
+}
+.topbar-more-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: min(240px, calc(100vw - 24px));
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  padding: 8px;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  animation: dialogIn var(--duration-base) var(--ease-out);
+}
+.topbar-more-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 10px;
+  border-radius: var(--radius-sm);
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 600;
+  background: transparent;
+  border: none;
+  text-align: left;
+  width: 100%;
+}
+.topbar-more-item:hover,
+.topbar-more-item.active {
+  background: var(--accent-bg);
+}
+.topbar-more-item svg {
+  flex-shrink: 0;
+  color: var(--accent);
+}
+.topbar-more-manage .manage-menu-panel {
+  position: static;
+  width: auto;
+  box-shadow: none;
+  border: none;
+  padding: 0;
+  animation: none;
+}
+.topbar-more-manage .action-btn {
+  width: 100%;
+  justify-content: flex-start;
+  height: auto;
+  padding: 9px 10px;
+}
+.topbar-more-manage .action-btn span:not(.chevron) {
+  display: inline;
+}
+
 .action-btn:disabled {
   cursor: wait;
   opacity: 0.65;
@@ -3154,9 +3214,22 @@
   }
 }
 
+.topbar-more {
+  display: none;
+  position: relative;
+}
+
 @media (max-width: 480px) {
   .topbar-actions .action-btn span {
     display: none;
+  }
+
+  .topbar-actions .action-group:first-child {
+    display: none;
+  }
+
+  .topbar-more {
+    display: block;
   }
 
   .admin-topbar-inner {

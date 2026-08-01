@@ -2925,6 +2925,11 @@ button.upi-pay-btn:disabled {
   font-weight: 600;
 }
 
+/* Result screen action links (Track this order / Upload Another) */
+.result-screen-link {
+  margin-top: 0.75rem;
+}
+
 .visit-again {
   margin-top: 4px !important;
   color: var(--accent) !important;
