@@ -233,7 +233,7 @@ export default function ResultScreen({
 
   return (
     <div className="result-screen result-success" role="status" aria-live="polite">
-      <div className="success-animation">
+      <div className="success-animation" aria-hidden="true">
         <div className="success-icon" aria-hidden="true">
           <svg width="48" height="48" viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round">
             <polyline className="check-draw" points="10 25 20 35 38 14" />
