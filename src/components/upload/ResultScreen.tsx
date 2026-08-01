@@ -434,22 +434,30 @@ export default function ResultScreen({
 
       {/* Shown as soon as the order is submitted — not gated on print/delivery
           status. The customer is on this screen for the whole wait anyway,
-          so that's exactly when to ask, not after they've already left. */}
+          so that's exactly when to ask, not after they've already left.
+          Its own tinted panel (not just a differently-colored button in the
+          same stack) so it reads as a separate, optional favor rather than
+          a third peer of Track/Upload Another. */}
       {reviewUrl && (
-        <a
-          className="btn-secondary result-screen-link result-screen-review"
-          href={reviewUrl}
-          target="_blank"
-          rel="noreferrer"
-        >
-          <Star size={16} aria-hidden="true" /> Rate us on Google
-        </a>
+        <div className="review-prompt">
+          <p>Enjoying the wait? Leave us a quick rating.</p>
+          <a
+            className="result-screen-review"
+            href={reviewUrl}
+            target="_blank"
+            rel="noreferrer"
+          >
+            <Star size={16} aria-hidden="true" /> Rate us on Google
+          </a>
+        </div>
       )}
 
-      <a className="btn-secondary result-screen-link" href={`/track?token=${result.token}`}>
-        <Search size={16} aria-hidden="true" /> Track this order
-      </a>
-      <button className="btn-secondary result-screen-link" onClick={onReset}>Upload Another</button>
+      <div className="result-screen-actions">
+        <a className="btn-secondary result-screen-link" href={`/track?token=${result.token}`}>
+          <Search size={16} aria-hidden="true" /> Track this order
+        </a>
+        <button className="btn-secondary result-screen-link" onClick={onReset}>Upload Another</button>
+      </div>
       <div className="thank-you-note">
         <p>Thank you for using Self_Print</p>
         <p className="visit-again">We appreciate your business</p>

@@ -1,65 +1,93 @@
-# Pincode-Gated Delivery — Design
+# Service-Area-Gated Delivery (Hybrid) — Design
 
-**Date:** 2026-08-01
-**Status:** Approved (Approach A — DB allowlist)
+**Date:** 2026-08-01 (revised same day: hybrid multi-mode replaces pincode-only)
+**Status:** Approved
 
 ## Problem
 
-SelfPrint shop serves only its local area. Home delivery must be restricted to serviceable pincodes. Counter pickup remains open to everyone.
+SelfPrint shop serves only its local area. Home delivery must be restricted to the serviceable area. A single pincode can cover a large region while the shop serves only part of it, so the admin needs selectable precision levels. Counter pickup remains open to everyone.
 
 ## Scope
 
-- Gate **home delivery only** by customer pincode.
-- Pickup flow unchanged.
-- Admin can manage the serviceable pincode list from the dashboard (no redeploy).
+- Gate **home delivery only**; pickup flow unchanged.
+- Admin picks the gating **mode** from the dashboard and can switch modes anytime (no redeploy):
+  - `off` — delivery available everywhere (default; today's behavior)
+  - `pincode` — allowlist of 6-digit pincodes
+  - `pincode_area` — allowlist of pincodes, each optionally narrowed to named localities; customer picks their locality from a dropdown
+  - `radius` — customer's captured GPS must be within N km of the shop (haversine)
+  - `polygon` — customer's GPS must fall inside an admin-defined polygon (ray casting); vertices entered as a pasted lat,lng list (no map-drawing UI yet)
+- In `radius`/`polygon` modes, GPS location capture becomes **required** for delivery orders (it is optional today).
 
 ## Data Model
 
-- Add `service_pincodes` TEXT column to `pricing_config` (comma-separated 6-digit pincodes, e.g. `"560001,560002"`).
-  - SQLite: auto-migration via the existing `PRAGMA table_info` / `ALTER TABLE` pattern in `src/lib/db.ts`.
-  - Supabase: SQL migration adding the column to `pricing_config`.
-- Add `delivery_pincode` TEXT column to `jobs` (nullable; set only for delivery jobs). Same dual migration.
-- **Empty/null list = delivery available everywhere** (backward compatible; also the "not configured yet" state).
+- Add `service_area_config` TEXT column to `pricing_config` storing JSON (default `''` → mode `off`):
 
-## Types
+```json
+{
+  "mode": "pincode_area",
+  "pincodes": [
+    { "pincode": "713347", "areas": ["Sitarampur", "Chelidanga"] },
+    { "pincode": "713343", "areas": [] }
+  ],
+  "radiusKm": 5,
+  "shopLat": 23.68,
+  "shopLng": 86.98,
+  "polygon": [[23.69, 86.97], [23.70, 86.99], [23.67, 86.99]]
+}
+```
 
-- `PricingConfig` gains `servicePincodes: string[]` (parsed from the comma-list in both db layers).
-- `Job` gains `deliveryPincode: string | null`.
+  All sections persist regardless of active mode, so switching modes never loses configured data. Empty `areas` = whole pincode serviceable.
+- Add `delivery_pincode` TEXT and `delivery_area` TEXT columns to `jobs` (nullable; set for delivery jobs — pincode always collected for delivery regardless of mode, area only in `pincode_area` mode).
+- SQLite: auto-migration via existing `PRAGMA table_info` / `ALTER TABLE` pattern; Supabase: SQL migration.
+
+## Types & Core Logic
+
+- New module `src/lib/service-area.ts`:
+  - `ServiceAreaMode = "off" | "pincode" | "pincode_area" | "radius" | "polygon"`
+  - `ServiceAreaConfig = { mode; pincodes: Array<{pincode: string; areas: string[]}>; radiusKm: number | null; shopLat: number | null; shopLng: number | null; polygon: Array<[number, number]> }`
+  - `parseServiceAreaConfig(raw: string | null): ServiceAreaConfig` — defensive; malformed JSON → mode `off`
+  - `checkDeliveryServiceable(input: {pincode: string | null; area: string | null; lat: number | null; lng: number | null}, config): { ok: true } | { ok: false; reason: string }` — single enforcement entry point, strategy per mode
+  - `haversineKm`, `pointInPolygon` helpers; `isValidPincode` (`/^[1-9]\d{5}$/`)
+  - A mode whose own config is unusable (e.g. `radius` with no shop coords, `polygon` with < 3 vertices, `pincode` with empty list) fails open (`ok: true`) — misconfiguration must not silently kill delivery.
+- `PricingConfig` gains `serviceArea: ServiceAreaConfig`; `Job` gains `deliveryPincode: string | null` and `deliveryArea: string | null`.
 
 ## API
 
-- `GET /api/pricing`: response includes `servicePincodes` (already fetched by UploadForm — no new endpoint).
-- `POST /api/jobs`: for `deliveryMethod === "delivery"`, require a valid 6-digit `deliveryPincode`; if the allowlist is non-empty and the pincode is not in it, return 400 with a clear message. Store pincode on the job.
-- `PUT /api/admin/pricing`: accepts updated `servicePincodes`; validates each entry is exactly 6 digits; dedupes.
+- `GET /api/pricing`: response includes `serviceArea` (already spread from pricing — customer UI uses it for UX checks and the area dropdown).
+- `POST /api/jobs` (single and bulk paths): for delivery, always require valid 6-digit `deliveryPincode`; require `deliveryArea` when mode is `pincode_area` and the matched pincode defines areas; require GPS when mode is `radius`/`polygon`. Enforce via `checkDeliveryServiceable`; 400 with the reason on failure. Store pincode + area on the job.
+- `PUT /api/admin/pricing`: accepts `serviceArea` object; validates mode enum, pincode formats, area strings non-empty ≤ 60 chars, radius > 0, lat/lng ranges, polygon vertices; persists as JSON.
 
 ## Customer UI (UploadForm)
 
-- When "Home delivery" selected: required 6-digit pincode input alongside the address field.
-- Client-side check against `pricing.servicePincodes`:
-  - Serviceable → normal flow.
-  - Not serviceable → inline notice "Delivery not available for {pincode} yet — pickup only" and disable submit until customer switches to pickup or changes pincode.
-- Pincode shown in the review/summary section with the address.
-- Server remains the enforcement point; client check is UX only.
+- Delivery selected → required pincode input (all modes — collected for records even in `off`/GPS modes).
+- Mode `pincode`/`pincode_area`: instant client check; unserviceable → inline "Delivery not available for {pincode} yet — pickup only", submit blocked.
+- Mode `pincode_area` with areas defined for the entered pincode: locality dropdown (from config), required.
+- Mode `radius`/`polygon`: location capture required; client shows distance/out-of-area message after capture when check fails.
+- Review section shows pincode (+ area when set). Server remains the enforcement point.
 
 ## Admin UI (PricingPanel)
 
-- New field: serviceable pincodes editor (simple comma-separated text input or chip list; validates 6-digit entries before save).
-- Job detail / JobCard: show delivery pincode with the address.
+- New "Delivery Area" section: mode selector (radio/select) + only the active mode's fields:
+  - pincode list editor (one row per pincode; comma-separated areas per row for `pincode_area`)
+  - radius km + shop lat/lng inputs
+  - polygon textarea (one `lat,lng` per line)
+- Job detail / JobCard: show delivery pincode and area with the address.
 
 ## Error Handling
 
-- Client: malformed pincode (not 6 digits) blocks submit with inline message.
-- Server: 400 `"Delivery not available for this pincode"` on non-serviceable; 400 on malformed pincode for delivery jobs.
-- Race (admin removes pincode mid-session): server check catches it; client surfaces the 400 message.
+- Client: malformed pincode blocks submit; missing required area/GPS blocks submit with inline message.
+- Server: 400 with reason from `checkDeliveryServiceable`; 400 on malformed inputs.
+- Config race (admin changes mode mid-session): server check catches; client surfaces the 400.
+- Malformed stored config JSON → parsed as mode `off` (never crashes checkout).
 
 ## Testing
 
-- Unit tests (vitest): pincode parse/validate helpers; allowlist check logic (empty list allows all; membership check; malformed rejection).
-- API-level: `POST /api/jobs` delivery rejection path.
+- Unit (vitest): `parseServiceAreaConfig` (defaults, malformed JSON), `checkDeliveryServiceable` per mode incl. fail-open cases, `haversineKm` known distances, `pointInPolygon` inside/outside/edge, pincode validation.
+- API-level behavior verified end-to-end in dev server (blocked + allowed paths per mode).
 
 ## Out of Scope (YAGNI)
 
-- GPS-radius validation (lat/lng capture stays as-is, informational only).
-- Per-pincode delivery fees.
-- Separate `service_pincodes` table (comma-column suffices for one shop; revisit if multi-shop).
+- Map-based polygon drawing UI (paste vertices for now).
+- Per-pincode/per-area delivery fees.
+- Combining multiple modes simultaneously (one active mode at a time).
 - Gating the upload/pickup flow.
