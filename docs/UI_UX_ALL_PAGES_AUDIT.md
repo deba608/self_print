@@ -2,320 +2,287 @@
 
 Comprehensive audit of every screen: customer, admin, delivery, and auth.
 
+**Last verified against code: 2026-08-01.** File paths below reflect the current
+structure — the original single `admin.css`/`base-and-customer.css` monolith
+was split into themed partials (see `globals.css` import list): `admin.css`,
+`admin-delivery.css`, `base-and-customer.css`, `auth-shared.css`,
+`shared-ui-primitives.css`, `effects-and-feedback.css`,
+`track-and-timeline.css`, `workspace-and-account.css`, `delivery.css`. Several
+items below reference the pre-split monolith's line numbers from the original
+audit pass — those are marked **(stale ref)** where the line number no longer
+resolves, even though the underlying issue/fix status was re-verified against
+current code.
+
 ## Fixes Applied
 
-The following issues from the original audit have been **fixed**:
+The following issues from the original audit have been **fixed**, re-verified
+against the current (post-split) codebase:
 
 ### CSS Variable Inconsistencies
-- **#1**: Added `--surface`, `--surface-2`, `--surface-hover`, `--border`, `--z-*` scale variables to `:root` in `base-and-customer.css`.
-- **#2**: All surface-related variables now standardized; fallbacks are no longer needed as the variables are defined.
-- **#3**: Shadow token definitions are in `base-and-customer.css`; import order is documented in `globals.css` comments.
+- **#1**: `--surface`, `--surface-2`, `--surface-hover` confirmed defined in `:root` (`base-and-customer.css:57-59`).
+- **#2**: Surface variables standardized; no fallback syntax remaining for these.
+- **#3**: Shadow tokens live in `base-and-customer.css`; import order documented in `globals.css` header comment.
 
 ### Accessibility
-- **#7**: Added global `prefers-reduced-motion` guard covering all elements (`*`, `*::before`, `*::after`) in `base-and-customer.css`.
-- **#8**: Added `aria-hidden="true"` to `ResultScreen`'s `success-animation` container (line 236).
-- **#49**: Fixed — `aria-hidden="true"` added to success animation container.
-- **#50**: Fixed — inline styles replaced with `.result-screen-link` CSS class (was already applied prior to audit; verified).
-- **TrackOrder timeline**: Added `role="list"` and `aria-current="step"` on active timeline step for screen readers.
-- **DeliveryOrderCard**: Currency formatting now uses `Intl.NumberFormat("en-IN", ...)`.
-- **#11/#41**: Verified — password field uses `type="password"` (audit note was stale).
-- **#12**: **FIXED** — Removed `autoFocus` from `CompleteProfileForm` phone input.
+- **#7**: Global `prefers-reduced-motion` guard present — confirmed in 6 of 9 style partials (`admin.css`, `admin-delivery.css`, `auth-shared.css`, `base-and-customer.css`, `delivery.css`, `shared-ui-primitives.css`).
+- **#8/#49**: `aria-hidden="true"` on `ResultScreen`'s success-animation container — confirmed present.
+- **#50**: Inline styles replaced with `.result-screen-link` class — confirmed.
+- **TrackOrder timeline**: `role="list"` + `aria-current="step"` on active step — confirmed.
+- **DeliveryOrderCard**: Currency uses `Intl.NumberFormat("en-IN", ...)` — confirmed.
+- **#11/#41**: Password field uses `type="password"` — confirmed, audit note was stale.
+- **#12**: `autoFocus` removed from `CompleteProfileForm` phone input — confirmed absent.
 
 ### CSS Syntax & Duplicate Rules
-- **#24**: Fixed `gap: px` → `gap: 4px;` in `admin.css`.
-- **#25**: Verified `var(--text)` is not used in current code.
-- **#26**: Merged duplicate `.mobile-select` rules — removed the first (basic) definition; the enhanced one at line 1527 is canonical.
-- **#27**: Verified `.advanced-section` duplicate — only one definition exists in current code.
-- **#28**: `.btn-primary`/`.btn-secondary` definitions are intentional cascading overrides (different contexts), not errors — documented.
-- **#61**: Fixed `gap: px` → `gap: 4px;` in `admin.css`.
-- **#62**: Fixed duplicate `border` declaration in `.file-summary` — removed the duplicate declaration.
-- **#63**: `--surface-2` now defined in `:root`.
-
-### Hardcoded Values
-- **#31**: Fixed `box-shadow: 0 4px 12px rgba(11, 122, 117, 0.3)` → `var(--shadow-accent)` in `.btn-primary`.
-- **#31b**: All hardcoded `rgba(11, 122, 117, ...)` shadows in `.btn-primary`/`.btn-submit` replaced with `var(--shadow-accent)` / `var(--shadow-accent-strong)`.
+- **#24/#61**: `gap: px;` syntax error — searched all style partials, **zero occurrences** — fixed and stayed fixed.
+- **#25**: `var(--text)` — searched all style partials, **zero occurrences** — confirmed non-issue.
+- **#26**: `.mobile-select` — exactly **one** definition now (`base-and-customer.css:1488`), duplicate removed.
+- **#27**: `.advanced-section` — exactly **one** definition now (`base-and-customer.css:1525`), confirmed non-duplicate.
+- **#62**: `.file-summary` duplicate `border` declaration — fixed.
+- **#63**: `--surface-2` defined in `:root` — confirmed.
+- **NEW (2026-08-01)**: `.file-summary` (`base-and-customer.css:920`) had a **stray extra closing brace** left over from the file split — this was a real, undetected regression that broke the production build entirely (`Syntax error: Unexpected }`). Found and fixed during this session while verifying an unrelated change; the CSS split introduced it, and it had not been caught by any prior audit pass or by `npm run build` review before merge. **Fixed.**
 
 ### Z-Index Consistency
-- **#64**: Added `--z-dropdown`, `--z-sticky`, `--z-aside`, `--z-overlay`, `--z-modal` variables to `:root` for a standardized z-index scale.
+- **#64**: `--z-dropdown` (50), `--z-sticky` (100), `--z-aside` (200), `--z-overlay` (300), `--z-modal` (1000) — all confirmed defined in `:root`.
 
 ### Best Practices
-- **#65**: Added global `prefers-reduced-motion` query in `base-and-customer.css` covering all elements.
-- **#47**: Verified password field uses `type="password"` — no change needed (audit note was stale).
-- **#55**: Verified `<ol>` has implicit `list` role — no change needed.
-- **#57**: Verified `Intl.NumberFormat` currency formatting applied to `DeliveryOrderCard`.
+- **#65**: Global `prefers-reduced-motion` query — confirmed, see Accessibility #7 above.
+- **#47/#55/#57**: Verified, no change needed.
+
+### Breakpoint Consolidation — mostly done, not complete
+Current breakpoint census across all style partials + `admin/management.css`:
+
+| Breakpoint | Occurrences |
+|---|---|
+| `max-width: 480px` | 21 |
+| `max-width: 768px` | 13 |
+| `min-width: 1024px` | 7 |
+| `min-width: 481px` | 4 |
+| `max-width: 1024px` | 2 |
+| `max-width: 1023px` | 2 |
+| `prefers-reduced-motion` | 8 |
+| `pointer: coarse` | 1 |
+| `min-width: 768px` | 1 |
+
+The 480/768/1024 scale dominates as intended, but **`481px` and `1023px` are
+leftover odd-one-out breakpoints** that should be folded into the standard
+scale (`481px` → should just be the `>480px` half of an existing `480px`
+query pair; `1023px` → should be `1024px` to match the rest). Locations:
+`admin.css:3098`, `admin.css:3402`, `base-and-customer.css:429,442,505,781`.
+**Not fixed** — low risk (these are paired boundary queries, not orphaned
+conflicts), but worth cleaning up next time those files are touched.
+
+### Component Decomposition — partially done
+- **`UploadForm.tsx`**: was 3386 lines at last audit → now **2023 lines**. Confirmed extracted: `src/components/upload/{shared.ts, ResultScreen.tsx, PdfCanvasPreview.tsx, BulkThumb.tsx}`, plus a separate `src/components/pages/UploadForm.tsx` vs the older monolith path. Meaningfully improved; still a large file, further extraction (`PrintSettings`, `FulfillmentStage`) remains open.
+- **`AdminDashboard.tsx`**: was 612 lines → now **642 lines** (grew slightly — delivery-flow additions this session added lines faster than any decomposition removed them). Still monolithic. **Not fixed.**
 
 ### Items NOT Fixed (require larger refactoring)
-- **Admin vs AdminManagementNav inconsistency** — requires structural UI changes across many pages.
-- **Breakpoint consolidation** — 12+ scattered breakpoints still exist; requires careful testing per-component.
-- **Component decomposition** — `AdminDashboard.tsx` (612 lines) and `UploadForm.tsx` (3386 lines) remain monolithic.
-- **SSE reconnect logic** — `AdminDashboard` SSE already has exponential backoff; `DeliveryDashboard` SSE now also has reconnect with backoff. |
-- **Payment status in delivery card** — now reflects actual payment status via `order.paidAt`. |
-- **Auto-focus on CompleteProfileForm** — still present (issue #48).
-- **Internationalization** — all hardcoded strings remain (issues #66-68).
+- **Admin vs AdminManagementNav inconsistency** — still present, requires structural UI changes across many pages.
+- **Breakpoint consolidation** — see table above; 481px/1023px stragglers remain.
+- **`AdminDashboard.tsx` decomposition** — grew to 642 lines, not yet split.
+- **SSE reconnect logic** — confirmed present with exponential backoff on both `AdminDashboard` and `DeliveryDashboard`.
+- **Payment status in delivery card** — confirmed reflects actual `order.paidAt`.
+- **Internationalization** — all hardcoded strings remain (issues #66-68), unchanged.
+
+---
+
+## NEW — Fixes from this session (2026-08-01), not in the original audit numbering
+
+These were found and fixed live while working the mobile admin UI, outside the
+original audit's scope — logged here so they don't get re-discovered from
+scratch:
+
+| File | Issue | Fix |
+|---|---|---|
+| `src/app/styles/base-and-customer.css:920` | Stray extra `}` after `.file-summary` broke the production build (`npm run build` failed with `Unexpected }`). Introduced by the CSS-file-split refactor, never caught until this session. | **FIXED** — removed the duplicate brace. |
+| `src/app/styles/admin.css` (`.admin-layout`) | No `flex-direction` set on the base (mobile) rule — defaulted to `row`, so below the 1024px breakpoint the topbar and the main content sat side-by-side instead of stacked, squeezing both into narrow columns. | **FIXED** — added `flex-direction: column` to the mobile-default rule; the existing `@media (min-width:1024px)` override already switches to `display:grid` so desktop was unaffected. |
+| `src/app/styles/admin.css` (`@media max-width:480px`, topbar) | Mobile topbar wrapped into 2-3 rows (brand icon+text, full-width printer pill, then a wrapped actions row) — tall, cramped. | **FIXED** — hid `.topbar-brand` on mobile (redundant with the sidebar drawer), let `.printer-btn` share the row instead of forcing near-full-width, set `.admin-topbar-inner` to `flex-wrap: nowrap` at one fixed 56px row height. Now a single compact row: hamburger → printer pill → "···" more-menu → logout icon. |
+| `src/app/styles/admin.css` (`.delivery-filter-btn` vs `.filter-tab`) | An existing `@media (pointer: coarse)` rule forced `.delivery-filter-btn` (Fulfillment filter chips) to a blocky 44px min-height, while `.filter-tab` (Status filter chips) stayed at its natural ~30px — the two filter rows looked visually mismatched in height. | **FIXED** — added a `≤480px` override settling both to a consistent 34px, plus a right-edge scroll-fade mask on both chip rows so horizontal truncation reads as "more to scroll," not a cut-off bug. |
+| `src/app/styles/admin.css` (`.job-actions-status/-primary/-utility`) | Each of the three action zones on a job card forced its own 100%-width row — a single card could stack the status badge, the primary action, and the utility icons (Eye/Cancel) as three separate full rows, on top of the price row, making mobile job cards very tall. | **FIXED** — used flexbox `order` to put status + utility (Eye/Cancel icons) on one shared row (they're nowhere near full width combined) and only the primary action keeps its own full-width row. Cuts the action-row count from 3 to 2 per card. |
+| `src/app/styles/admin.css` (`.job-pay-row button`) | A pre-existing mobile rule (`.job-btn { flex: 1 1 100%; width: 100%; }`, meant for the primary/utility action buttons) leaked onto the "Mark as Paid" button in the price row too, since overriding just the `flex` shorthand doesn't reset a separately-set `width` property. Result: the pay button rendered ~3-5x wider than its content needed, and — because `flex-basis: auto` defers to `width` when both are set — this pushed it onto its own separate row below the price line instead of sharing one line with the price and paid/unpaid badge. | **FIXED** — added an explicit `width: auto` override and hid the button's text label on mobile (icon-only), with `aria-label="Mark as paid"` added in `JobCard.tsx` so the accessible name isn't lost when the visible label is hidden. Price, badge, and pay button now share one row. |
+| `src/app/api/payments/verify/route.ts` | Signature verification proved "a payment happened," not "this payment was for this job" — no binding between the Razorpay order/payment and the job being marked paid, and no amount check. A paid-in-full ₹1 job's `{order_id, payment_id, signature}` triple could be replayed against any other job's token to mark it paid for free. | **FIXED** — now fetches the order from Razorpay and requires `order.notes.jobId === job.id`, fetches the payment and requires it belongs to that order, is `captured`/`authorized`, and covers `job.pricePaise`. Webhook handler given the same amount check. |
+| `src/app/api/jobs/route.ts` (direct-upload + bulk paths) | `pageCount`/`sizeBytes` were taken directly from the client and used as the sole pricing input — a 300-page PDF could be declared `pageCount=1` and priced accordingly while the agent still printed all 300 pages. | **FIXED** — added `measureStoredFile()` (`src/lib/files.ts`), which re-downloads the uploaded object server-side and derives the real size/page count before pricing. Client-reported values are no longer trusted for pricing. |
+| Supabase RLS (`jobs` table update policy) | The `"staff can update all jobs"` policy used `is_staff()`, which matches **every** role including `delivery` — a delivery rider's own session + the public anon key could `PATCH /rest/v1/jobs` directly to set `paid_at`/`price_paise`/`status` on any job, bypassing the column-restricted delivery RPCs entirely. | **FIXED** — added `is_admin()` (super_admin/admin only) and rescoped the update policy to it. Applied live via migration `20260801130754_restrict_job_updates_to_admins.sql`. |
+| `src/lib/security.ts` (delivery-status route) | Staff dispatching a delivery order directly (bypassing the rider's in-app claim) never set `delivery_person_id` — such orders were invisible to every rider's "my deliveries" list and impossible to attribute to anyone. | **FIXED** — the admin delivery-status route now self-assigns the acting admin as `delivery_person_id` the first time a job moves past "packed," only if no rider has already claimed it. |
+| `src/components/pages/OrderManagementPage.tsx`, `JobDetail.tsx` | The "packed" delivery stage existed in the schema, the RPCs, and the rider-eligibility query, but **no UI anywhere could set it** — staff could only jump straight to "Dispatch," skipping the stage entirely. | **FIXED** — added a "Mark packed" action to both admin surfaces, plus a "Rider: `<name>`" display (new `deliveryPersonName` resolved server-side via a `staff_profiles` join). |
+| `src/app/api/user/forgot-password/route.ts` | Returned 404 for unregistered emails vs 200 for registered ones — a textbook account-enumeration oracle, inconsistent with `/api/user/register`'s deliberate avoidance of the same leak. | **FIXED** — always returns `{ ok: true }` regardless of whether the account exists. |
+| `src/app/api/jobs/route.ts` (`randomToken`) | 6-digit job tokens had no uniqueness check — with an active queue, the birthday bound makes collisions realistic, and two jobs sharing a token would break every token-based lookup. | **FIXED** — retries token generation up to 10 times until a free one is found. |
 
 ---
 
 ## 1. CSS Variable Inconsistencies (Cross-cutting)
 
-| # | File | Issue | Fix |
+| # | File | Issue | Status |
 |:---:|------|-------|-----|
-| 1 | `src/app/styles/base-and-customer.css:15-33` | CSS custom property palette is defined but several files reference variables that don't exist: `--text` (used in `admin.css:2349`), `--surface` (implied by `--surface-2` in `admin.css:2032`), `--surface-hover` (used in `admin.css:2353`). | **FIXED**: Added `--surface`, `--surface-2`, `--surface-hover`, `--border` to `:root` in `base-and-customer.css`. |
-| 2 | `src/app/admin/management.css:5,9,642,85,2007` | Uses `var(--bg)` for background, which is correct. But also uses `var(--surface-2, #f1f5f9)` in `admin.css:2032` with a fallback — inconsistent approach. | Standardize all surface-related variables to the defined palette. Remove inline fallbacks where possible. |
-| 3 | `src/app/styles/admin.css:547` | `--shadow-accent-strong` is defined in `base-and-customer.css:54` but `management.css` uses `box-shadow: var(--shadow-accent-strong)` — works only because it's imported after. | Move all shadow token definitions to `base-and-customer.css` and ensure import order is documented (currently undocumented in `globals.css`). |
+| 1 | `base-and-customer.css:57-59` | Custom property palette — `--surface`, `--surface-2`, `--surface-hover` | **FIXED**, confirmed defined. |
+| 2 | `admin.css` | Inconsistent fallback syntax on surface variables | **FIXED**, no fallbacks remain on these tokens. |
+| 3 | `admin.css` / `management.css` | Shadow token import order | **FIXED**, documented in `globals.css`. |
 
 ---
 
 ## 2. Breakpoint Inconsistencies (Cross-cutting)
 
-| # | File | Issue | Fix |
+| # | File | Issue | Status |
 |:---:|------|-------|-----|
-| 4 | All CSS files | Breakpoints are scattered and inconsistent: `320px, 360px, 370px, 400px, 480px, 599px, 600px, 640px, 720px, 728px, 768px, 820px, 900px, 1024px, 1280px, 1279px`. | Consolidate to a single set: `480px` (mobile), `768px` (tablet), `1024px` (desktop), `1280px` (wide). Document in `base-and-customer.css`. |
-| 5 | `admin.css:3038` | `@media (min-width: 600px)` block for `.customer-shell` but `management.css:465` uses `@media (max-width: 900px)` — gaps between 600px and 900px create inconsistent layout shifts. | Use a single 768px breakpoint for tablet transitions. |
-| 6 | `admin.css:406` | `@media (min-width: 600px) and (max-width: 1039px)` — unusual max-width that overlaps with 900px queries. | Replace with `768px` to `1023px` range. |
+| 4 | All style partials | Was: 15 scattered breakpoint values. | **Mostly fixed** — now dominated by 480/768/1024/1280. See breakpoint census table above for the remaining 481px/1023px stragglers. |
+| 5-6 | `admin.css`, `management.css` (stale refs) | Overlapping 600px/900px queries | **FIXED** — no 600px/900px breakpoints remain in either file; superseded by the 768px/1024px scale. |
 
 ---
 
 ## 3. Accessibility Issues
 
-### 3.1 Missing `prefers-reduced-motion` on Animated Components
-
-| # | File | Issue | Fix |
-|:---:|------|-------|-----|
-| 7 | `src/components/pages/StaffManagement.tsx` | The `@keyframes gentleRinging` and `notifPulse` animations in notification bell (`admin.css:502-520`) only respect `prefers-reduced-motion` on `.admin-shell` (line 5394), but the notification button can appear in the topbar which is outside `.admin-shell`. | Extend the `prefers-reduced-motion` query to cover `.admin-topbar` as well. |
-| 8 | `src/components/upload/ResultScreen.tsx:235` | `ResultScreen` has `aria-live="polite"` on its root, but the success animation (`success-animation`, `success-burst`) uses CSS animations (`admin.css` / `effects-and-feedback.css`) that don't respect reduced motion. | Add `prefers-reduced-motion` guard for the checkmark animation and burst effect. |
+### 3.1 `prefers-reduced-motion` coverage
+| # | Issue | Status |
+|:---:|-------|-----|
+| 7 | Notification bell animation outside `.admin-shell` scope | **FIXED** — global guard now covers all elements, not scoped to `.admin-shell`. |
+| 8 | `ResultScreen` success animation not reduced-motion guarded | **FIXED** — `aria-hidden="true"` added; global guard also applies. |
 
 ### 3.2 Color-Only Status Indicators
+| # | Issue | Status |
+|:---:|-------|-----|
+| 9 | Verify `Badge` renders text, not just color | Text confirmed present in all `Badge` usages reviewed this session (status badges always render a label string alongside the icon). |
+| 10 | Contrast ratio audit for status badge colors | **Not independently re-verified this pass** — no contrast-checker run. Still open. |
 
-| # | File | Issue | Fix |
-|:---:|------|-------|-----|
-| 9 | `src/app/my-jobs/page.tsx:22-31` | Status badges use color variants (`info`, `ok`, `danger`, `warn`, `neutral`) but the `Badge` component (`src/components/ui/Badge.tsx`) should verify it includes text labels, not just colored dots. | Verify `Badge` renders text content alongside color; add `aria-label` if visual-only. |
-| 10 | `src/app/styles/admin.css:1983-1987` | Status badges rely on background colors without sufficient contrast checks. The `warn` variant uses `rgba(255, 251, 235, 0.8)` background with `var(--warn)` text — verify 4.5:1 contrast ratio. | Audit all status badge color combinations for WCAG AA compliance. |
+### 3.3 Form Labeling
+| # | Issue | Status |
+|:---:|-------|-----|
+| 11 | Password field type | **VERIFIED** `type="password"`. |
+| 12 | `autoFocus` on `CompleteProfileForm` phone input | **FIXED**, confirmed absent. |
 
-### 3.3 Form Labeling and Structure
-
-| # | File | Issue | Fix |
-|:---:|------|-------|-----|
-| 11 | `src/components/pages/StaffManagement.tsx` | Password field uses `type="text"` instead of `type="password"` (line 60 in component file, confirmed by `AdminManagementNav.tsx` passing the field). This exposes passwords on screen. | **VERIFIED**: Password field uses `type="password"` — no fix needed (audit note was stale). |
-| 12 | `src/components/pages/CompleteProfileForm.tsx:56` | `autoFocus` on the phone input causes unexpected focus on page load, which can be disorienting for screen reader users. | Remove `autoFocus` or guard with a media query; autofocus should only trigger on desktop. |
-
-### 3.4 Semantic HTML and Landmarks
-
-| # | File | Issue | Fix |
-|:---:|------|-------|-----|
-| 13 | `src/components/pages/UploadForm.tsx` | The 3386-line file uses `div` with click handlers for the file-drop zone instead of a proper `<label>` or `<button>` semantics. The inner `<input type="file">` is positioned absolutely but may not be properly labelable. | Ensure the upload zone has `role="button"` and `tabIndex={0}` with keyboard event handlers, or use a `<label>` wrapper. |
-| 14 | `src/components/pages/DeliveryDashboard.tsx:120` | `<main>` is wrapped inside `DeliveryDashboard`, but `DeliveryLogin` wraps content in `AuthShell` which renders `<main>`. When the user navigates to `/delivery`, there's no layout wrapper — check if `AppChrome` handles `/delivery` routes. Verified in `AppChrome.tsx:11` — `isDeliveryRoute` returns children directly, which is correct. | No issue — this is handled correctly. |
-| 15 | `src/components/ui/EmptyState.tsx` | The `EmptyState` component doesn't accept an `aria-label` or role for its container. When used (e.g., `my-jobs/page.tsx:131`), the `h3` provides context, but the icon has `aria-hidden="true"` which is correct. | Verify all `EmptyState` usages include descriptive text. |
+### 3.4 Semantic HTML
+| # | Issue | Status |
+|:---:|-------|-----|
+| 13 | Upload drop-zone semantics | **Not re-verified this pass.** Still open per original audit. |
+| 14 | `/delivery` layout wrapper | **VERIFIED** — `AppChrome.tsx` correctly returns children directly for delivery routes. |
+| 15 | `EmptyState` aria labeling | **Not re-verified this pass.** |
 
 ---
 
 ## 4. Mobile Responsiveness Issues
 
-### 4.1 Admin Dashboard Mobile
-
-| # | File | Issue | Fix |
-|:---:|------|-------|-----|
-| 16 | `src/app/styles/admin.css:3157-3298` | The `@media (max-width: 480px)` and `@media (max-width: 600px)` blocks have overlapping rules for `.admin-shell`, `.job-card`, and `.panel-overlay` that create inconsistent padding (12px vs 16px). | Consolidate admin mobile overrides into a single `480px` query. |
-| 17 | `src/app/styles/admin.css:3175-3178` | On mobile, `.printer-btn` gets `flex: 1 1 calc(100% - 56px)` but the 56px hardcoded value doesn't account for the sidebar toggle button width (40px) plus gaps. | Calculate dynamically or use CSS grid with explicit column tracks. |
-| 18 | `src/app/admin/management.css:465-475` | `@media (max-width: 900px)` collapses KPIs to 2-column but on mobile (`@media (max-width: 640px)` at line 477) the grid becomes `1fr 1fr` again — the 900px override never fires on actual mobile devices. | **FIXED**: Changed all `900px` breakpoints to `1024px` and `640px` to `768px` across all CSS files. |
+### 4.1 Admin Dashboard Mobile — actively worked this session
+| # | Issue | Status |
+|:---:|-------|-----|
+| 16 | Overlapping `480px`/`600px` blocks for `.admin-shell`/`.job-card`/`.panel-overlay` | `600px` queries for these selectors no longer exist — consolidated into the `480px` scale. |
+| 17 | `.printer-btn` hardcoded `56px` offset not accounting for sidebar toggle width | **Superseded** — the printer-btn mobile layout was rebuilt this session (see "NEW fixes" table above); it no longer uses a `calc(100% - 56px)` offset at all. |
+| 18 | 900px KPI breakpoint never firing on mobile | **FIXED** — confirmed no 900px breakpoints remain; `management.css` KPI grid now uses the 768px/1024px scale correctly. |
+| — | *(new, this session)* Topbar wrapping to 2-3 rows on mobile; filter chip height mismatch between Status/Fulfillment; job cards stacking 5 action rows | **FIXED** — see "NEW fixes" table above. |
 
 ### 4.2 Customer Upload Flow
+| # | Issue | Status |
+|:---:|-------|-----|
+| 19-21 | `.flow-grid` cramped between 600-1024px; `.fulfil-stage` missing bottom padding; inline styles in `ResultScreen` | **Not re-verified this pass** for #19/#20. #21 (inline styles → `.result-screen-link`) confirmed fixed. |
 
-| # | File | Issue | Fix |
-|:---:|------|-------|-----|
-| 19 | `src/app/styles/base-and-customer.css:528-560` | The `.flow-grid` uses hardcoded `grid-template-columns: minmax(0, 1fr) minmax(0, 1fr)` with `28px` gap. On screens between 600px and 1024px, this creates a cramped two-column layout with insufficient horizontal padding. | Add a `@media (max-width: 1023px)` query that stacks the grid into a single column with appropriate margins. |
-| 20 | `src/app/styles/base-and-child.css:757-766` | `.step-content` gets `padding-bottom: var(--mobile-form-actions-h)` (84px) only below 1024px, but `.flow-grid.fulfil-stage` (which hides the grid and shows fulfillment as block) doesn't get this padding — content can be hidden behind the fixed action bar. | Add `padding-bottom` to `.flow-grid.fulfil-stage` or ensure `.fs-fulfil` has it. |
-| 21 | `src/components/upload/ResultScreen.tsx:502` | Two buttons with `style={{ marginTop: "0.75rem" }}` — inline styles bypassing CSS variables. Should use a CSS class. | Create a `.result-screen-actions` class in CSS and remove inline styles. |
-
-### 4.3 Track Order
-
-| # | File | Issue | Fix |
-|:---:|------|-------|-----|
-| 22 | `src/app/styles/track-and-timeline.css` | Need to check this file for responsive issues. | (see section 7 below) |
-
-### 4.4 Delivery Dashboard
-
-| # | File | Issue | Fix |
-|:---:|------|-------|-----|
-| 23 | `src/app/styles/delivery.css` | Need to check for responsive issues on `.delivery-grid`, `.delivery-card`, and `.delivery-topbar`. | (see section 7 below) |
+### 4.3 / 4.4 Track Order / Delivery Dashboard
+Not re-audited this pass beyond what's covered in sections above and the "NEW fixes" table (delivery flow / job card work).
 
 ---
 
 ## 5. Visual and Interaction Bugs
 
 ### 5.1 CSS Syntax Errors
-
-| # | File | Issue | Fix |
-|:---:|------|-------|-----|
-| 24 | `src/app/styles/admin.css:880` | `gap: px;` — missing unit value. Should be `gap: 4px;`. This causes the entire `.manage-filter-tab` rule to fail silently in browsers. | **FIXED**: Corrected to `gap: 4px;`. |
-| 25 | `src/app/styles/admin.css:1487` | `color: var(--text)` — `--text` is not defined anywhere in the variable palette. Falls back to `currentColor` which may not be the intended muted text color. | **VERIFIED**: `--text` is not used in current code — no fix needed. |
+| # | Issue | Status |
+|:---:|-------|-----|
+| 24-25 | `gap: px`, `var(--text)` | **FIXED / VERIFIED**, zero occurrences of either. |
+| — | *(new)* Stray extra `}` in `.file-summary` broke the production build entirely | **FIXED** this session — see "NEW fixes" table. Worth noting: this is the kind of regression a routine `npm run build` catches immediately, but it went unnoticed until this session actively ran a production build while unrelated to this specific fix. **Recommendation**: run `npm run build` as a matter of course after any CSS-file-split or large CSS reorganization, not just before deploy. |
 
 ### 5.2 Duplicate/Conflicting CSS Rules
+| # | Issue | Status |
+|:---:|-------|-----|
+| 26 | `.mobile-select` defined twice | **FIXED**, confirmed exactly one definition remains. |
+| 27 | `.advanced-section` defined twice | **VERIFIED** exactly one definition — was never actually duplicated, or was already fixed pre-audit. |
+| 28 | `.btn-primary`/`.btn-secondary` intentional overrides | Documented as intentional; not re-verified further. |
 
-| # | File | Issue | Fix |
-|:---:|------|-------|-----|
-| 26 | `src/app/styles/base-and-customer.css:1352,1527` | `.mobile-select` is defined twice — once at line 1220 (basic styling) and again at line 1527 (enhanced styling). The second definition overrides the first, but creates maintenance confusion. | **FIXED**: Removed the first (basic) definition; the enhanced definition at line 1527 is canonical. |
-| 27 | `src/app/styles/base-and-customer.css:1089,1563` | `.advanced-section` is defined twice with conflicting rules. The first (line 1089) uses `border-radius: 12px`, the second (line 1563) uses `border-radius: 14px`. The cascade means the second wins, but only on elements matching both selectors. | **VERIFIED**: Only one `.advanced-section` definition exists in current code — no fix needed. |
-| 28 | `src/app/styles/base-and-customer.css:1352` | `.btn-primary` and `.btn-secondary` are defined twice — once for the form action buttons (line 1754) and once for the upload wizard (line 1277). The second set overrides padding, font-size, and min-height. | Consider using more specific class names (e.g., `.wizard-btn-primary`) instead of overriding shared classes. |
-
-### 5.3 Hardcoded Values Instead of CSS Variables
-
-| # | File | Issue | Fix |
-|:---:|------|-------|-----|
-| 29 | `src/app/styles/admin.css:306,380-381` | Uses hardcoded `rgba(13, 122, 116, ...)` instead of `var(--accent)`. Also `rgba(185, 28, 28, ...)` instead of `var(--danger)`. | Replace with CSS variables for consistency and themeability. |
-| 30 | `src/app/styles/admin.css:562` | Hardcoded `rgba(23, 32, 42, 0.46)` for overlay background. Should use `var(--danger)` or a dedicated overlay variable. | Define `--overlay-bg` variable. |
-| 31 | `src/app/styles/admin.css:1800` | `box-shadow: 0 4px 12px rgba(11, 122, 117, 0.3)` uses `11` instead of `13` for the green channel — inconsistent with `--accent: #0d7a74`. | **FIXED**: Replaced with `var(--shadow-accent)` in `base-and-customer.css` `.btn-primary`/`.btn-submit`. |
+### 5.3 Hardcoded Values
+| # | Issue | Status |
+|:---:|-------|-----|
+| 29-30 | Hardcoded `rgba(13,122,116,...)` / overlay colors instead of variables | **Not re-verified this pass.** Likely still present in scattered spots — low priority, cosmetic/maintainability only. |
+| 31 | `box-shadow` wrong green channel value | **FIXED**, uses `var(--shadow-accent)`. |
 
 ### 5.4 Animation Issues
-
-| # | File | Issue | Fix |
-|:---:|------|-------|-----|
-| 32 | `src/app/styles/base-and-customer.css:773` | `.step.active .step-num` has `animation: stepPulse 2s infinite` — infinite animation should respect `prefers-reduced-motion`. Only `.intro-anim` is guarded at line 517. | Add `prefers-reduced-motion` override for `stepPulse` and all infinite animations. |
-| 33 | `src/app/styles/admin.css:298` | `dot-pulse` animation is infinite but not guarded by `prefers-reduced-motion` (the guard at line 5394 only covers `.admin-shell`). | Extend the reduced-motion query or add a global one. |
+| # | Issue | Status |
+|:---:|-------|-----|
+| 32-33 | `stepPulse`/`dot-pulse` not reduced-motion guarded | **FIXED** — covered by the global `prefers-reduced-motion` guard added for #7/#65. |
 
 ---
 
 ## 6. Component-Specific Issues
 
-### 6.1 AdminDashboard.tsx
+Sections 6.1-6.12 from the original audit (`AdminDashboard`, `OrderManagementPage`,
+`JobDetail`, `CustomerManagementPage`, `AccountsPage`, `StaffPage`, `ManualPrint`,
+`UploadForm`, `ResultScreen`, `TrackOrder`, `DeliveryDashboard`, Auth pages) were
+**not re-walked line-by-line this pass** — this update focused on verifying
+cross-cutting claims (CSS variables, breakpoints, syntax errors, a11y guards)
+against current code, plus logging the new fixes made this session. Treat the
+original numbered items in those sections as still-open unless listed in the
+"Fixes Applied" or "NEW fixes" sections above.
 
-| # | File | Issue | Fix |
-|:---:|------|-------|-----|
-| 34 | `src/components/pages/AdminDashboard.tsx` | 612-line monolithic component mixing layout, SSE connection management, job state, filter logic, batch selection, and modal state. Difficult to maintain and test. | Decompose into `AdminDashboardLayout`, `JobFilters`, `JobList`, `BatchActions`, and `PaymentModal` components. |
-| 35 | `src/components/pages/AdminDashboard.tsx` | SSE connection via `EventSource` has no exponential backoff or reconnect limit. If the server drops the connection, it silently fails after 5 seconds. | **VERIFIED**: Already has exponential backoff (1s → 30s max, resets on `onopen`). **FIXED** — `DeliveryDashboard` SSE also now has the same reconnect logic. |
-
-### 6.2 OrderManagementPage.tsx
-
-| # | File | Issue | Fix |
-|:---:|------|-------|-----|
-| 36 | `src/components/pages/OrderManagementPage.tsx` | Uses `AdminManagementNav` wrapper but has a different padding model (`.management-page` uses `min(1200px, ...)` with `padding: 24px 0 44px`) vs `AdminDashboard` which uses `min(1200px, ...)` with `padding: 16px 0 40px`. | Standardize page padding to `24px 0` for all management pages. |
-
-### 6.3 JobDetail.tsx
-
-| # | File | Issue | Fix |
-|:---:|------|-------|-----|
-| 37 | `src/components/pages/JobDetail.tsx` | Mobile tabs (`.mobile-tabs` at `admin.css:2566`) are `display: none` by default and only become visible at `@media (max-width: 900px)`. Between 768px and 900px, the desktop grid layout (`.job-detail-grid` with two columns) may be too cramped. | Add a `@media (max-width: 900px)` breakpoint that switches to mobile tabs at 900px, and another at 768px for further collapsing. |
-
-### 6.4 CustomerManagementPage.tsx
-
-| # | File | Issue | Fix |
-|:---:|------|-------|-----|
-| 38 | `src/components/pages/CustomerManagementPage.tsx` | Customer cards use `.customer-management-grid` with `grid-template-columns: repeat(2, ...)` (line 434 of management.css). On tablet screens (768px), the grid switches to 1 column, but at 640px it's still 1 column — too narrow for the 2-column card layout at exactly 800px. | Add a `@media (max-width: 768px)` that switches to 1 column. |
-
-### 6.5 AccountsPage.tsx / AccountsTab.tsx
-
-| # | File | Issue | Fix |
-|:---:|------|-------|-----|
-| 39 | `src/app/admin/accounts/page.tsx` | The `.accounts-shell` class adds `padding-top: 16px` (line 3880), but `.admin-shell` already has its own padding — potential double-padding. | Remove `.accounts-shell` padding and use `.admin-shell` consistently, or explicitly override. |
-
-### 6.6 StaffPage.tsx / StaffManagement.tsx
-
-| # | File | Issue | Fix |
-|:---:|------|-------|-----|
-| 40 | `src/components/pages/StaffPage.tsx:51` | Uses `<main className="admin-shell accounts-shell">` — redundant class. The `accounts-shell` adds top padding, but `StaffPage` is not the accounts page. | Use just `admin-shell` or create a `staff-shell` class. |
-
-| 41 | `src/app/styles/admin.css:4100` | `.staff-invite-form` has `grid-template-columns: minmax(220px, 1.65fr) minmax(170px, 0.7fr) auto` — on tablet (768px), this becomes `1fr 1fr` (line 4506), which may not have enough room for the email + role + button trio. | Test at 768px width; consider collapsing to single column at 640px. |
-
-### 6.7 ManualPrint.tsx
-
-| # | File | Issue | Fix |
-|:---:|------|-------|-----|
-| 43 | `src/components/pages/ManualPrint.tsx:143-144` | `<AdminManagementNav>` wraps `<main className="admin-shell manual-print-shell">`. But `.manual-print-shell` is not inside `.management-page` — conflicting layout expectations. | Ensure consistent container hierarchy or add specific styles for manual print. |
-| 44 | `src/components/pages/ManualPrint.tsx:200-205` | The `<iframe>` for print preview has no fallback for when the browser blocks iframe printing or when the blob URL fails to load. The `onLoad` handler doesn't distinguish between load success and error. | Add an `onError` handler and a visible fallback message. |
-
-### 6.8 UploadForm.tsx (Customer Upload)
-
-| # | File | Issue | Fix |
-|:---:|------|-------|-----|
-| 45 | `src/components/pages/UploadForm.tsx` | 3386-line file is one of the largest in the codebase. The file-drop zone, file summary, bulk file list, and preview are all intertwined. | Extract sub-components: `FileDropZone`, `FileSummary`, `BulkFileList`, `PreviewPane`, `PrintSettings`, `FulfillmentStage`. |
-| 46 | `src/components/pages/UploadForm.tsx` | Bulk file drag-and-drop (lines 1159-1238) uses `onDragStart`, `onDragOver`, `onDragLeave`, `onDrop` but the `onDragStart` handler sets `dragIndexRef.current` without a corresponding `onDragEnd` reset for edge cases (e.g., drag cancelled with Escape). | Add `onDragEnd` cleanup (already present at line 1165 but verify edge cases). |
-| 47 | `src/components/pages/UploadForm.tsx` | `BulkThumb` component used at line 1167 and 1183 is not reviewed — need to check its responsive behavior. | (See section 7 for remaining components to review.) |
-
-### 6.9 ResultScreen.tsx (Payment/T token screen)
-
-| # | File | Issue | Fix |
-|:---:|------|-------|-----|
-| 48 | `src/components/upload/ResultScreen.tsx:349` | `payError` is rendered inside the `upi-card` but outside the button group — the error appears after the payment button, which is fine, but the `role="alert"` on line 349 means screen readers will announce it. However, there's no `aria-live` on the parent container. | The `role="alert"` implies `aria-live="assertive"` — this is correct. No change needed. |
-| 49 | `src/components/upload/ResultScreen.tsx:235` | Root div has `role="status"` and `aria-live="polite"` but also contains the success animation. The `aria-live="polite"` will announce the "Print Job Submitted" text, but the animation itself is not announced. | **FIXED**: Added `aria-hidden="true"` to the animation container (`success-animation` div). |
-| 50 | `src/components/upload/ResultScreen.tsx:499-502` | Two `btn-secondary` buttons ("Track this order" and "Upload Another") are rendered as `<a>` and `<button>` respectively — inconsistent semantics. The `<a>` has inline `style`. | **FIXED**: Inline styles replaced with `.result-screen-link` CSS class (verified already applied). |
-
-### 6.10 TrackOrder.tsx
-
-| # | File | Issue | Fix |
-|:---:|------|-------|-----|
-| 51 | `src/components/pages/TrackOrder.tsx:273` | `<div className="track-result fade-in-up" aria-live="polite">` — the result section uses `aria-live="polite"` but the status updates come via polling. If the status changes rapidly, screen readers may interrupt themselves. | Consider `aria-live="off"` on the container and `aria-live="polite"` on individual status change announcements. |
-| 52 | `src/components/pages/TrackOrder.tsx:254` | Token input fields use `type="text"` with `inputMode="numeric"`. Better to use `type="number"` for proper mobile keyboard, but `type="number"` adds spinners. | Current approach is acceptable but add `autoComplete="one-time-code"` (already present at line 256) — verify it's working. |
-| 53 | `src/components/pages/TrackOrder.tsx:362-365` | The "Updated Xs ago" timestamp uses `aria-live="off"` — correct. But the `now` state updates every second via `setInterval`, causing unnecessary re-renders. | Consider using `requestAnimationFrame` or throttling the update to every 5 seconds for the label. |
-
-### 6.11 DeliveryDashboard.tsx + DeliveryOrderCard.tsx
-
-| # | File | Issue | Fix |
-|:---:|------|-------|-----|
-| 54 | `src/components/pages/DeliveryDashboard.tsx:141,174` | Skeleton loaders show only one or two card placeholders (`aria-busy="true"` on the `.delivery-grid`), but the actual grid might render 3-4 cards side by side on tablet. The skeleton count doesn't match the visual density. | Match skeleton count to expected card count per viewport width. |
-| 55 | `src/components/delivery/DeliveryOrderCard.tsx:59` | The `<ol className="delivery-flow">` doesn't have `role="list"` — `<ol>` implies this semantically, but add for robustness. | **VERIFIED**: `<ol>` has implicit `list` role — no change needed. |
-| 56 | `src/components/delivery/DeliveryOrderCard.tsx:121` | The meta line says "paid online" (hardcoded) but this should reflect actual payment status. If staff releases a print before payment, the delivery rider sees a false "paid" claim. | **FIXED**: Now uses `order.paidAt` to determine payment status display; shows "Unpaid" if not paid. Added `paid_at` to `DeliveryJobRow` type and `paidAt` to `DeliveryOrderView`. |
-| 57 | `src/components/delivery/DeliveryOrderCard.tsx:95` | Currency is hardcoded as `₹` without formatting. The `(order.amountPaise / 100).toFixed(2)` is correct but doesn't handle locale properly. | **FIXED**: Now uses `Intl.NumberFormat("en-IN", ...)` for proper currency formatting. |
-
-### 6.12 Auth Pages (Login, Register, Forgot, Accept Invite, Complete Profile, Delivery Login)
-
-| # | File | Issue | Fix |
-|:---:|------|-------|-----|
-| 58 | `src/components/ui/Auth.tsx:114` | `AuthNotice` component is defined but only used in `register/page.tsx:90-95`. The `login-notice` class is not in the CSS files reviewed — need to verify it exists. | Verify `.login-notice` class exists in `auth-shared.css`. |
-| 59 | `src/app/login/page.tsx:46-51` | After successful login, the code calls `supabase.auth.signInWithPassword()` AND fetches from `/api/user/login`. This dual-auth approach could cause race conditions if the API fails but Supabase succeeds (or vice versa). | Prefer one auth path; document why both are needed if they serve different purposes. |
-| 60 | `src/app/register/page.tsx:69` | Phone field is `required` but the `AuthInput` doesn't show a visual required indicator (no asterisk or `aria-required`). | Add `aria-required="true"` and a visual asterisk to `AuthInput` when `required` is true. |
+One update to log: **`AdminDashboard.tsx` decomposition (#34)** is now
+further from done, not closer — the file grew from 612 to 642 lines as this
+session added delivery-flow features to it. If decomposition is prioritized,
+do it before more features land there, not after.
 
 ---
 
 ## 7. Remaining Components to Review (Not Yet Audited)
 
-The following files were not read due to length constraints and should be audited separately:
+Unchanged from the original audit — still not read/verified in this pass:
 
-- `src/components/pages/UploadForm.tsx` — lines 1-1158 and 1259-2023 (the upload wizard internals, step transitions, form field states)
-- `src/components/BillReceipt.tsx` — canvas rendering for "save as image" may have DPI issues on high-density displays
-- `src/app/styles/track-and-timeline.css` — track progress timeline, token inputs, ETA display
-- `src/app/styles/delivery.css` — delivery dashboard grid, cards, empty states
-- `src/app/styles/effects-and-feedback.css` — result screen animations, success animation
-- `src/app/styles/auth-shared.css` — auth form styling, login card, input groups
-- `src/app/styles/shared-ui-primitives.css` — buttons, forms, selects, skeleton loaders
-- `src/app/styles/workspace-and-account.css` — workspace layout, account pages
-- `src/components/pages/AccountsTab.tsx` — financial data visualization, charts, tables
-- `src/components/pages/SecurityPage.tsx` — security table, session management
-- `src/components/pages/AdminLogin.tsx` — admin login form
+- `src/components/BillReceipt.tsx` — canvas rendering DPI on high-density displays
+- `src/app/styles/track-and-timeline.css` — full pass (only spot-checked this session)
+- `src/app/styles/delivery.css` — full pass (only spot-checked this session)
+- `src/app/styles/effects-and-feedback.css`
+- `src/app/styles/auth-shared.css`
+- `src/app/styles/shared-ui-primitives.css`
+- `src/app/styles/workspace-and-account.css`
+- `src/components/pages/AccountsTab.tsx`
+- `src/components/pages/SecurityPage.tsx`
+- `src/components/pages/AdminLogin.tsx`
 
 ---
 
 ## 8. CSS Best Practices Violations
 
-| # | File | Issue | Fix |
-|:---:|------|-------|-----|
-| 61 | `admin.css:646` | `gap: px;` — missing unit (CSS syntax error, silently fails). | **FIXED**: Corrected to `gap: 4px;`. |
-| 62 | `base-and-customer.css:911` | `.file-summary` declares `border: 1px solid #b8ded7;` on line 904 and again `border: 1px solid #b8ded7;` on line 911 — duplicate declaration. | **FIXED**: Removed the duplicate declaration. |
-| 63 | `admin.css:2032` | `.file-count-inline` uses `var(--surface-2, #f1f5f9)` with a fallback color that's not in the design system palette. | **FIXED**: `--surface-2` now defined in `:root` in `base-and-customer.css`. |
-| 64 | `base-and-customer.css:1744` | `.form-actions` z-index is 40, but `.admin-sidebar.mobile-open` z-index is 100 (line 5004). On mobile admin pages that also have the wizard, the sidebar could overlap the form actions. | **PARTIALLY FIXED**: Added standardized `--z-*` variables to `:root`; full migration of existing values deferred to larger refactor. |
-| 65 | `admin.css:5394-5403` | `prefers-reduced-motion` only targets `.admin-shell *` — content outside `.admin-shell` (e.g., `AdminManagementNav` topbar) is not covered. | **FIXED**: Added global `prefers-reduced-motion` query in `base-and-customer.css` covering all elements. |
+| # | Issue | Status |
+|:---:|-------|-----|
+| 61-63 | `gap: px`, duplicate `.file-summary` border, `--surface-2` fallback | **FIXED**, all confirmed. |
+| 64 | z-index scale | **FIXED** — `--z-*` variables defined; full migration of every hardcoded z-index value to the scale is still open (deferred, as originally noted). |
+| 65 | `prefers-reduced-motion` scope | **FIXED**, global guard confirmed. |
 
 ---
 
 ## 9. Internationalization / Localization Gaps
 
-| # | File | Issue | Fix |
-|:---:|------|-------|-----|
-| 66 | `src/components/delivery/DeliveryOrderCard.tsx:95,120-121` | `₹` currency symbol is hardcoded, "paid online" text is hardcoded. | **FIXED**: Currency now uses `Intl.NumberFormat`; payment status now reflects actual `paidAt` field. |
-| 67 | `src/components/pages/TrackOrder.tsx:364` | "Updated Xs ago", "min wait", "pages", "copy/copies" are English-only. | Extract to i18n keys. |
-| 68 | `src/components/upload/ResultScreen.tsx` | All payment instructions and button labels are hardcoded English strings. | Extract to i18n keys. |
+Unchanged — still open. Currency formatting (#66) and payment-status accuracy
+are fixed at the data layer, but the surrounding strings ("Updated Xs ago",
+button labels, etc.) remain hardcoded English throughout.
 
 ---
 
-## 10. Summary of Critical Issues
+## 10. Summary of Current State
 
-~~1. **CSS syntax error** (`gap: px` in `admin.css:880`) — breaks `.manage-filter-tab` layout~~ **FIXED**
-~~2. **Undefined CSS variable** (`var(--text)` in `admin.css:2349`) — causes invisible text~~ **VERIFIED** (not present in current code)
-~~3. **Password field as `type="text"`** in `StaffManagement.tsx` — security vulnerability~~ **VERIFIED** (uses `type="password"`)
-4. **Inconsistent breakpoints** across 12+ values — **FIXED** (consolidated to 480/768/1024/1280)
-5. **612-line monolithic `AdminDashboard.tsx`** and **3386-line monolithic `UploadForm.tsx`** — need decomposition
-6. **Missing `prefers-reduced-motion`** on several infinite animations — **FIXED** (global guard added)
-7. **Duplicate `.mobile-select` and `.advanced-section` CSS rules** — cascade confusion — **FIXED** (`.mobile-select` merged; `.advanced-section` verified non-duplicate)
-8. **Inline styles** in `ResultScreen.tsx` buttons — should use CSS classes — **FIXED** (uses `.result-screen-link` class)
+**Fixed and confirmed this pass:**
+1. CSS syntax errors (`gap: px`, undefined `--text`) — zero occurrences, stayed fixed.
+2. A newly-introduced CSS syntax error (stray `}` in `.file-summary`) that broke production builds — caught and fixed.
+3. Password field type — confirmed correct.
+4. Breakpoint consolidation — mostly done (480/768/1024 dominant); 481px/1023px stragglers remain, low priority.
+5. `prefers-reduced-motion` — global guard confirmed across 6 style partials.
+6. Duplicate CSS rules (`.mobile-select`, `.advanced-section`) — confirmed deduplicated.
+7. `UploadForm.tsx` — meaningfully decomposed (3386 → 2023 lines via `src/components/upload/*` extraction).
+8. Mobile admin UI (topbar, filter chips, job card action rows) — rebuilt this session; verified via computed-style checks in a real browser at 375px width, not just code review.
+9. Payment verification, price-manipulation, and delivery-flow security/UX gaps — found and fixed this session (see "NEW fixes" table); not part of the original UI/UX audit scope but directly relevant to the same admin surfaces.
+
+**Still open:**
+1. `AdminDashboard.tsx` decomposition — 642 lines, grew rather than shrank.
+2. Internationalization — all strings still hardcoded English.
+3. Contrast-ratio audit for status badges (#10) — not independently re-run.
+4. Sections 6.1-6.12 and section 7's file list — not re-walked line-by-line this pass; treat as still-open unless stated otherwise above.
+5. 481px/1023px breakpoint stragglers — low-risk cleanup, not urgent.
 
 ---
 
-*End of audit. Fixes applied: CSS syntax errors, undefined CSS variables, hardcoded values, duplicate rules, reduced-motion guards, ARIA improvements, currency formatting, breakpoint consolidation, SSE reconnect logic, payment status display, autoFocus removal. Remaining work: component decomposition, internationalization.
+*End of audit update (2026-08-01). This pass verified cross-cutting claims against
+current code rather than re-reading every component, and logged security/UX
+fixes made this session on the admin dashboard, delivery flow, and payment
+verification paths. The original per-component sections (6.1-6.12) and the
+unread-file list (section 7) still need a full line-by-line pass — flagged
+above rather than assumed fixed.*
