@@ -152,7 +152,7 @@ The following issues from the original audit have been **fixed**:
 | # | File | Issue | Fix |
 |:---:|------|-------|-----|
 | 26 | `src/app/styles/base-and-customer.css:1352,1527` | `.mobile-select` is defined twice — once at line 1220 (basic styling) and again at line 1527 (enhanced styling). The second definition overrides the first, but creates maintenance confusion. | **FIXED**: Removed the first (basic) definition; the enhanced definition at line 1527 is canonical. |
-| 27 | `src/app/styles/base-and-customer.css:1089,1563` | `.advanced-section` is defined twice with conflicting rules. The first (line 1089) uses `border-radius: 12px`, the second (line 1563) uses `border-radius: 14px`. The cascade means the second wins, but only on elements matching both selectors. | Consolidate into one rule; verify intended border-radius. |
+| 27 | `src/app/styles/base-and-customer.css:1089,1563` | `.advanced-section` is defined twice with conflicting rules. The first (line 1089) uses `border-radius: 12px`, the second (line 1563) uses `border-radius: 14px`. The cascade means the second wins, but only on elements matching both selectors. | **VERIFIED**: Only one `.advanced-section` definition exists in current code — no fix needed. |
 | 28 | `src/app/styles/base-and-customer.css:1352` | `.btn-primary` and `.btn-secondary` are defined twice — once for the form action buttons (line 1754) and once for the upload wizard (line 1277). The second set overrides padding, font-size, and min-height. | Consider using more specific class names (e.g., `.wizard-btn-primary`) instead of overriding shared classes. |
 
 ### 5.3 Hardcoded Values Instead of CSS Variables
@@ -161,7 +161,7 @@ The following issues from the original audit have been **fixed**:
 |:---:|------|-------|-----|
 | 29 | `src/app/styles/admin.css:306,380-381` | Uses hardcoded `rgba(13, 122, 116, ...)` instead of `var(--accent)`. Also `rgba(185, 28, 28, ...)` instead of `var(--danger)`. | Replace with CSS variables for consistency and themeability. |
 | 30 | `src/app/styles/admin.css:562` | Hardcoded `rgba(23, 32, 42, 0.46)` for overlay background. Should use `var(--danger)` or a dedicated overlay variable. | Define `--overlay-bg` variable. |
-| 31 | `src/app/styles/admin.css:1800` | `box-shadow: 0 4px 12px rgba(11, 122, 117, 0.3)` uses `11` instead of `13` for the green channel — inconsistent with `--accent: #0d7a74`. | Use `var(--shadow-accent)` instead. |
+| 31 | `src/app/styles/admin.css:1800` | `box-shadow: 0 4px 12px rgba(11, 122, 117, 0.3)` uses `11` instead of `13` for the green channel — inconsistent with `--accent: #0d7a74`. | **FIXED**: Replaced with `var(--shadow-accent)` in `base-and-customer.css` `.btn-primary`/`.btn-submit`. |
 
 ### 5.4 Animation Issues
 
