@@ -594,7 +594,10 @@ async function renderPdfToPngs(pdfPath: string, job: SupabaseJob): Promise<strin
             }
             let img = sharp(buf, { raw: { width, height, channels: 4 } });
             if (isBw) img = img.grayscale();
-            return await img.png().toBuffer();
+            // Stamp the render DPI into the PNG (pHYs chunk) so the print
+            // script's actual-size math reads the true resolution instead of
+            // guessing from the -RenderDpi param.
+            return await img.withMetadata({ density: renderDpiFor(job) }).png().toBuffer();
           }
         });
         const pngPath = path.resolve(config.tempDir, `${job.token}-p${i}.png`);
@@ -676,7 +679,9 @@ function printImagesGDI(images: string[], job: SupabaseJob, printer: string) {
         ];
         log(`Printing ${images.length} page(s) via GDI to ${printer}...`);
 
-        execFile("powershell.exe", args, { windowsHide: true, timeout: 120000 },
+        // 5 min — must match PRINT_TIMEOUT_MS in processJob; the old 2 min limit
+        // killed large PDFs mid-spool.
+        execFile("powershell.exe", args, { windowsHide: true, timeout: 300000 },
           (error, stdout, stderr) => {
             fs.rm(listPath, { force: true }).catch(() => undefined);
             if (error) {

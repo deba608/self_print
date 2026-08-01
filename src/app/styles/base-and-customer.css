@@ -2951,6 +2951,23 @@ button.upi-pay-btn:disabled {
   margin-top: 0.75rem;
 }
 
+/* "Rate us on Google" — warm gold star instead of the shared accent teal,
+   so it reads as a distinct ask (a favor) rather than another nav action. */
+.result-screen-review {
+  margin-top: 10px;
+  color: #92400e;
+  background: #fffbeb;
+  border-color: rgba(146, 64, 14, 0.2);
+}
+.result-screen-review svg {
+  color: #f59e0b;
+  fill: #f59e0b;
+}
+.result-screen-review:hover {
+  background: #fef3c7;
+  border-color: rgba(146, 64, 14, 0.35);
+}
+
 .visit-again {
   margin-top: 4px !important;
   color: var(--accent) !important;

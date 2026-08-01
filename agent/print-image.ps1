@@ -150,14 +150,32 @@ $doc.add_PrintPage({
       $cellX = $area.Left + $col * $cellW
       $cellY = $area.Top + $row * $cellH
 
+      # Auto-rotate: a landscape source on a portrait cell (or vice versa) would
+      # fit-scale down to ~70%. Rotating 90° fills the page as the user expects.
+      # Skipped for noscale (actual size honours the original orientation).
+      if ($Scale -ne "noscale" -and $sheetFiles.Count -eq 1) {
+        $imgLandscape = $img.Width -gt $img.Height
+        $cellLandscape = $cellW -gt $cellH
+        if ($imgLandscape -ne $cellLandscape) {
+          $img.RotateFlip([System.Drawing.RotateFlipType]::Rotate90FlipNone)
+        }
+      }
+
+      # DPI for actual-size math: prefer the image's own embedded resolution
+      # (agent-rendered PNGs carry their render DPI; photos carry EXIF DPI).
+      # GDI reports 96 as a made-up default when the file has none — in that
+      # case, and for implausible values, fall back to the -RenderDpi param.
+      $dpi = $img.HorizontalResolution
+      if ($dpi -le 0 -or $dpi -eq 96 -or $dpi -gt 2400) { $dpi = $RenderDpi }
+
       if ($Scale -eq "noscale" -and $sheetFiles.Count -eq 1) {
-        # Actual size: map rendered pixels back to real inches at 100ths-of-inch page units.
-        $w = [int]($img.Width / $RenderDpi * 100)
-        $h = [int]($img.Height / $RenderDpi * 100)
+        # Actual size: map pixels back to real inches at 100ths-of-inch page units.
+        $w = [int]($img.Width / $dpi * 100)
+        $h = [int]($img.Height / $dpi * 100)
       } elseif ($Scale -eq "shrink" -and $sheetFiles.Count -eq 1) {
         # Only scale down if the actual-size image would overflow the cell.
-        $natW = [int]($img.Width / $RenderDpi * 100)
-        $natH = [int]($img.Height / $RenderDpi * 100)
+        $natW = [int]($img.Width / $dpi * 100)
+        $natH = [int]($img.Height / $dpi * 100)
         $ratio = [Math]::Min(1.0, [Math]::Min($cellW / $natW, $cellH / $natH))
         $w = [int]($natW * $ratio)
         $h = [int]($natH * $ratio)
