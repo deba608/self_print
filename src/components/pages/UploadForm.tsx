@@ -22,6 +22,10 @@ export default function UploadForm() {
   const [copies, setCopies] = useState(1);
   const [pageRangeMode, setPageRangeMode] = useState<PageRangeMode>("all");
   const [customPageRange, setCustomPageRange] = useState("");
+  // Debounced copy of customPageRange used only for the preview/page-list —
+  // recomputing the pdf.js canvas render on every keystroke caused visible
+  // jank while typing a range. Validation stays on the instant value.
+  const [debouncedPageRange, setDebouncedPageRange] = useState("");
   const [paperSize, setPaperSize] = useState("A4");
   const [layout, setLayout] = useState("portrait");
   const [scale, setScale] = useState("default");
@@ -547,15 +551,20 @@ export default function UploadForm() {
     return pages.size > 0;
   }, [pageRangeMode, customPageRange, filePageCount]);
 
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedPageRange(customPageRange), 300);
+    return () => clearTimeout(t);
+  }, [customPageRange]);
+
   // Actual page numbers the print will include (1-based, sorted), mirroring the
   // agent's parsePageRange. null = all pages — also while a custom range is
   // empty or invalid, so the preview never goes blank mid-typing.
   const selectedPageList = useMemo<number[] | null>(() => {
     const total = filePageCount ?? 0;
     if (!total || pageRangeMode === "all") return null;
-    if (!customPageRange.trim() || !isValidPageRange) return null;
+    if (!debouncedPageRange.trim()) return null;
     const pages = new Set<number>();
-    for (const part of customPageRange.split(",")) {
+    for (const part of debouncedPageRange.split(",")) {
       const trimmed = part.trim();
       if (!trimmed) continue;
       const [startRaw, endRaw] = trimmed.split("-");
@@ -565,7 +574,7 @@ export default function UploadForm() {
       for (let p = Math.max(1, start); p <= Math.min(total, end); p++) pages.add(p);
     }
     return pages.size ? [...pages].sort((a, b) => a - b) : null;
-  }, [filePageCount, pageRangeMode, customPageRange, isValidPageRange]);
+  }, [filePageCount, pageRangeMode, debouncedPageRange]);
 
   const pageRangeValidationMessage = useMemo(() => {
     if (pageRangeMode !== "custom" || !customPageRange.trim() || !filePageCount) return null;
