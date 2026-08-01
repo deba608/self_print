@@ -29,19 +29,21 @@ export default function AdminDashboard() {
   const { data: summary, mutate: mutateSummary } = useSummary();
   const { data: pricing, mutate: mutatePricing } = usePricing();
   const { data: printerConfig, mutate: mutatePrinter } = usePrinter();
-  const { data: printersData } = usePrinters();
 
   const jobs: Job[] = jobsData?.jobs ?? [];
   const total = jobsData?.total ?? 0;
   const cursor = jobsData?.cursor ?? null;
   const hasMore = !!cursor;
   const printerName = printerConfig?.printerName ?? "";
-  const printers = printersData?.printers ?? [];
 
   // ── Local UI state ──────────────────────────────────────────────
   const [loggingOut, setLoggingOut] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showPrinter, setShowPrinter] = useState(false);
+  // Printers list is only shown inside PrinterPanel — poll it only while the
+  // panel is open instead of every 10s for the dashboard's whole lifetime.
+  const { data: printersData } = usePrinters({ refreshInterval: showPrinter ? 10000 : 0 });
+  const printers = printersData?.printers ?? [];
   const [showManageOrders, setShowManageOrders] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { collapsed: sidebarCollapsed, toggle: toggleSidebarCollapse } = useSidebarCollapse();
@@ -526,10 +528,7 @@ export default function AdminDashboard() {
 
       {showManageOrders && (
         <ManageOrdersPanel
-          jobs={jobs.map((j) => ({
-            id: j.id, token: j.token, status: j.status,
-            pricePaise: j.pricePaise, createdAt: j.createdAt, file: j.file
-          }))}
+          jobs={manageOrdersJobs}
           onClose={() => setShowManageOrders(false)}
           onRefresh={() => { mutateJobs(); mutateSummary(); }}
         />
