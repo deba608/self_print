@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useMemo, useState } from "react";
 import {
   CheckCircle2,
   Clock3,
@@ -65,12 +66,42 @@ function mapUrl(job: Job) {
 }
 
 export default function OrderManagementPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { data, error, isLoading, mutate } = useJobs();
-  const [query, setQuery] = useState("");
-  const [fulfilment, setFulfilment] = useState<FulfilmentFilter>("all");
-  const [stage, setStage] = useState<StageFilter>("all");
+  const [query, setQueryState] = useState(() => searchParams.get("customer") ?? searchParams.get("q") ?? "");
+  const [fulfilment, setFulfilmentState] = useState<FulfilmentFilter>(
+    () => (searchParams.get("fulfilment") as FulfilmentFilter | null) ?? "all"
+  );
+  const [stage, setStageState] = useState<StageFilter>(
+    () => (searchParams.get("stage") as StageFilter | null) ?? "all"
+  );
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
+
+  // Keep filters in the URL so returning from a job's detail page (or a
+  // browser back/forward) restores this view instead of resetting.
+  const updateFilterParams = (q: string, f: FulfilmentFilter, s: StageFilter) => {
+    const params = new URLSearchParams();
+    if (q) params.set("q", q);
+    if (f !== "all") params.set("fulfilment", f);
+    if (s !== "all") params.set("stage", s);
+    const qs = params.toString();
+    router.replace(qs ? `/admin/orders?${qs}` : "/admin/orders", { scroll: false });
+  };
+
+  const setQuery = (value: string) => {
+    setQueryState(value);
+    updateFilterParams(value, fulfilment, stage);
+  };
+  const setFulfilment = (value: FulfilmentFilter) => {
+    setFulfilmentState(value);
+    updateFilterParams(query, value, stage);
+  };
+  const setStage = (value: StageFilter) => {
+    setStageState(value);
+    updateFilterParams(query, fulfilment, value);
+  };
 
   const jobs: Job[] = data?.jobs ?? [];
   const total = data?.total ?? 0;
@@ -96,10 +127,6 @@ export default function OrderManagementPage() {
     }
   }
 
-  useEffect(() => {
-    const customerQuery = new URLSearchParams(window.location.search).get("customer");
-    if (customerQuery) setQuery(customerQuery);
-  }, []);
 
   async function updateDelivery(job: Job, deliveryStatus: "packed" | "out_for_delivery" | "delivered") {
     setUpdatingId(job.id);

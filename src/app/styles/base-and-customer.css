@@ -61,6 +61,13 @@
   /* Border variant */
   --border: var(--line);
 
+  /* Z-index scale (use these in new code; existing raw values remain) */
+  --z-dropdown: 50;
+  --z-sticky: 100;
+  --z-aside: 200;
+  --z-overlay: 300;
+  --z-modal: 1000;
+
   /* Border Radius */
   --radius-sm: 8px;
   --radius-md: 12px;
