@@ -118,7 +118,7 @@ src/app/api/auth/otp/verify/route.ts    # POST {phone, code} -> session
 - Generate 6-digit code, store **SHA-256 hash** + `expires_at` (10 min) + `attempts` in a new `otp_codes` table (both DB layers, or Supabase-only since login already requires Supabase).
 - Verify: constant-time compare, max 5 attempts, single-use (delete on success), rate limit: max 3 sends per phone per 15 min + reuse existing IP rate limiter (`src/lib/ratelimit.ts`).
 - On success: create/link `customer_profiles` by phone; issue session (this can replace or complement current email login — decide at implementation).
-- SMS fallback (phase 2): if WhatsApp send fails with "not a WhatsApp user", fall back to MSG91 SMS OTP.
+- SMS fallback: SKIPPED for now (owner decision 2026-08-01, cost saving) — WhatsApp-only. If a customer has no WhatsApp, they use email login or guest checkout; revisit only if support requests pile up.
 
 ### Hook points for notifications (existing code)
 | Event | Where to call sendTemplate |
