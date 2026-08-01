@@ -59,6 +59,7 @@ export default function AdminDashboard() {
   const { toasts, push: pushToast } = useToasts();
   const esRef = useRef<EventSource | null>(null);
   const sseRetryRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const sseBackoffRef = useRef(1000);
 
   // ── Sound + chime ───────────────────────────────────────────────
   const [soundOn, setSoundOn] = useState(true);
@@ -125,6 +126,7 @@ export default function AdminDashboard() {
   async function connectSSE() {
     if (esRef.current) esRef.current.close();
     const es = new EventSource("/api/admin/notifications");
+    es.onopen = () => { sseBackoffRef.current = 1000; };
     es.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
@@ -149,7 +151,11 @@ export default function AdminDashboard() {
         mutateJobs();
       }
     };
-    es.onerror = () => { sseRetryRef.current = setTimeout(connectSSE, 5000); };
+    es.onerror = () => {
+      const delay = sseBackoffRef.current;
+      sseBackoffRef.current = Math.min(delay * 2, 30000);
+      sseRetryRef.current = setTimeout(connectSSE, delay);
+    };
     esRef.current = es;
   }
 
