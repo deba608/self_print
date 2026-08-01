@@ -21,8 +21,6 @@ export type Pricing = {
   photoMultiplier: number;
   duplexBwPerPagePaise: number;
   deliveryFeePaise: number;
-  shopUpiId?: string;
-  shopUpiQr?: string;
   shopName?: string;
   shopReviewUrl?: string;
   razorpayKeyId?: string;

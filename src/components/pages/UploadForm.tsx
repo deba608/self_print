@@ -342,12 +342,10 @@ export default function UploadForm() {
   // require online payment. So delivery is never offered for a doc/docx file.
   const isDocFile = Boolean(file && (file.name.toLowerCase().endsWith(".doc") || file.name.toLowerCase().endsWith(".docx")));
 
-  // Without a UPI link or a Razorpay key configured there is no online payment
-  // rail at all, so a delivery order (which must pay online) could never be
-  // settled — hide the delivery option entirely in that case.
-  const onlinePaymentRailAvailable = Boolean(
-    (pricing?.shopUpiId ?? "").trim() || (pricing?.shopUpiQr ?? "").trim() || (pricing?.razorpayKeyId ?? "").trim()
-  );
+  // Without a Razorpay key configured there is no online payment rail at
+  // all, so a delivery order (which must pay online) could never be settled
+  // — hide the delivery option entirely in that case.
+  const onlinePaymentRailAvailable = Boolean((pricing?.razorpayKeyId ?? "").trim());
 
   const deliveryOfferable = !isDocFile && onlinePaymentRailAvailable;
 
