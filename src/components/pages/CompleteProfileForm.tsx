@@ -53,7 +53,6 @@ export default function CompleteProfileForm() {
           placeholder="Enter phone number"
           autoComplete="tel"
           disabled={loading}
-          autoFocus
           required
         />
         <AuthError>{error}</AuthError>
