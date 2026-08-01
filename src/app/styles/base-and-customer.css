@@ -530,10 +530,6 @@ input, select, button {
   to { opacity: 1; transform: translateY(0); }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .intro-anim { animation: none; }
-}
-
 .upload-form { display: flex; flex-direction: column; gap: var(--space-5); }
 
 /* === Desktop one-page workspace — 2×2 zones ===
