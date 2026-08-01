@@ -29,12 +29,11 @@ $doc.PrinterSettings.Collate = ($Collate -eq "true")
 $doc.DefaultPageSettings.Landscape = ($Landscape -eq "true")
 $doc.DefaultPageSettings.Color = ($Color -eq "true")
 
-# Margins are in hundredths of an inch. "default" leaves the driver's own
-# default margins in place instead of forcing zero, unlike the old script.
-switch ($Margins) {
-  "none"    { $doc.DefaultPageSettings.Margins = New-Object System.Drawing.Printing.Margins(0,0,0,0) }
-  "minimum" { $doc.DefaultPageSettings.Margins = New-Object System.Drawing.Printing.Margins(25,25,25,25) }
-}
+# Margins are applied inside the PrintPage handler (see below). .NET's
+# DefaultPageSettings.Margins defaults to a hardcoded 1 inch on every side —
+# NOT the driver's default — so fitting into $e.MarginBounds shrank output to
+# ~76% of the page. The handler instead computes the target area from the
+# physical page size, using the printer's hardware margins for "default".
 
 # Match requested paper size if the driver offers it.
 $ps = $doc.PrinterSettings.PaperSizes | Where-Object { $_.PaperName -like "*$PaperName*" } | Select-Object -First 1
@@ -112,7 +111,25 @@ $doc.add_BeginPrint({ $state.idx = 0 }.GetNewClosure())
 $doc.add_PrintPage({
   param($printSender, $e)
   $sheetFiles = $state.sheets[$state.idx]
-  $area = $e.MarginBounds
+
+  # GDI puts the Graphics origin at the top-left of the *printable* area (past
+  # the hardware margin), not the physical page corner. Shift it back so all
+  # coordinates below are in true physical-page space (units: 1/100 inch).
+  $hardX = $e.PageSettings.HardMarginX
+  $hardY = $e.PageSettings.HardMarginY
+  $e.Graphics.TranslateTransform(-$hardX, -$hardY)
+
+  # PageBounds is orientation-aware physical paper size in 1/100 inch.
+  $pageW = $e.PageBounds.Width
+  $pageH = $e.PageBounds.Height
+  $m = switch ($Margins) {
+    "none"    { 0 }
+    "minimum" { 25 }
+    # "default": hug the printable edge — symmetric margin equal to the larger
+    # hardware margin, so content prints as close to full-page as the printer allows.
+    default   { [Math]::Ceiling([Math]::Max($hardX, $hardY)) }
+  }
+  $area = New-Object System.Drawing.Rectangle([int]$m, [int]$m, [int]($pageW - 2 * $m), [int]($pageH - 2 * $m))
 
   $cols = [int][Math]::Ceiling([Math]::Sqrt($sheetFiles.Count))
   $rows = [int][Math]::Ceiling($sheetFiles.Count / $cols)
