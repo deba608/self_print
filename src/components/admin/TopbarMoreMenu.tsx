@@ -2,9 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Bell, BellRing, MoreHorizontal, RefreshCw, Settings } from "lucide-react";
-import ManageMenu from "./ManageMenu";
 
-// Collapses Alerts/Refresh/Manage/Pricing into one overflow menu at <=480px
+// Collapses Alerts/Refresh/Pricing into one overflow menu at <=480px
 // (admin.css shows this trigger and hides the individual buttons at that
 // breakpoint) so the topbar row doesn't wrap and push content down.
 export default function TopbarMoreMenu({
@@ -80,10 +79,6 @@ export default function TopbarMoreMenu({
             <RefreshCw size={17} aria-hidden="true" />
             <span>Refresh</span>
           </button>
-
-          <div className="topbar-more-manage" onClick={() => setOpen(false)}>
-            <ManageMenu />
-          </div>
 
           <button
             type="button"
