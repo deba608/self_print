@@ -691,7 +691,7 @@ body {
   }
 }
 
-@media (max-width: 599px) {
+@media (max-width: 480px) {
   .user-navbar {
     min-height: 64px;
   }
