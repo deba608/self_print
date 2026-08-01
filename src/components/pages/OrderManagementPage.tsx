@@ -10,11 +10,13 @@ import {
   Loader2,
   Lock,
   MapPinned,
+  Package,
   PackageCheck,
   Phone,
   RefreshCw,
   Search,
   Truck,
+  UserRound,
   WalletCards,
 } from "lucide-react";
 import AdminManagementNav from "../AdminManagementNav";
@@ -99,7 +101,7 @@ export default function OrderManagementPage() {
     if (customerQuery) setQuery(customerQuery);
   }, []);
 
-  async function updateDelivery(job: Job, deliveryStatus: "out_for_delivery" | "delivered") {
+  async function updateDelivery(job: Job, deliveryStatus: "packed" | "out_for_delivery" | "delivered") {
     setUpdatingId(job.id);
     try {
       const response = await fetch(`/api/admin/jobs/${job.id}/delivery-status`, {
@@ -260,6 +262,12 @@ export default function OrderManagementPage() {
                                 <span>{job.deliveryAddress || "No delivery address"}</span>
                               </address>
                             )}
+                            {job.deliveryMethod === "delivery" && job.deliveryPersonId && (
+                              <p className="order-card-rider">
+                                <UserRound size={14} aria-hidden="true" />
+                                {job.deliveryPersonName ?? "Assigned rider"}
+                              </p>
+                            )}
                           </div>
                         </div>
 
@@ -286,6 +294,19 @@ export default function OrderManagementPage() {
                           <Link href={`/admin/jobs/${job.id}`} className="order-action secondary">
                             <ExternalLink size={15} aria-hidden="true" /> Details
                           </Link>
+                          {job.deliveryMethod === "delivery"
+                            && job.status === "printed"
+                            && job.deliveryStatus == null && (
+                            <button
+                              type="button"
+                              className="order-action secondary"
+                              disabled={isUpdating}
+                              onClick={() => updateDelivery(job, "packed")}
+                            >
+                              {isUpdating ? <Loader2 size={15} className="spin" /> : <Package size={15} />}
+                              Mark packed
+                            </button>
+                          )}
                           {job.deliveryMethod === "delivery"
                             && job.status === "printed"
                             && !["out_for_delivery", "delivered"].includes(job.deliveryStatus ?? "") && (
