@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useRef } from "react";
+import Link from "next/link";
 import { UploadCloud, FileText, Image, ArrowLeft, ArrowRight, Check, Eye, Loader2, File, Settings2, Printer, Copy, Store, X, Search, CreditCard, RefreshCw, Info, Truck, MapPin, Navigation, AlertCircle } from "lucide-react";
 import { formatRupees, paperSizeLabels, allPaperSizes } from "@/lib/pricing";
 import { estimatePdfPages } from "@/lib/pdf-pages";
@@ -1150,7 +1151,7 @@ export default function UploadForm() {
 
           {recentToken && (
             <div className="track-link-row">
-              <a className="recent-order-chip" href={`/track?token=${recentToken}`}>
+              <Link className="recent-order-chip" href={`/track?token=${recentToken}`}>
                 <Search size={14} aria-hidden="true" />
                 Recent order #{recentToken} — track it
               </a>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { Check, CreditCard, Loader2, Printer, Search, Smartphone, Star, Store, Truck, UploadCloud, X } from "lucide-react";
 import BillReceipt, { type BillData } from "../BillReceipt";
 import { loadRazorpayCheckout, type Pricing } from "./shared";
@@ -396,7 +397,7 @@ export default function ResultScreen({
                 {st !== "printed" && !failed && (
                   <span className="mini-track-eta">~{Math.max(1, jobsAhead + 1) * 3} min wait</span>
                 )}
-                <a className="mini-track-view" href={`/track?token=${result.token}`}>
+                <Link className="mini-track-view" href={`/track?token=${result.token}`}>
                   <Search size={13} aria-hidden="true" /> Track
                 </a>
               </div>
