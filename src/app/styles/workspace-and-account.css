@@ -230,7 +230,7 @@
   border-radius: 14px;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 768px) {
   .delivery-review-details { grid-template-columns: 1fr; }
   .delivery-review-address { grid-column: auto; }
   .delivery-location-feedback { align-items: flex-start; flex-direction: column; }
