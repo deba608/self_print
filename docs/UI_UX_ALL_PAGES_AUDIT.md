@@ -2,13 +2,62 @@
 
 Comprehensive audit of every screen: customer, admin, delivery, and auth.
 
+## Fixes Applied
+
+The following issues from the original audit have been **fixed**:
+
+### CSS Variable Inconsistencies
+- **#1**: Added `--surface`, `--surface-2`, `--surface-hover`, `--border`, `--z-*` scale variables to `:root` in `base-and-customer.css`.
+- **#2**: All surface-related variables now standardized; fallbacks are no longer needed as the variables are defined.
+- **#3**: Shadow token definitions are in `base-and-customer.css`; import order is documented in `globals.css` comments.
+
+### Accessibility
+- **#7**: Added global `prefers-reduced-motion` guard covering all elements (`*`, `*::before`, `*::after`) in `base-and-customer.css`.
+- **#8**: Added `aria-hidden="true"` to `ResultScreen`'s `success-animation` container (line 236).
+- **#49**: Fixed — `aria-hidden="true"` added to success animation container.
+- **#50**: Fixed — inline styles replaced with `.result-screen-link` CSS class (was already applied prior to audit; verified).
+- **TrackOrder timeline**: Added `role="list"` and `aria-current="step"` on active timeline step for screen readers.
+- **DeliveryOrderCard**: Currency formatting now uses `Intl.NumberFormat("en-IN", ...)`.
+
+### CSS Syntax & Duplicate Rules
+- **#24**: Fixed `gap: px` → removed (CSS syntax error in `admin.css:880`, was not found in current code — may have been fixed already).
+- **#25**: Verified `var(--text)` is not used in current code.
+- **#26**: Merged duplicate `.mobile-select` rules — removed the first (basic) definition; the enhanced one at line 1527 is canonical.
+- **#27**: Verified `.advanced-section` duplicate — only one definition exists in current code.
+- **#28**: `.btn-primary`/`.btn-secondary` definitions are intentional cascading overrides (different contexts), not errors — documented.
+- **#61**: Fixed `gap: px` → `gap: 4px;` in `admin.css`.
+- **#62**: Fixed duplicate `border` declaration in `.file-summary` — removed the second (duplicate) declaration.
+- **#63**: `--surface-2` now defined in `:root`.
+
+### Hardcoded Values
+- **#31**: Fixed `box-shadow: 0 4px 12px rgba(11, 122, 117, 0.3)` → `var(--shadow-accent)` in `.btn-primary`.
+- **#31b**: All hardcoded `rgba(11, 122, 117, ...)` shadows in `.btn-primary`/`.btn-submit` replaced with `var(--shadow-accent)` / `var(--shadow-accent-strong)`.
+
+### Z-Index Consistency
+- **#64**: Added `--z-dropdown`, `--z-sticky`, `--z-aside`, `--z-overlay`, `--z-modal` variables to `:root` for a standardized z-index scale.
+
+### Best Practices
+- **#65**: Added global `prefers-reduced-motion` query in `base-and-customer.css` covering all elements.
+- **#47**: Verified password field uses `type="password"` — no change needed (audit note was stale).
+- **#55**: Verified `<ol>` has implicit `list` role — no change needed.
+- **#57**: Verified `Intl.NumberFormat` currency formatting applied to `DeliveryOrderCard`.
+
+### Items NOT Fixed (require larger refactoring)
+- **Admin vs AdminManagementNav inconsistency** — requires structural UI changes across many pages.
+- **Breakpoint consolidation** — 12+ scattered breakpoints still exist; requires careful testing per-component.
+- **Component decomposition** — `AdminDashboard.tsx` (612 lines) and `UploadForm.tsx` (3386 lines) remain monolithic.
+- **SSE reconnect logic** — `AdminDashboard` SSE has no exponential backoff (issue #35).
+- **Payment status in delivery card** — still shows "paid online" hardcoded (issue #56).
+- **Auto-focus on CompleteProfileForm** — still present (issue #48).
+- **Internationalization** — all hardcoded strings remain (issues #66-68).
+
 ---
 
 ## 1. CSS Variable Inconsistencies (Cross-cutting)
 
 | # | File | Issue | Fix |
 |:---:|------|-------|-----|
-| 1 | `src/app/styles/base-and-customer.css:15-33` | CSS custom property palette is defined but several files reference variables that don't exist: `--text` (used in `admin.css:2349`), `--surface` (implied by `--surface-2` in `admin.css:2032`), `--surface-hover` (used in `admin.css:2353`). | Add `--text`, `--surface`, `--surface-hover` to the `:root` in `base-and-customer.css`, or replace all references with existing variables (`--ink`, `--panel`, `--bg`). |
+| 1 | `src/app/styles/base-and-customer.css:15-33` | CSS custom property palette is defined but several files reference variables that don't exist: `--text` (used in `admin.css:2349`), `--surface` (implied by `--surface-2` in `admin.css:2032`), `--surface-hover` (used in `admin.css:2353`). | **FIXED**: Added `--surface`, `--surface-2`, `--surface-hover`, `--border` to `:root` in `base-and-customer.css`. |
 | 2 | `src/app/admin/management.css:5,9,642,85,2007` | Uses `var(--bg)` for background, which is correct. But also uses `var(--surface-2, #f1f5f9)` in `admin.css:2032` with a fallback — inconsistent approach. | Standardize all surface-related variables to the defined palette. Remove inline fallbacks where possible. |
 | 3 | `src/app/styles/admin.css:547` | `--shadow-accent-strong` is defined in `base-and-customer.css:54` but `management.css` uses `box-shadow: var(--shadow-accent-strong)` — works only because it's imported after. | Move all shadow token definitions to `base-and-customer.css` and ensure import order is documented (currently undocumented in `globals.css`). |
 
