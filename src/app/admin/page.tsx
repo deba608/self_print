@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import AdminDashboard from "@/components/pages/AdminDashboard";
 import AdminLogin from "@/components/pages/AdminLogin";
@@ -22,7 +23,11 @@ export default async function AdminPage() {
       if (profile?.role === "delivery") {
         isDeliveryRole = true;
       } else if (profile) {
-        return <AdminDashboard />;
+        return (
+          <Suspense>
+            <AdminDashboard />
+          </Suspense>
+        );
       }
     }
   } catch {
