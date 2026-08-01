@@ -436,6 +436,12 @@ export default function AdminDashboard() {
   }
 
   // ── Derived data ────────────────────────────────────────────────
+  // Stable array for ManageOrdersPanel — without useMemo the panel re-rendered
+  // on every dashboard render (SSE ticks) because .map created a fresh array.
+  const manageOrdersJobs = useMemo(() => jobs.map((j) => ({
+    id: j.id, token: j.token, status: j.status,
+    pricePaise: j.pricePaise, createdAt: j.createdAt, file: j.file
+  })), [jobs]);
   const methodFilteredJobs = deliveryFilter === "all"
     ? jobs
     : jobs.filter((j) => (j.deliveryMethod ?? "pickup") === deliveryFilter);

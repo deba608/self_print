@@ -63,7 +63,13 @@ function JobListSkeleton() {
   );
 }
 
-async function JobsList({ filter }: { filter: Filter }) {
+// Page size for the first load; "Show more" links re-render the server
+// component with a larger limit. Keeps the query and the DOM bounded for
+// heavy users instead of fetching every job they ever printed.
+const PAGE_SIZE = 30;
+const MAX_LIMIT = 300;
+
+async function JobsList({ filter, limit }: { filter: Filter; limit: number }) {
   // Any failure (e.g. Supabase env not configured in pure-SQLite local dev)
   // is treated the same as an unauthenticated visitor: redirect to login
   // instead of letting the page 500.
@@ -85,20 +91,26 @@ async function JobsList({ filter }: { filter: Filter }) {
   }
 
   // Defense-in-depth alongside RLS's "customers can view own jobs" policy.
-  const { data, error } = await supabase
+  // Filter server-side and fetch limit+1 rows so we know whether to render
+  // "Show more" without a separate count query.
+  let query = supabase
     .from("jobs")
     .select(
       "id, token, status, print_type, copies, page_count, price_paise, created_at, paid_at, printed_at, delivery_method, delivery_status"
     )
-    .eq("customer_user_id", user.id)
-    .order("created_at", { ascending: false });
+    .eq("customer_user_id", user.id);
+  if (filter === "done") {
+    query = query.in("status", DONE_STATUSES);
+  } else if (filter === "active") {
+    query = query.not("status", "in", `(${DONE_STATUSES.join(",")})`);
+  }
+  const { data, error } = await query
+    .order("created_at", { ascending: false })
+    .limit(limit + 1);
 
-  const allJobs = error ? [] : data ?? [];
-  const jobs = allJobs.filter((job) => {
-    if (filter === "active") return !DONE_STATUSES.includes(job.status);
-    if (filter === "done") return DONE_STATUSES.includes(job.status);
-    return true;
-  });
+  const fetched = error ? [] : data ?? [];
+  const hasMore = fetched.length > limit;
+  const jobs = hasMore ? fetched.slice(0, limit) : fetched;
 
   return (
     <>
@@ -204,6 +216,15 @@ async function JobsList({ filter }: { filter: Filter }) {
           })}
         </div>
       )}
+
+      {hasMore && limit < MAX_LIMIT && (
+        <Link
+          href={`/my-jobs?filter=${filter}&limit=${Math.min(limit + PAGE_SIZE, MAX_LIMIT)}`}
+          className="jobs-filter-chip jobs-load-more"
+        >
+          Show more
+        </Link>
+      )}
     </>
   );
 }
@@ -211,11 +232,15 @@ async function JobsList({ filter }: { filter: Filter }) {
 export default async function MyJobsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ filter?: string }>;
+  searchParams: Promise<{ filter?: string; limit?: string }>;
 }) {
   const params = await searchParams;
   const filter: Filter =
     params.filter === "active" || params.filter === "done" ? params.filter : "all";
+  const parsedLimit = Number.parseInt(params.limit ?? "", 10);
+  const limit = Number.isFinite(parsedLimit)
+    ? Math.min(Math.max(parsedLimit, PAGE_SIZE), MAX_LIMIT)
+    : PAGE_SIZE;
 
   return (
     <main className="customer-shell">
@@ -224,8 +249,8 @@ export default async function MyJobsPage({
           <h1>My Jobs</h1>
           <p className="muted">Everything you&apos;ve printed with this account.</p>
         </div>
-        <Suspense key={filter} fallback={<JobListSkeleton />}>
-          <JobsList filter={filter} />
+        <Suspense key={`${filter}-${limit}`} fallback={<JobListSkeleton />}>
+          <JobsList filter={filter} limit={limit} />
         </Suspense>
       </section>
     </main>
