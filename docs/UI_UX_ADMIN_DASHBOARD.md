@@ -439,14 +439,14 @@ Let me verify the second one.
 | **P1** | Fix password `type="text"` in StaffManagement (7.5) | `StaffManagement.tsx:429` | ✅ Done |
 | **P1** | Add `prefers-reduced-motion` to all animations (8.3) | `admin.css` global sweep | ✅ Done |
 | **P1** | Unify breakpoints (staff page 820px/560px) (5.8) | `admin.css`, `StaffManagement` CSS | ✅ Done |
-| **P2** | Convert Security table to cards on mobile (5.7) | `SecurityPage.tsx`, `admin.css` |
-| **P2** | Fix Job Detail tab `hidden` → `aria-hidden` (5.10) | `JobDetail.tsx`, `admin.css:2566` |
-| **P2** | Consolidate topbar buttons at 480px (5.2) | `admin.css:3157` |
-| **P2** | Unify dashboard/sub-page navigation shell (6.1) | `AdminDashboard.tsx`, `AdminManagementNav.tsx` |
-| **P3** | Add bulk dispatch to OrderManagementPage | `OrderManagementPage.tsx` |
-| **P3** | Replace inline styles in CustomerManagementPage (7.4) | `CustomerManagementPage.tsx` |
-| **P3** | SSE backoff + append-only new jobs (8.1) | `AdminDashboard.tsx:125` |
-| **P3** | State preservation on back navigation (8.3) | `JobDetail.tsx`, `OrderManagementPage.tsx` |
+| **P2** | Convert Security table to cards on mobile (5.7) | `SecurityPage.tsx`, `management.css` | ✅ Done |
+| **P2** | Fix Job Detail tab `hidden` → `aria-hidden` (5.10) | `JobDetail.tsx`, `admin.css:2566` | ✅ Done |
+| **P2** | Consolidate topbar buttons at 480px (5.2) | `admin.css:3157` | ⬜ Not started — needs its own plan (new overflow-menu component) |
+| **P2** | Unify dashboard/sub-page navigation shell (6.1) | `AdminDashboard.tsx`, `AdminManagementNav.tsx` | ⬜ Not started — large structural refactor, needs its own plan |
+| **P3** | Add bulk dispatch to OrderManagementPage | `OrderManagementPage.tsx` | ⬜ Not started — new feature, needs brainstorming pass |
+| **P3** | Replace inline styles in CustomerManagementPage (7.4) | `CustomerManagementPage.tsx` | ✅ Done |
+| **P3** | SSE backoff + append-only new jobs (8.1) | `AdminDashboard.tsx:125` | ◐ Backoff done; append-only skipped — `broadcast()` in `jobs/route.ts` only sends `jobId`/`token`, not full job, so it still full-revalidates |
+| **P3** | State preservation on back navigation (8.3) | `JobDetail.tsx`, `OrderManagementPage.tsx` | ⬜ Not started |
 
 ---
 
