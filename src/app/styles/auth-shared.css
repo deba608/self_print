@@ -152,6 +152,10 @@
   color: var(--muted);
 }
 
+.input-required-mark {
+  color: var(--danger);
+}
+
 /* Inline label action — e.g. "Forgot password?" sitting beside the Password
    label instead of buried in the footer after the submit button. */
 .input-label-link {
