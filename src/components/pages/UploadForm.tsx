@@ -428,7 +428,6 @@ export default function UploadForm() {
     if (!serviceArea || serviceArea.mode !== "pincode_area") return [];
     return serviceArea.pincodes.find((p) => p.pincode === deliveryPincode)?.areas ?? [];
   }, [serviceArea, deliveryPincode]);
-  const gpsRequired = serviceArea?.mode === "radius" || serviceArea?.mode === "polygon";
   const serviceCheck = useMemo(() => {
     if (!serviceArea || !pincodeValid) return { ok: true as const };
     return checkDeliveryServiceable(
@@ -1709,7 +1708,7 @@ export default function UploadForm() {
                       <div>
                         <strong>Pin your delivery location</strong>
                         <p>
-                          Optional, but recommended. Your device shares coordinates only after
+                          Required for home delivery. Your device shares coordinates only after
                           you allow access; the written address stays required.
                         </p>
                       </div>
