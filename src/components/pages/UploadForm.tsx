@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, useRef } from "react";
 import { UploadCloud, FileText, Image, ArrowLeft, ArrowRight, Check, Eye, Loader2, File, Settings2, Printer, Copy, Store, X, Search, CreditCard, RefreshCw, Info, Truck, MapPin, Navigation, AlertCircle } from "lucide-react";
 import { formatRupees, paperSizeLabels, allPaperSizes } from "@/lib/pricing";
 import { estimatePdfPages } from "@/lib/pdf-pages";
+import { checkDeliveryServiceable, isValidPincode } from "@/lib/service-area";
 
 import BulkThumb from "../upload/BulkThumb";
 import PdfCanvasPreview from "../upload/PdfCanvasPreview";
@@ -34,6 +35,8 @@ export default function UploadForm() {
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [deliveryAddress, setDeliveryAddress] = useState("");
+  const [deliveryPincode, setDeliveryPincode] = useState("");
+  const [deliveryArea, setDeliveryArea] = useState("");
   const [deliveryLocation, setDeliveryLocation] = useState<{
     latitude: number;
     longitude: number;
@@ -410,12 +413,31 @@ export default function UploadForm() {
     form.set("customerName", customerName.trim());
     form.set("customerPhone", customerPhone);
     form.set("deliveryAddress", deliveryAddress.trim());
+    form.set("deliveryPincode", deliveryPincode.trim());
+    if (deliveryArea) form.set("deliveryArea", deliveryArea);
     if (deliveryLocation) {
       form.set("deliveryLatitude", String(deliveryLocation.latitude));
       form.set("deliveryLongitude", String(deliveryLocation.longitude));
       form.set("deliveryAccuracyMeters", String(deliveryLocation.accuracyMeters));
     }
   }
+
+  const serviceArea = pricing?.serviceArea ?? null;
+  const pincodeValid = isValidPincode(deliveryPincode);
+  const areaOptions = useMemo(() => {
+    if (!serviceArea || serviceArea.mode !== "pincode_area") return [];
+    return serviceArea.pincodes.find((p) => p.pincode === deliveryPincode)?.areas ?? [];
+  }, [serviceArea, deliveryPincode]);
+  const serviceCheck = useMemo(() => {
+    if (!serviceArea || !pincodeValid) return { ok: true as const };
+    return checkDeliveryServiceable(
+      { pincode: deliveryPincode, area: deliveryArea || null, lat: deliveryLocation?.latitude ?? null, lng: deliveryLocation?.longitude ?? null },
+      serviceArea
+    );
+  }, [serviceArea, pincodeValid, deliveryPincode, deliveryArea, deliveryLocation]);
+  const deliveryServiceInvalid =
+    deliveryMethod === "delivery" &&
+    !(pincodeValid && serviceCheck.ok && (areaOptions.length === 0 || deliveryArea));
 
   const estimate = useMemo(() => {
     if (!pricing) return 0;
@@ -844,6 +866,10 @@ export default function UploadForm() {
       setError("Please share your exact delivery location before continuing — tap \"Use my location\" above.");
       return;
     }
+    if (deliveryServiceInvalid) {
+      setError(!serviceCheck.ok ? serviceCheck.reason : "Enter a valid 6-digit pincode for delivery.");
+      return;
+    }
     if (isBulk) {
       await handleBulkSubmit();
       return;
@@ -930,6 +956,10 @@ export default function UploadForm() {
       setError("Enter your name, a 10-digit phone number, and delivery address.");
       return;
     }
+    if (deliveryServiceInvalid) {
+      setError(!serviceCheck.ok ? serviceCheck.reason : "Enter a valid 6-digit pincode for delivery.");
+      return;
+    }
     setStep("preview");
   }
 
@@ -1004,7 +1034,7 @@ export default function UploadForm() {
   // Same validity rule the Preview button uses on mobile — in one-page mode
   // it gates Confirm directly since there is no intermediate Preview click.
   const settingsInvalid =
-    (pageRangeMode === "custom" && !!customPageRange.trim() && !isValidPageRange) || isDuplexInvalid;
+    (pageRangeMode === "custom" && !!customPageRange.trim() && !isValidPageRange) || isDuplexInvalid || deliveryServiceInvalid;
 
   return (
     <div className="upload-form">
@@ -1645,13 +1675,40 @@ export default function UploadForm() {
                     rows={2}
                     autoComplete="street-address"
                   />
+                  <label className="delivery-field-label" htmlFor="delivery-pincode">Pincode</label>
+                  <input
+                    id="delivery-pincode"
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={6}
+                    placeholder="Pincode (6 digits)"
+                    value={deliveryPincode}
+                    onChange={(e) => { setDeliveryPincode(e.target.value.replace(/\D/g, "")); setDeliveryArea(""); }}
+                    className="delivery-input"
+                    autoComplete="postal-code"
+                    aria-invalid={deliveryPincode.length > 0 && (!pincodeValid || !serviceCheck.ok)}
+                  />
+                  {areaOptions.length > 0 && (
+                    <select
+                      value={deliveryArea}
+                      onChange={(e) => setDeliveryArea(e.target.value)}
+                      className="delivery-input"
+                      required
+                    >
+                      <option value="">Select your area…</option>
+                      {areaOptions.map((a) => <option key={a} value={a}>{a}</option>)}
+                    </select>
+                  )}
+                  {pincodeValid && !serviceCheck.ok && (
+                    <p className="delivery-area-warning" role="alert">{serviceCheck.reason}</p>
+                  )}
                   <div className={`delivery-location-card ${deliveryLocation ? "captured" : ""}`}>
                     <div className="delivery-location-copy">
                       <span className="delivery-location-icon" aria-hidden="true"><MapPin size={18} /></span>
                       <div>
                         <strong>Pin your delivery location</strong>
                         <p>
-                          Optional, but recommended. Your device shares coordinates only after
+                          Required for home delivery. Your device shares coordinates only after
                           you allow access; the written address stays required.
                         </p>
                       </div>
@@ -1951,6 +2008,7 @@ export default function UploadForm() {
                 <div><dt>Customer</dt><dd>{customerName}</dd></div>
                 <div><dt>Phone</dt><dd>{customerPhone}</dd></div>
                 <div className="delivery-review-address"><dt>Address</dt><dd>{deliveryAddress}</dd></div>
+                <div className="delivery-review-address"><dt>Pincode</dt><dd>{deliveryPincode}{deliveryArea ? ` — ${deliveryArea}` : ""}</dd></div>
                 <div>
                   <dt>Map pin</dt>
                   <dd>
