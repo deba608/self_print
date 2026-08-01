@@ -8,6 +8,7 @@ import { bucketPathFor, isValidStoredName, verifyStoredNameSig } from "@/lib/sto
 import { clientIp, isRateLimited } from "@/lib/ratelimit";
 import { calculatePrice, selectedPageCount } from "@/lib/pricing";
 import { createClient } from "@/lib/supabase/server";
+import { checkDeliveryServiceable, isValidPincode } from "@/lib/service-area";
 import type { PaperSize, PrintDuplex, PrintLayout, PrintMargins, PrintScale, PrintType } from "@/lib/types";
 
 // Best-effort lookup of the logged-in customer's id from the session cookie.
@@ -53,6 +54,8 @@ function parseDeliveryDetails(form: FormData, deliveryMethod: "pickup" | "delive
       deliveryLongitude: null,
       deliveryAccuracyMeters: null,
       deliveryLocationCapturedAt: null,
+      deliveryPincode: null,
+      deliveryArea: null,
     };
   }
 
@@ -88,6 +91,11 @@ function parseDeliveryDetails(form: FormData, deliveryMethod: "pickup" | "delive
     }
   }
 
+  const deliveryPincode = String(form.get("deliveryPincode") ?? "").trim();
+  if (!isValidPincode(deliveryPincode)) return { error: "Enter a valid 6-digit pincode" } as const;
+  const deliveryAreaRaw = String(form.get("deliveryArea") ?? "").trim();
+  const deliveryArea = deliveryAreaRaw.length > 0 && deliveryAreaRaw.length <= 60 ? deliveryAreaRaw : null;
+
   return {
     customerName,
     customerPhone,
@@ -96,6 +104,8 @@ function parseDeliveryDetails(form: FormData, deliveryMethod: "pickup" | "delive
     deliveryLongitude,
     deliveryAccuracyMeters,
     deliveryLocationCapturedAt: deliveryLatitude === null ? null : new Date().toISOString(),
+    deliveryPincode,
+    deliveryArea,
   };
 }
 
@@ -239,6 +249,18 @@ export async function POST(request: NextRequest) {
     }
 
     const pricing = await getPricing();
+    if (deliveryMethod === "delivery") {
+      const check = checkDeliveryServiceable(
+        {
+          pincode: deliveryDetails.deliveryPincode,
+          area: deliveryDetails.deliveryArea,
+          lat: deliveryDetails.deliveryLatitude,
+          lng: deliveryDetails.deliveryLongitude,
+        },
+        pricing.serviceArea
+      );
+      if (!check.ok) return NextResponse.json({ error: check.reason }, { status: 400 });
+    }
     // Duplex requires the document itself to have 2+ pages — copies don't count
     // (each copy prints as its own separate stack, so a 1-page doc can't duplex).
     if (duplex !== "simplex" && selectedPageCount(pageCount, pageRange) < 2) {
@@ -270,6 +292,8 @@ export async function POST(request: NextRequest) {
       customer_name: deliveryDetails.customerName,
       customer_phone: deliveryDetails.customerPhone,
       delivery_address: deliveryDetails.deliveryAddress,
+      delivery_pincode: deliveryDetails.deliveryPincode,
+      delivery_area: deliveryDetails.deliveryArea,
       delivery_fee_paise: deliveryFeePaise,
       delivery_latitude: deliveryDetails.deliveryLatitude,
       delivery_longitude: deliveryDetails.deliveryLongitude,
@@ -431,6 +455,18 @@ async function handleBulk(form: FormData, customerUserId: string | null): Promis
     }
   }
   const pricing = await getPricing();
+  if (deliveryMethod === "delivery") {
+    const check = checkDeliveryServiceable(
+      {
+        pincode: deliveryDetails.deliveryPincode,
+        area: deliveryDetails.deliveryArea,
+        lat: deliveryDetails.deliveryLatitude,
+        lng: deliveryDetails.deliveryLongitude,
+      },
+      pricing.serviceArea
+    );
+    if (!check.ok) return NextResponse.json({ error: check.reason }, { status: 400 });
+  }
   // Bulk has no page range; duplex needs 2+ pages across the whole batch.
   if (duplex !== "simplex" && pageCount < 2) {
     return NextResponse.json({ error: "Double-sided printing requires at least 2 pages." }, { status: 400 });
@@ -461,6 +497,8 @@ async function handleBulk(form: FormData, customerUserId: string | null): Promis
     customer_name: deliveryDetails.customerName,
     customer_phone: deliveryDetails.customerPhone,
     delivery_address: deliveryDetails.deliveryAddress,
+    delivery_pincode: deliveryDetails.deliveryPincode,
+    delivery_area: deliveryDetails.deliveryArea,
     delivery_fee_paise: deliveryFeePaise,
     delivery_latitude: deliveryDetails.deliveryLatitude,
     delivery_longitude: deliveryDetails.deliveryLongitude,
