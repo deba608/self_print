@@ -75,9 +75,10 @@ export default function JobDetail({ id }: { id: string }) {
   const [settings, setSettings] = useState<PrintSettingsForm | null>(null);
   const [savingSettings, setSavingSettings] = useState(false);
   const [settingsSaved, setSettingsSaved] = useState(false);
-  const [now, setNow] = useState(Date.now());
   const [activeTab, setActiveTab] = useState<"details" | "preview" | "settings" | "log">("details");
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Which action button is in flight ("paid", "printed", "packed", ...);
+  // null when idle. Guards double-submits and drives per-button spinners.
+  const [acting, setActing] = useState<string | null>(null);
 
   async function load(syncSettings = true) {
     const response = await fetch(`/api/admin/jobs/${id}`, { credentials: "include" });
@@ -94,7 +95,6 @@ export default function JobDetail({ id }: { id: string }) {
 
   useEffect(() => {
     load();
-    intervalRef.current = setInterval(() => setNow(Date.now()), 1000);
     // Live-refresh job + events so the progress tracker updates on its own while
     // the agent works. Stop polling once the job reaches a terminal state.
     const poll = setInterval(() => {
@@ -111,7 +111,6 @@ export default function JobDetail({ id }: { id: string }) {
       });
     }, 3000);
     return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
       clearInterval(poll);
     };
   }, [id]);
