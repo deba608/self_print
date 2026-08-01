@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, Copy, CreditCard, Loader2, Printer, Search, Smartphone, Star, Store, Truck, UploadCloud, X } from "lucide-react";
-import { QRCodeSVG } from "qrcode.react";
+import { Check, CreditCard, Loader2, Printer, Search, Smartphone, Star, Store, Truck, UploadCloud, X } from "lucide-react";
 import BillReceipt, { type BillData } from "../BillReceipt";
 import { loadRazorpayCheckout, type Pricing } from "./shared";
 
@@ -32,7 +31,6 @@ export default function ResultScreen({
   settings: { printType: string; duplex: string; paperSize: string; copies: number; pagesPerSheet: number };
   onReset: () => void;
 }) {
-  const [copied, setCopied] = useState(false);
   const [payState, setPayState] = useState<"idle" | "processing" | "paid">("idle");
   // Set once payment is confirmed (Razorpay success, or staff marking the job
   // paid — detected by polling). Switches the token screen to the receipt.
@@ -87,8 +85,6 @@ export default function ResultScreen({
 
   const { printType, duplex, paperSize, copies, pagesPerSheet } = settings;
   const amountRupees = (result.pricePaise / 100).toFixed(2);
-  const upiId = (pricing?.shopUpiId ?? "").trim();
-  const upiQr = (pricing?.shopUpiQr ?? "").trim();
   const shopName = pricing?.shopName ?? "Print Shop";
   const reviewUrl = (pricing?.shopReviewUrl ?? "").trim();
 
@@ -111,45 +107,13 @@ export default function ResultScreen({
     paidAt: paidInfo?.at ?? new Date().toISOString(),
   };
 
-  // Build the UPI intent link.
-  // Merchant/aggregator stickers (GetePay, Paytm, etc.) carry signed params
-  // (mc, mode, sign, tr) that a rebuilt link would drop — so the payee VPA
-  // rejects it. When SHOP_UPI_QR holds the sticker's exact decoded string we
-  // pass it through verbatim and only inject the amount + token note.
-  // Otherwise fall back to building a plain link from SHOP_UPI_ID.
-  let upiLink = "";
-  if (upiQr.startsWith("upi://")) {
-    const [base, query = ""] = upiQr.split("?");
-    const params = new URLSearchParams(query);
-    params.set("am", amountRupees);
-    params.set("cu", "INR");
-    params.set("tn", "Token " + result.token);
-    upiLink = `${base}?${params.toString()}`;
-  } else if (upiId) {
-    upiLink = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(shopName)}&am=${amountRupees}&tn=${encodeURIComponent("Token " + result.token)}&cu=INR`;
-  }
-
-  const upiId_forCopy = upiQr.startsWith("upi://")
-    ? new URLSearchParams(upiQr.split("?")[1] ?? "").get("pa") ?? ""
-    : upiId;
-
-  const copyUpiId = async () => {
-    try {
-      await navigator.clipboard.writeText(upiId_forCopy);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      /* clipboard unavailable — ignore */
-    }
-  };
-
   const razorpayKeyId = (pricing?.razorpayKeyId ?? "").trim();
   const showRazorpay = Boolean(razorpayKeyId) && !result.needsConversion && result.pricePaise >= 100;
-  // Online payment (UPI QR or Razorpay) is offered as a choice alongside cash
-  // for pickup orders. Delivery orders skip the counter entirely, so they
-  // must pay online — no cash choice, no counter fallback.
+  // Online payment (Razorpay) is offered as a choice alongside cash for
+  // pickup orders. Delivery orders skip the counter entirely, so they must
+  // pay online — no cash choice, no counter fallback.
   const isDeliveryOrder = deliveryMethod === "delivery";
-  const onlineAvailable = !result.needsConversion && (Boolean(upiLink) || showRazorpay);
+  const onlineAvailable = !result.needsConversion && showRazorpay;
 
   async function startRazorpayPayment() {
     if (!result) return;
@@ -315,7 +279,6 @@ export default function ResultScreen({
           )}
 
           {(payMethod === "online" || isDeliveryOrder) && (
-            showRazorpay ? (
               <div className="upi-card">
                 <div className="upi-card-top">
                   <span className="upi-tag"><CreditCard size={13} aria-hidden="true" /> Online Payment</span>
