@@ -93,7 +93,7 @@ The following issues from the original audit have been **fixed**:
 
 | # | File | Issue | Fix |
 |:---:|------|-------|-----|
-| 11 | `src/components/pages/StaffManagement.tsx` | Password field uses `type="text"` instead of `type="password"` (line 60 in component file, confirmed by `AdminManagementNav.tsx` passing the field). This exposes passwords on screen. | Use `type="password"` for the new-password form, leveraging the `AuthInput` component's `password` prop. |
+| 11 | `src/components/pages/StaffManagement.tsx` | Password field uses `type="text"` instead of `type="password"` (line 60 in component file, confirmed by `AdminManagementNav.tsx` passing the field). This exposes passwords on screen. | **VERIFIED**: Password field uses `type="password"` — no fix needed (audit note was stale). |
 | 12 | `src/components/pages/CompleteProfileForm.tsx:56` | `autoFocus` on the phone input causes unexpected focus on page load, which can be disorienting for screen reader users. | Remove `autoFocus` or guard with a media query; autofocus should only trigger on desktop. |
 
 ### 3.4 Semantic HTML and Landmarks
@@ -210,8 +210,8 @@ The following issues from the original audit have been **fixed**:
 | # | File | Issue | Fix |
 |:---:|------|-------|-----|
 | 40 | `src/components/pages/StaffPage.tsx:51` | Uses `<main className="admin-shell accounts-shell">` — redundant class. The `accounts-shell` adds top padding, but `StaffPage` is not the accounts page. | Use just `admin-shell` or create a `staff-shell` class. |
-| 47 | `src/components/pages/StaffManagement.tsx` | The password field is rendered as `type="text"` (confirmed in component) — this is a security vulnerability. | **VERIFIED**: Password field uses `type="password"` — no fix needed (audit note was stale). |
-| 42 | `src/app/styles/admin.css:4100` | `.staff-invite-form` has `grid-template-columns: minmax(220px, 1.65fr) minmax(170px, 0.7fr) auto` — on tablet (768px), this becomes `1fr 1fr` (line 4506), which may not have enough room for the email + role + button trio. | Test at 768px width; consider collapsing to single column at 640px. |
+
+| 41 | `src/app/styles/admin.css:4100` | `.staff-invite-form` has `grid-template-columns: minmax(220px, 1.65fr) minmax(170px, 0.7fr) auto` — on tablet (768px), this becomes `1fr 1fr` (line 4506), which may not have enough room for the email + role + button trio. | Test at 768px width; consider collapsing to single column at 640px. |
 
 ### 6.7 ManualPrint.tsx
 
