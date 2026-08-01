@@ -8,7 +8,8 @@ import { AuthShell, AuthInput, AuthError, AuthNotice, AuthSubmit } from "@/compo
 
 function ForgotPasswordForm() {
   const searchParams = useSearchParams();
-  const loginHref = searchParams.get("from") === "admin" ? "/admin" : "/login";
+  const from = searchParams.get("from");
+  const loginHref = from === "admin" ? "/admin" : from === "delivery" ? "/delivery" : "/login";
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
