@@ -233,8 +233,8 @@ The following issues from the original audit have been **fixed**:
 | # | File | Issue | Fix |
 |:---:|------|-------|-----|
 | 48 | `src/components/upload/ResultScreen.tsx:349` | `payError` is rendered inside the `upi-card` but outside the button group — the error appears after the payment button, which is fine, but the `role="alert"` on line 349 means screen readers will announce it. However, there's no `aria-live` on the parent container. | The `role="alert"` implies `aria-live="assertive"` — this is correct. No change needed. |
-| 49 | `src/components/upload/ResultScreen.tsx:235` | Root div has `role="status"` and `aria-live="polite"` but also contains the success animation. The `aria-live="polite"` will announce the "Print Job Submitted" text, but the animation itself is not announced. | This is acceptable — the animation is decorative. But add `aria-hidden="true"` to the animation container to prevent double announcement. |
-| 50 | `src/components/upload/ResultScreen.tsx:499-502` | Two `btn-secondary` buttons ("Track this order" and "Upload Another") are rendered as `<a>` and `<button>` respectively — inconsistent semantics. The `<a>` has inline `style`. | Use consistent button styles with CSS classes instead of inline styles. |
+| 49 | `src/components/upload/ResultScreen.tsx:235` | Root div has `role="status"` and `aria-live="polite"` but also contains the success animation. The `aria-live="polite"` will announce the "Print Job Submitted" text, but the animation itself is not announced. | **FIXED**: Added `aria-hidden="true"` to the animation container (`success-animation` div). |
+| 50 | `src/components/upload/ResultScreen.tsx:499-502` | Two `btn-secondary` buttons ("Track this order" and "Upload Another") are rendered as `<a>` and `<button>` respectively — inconsistent semantics. The `<a>` has inline `style`. | **FIXED**: Inline styles replaced with `.result-screen-link` CSS class (verified already applied). |
 
 ### 6.10 TrackOrder.tsx
 
