@@ -563,6 +563,56 @@
 
 .security-date-cell { color: var(--muted); font-size: 12.5px; }
 
+@media (max-width: 768px) {
+  .security-table-wrap {
+    overflow-x: visible;
+  }
+
+  .security-table {
+    min-width: 0;
+    display: block;
+  }
+
+  .security-table thead {
+    display: none;
+  }
+
+  .security-table tbody {
+    display: block;
+  }
+
+  .security-table tr {
+    display: block;
+    padding: 12px 14px;
+    margin-bottom: 10px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+  }
+
+  .security-table tbody tr:last-child td { border-bottom: 1px solid var(--line); }
+  .security-table tr td:last-child { border-bottom: none; }
+
+  .security-table td {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 0;
+    white-space: normal;
+    text-align: right;
+  }
+
+  .security-table td::before {
+    content: attr(data-label);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+    color: var(--muted);
+    text-align: left;
+  }
+}
+
 .security-device-cell {
   display: flex;
   align-items: center;

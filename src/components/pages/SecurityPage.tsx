@@ -92,17 +92,17 @@ function SecurityTable({ events }: { events: LoginEvent[] }) {
         <tbody>
           {events.map((ev) => (
             <tr key={ev.id}>
-              <td className="security-email-cell">{ev.email}</td>
-              <td className="security-date-cell">{formatEventDate(ev.loggedAt)}</td>
-              <td className="login-event-mono">{ev.ip ?? "—"}</td>
-              <td>{ev.browser ?? "—"}</td>
-              <td>{ev.os ?? "—"}</td>
-              <td className="security-device-cell">
+              <td className="security-email-cell" data-label="Staff">{ev.email}</td>
+              <td className="security-date-cell" data-label="Date / Time">{formatEventDate(ev.loggedAt)}</td>
+              <td className="login-event-mono" data-label="IP">{ev.ip ?? "—"}</td>
+              <td data-label="Browser">{ev.browser ?? "—"}</td>
+              <td data-label="OS">{ev.os ?? "—"}</td>
+              <td className="security-device-cell" data-label="Device">
                 <DeviceIcon device={ev.device} />
                 {ev.device ?? "—"}
               </td>
-              <td><LocationCell city={ev.city} country={ev.country} /></td>
-              <td><StatusCell success={ev.success} failureReason={ev.failureReason} /></td>
+              <td data-label="Location"><LocationCell city={ev.city} country={ev.country} /></td>
+              <td data-label="Status"><StatusCell success={ev.success} failureReason={ev.failureReason} /></td>
             </tr>
           ))}
         </tbody>

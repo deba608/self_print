@@ -877,7 +877,7 @@
   transition: all var(--duration-base) var(--ease-out);
   display: flex;
   align-items: center;
-  gap: px;
+  gap: 4px;
   flex-shrink: 0;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
 }
@@ -2345,7 +2345,7 @@
   border-radius: 8px;
   border: 1px solid var(--line);
   background: var(--panel);
-  color: var(--text);
+  color: var(--muted);
   font-size: 0.8rem;
   cursor: pointer;
   transition: background 0.15s;
