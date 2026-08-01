@@ -3,7 +3,7 @@
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
-import { Check, CircleDot, Globe, Hash, Hexagon, Loader2, Lock, MapPin, Undo2, X } from "lucide-react";
+import { Check, CircleDot, Globe, Hash, Hexagon, Loader2, Lock, MapPin, Navigation, Undo2, X } from "lucide-react";
 import AdminManagementNav from "../AdminManagementNav";
 import ManagementSkeleton from "../ui/ManagementSkeleton";
 import type { PricingConfig as Pricing } from "@/lib/types";
@@ -157,6 +157,36 @@ export default function ServiceAreaEditor() {
     setSaPolygonText("");
   }
 
+  const [detectingShop, setDetectingShop] = useState(false);
+  const [detectError, setDetectError] = useState("");
+
+  // Admin is normally standing in the shop — one tap fills the coordinates.
+  function detectShopLocation() {
+    setDetectError("");
+    if (!navigator.geolocation) {
+      setDetectError("Location is not available on this device — click the map instead.");
+      return;
+    }
+    setDetectingShop(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        clearFeedback();
+        setSaShopLat(position.coords.latitude.toFixed(6));
+        setSaShopLng(position.coords.longitude.toFixed(6));
+        setDetectingShop(false);
+      },
+      (geoError) => {
+        setDetectingShop(false);
+        setDetectError(
+          geoError.code === geoError.PERMISSION_DENIED
+            ? "Location permission denied — click the map instead."
+            : "Couldn't get your location — click the map instead."
+        );
+      },
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
+    );
+  }
+
   // Effective-state banner: reflects what would actually be saved right now,
   // so staff see whether an "active" mode is actually gating anything yet.
   function banner(): { tone: "info" | "success" | "warning"; text: string; summary?: string } {
@@ -300,6 +330,13 @@ export default function ServiceAreaEditor() {
                       polygon={[]}
                       onPick={handleMapPick}
                     />
+                    <div className="sa-map-actions">
+                      <button type="button" className="btn-secondary" onClick={detectShopLocation} disabled={detectingShop}>
+                        {detectingShop ? <Loader2 size={15} className="spin" aria-hidden="true" /> : <Navigation size={15} aria-hidden="true" />}
+                        Use my location
+                      </button>
+                    </div>
+                    {detectError && <span className="pricing-hint sa-detect-error" role="status">{detectError}</span>}
                     <span className="pricing-hint">Click the map to set the shop location — the circle previews your delivery radius.</span>
                   </div>
                   <div className="pricing-field">
