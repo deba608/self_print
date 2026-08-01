@@ -1,9 +1,9 @@
 import crypto from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { MAX_UPLOAD_BYTES } from "@/lib/config";
-import { MAX_BULK_FILES, parseBulkFiles, sumPages } from "@/lib/bulk";
+import { MAX_BULK_FILES, parseBulkFiles } from "@/lib/bulk";
 import { createJob, createJobWithFiles, getPricing, nextQueuePosition, sseClients } from "@/lib/db";
-import { estimatePageCount, saveUpload, validateUpload } from "@/lib/files";
+import { estimatePageCount, measureStoredFile, saveUpload, validateUpload } from "@/lib/files";
 import { bucketPathFor, isValidStoredName, verifyStoredNameSig } from "@/lib/storage";
 import { clientIp, isRateLimited } from "@/lib/ratelimit";
 import { calculatePrice, selectedPageCount } from "@/lib/pricing";
@@ -187,19 +187,27 @@ export async function POST(request: NextRequest) {
       needsConversion = kind === "document" ? 1 : 0;
       storagePath = bucketPathFor(kind, storedName);
 
-      // Use client-reported values — sizeBytes was already validated by /api/uploads/sign,
-      // and pageCount was computed by the browser using the same regex as estimatePageCount.
-      // This avoids downloading the entire file just to measure two numbers (saves 3–8 s).
-      sizeBytes = Math.max(1, Number(form.get("sizeBytes") ?? 0));
-      if (!Number.isFinite(sizeBytes) || sizeBytes > MAX_UPLOAD_BYTES) {
-        return NextResponse.json({ error: "File is too large" }, { status: 400 });
-      }
-      if (kind === "image") {
-        pageCount = 1;
-      } else if (kind === "document") {
+      // Size and page count are measured from the uploaded object itself, never
+      // taken from the request. A client-supplied pageCount would let a
+      // 300-page PDF be declared as 1 page and priced accordingly, while the
+      // agent still prints every real page.
+      if (kind === "document") {
+        // Page count is unknown until LibreOffice conversion; size still is not.
         pageCount = 0;
+        try {
+          ({ sizeBytes } = await measureStoredFile(kind, storagePath));
+        } catch {
+          return NextResponse.json({ error: "Uploaded file could not be read" }, { status: 400 });
+        }
       } else {
-        pageCount = Math.max(1, Math.min(1000, Math.floor(Number(form.get("pageCount") ?? 1))));
+        try {
+          ({ sizeBytes, pageCount } = await measureStoredFile(kind, storagePath));
+        } catch {
+          return NextResponse.json({ error: "Uploaded file could not be read" }, { status: 400 });
+        }
+      }
+      if (!Number.isFinite(sizeBytes) || sizeBytes < 1 || sizeBytes > MAX_UPLOAD_BYTES) {
+        return NextResponse.json({ error: "File is too large" }, { status: 400 });
       }
     } else {
       const file = form.get("file");
@@ -354,12 +362,29 @@ async function handleBulk(form: FormData, customerUserId: string | null): Promis
         return NextResponse.json({ error: "Invalid upload metadata." }, { status: 400 });
       }
     }
-    pageCount = sumPages(files);
-    filesData = files.map((f) => ({
+    // Measure every uploaded object server-side. The client-reported pageCount
+    // in filesJson is advisory only (used for the browser's price preview) and
+    // must not reach pricing — see measureStoredFile.
+    let measured: Array<{ sizeBytes: number; pageCount: number }>;
+    try {
+      measured = await Promise.all(
+        files.map((f) => measureStoredFile("pdf", bucketPathFor("pdf", f.storedName)))
+      );
+    } catch {
+      return NextResponse.json({ error: "An uploaded file could not be read." }, { status: 400 });
+    }
+
+    const totalBytes = measured.reduce((sum, m) => sum + m.sizeBytes, 0);
+    if (totalBytes > MAX_UPLOAD_BYTES * MAX_BULK_FILES) {
+      return NextResponse.json({ error: "Total upload size is too large." }, { status: 400 });
+    }
+
+    pageCount = measured.reduce((sum, m) => sum + Math.max(1, m.pageCount), 0);
+    filesData = files.map((f, i) => ({
       original_name: f.originalName,
       stored_name: f.storedName,
       mime_type: f.mimeType || "application/pdf",
-      size_bytes: f.sizeBytes,
+      size_bytes: measured[i].sizeBytes,
       file_kind: "pdf",
       storage_path: bucketPathFor("pdf", f.storedName),
     }));

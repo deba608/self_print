@@ -21,10 +21,16 @@ export async function POST(request: NextRequest) {
   }
 
   if (event?.event === "payment.captured") {
-    const jobId = event?.payload?.payment?.entity?.notes?.jobId;
+    const entity = event?.payload?.payment?.entity;
+    const jobId = entity?.notes?.jobId;
     if (jobId) {
       try {
         const job = await getJobById(jobId);
+        // The captured amount must cover the job's price. The signature proves
+        // the event came from Razorpay; this proves it paid for THIS job in full.
+        if (Number(entity?.amount ?? 0) < Math.round(job.pricePaise)) {
+          return NextResponse.json({ ok: true });
+        }
         if (!job.paidAt) {
           const { paidAt } = await markJobPaid(job.id, "online");
           broadcastSse({ type: "job_update", jobId: job.id, status: job.status, paidAt, token: job.token });

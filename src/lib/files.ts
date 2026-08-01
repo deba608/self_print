@@ -1,8 +1,8 @@
 import crypto from "node:crypto";
 import path from "node:path";
-import { ORIGINALS_DIR, CONVERTED_DIR } from "./config";
+import { ORIGINALS_DIR, CONVERTED_DIR, MAX_UPLOAD_BYTES } from "./config";
 import type { FileKind } from "./types";
-import { saveUpload as saveToStorage } from "./storage";
+import { saveUpload as saveToStorage, readFileBytes } from "./storage";
 
 const allowed = new Map<string, { extensions: string[]; kind: FileKind }>([
   ["application/pdf", { extensions: [".pdf"], kind: "pdf" }],
@@ -29,4 +29,23 @@ export function estimatePageCount(kind: FileKind, bytes: Buffer) {
   const text = bytes.toString("latin1");
   const matches = text.match(/\/Type\s*\/Page\b/g);
   return Math.max(matches?.length ?? 1, 1);
+}
+
+/**
+ * Reads an already-uploaded object back from storage and derives its real size
+ * and page count. Used by the direct-upload and bulk flows, where the browser
+ * uploads straight to Supabase Storage: the client's own reported sizeBytes /
+ * pageCount must never reach pricing, because a forged `pageCount=1` on a
+ * 300-page PDF would be billed as one page while the agent still prints all
+ * 300. Costs one object download, which is why it runs once per job creation.
+ */
+export async function measureStoredFile(
+  kind: FileKind,
+  storagePath: string
+): Promise<{ sizeBytes: number; pageCount: number }> {
+  const bytes = await readFileBytes(storagePath);
+  if (bytes.length > MAX_UPLOAD_BYTES) {
+    throw new Error("File is too large");
+  }
+  return { sizeBytes: bytes.length, pageCount: estimatePageCount(kind, bytes) };
 }
