@@ -231,7 +231,7 @@ export async function getJobsPage(limit: number, cursor?: string | null): Promis
     return job;
   });
 
-  return { jobs, total: count ?? 0 };
+  return { jobs: await attachDeliveryPersonNames(jobs), total: count ?? 0 };
 }
 
 export async function getJobFilesForJobs(jobIds: string[]): Promise<Record<string, JobFile>> {
@@ -253,7 +253,8 @@ export async function getJobById(id: string) {
     getPricing()
   ]);
   if (error) throw error;
-  return mapJob(data, pricing.expiryMinutes);
+  const [job] = await attachDeliveryPersonNames([mapJob(data, pricing.expiryMinutes)]);
+  return job;
 }
 
 export async function getJobByToken(token: string) {
@@ -443,11 +444,17 @@ export async function updateJobStatus(id: string, status: string) {
     }]);
 }
 
-export async function updateDeliveryStatus(id: string, deliveryStatus: 'packed' | 'picked_up' | 'out_for_delivery' | 'delivered'): Promise<void> {
+export async function updateDeliveryStatus(
+  id: string,
+  deliveryStatus: 'packed' | 'picked_up' | 'out_for_delivery' | 'delivered',
+  deliveryPersonId?: string
+): Promise<void> {
   const now = new Date().toISOString();
+  const update: Record<string, unknown> = { delivery_status: deliveryStatus, updated_at: now };
+  if (deliveryPersonId) update.delivery_person_id = deliveryPersonId;
   const { error } = await supabase
     .from('jobs')
-    .update({ delivery_status: deliveryStatus, updated_at: now })
+    .update(update)
     .eq('id', id);
   if (error) throw error;
 
