@@ -68,7 +68,10 @@ export function AuthInput({
   return (
     <div className="input-group">
       <div className="input-label-row">
-        <label htmlFor={id}>{label}</label>
+        <label htmlFor={id}>
+          {label}
+          {required && <span className="input-required-mark" aria-hidden="true"> *</span>}
+        </label>
         {labelAction}
       </div>
       <div className="input-wrapper">

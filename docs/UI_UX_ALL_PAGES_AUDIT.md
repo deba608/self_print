@@ -63,13 +63,17 @@ Current breakpoint census across all style partials + `admin/management.css`:
 | `pointer: coarse` | 1 |
 | `min-width: 768px` | 1 |
 
-The 480/768/1024 scale dominates as intended, but **`481px` and `1023px` are
-leftover odd-one-out breakpoints** that should be folded into the standard
-scale (`481px` → should just be the `>480px` half of an existing `480px`
-query pair; `1023px` → should be `1024px` to match the rest). Locations:
-`admin.css:3098`, `admin.css:3402`, `base-and-customer.css:429,442,505,781`.
-**Not fixed** — low risk (these are paired boundary queries, not orphaned
-conflicts), but worth cleaning up next time those files are touched.
+**Correction (2026-08-01):** the previous version of this doc flagged `481px`
+and `1023px` as leftover stragglers to consolidate. Checked each site
+individually — they're not bugs. `min-width: 481px` and `max-width: 1023px`
+are the mathematically correct complementary halves of `max-width: 480px` /
+`min-width: 1024px` boundary pairs (avoiding double-application at exactly
+480px or 1024px), confirmed at `base-and-customer.css:429,442,505,781` and
+`admin.css:3402`. Renaming them to `480px`/`1024px` as originally suggested
+would have *introduced* an overlap bug, not fixed one. One site
+(`admin.css:3098`, `.customer-shell`) has no matching pair at all, but with
+no other rule for that selector at 480px there's nothing to conflict with —
+harmless. **No fix needed; original audit note was wrong.**
 
 ### Component Decomposition — partially done
 - **`UploadForm.tsx`**: was 3386 lines at last audit → now **2023 lines**. Confirmed extracted: `src/components/upload/{shared.ts, ResultScreen.tsx, PdfCanvasPreview.tsx, BulkThumb.tsx}`, plus a separate `src/components/pages/UploadForm.tsx` vs the older monolith path. Meaningfully improved; still a large file, further extraction (`PrintSettings`, `FulfillmentStage`) remains open.
@@ -106,6 +110,8 @@ scratch:
 | `src/components/pages/OrderManagementPage.tsx`, `JobDetail.tsx` | The "packed" delivery stage existed in the schema, the RPCs, and the rider-eligibility query, but **no UI anywhere could set it** — staff could only jump straight to "Dispatch," skipping the stage entirely. | **FIXED** — added a "Mark packed" action to both admin surfaces, plus a "Rider: `<name>`" display (new `deliveryPersonName` resolved server-side via a `staff_profiles` join). |
 | `src/app/api/user/forgot-password/route.ts` | Returned 404 for unregistered emails vs 200 for registered ones — a textbook account-enumeration oracle, inconsistent with `/api/user/register`'s deliberate avoidance of the same leak. | **FIXED** — always returns `{ ok: true }` regardless of whether the account exists. |
 | `src/app/api/jobs/route.ts` (`randomToken`) | 6-digit job tokens had no uniqueness check — with an active queue, the birthday bound makes collisions realistic, and two jobs sharing a token would break every token-based lookup. | **FIXED** — retries token generation up to 10 times until a free one is found. |
+| `src/components/ui/Auth.tsx` (`AuthInput`) | Issue #60 — `required` fields (e.g. phone on `/register`) had no visual indicator, only the native browser validation. | **FIXED** — required fields now show a red `*` next to the label (`aria-hidden`, since the native `required` attribute already gives assistive tech the correct semantics — the asterisk is a sighted-user affordance only). |
+| `src/app/styles/{admin.css,base-and-customer.css}` | Issue #30 — `.panel-overlay` and `.sidebar-overlay` both hardcoded `rgba(23, 32, 42, 0.46)` independently. | **FIXED** — added `--overlay-bg` to `:root`, both rules now reference it. |
 
 ---
 
@@ -140,7 +146,7 @@ scratch:
 | # | Issue | Status |
 |:---:|-------|-----|
 | 9 | Verify `Badge` renders text, not just color | Text confirmed present in all `Badge` usages reviewed this session (status badges always render a label string alongside the icon). |
-| 10 | Contrast ratio audit for status badge colors | **Not independently re-verified this pass** — no contrast-checker run. Still open. |
+| 10 | Contrast ratio audit for status badge colors | **VERIFIED** — computed WCAG contrast ratios for all 5 status text colors against their near-white badge backgrounds: `--accent` #0d7a74 (5.2:1), `--danger` #b91c1c (6.5:1), `--ok` #15803d (5.0:1), `--warn` #92400e (7.1:1), `--info` #0369a1 (5.9:1). All pass WCAG AA (4.5:1) for normal text with margin. No fix needed. |
 
 ### 3.3 Form Labeling
 | # | Issue | Status |
@@ -151,9 +157,9 @@ scratch:
 ### 3.4 Semantic HTML
 | # | Issue | Status |
 |:---:|-------|-----|
-| 13 | Upload drop-zone semantics | **Not re-verified this pass.** Still open per original audit. |
+| 13 | Upload drop-zone semantics | **VERIFIED, audit note was wrong.** `UploadForm.tsx`'s drop-zone already uses a real `<label htmlFor="file-input">` wrapping a real `<input type="file">` — that's the correct native pattern (clicking/tapping/keyboard-activating the label triggers the input natively). No `role="button"`/`tabIndex` needed; adding them would have been redundant. The *separate* bulk-file reorder items (a different piece of UI) already correctly use `role="button"` + `tabIndex={0}` where that pattern actually applies. No fix needed. |
 | 14 | `/delivery` layout wrapper | **VERIFIED** — `AppChrome.tsx` correctly returns children directly for delivery routes. |
-| 15 | `EmptyState` aria labeling | **Not re-verified this pass.** |
+| 15 | `EmptyState` aria labeling | **VERIFIED** — `EmptyState.tsx` renders the title as a real `<h3>`, description as `<p>`, icon is `aria-hidden`. Correctly structured already. No fix needed. |
 
 ---
 
@@ -221,6 +227,9 @@ further from done, not closer — the file grew from 612 to 642 lines as this
 session added delivery-flow features to it. If decomposition is prioritized,
 do it before more features land there, not after.
 
+Also fixed this pass despite not doing a full section 6 re-walk: **#60**
+(required-field asterisk on `AuthInput`) — see "NEW fixes" table above.
+
 ---
 
 ## 7. Remaining Components to Review (Not Yet Audited)
@@ -274,9 +283,14 @@ button labels, etc.) remain hardcoded English throughout.
 **Still open:**
 1. `AdminDashboard.tsx` decomposition — 642 lines, grew rather than shrank.
 2. Internationalization — all strings still hardcoded English.
-3. Contrast-ratio audit for status badges (#10) — not independently re-run.
+3. Hardcoded `rgba(13,122,116,...)`/`rgba(185,28,28,...)` instead of `var(--accent)`/`var(--danger)` (#29) — **94 occurrences** counted across `admin.css` alone at varying opacity levels (0.06 through 0.25+). Deliberately **not** mass-replaced this pass: a blind find/replace across 94 sites with no per-site visual diff capability risks real regressions for a cosmetic/maintainability-only issue. Needs either a set of new alpha-scale variables (`--accent-06`, `--accent-10`, etc.) defined first, or a `color-mix()` migration, done in a reviewable batch with visual verification — not a quick fix.
 4. Sections 6.1-6.12 and section 7's file list — not re-walked line-by-line this pass; treat as still-open unless stated otherwise above.
-5. 481px/1023px breakpoint stragglers — low-risk cleanup, not urgent.
+
+**Resolved as false-positives this pass** (no code change needed, audit notes were wrong):
+- #10 (badge contrast) — computed, all pass WCAG AA.
+- #13 (upload drop-zone semantics) — already uses correct native `<label>`/`<input>` pattern.
+- #15 (`EmptyState` a11y) — already correctly structured.
+- 481px/1023px "breakpoint stragglers" — these are correct complementary boundary pairs, not bugs; renaming them would have introduced overlap bugs.
 
 ---
 
