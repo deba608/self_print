@@ -3106,3 +3106,41 @@ input[type="number"] {
   -moz-appearance: textfield;
 }
 
+
+.delivery-pincode-row {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.delivery-pincode-row .delivery-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.delivery-pincode-detect {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 12px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 8px;
+  background: var(--surface, #f8fafc);
+  color: var(--accent, #2563eb);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.delivery-pincode-detect:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.delivery-pincode-detect-hint {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.78rem;
+  color: var(--muted, #64748b);
+}

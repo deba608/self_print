@@ -43,6 +43,7 @@ export default function UploadForm() {
     accuracyMeters: number;
   } | null>(null);
   const [locationState, setLocationState] = useState<"idle" | "locating" | "captured">("idle");
+  const [pincodeDetectState, setPincodeDetectState] = useState<"idle" | "detecting" | "done" | "failed">("idle");
   const [locationError, setLocationError] = useState("");
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
@@ -364,6 +365,29 @@ export default function UploadForm() {
     }
   }, [deliveryOfferable, deliveryMethod]);
 
+  // Reverse-geocode captured GPS into a pincode via OSM Nominatim (free, no
+  // key). Best-effort: failures leave the field for manual entry.
+  async function detectPincodeFrom(lat: number, lng: number) {
+    setPincodeDetectState("detecting");
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&zoom=14&addressdetails=1`,
+        { headers: { Accept: "application/json" } }
+      );
+      const body = await response.json();
+      const postcode = String(body?.address?.postcode ?? "").replace(/\D/g, "");
+      if (/^[1-9]\d{5}$/.test(postcode)) {
+        setDeliveryPincode(postcode);
+        setDeliveryArea("");
+        setPincodeDetectState("done");
+        return;
+      }
+      setPincodeDetectState("failed");
+    } catch {
+      setPincodeDetectState("failed");
+    }
+  }
+
   function captureDeliveryLocation() {
     setLocationError("");
     if (!navigator.geolocation) {
@@ -388,6 +412,11 @@ export default function UploadForm() {
         setLocationState("captured");
         if (!settled) {
           settled = true;
+          // First fix: offer the pincode automatically when the field is empty.
+          setDeliveryPincode((current) => {
+            if (!current) void detectPincodeFrom(position.coords.latitude, position.coords.longitude);
+            return current;
+          });
           // Keep watching briefly in the background for a tighter fix, then stop.
           setTimeout(() => navigator.geolocation.clearWatch(watchId), 4000);
         }
@@ -1676,18 +1705,47 @@ export default function UploadForm() {
                     autoComplete="street-address"
                   />
                   <label className="delivery-field-label" htmlFor="delivery-pincode">Pincode</label>
-                  <input
-                    id="delivery-pincode"
-                    type="text"
-                    inputMode="numeric"
-                    maxLength={6}
-                    placeholder="Pincode (6 digits)"
-                    value={deliveryPincode}
-                    onChange={(e) => { setDeliveryPincode(e.target.value.replace(/\D/g, "")); setDeliveryArea(""); }}
-                    className="delivery-input"
-                    autoComplete="postal-code"
-                    aria-invalid={deliveryPincode.length > 0 && (!pincodeValid || !serviceCheck.ok)}
-                  />
+                  <div className="delivery-pincode-row">
+                    <input
+                      id="delivery-pincode"
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={6}
+                      placeholder="Pincode (6 digits)"
+                      value={deliveryPincode}
+                      onChange={(e) => { setDeliveryPincode(e.target.value.replace(/\D/g, "")); setDeliveryArea(""); setPincodeDetectState("idle"); }}
+                      className="delivery-input"
+                      autoComplete="postal-code"
+                      aria-invalid={deliveryPincode.length > 0 && (!pincodeValid || !serviceCheck.ok)}
+                    />
+                    <button
+                      type="button"
+                      className="delivery-pincode-detect"
+                      disabled={pincodeDetectState === "detecting"}
+                      onClick={() => {
+                        if (deliveryLocation) {
+                          void detectPincodeFrom(deliveryLocation.latitude, deliveryLocation.longitude);
+                        } else {
+                          setPincodeDetectState("failed");
+                        }
+                      }}
+                      title="Fill the pincode from your shared location"
+                    >
+                      {pincodeDetectState === "detecting" ? (
+                        <Loader2 size={15} className="spin" aria-hidden="true" />
+                      ) : (
+                        <Navigation size={15} aria-hidden="true" />
+                      )}
+                      Detect
+                    </button>
+                  </div>
+                  {pincodeDetectState === "failed" && (
+                    <span className="delivery-pincode-detect-hint" role="status">
+                      {deliveryLocation
+                        ? "Couldn't detect a pincode for your location — please type it."
+                        : "Share your location first (\"Use my location\" below), then tap Detect."}
+                    </span>
+                  )}
                   {areaOptions.length > 0 && (
                     <select
                       value={deliveryArea}
