@@ -47,28 +47,48 @@ export default function DeliveryDashboard({ staffName }: Props) {
     let es: EventSource;
     let backoff = 1000;
     let retryId: ReturnType<typeof setTimeout>;
+    let debounceId: ReturnType<typeof setTimeout>;
+
+    // A burst of broadcasts (claim + advance) would fire overlapping refetches
+    // whose responses can land out of order — coalesce them.
+    function scheduleLoad() {
+      clearTimeout(debounceId);
+      debounceId = setTimeout(load, 300);
+    }
 
     function connect() {
       es = new EventSource("/api/admin/notifications");
       es.onopen = () => { backoff = 1000; };
-      es.onmessage = () => load();
+      es.onmessage = scheduleLoad;
       es.onerror = () => {
         const delay = backoff;
         backoff = Math.min(delay * 2, 30000);
+        clearTimeout(retryId);
         retryId = setTimeout(connect, delay);
       };
     }
 
     connect();
-    const poll = setInterval(load, 15000);
+    // Skip polling while the tab is hidden (riders' phones in a pocket);
+    // refetch immediately when it becomes visible again.
+    const poll = setInterval(() => {
+      if (document.visibilityState !== "hidden") load();
+    }, 15000);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") load();
+    };
+    document.addEventListener("visibilitychange", onVisible);
     return () => {
       clearTimeout(retryId);
+      clearTimeout(debounceId);
       es.close();
       clearInterval(poll);
+      document.removeEventListener("visibilitychange", onVisible);
     };
   }, [load]);
 
   async function act(id: string, action: "claim" | "out_for_delivery" | "delivered") {
+    if (busyId) return; // one action in flight at a time — no double-taps
     setBusyId(id);
     setError(null);
     try {
@@ -85,11 +105,23 @@ export default function DeliveryDashboard({ staffName }: Props) {
       );
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body.error ?? "Action failed");
+      // Optimistic move so the card reflects the action instantly instead of
+      // waiting for the refetch below (which still reconciles the real state).
+      if (action === "claim") {
+        const claimed = available.find((o) => o.id === id);
+        setAvailable((prev) => prev.filter((o) => o.id !== id));
+        if (claimed) setMine((m) => [{ ...claimed, deliveryStatus: "picked_up" }, ...m]);
+      } else if (action === "out_for_delivery") {
+        setMine((prev) => prev.map((o) => o.id === id ? { ...o, deliveryStatus: "out_for_delivery" } : o));
+      } else {
+        setMine((prev) => prev.filter((o) => o.id !== id));
+      }
+      await load();
     } catch (actionError) {
       setError(actionError instanceof Error ? actionError.message : "Action failed");
+      load();
     } finally {
       setBusyId(null);
-      load();
     }
   }
 
