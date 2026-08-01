@@ -17,6 +17,7 @@ const row: DeliveryJobRow = {
   delivery_fee_paise: 2000,
   created_at: "2026-08-01T10:00:00Z",
   delivery_status: null,
+  paid_at: "2026-08-01T10:05:00Z",
 };
 
 describe("toDeliveryOrderView", () => {
@@ -34,6 +35,7 @@ describe("toDeliveryOrderView", () => {
       pageCount: 4,
       copies: 2,
       amountPaise: 6000,
+      paidAt: "2026-08-01T10:05:00Z",
       createdAt: "2026-08-01T10:00:00Z",
       deliveryStatus: null,
     });
@@ -42,6 +44,6 @@ describe("toDeliveryOrderView", () => {
   it("never exposes extra columns", () => {
     const view = toDeliveryOrderView({ ...row, storage_path: "secret.pdf" } as never);
     expect(Object.keys(view)).not.toContain("storage_path");
-    expect(Object.keys(view)).toHaveLength(14);
+    expect(Object.keys(view)).toHaveLength(15);
   });
 });
