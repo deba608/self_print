@@ -274,7 +274,7 @@ export default function JobCard({
           <Badge variant="warning" icon={CreditCard}>Unpaid</Badge>
         ) : null}
         {!job.paidAt && job.status !== "cancelled" && (
-          <button type="button" className="job-btn paid" onClick={() => handleActionClick("paid")} disabled={actionLoading}>
+          <button type="button" className="job-btn paid" onClick={() => handleActionClick("paid")} disabled={actionLoading} aria-label="Mark as paid">
             {actionLoading ? <Loader2 size={14} className="spin" /> : <CreditCard size={14} />}
             <span>Mark as Paid</span>
           </button>
