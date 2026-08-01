@@ -79,7 +79,7 @@
   color: var(--muted);
 }
 
-@media (max-width: 720px) {
+@media (max-width: 768px) {
   .admin-filter-row {
     flex-direction: column;
     align-items: stretch;
@@ -143,7 +143,7 @@
   text-overflow: ellipsis;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 768px) {
   .admin-page-title span {
     display: none;
   }
@@ -2291,7 +2291,7 @@
   box-shadow: 0 2px 8px rgba(23, 32, 42, 0.03);
   animation: fadeSlideIn 0.28s var(--ease-out) both;
 }
-@media (max-width: 600px) {
+@media (max-width: 480px) {
   .manual-print-frame { height: 46vh; }
   .manual-print-go { flex: 1; }
   .manual-print-bar { gap: 8px; }
@@ -2433,7 +2433,7 @@
   text-align: center;
   box-shadow: 0 1px 0 var(--line);
 }
-@media (max-width: 640px) {
+@media (max-width: 768px) {
   .kbd-hint { display: none; }
 }
 
@@ -3202,7 +3202,7 @@
   }
 }
 
-@media (max-width: 600px) {
+@media (max-width: 480px) {
   /* Admin: use the full phone width — cards were losing ~32px to gutters. */
   .admin-shell {
     width: calc(100% - 12px);
@@ -3418,7 +3418,7 @@
   }
 }
 
-@media (max-width: 600px) {
+@media (max-width: 480px) {
   .pricing-grid {
     grid-template-columns: 1fr;
   }
@@ -3954,7 +3954,7 @@
 }
 
 /* Responsive */
-@media (max-width: 640px) {
+@media (max-width: 768px) {
   .acct-cards {
     grid-template-columns: 1fr 1fr;
   }

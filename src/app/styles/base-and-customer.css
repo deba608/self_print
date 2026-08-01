@@ -443,7 +443,7 @@ input, select, button {
   .user-navbar-email span { display: inline; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .user-navbar-email { display: inline-flex; max-width: none; }
 }
-@media (max-width: 370px) {
+@media (max-width: 480px) {
   .user-navbar-inner { width: calc(100% - 16px); gap: 6px; }
   .user-navbar-logo { font-size: 15px; gap: 6px; }
   .user-navbar-logo svg { width: 21px; height: 21px; }
