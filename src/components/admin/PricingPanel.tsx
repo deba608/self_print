@@ -4,22 +4,7 @@ import { useEffect, useState } from "react";
 import { Check, Clock, Loader2, X, Zap } from "lucide-react";
 import type { PricingConfig as Pricing } from "@/lib/types";
 
-type NumericPricing = {
-  bwPerPagePaise: number;
-  colorPerPagePaise: number;
-  photoPrintPaise: number;
-  copyMultiplier: number;
-  a3Multiplier: number;
-  a4Multiplier: number;
-  a5Multiplier: number;
-  a6Multiplier: number;
-  b5Multiplier: number;
-  legalMultiplier: number;
-  photoMultiplier: number;
-  duplexBwPerPagePaise: number;
-  expiryMinutes: number;
-  deliveryFeePaise: number;
-};
+type NumericPricing = Omit<Pricing, "serviceArea">;
 type PricingDraft = {
   [Key in keyof NumericPricing]: NumericPricing[Key] | "";
 };
@@ -87,7 +72,7 @@ export default function PricingPanel({
     });
   }, [pricing]);
 
-const updateField = (field: keyof Pricing, value: string, transform: (value: string) => number = Number) => {
+  const updateField = (field: keyof NumericPricing, value: string, transform: (value: string) => number = Number) => {
     if (value === "") {
       setFormData(prev => ({ ...prev, [field]: "" }));
     } else {

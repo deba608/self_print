@@ -108,7 +108,13 @@ export default function ServiceAreaEditor() {
       return { tone: "info", text: "Delivery is open everywhere." };
     }
     const built = buildServiceArea();
-    const config = "config" in built ? built.config : null;
+    if ("error" in built) {
+      return {
+        tone: "info",
+        text: "Fix the highlighted input to see the effective delivery status.",
+      };
+    }
+    const config = built.config;
 
     const unconfigured =
       !config ||
