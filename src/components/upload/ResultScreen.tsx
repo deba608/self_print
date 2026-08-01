@@ -23,6 +23,8 @@ export default function ResultScreen({
   deliveryMethod,
   billFiles,
   settings,
+  customerPhone,
+  customerName,
   onReset,
 }: {
   result: JobResult;
@@ -30,6 +32,8 @@ export default function ResultScreen({
   deliveryMethod: "pickup" | "delivery";
   billFiles: { name: string; pages: number }[];
   settings: { printType: string; duplex: string; paperSize: string; copies: number; pagesPerSheet: number };
+  customerPhone?: string;
+  customerName?: string;
   onReset: () => void;
 }) {
   const [payState, setPayState] = useState<"idle" | "processing" | "paid">("idle");
@@ -160,6 +164,12 @@ export default function ResultScreen({
       return;
     }
 
+    // Prefilling contact/email skips the retyping step on Razorpay's own
+    // checkout screen — OTP verification still happens there (Razorpay's,
+    // not ours), but the customer just confirms it instead of typing a
+    // number in fresh.
+    const contact = customerPhone && /^\d{10}$/.test(customerPhone) ? `+91${customerPhone}` : undefined;
+
     const rzp = new (window as any).Razorpay({
       key: order.keyId,
       order_id: order.orderId,
@@ -168,16 +178,13 @@ export default function ResultScreen({
       name: shopName,
       description: `Token ${result.token}`,
       theme: { color: "#2563eb" },
-      // UPI-only: UPI has 0% MDR (zero-MDR mandate), cards/netbanking/wallets
-      // carry ~2% — so hide everything except UPI to stay fee-free.
-      method: {
-        upi: true,
-        card: false,
-        netbanking: false,
-        wallet: false,
-        emi: false,
-        paylater: false,
+      prefill: {
+        ...(contact && { contact }),
+        ...(customerName?.trim() && { name: customerName.trim() }),
       },
+      // No `method` restriction: let Razorpay offer every method enabled on
+      // the shop's dashboard (UPI, cards, netbanking, wallets, ...) instead
+      // of forcing UPI-only.
       handler: async (response: any) => {
         try {
           const verifyRes = await fetch("/api/payments/verify", {

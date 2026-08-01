@@ -1078,6 +1078,8 @@ export default function UploadForm() {
         deliveryMethod={deliveryMethod}
         billFiles={billFiles}
         settings={{ printType, duplex, paperSize, copies, pagesPerSheet }}
+        customerPhone={deliveryMethod === "delivery" ? customerPhone : ""}
+        customerName={deliveryMethod === "delivery" ? customerName : ""}
         onReset={resetForm}
       />
     );
