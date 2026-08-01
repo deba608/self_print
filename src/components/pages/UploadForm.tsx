@@ -370,7 +370,14 @@ export default function UploadForm() {
       return;
     }
     setLocationState("locating");
-    navigator.geolocation.getCurrentPosition(
+
+    // watchPosition keeps firing as fixes arrive — take the FIRST one instead
+    // of waiting the full high-accuracy timeout for GPS to lock. A quick
+    // network/cell fix now, refined automatically if a tighter one lands
+    // before we stop watching, feels immediate instead of stalling ~15s on a
+    // cold GPS start.
+    let settled = false;
+    const watchId = navigator.geolocation.watchPosition(
       (position) => {
         setDeliveryLocation({
           latitude: position.coords.latitude,
@@ -378,8 +385,16 @@ export default function UploadForm() {
           accuracyMeters: Math.round(position.coords.accuracy),
         });
         setLocationState("captured");
+        if (!settled) {
+          settled = true;
+          // Keep watching briefly in the background for a tighter fix, then stop.
+          setTimeout(() => navigator.geolocation.clearWatch(watchId), 4000);
+        }
       },
       (geoError) => {
+        if (settled) return;
+        settled = true;
+        navigator.geolocation.clearWatch(watchId);
         setLocationState("idle");
         setLocationError(
           geoError.code === geoError.PERMISSION_DENIED
@@ -827,6 +842,10 @@ export default function UploadForm() {
   }
 
   async function handleSubmit() {
+    if (deliveryMethod === "delivery" && locationState !== "captured") {
+      setError("Please share your exact delivery location before continuing — tap \"Use my location\" above.");
+      return;
+    }
     if (isBulk) {
       await handleBulkSubmit();
       return;
