@@ -7,6 +7,7 @@ import {
   BarChart2,
   LayoutDashboard,
   ListTodo,
+  MapPin,
   Printer,
   ShieldCheck,
   Users,
@@ -16,6 +17,7 @@ import {
 const navItems = [
   { href: "/admin", icon: LayoutDashboard, label: "Dashboard", exact: true },
   { href: "/admin/orders", icon: ListTodo, label: "Orders" },
+  { href: "/admin/delivery-area", icon: MapPin, label: "Delivery Area" },
   { href: "/admin/customers", icon: UsersRound, label: "Customers" },
   { href: "/admin/accounts", icon: BarChart2, label: "Accounts" },
   { href: "/admin/staff", icon: Users, label: "Staff" },
