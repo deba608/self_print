@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
 import { getAuthRedirectUrl } from "@/lib/site-url";
 import { clientIp, isRateLimited } from "@/lib/ratelimit";
 
@@ -16,17 +15,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Please enter your email" }, { status: 400 });
   }
 
-  // Check account exists via admin client so we can show a real error.
-  const admin = createAdminClient();
-  const { data: usersData } = await admin.auth.admin.listUsers();
-  const exists = usersData?.users?.some(
-    (u) => u.email?.toLowerCase() === email.toLowerCase()
-  ) ?? false;
-
-  if (!exists) {
-    return NextResponse.json({ error: "No account found for that email." }, { status: 404 });
-  }
-
+  // Deliberately no "does this account exist?" check: returning 404 for
+  // unknown emails and 200 for known ones turns this endpoint into an account
+  // enumeration oracle. Supabase silently no-ops for unregistered addresses,
+  // so we always report the same result — matching /api/user/register, which
+  // avoids the same leak.
   try {
     const supabase = await createClient();
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
