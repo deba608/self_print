@@ -2,7 +2,7 @@
 --
 -- `is_staff()` matches every staff_profiles row, including role = 'delivery',
 -- so the existing "staff can update all jobs" policy let a rider PATCH
--- /rest/v1/jobs with their own session and the public anon key — setting
+-- /rest/v1/jobs with their own session and the public anon key -- setting
 -- paid_at, price_paise or status on any job, bypassing the column-restricted
 -- delivery RPCs entirely. The app layer already rejects delivery in
 -- requireAdmin(); this closes the same hole at the database.
@@ -29,4 +29,4 @@ create policy "admins can update all jobs" on public.jobs
   for update using (public.is_admin());
 
 comment on function public.is_admin() is
-  'True when the caller is a super_admin or admin staff member. Delivery riders return false — they write only through the delivery RPCs.';
+  'True when the caller is a super_admin or admin staff member. Delivery riders return false -- they write only through the delivery RPCs.';
