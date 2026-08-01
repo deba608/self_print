@@ -11,6 +11,7 @@ import BulkThumb from "../upload/BulkThumb";
 import PdfCanvasPreview from "../upload/PdfCanvasPreview";
 import ResultScreen from "../upload/ResultScreen";
 import { estimateRange, formatMb, MAX_UPLOAD_BYTES, MAX_UPLOAD_MB, type Pricing } from "../upload/shared";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
 
 type Step = "upload" | "settings" | "preview" | "converting" | "done" | "docx-warning";
 type PageRangeMode = "all" | "custom";
@@ -48,6 +49,7 @@ export default function UploadForm() {
     accuracyMeters: number;
   } | null>(null);
   const [locationState, setLocationState] = useState<"idle" | "locating" | "captured">("idle");
+  const [showGpsWaitDialog, setShowGpsWaitDialog] = useState(false);
   const [pincodeDetectState, setPincodeDetectState] = useState<"idle" | "detecting" | "done" | "failed">("idle");
   const [locationError, setLocationError] = useState("");
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -392,6 +394,16 @@ export default function UploadForm() {
       setPincodeDetectState("failed");
     }
   }
+
+  // While the "GPS still fetching" dialog is open and the customer chose to
+  // wait, resolve automatically the moment the fetch settles — captured
+  // submits right away, a failure just closes the dialog back to the form.
+  useEffect(() => {
+    if (!showGpsWaitDialog || locationState === "locating") return;
+    setShowGpsWaitDialog(false);
+    if (locationState === "captured") void doSubmit();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [locationState, showGpsWaitDialog]);
 
   function captureDeliveryLocation() {
     setLocationError("");
@@ -900,11 +912,20 @@ export default function UploadForm() {
     }
   }
 
-  async function handleSubmit() {
-    if (deliveryMethod === "delivery" && locationState !== "captured") {
-      setError("Please share your exact delivery location before continuing — tap \"Use my location\" above.");
+  // GPS is optional — customers can proceed on the written address alone.
+  // The only thing we guard against is submitting while a location fetch the
+  // customer explicitly started is still in flight: silently racing ahead
+  // would either drop the fix or submit half-captured coordinates, so we
+  // interrupt with a choice instead.
+  function handleSubmit() {
+    if (deliveryMethod === "delivery" && locationState === "locating") {
+      setShowGpsWaitDialog(true);
       return;
     }
+    void doSubmit();
+  }
+
+  async function doSubmit() {
     if (deliveryServiceInvalid) {
       setError(!serviceCheck.ok ? serviceCheck.reason : "Enter a valid 6-digit pincode for delivery.");
       return;
@@ -1776,8 +1797,9 @@ export default function UploadForm() {
                       <div>
                         <strong>Pin your delivery location</strong>
                         <p>
-                          Required for home delivery. Your device shares coordinates only after
-                          you allow access; the written address stays required.
+                          Optional — helps the rider find you faster. Your device shares
+                          coordinates only after you allow access; the written address is
+                          used either way.
                         </p>
                       </div>
                     </div>
@@ -2165,6 +2187,16 @@ export default function UploadForm() {
           Need help? Ask the shop staff for assistance.
         </p>
       )}
+
+      <ConfirmDialog
+        open={showGpsWaitDialog}
+        title="Still fetching your location"
+        message="We're still getting a GPS fix for your delivery. Wait a moment for a more accurate pin, or skip it and continue with just your written address."
+        confirmLabel="Skip & continue"
+        cancelLabel="Wait for GPS"
+        onConfirm={() => { setShowGpsWaitDialog(false); void doSubmit(); }}
+        onCancel={() => setShowGpsWaitDialog(false)}
+      />
     </div>
   );
 }
