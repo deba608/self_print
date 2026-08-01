@@ -44,10 +44,25 @@ export default function DeliveryDashboard({ staffName }: Props) {
     load();
     // Reuse the staff SSE stream so claims by other riders refresh the pool
     // live; keep 15s polling as a fallback if the stream drops.
-    const es = new EventSource("/api/admin/notifications");
-    es.onmessage = () => load();
+    let es: EventSource;
+    let backoff = 1000;
+    let retryId: ReturnType<typeof setTimeout>;
+
+    function connect() {
+      es = new EventSource("/api/admin/notifications");
+      es.onopen = () => { backoff = 1000; };
+      es.onmessage = () => load();
+      es.onerror = () => {
+        const delay = backoff;
+        backoff = Math.min(delay * 2, 30000);
+        retryId = setTimeout(connect, delay);
+      };
+    }
+
+    connect();
     const poll = setInterval(load, 15000);
     return () => {
+      clearTimeout(retryId);
       es.close();
       clearInterval(poll);
     };

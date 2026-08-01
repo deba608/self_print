@@ -124,7 +124,7 @@ export default function DeliveryOrderCard({ order, actionLabel, onAction, busy, 
         <p className="delivery-card-meta">
           <CopyIcon size={13} aria-hidden="true" />
           {order.pageCount} page{order.pageCount === 1 ? "" : "s"} × {order.copies}{" "}
-          {order.copies === 1 ? "copy" : "copies"} · paid online
+          {order.copies === 1 ? "copy" : "copies"} · {order.paidAt ? "paid online" : "unpaid"}
         </p>
       </div>
 
