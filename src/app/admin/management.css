@@ -731,3 +731,90 @@
   color: var(--accent);
   border-color: var(--accent);
 }
+
+/* ─── Delivery area editor ─────────────────────────────────────────── */
+
+.sa-editor {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.sa-mode-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.sa-mode-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md, 12px);
+  background: var(--surface, #fff);
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-out);
+}
+
+.sa-mode-card:hover {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+}
+
+.sa-mode-card.active {
+  border-color: var(--accent);
+  background: var(--accent-light);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.sa-mode-card-label {
+  font-size: 13.5px;
+  font-weight: 700;
+}
+
+.sa-mode-card-description {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.sa-banner {
+  padding: 12px 14px;
+  border-radius: 10px;
+  font-size: 12.5px;
+}
+
+.sa-banner p {
+  margin: 0;
+}
+
+.sa-banner-summary {
+  margin-top: 4px !important;
+  font-weight: 600;
+}
+
+.sa-banner-info {
+  background: var(--info-light);
+  color: var(--info);
+}
+
+.sa-banner-success {
+  background: var(--ok-light);
+  color: var(--ok);
+}
+
+.sa-banner-warning {
+  background: var(--warn-light);
+  color: var(--warn);
+}
+
+@media (max-width: 640px) {
+  .sa-mode-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
