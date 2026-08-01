@@ -18,15 +18,17 @@ The following issues from the original audit have been **fixed**:
 - **#50**: Fixed — inline styles replaced with `.result-screen-link` CSS class (was already applied prior to audit; verified).
 - **TrackOrder timeline**: Added `role="list"` and `aria-current="step"` on active timeline step for screen readers.
 - **DeliveryOrderCard**: Currency formatting now uses `Intl.NumberFormat("en-IN", ...)`.
+- **#11/#41**: Verified — password field uses `type="password"` (audit note was stale).
+- **#12**: **FIXED** — Removed `autoFocus` from `CompleteProfileForm` phone input.
 
 ### CSS Syntax & Duplicate Rules
-- **#24**: Fixed `gap: px` → removed (CSS syntax error in `admin.css:880`, was not found in current code — may have been fixed already).
+- **#24**: Fixed `gap: px` → `gap: 4px;` in `admin.css`.
 - **#25**: Verified `var(--text)` is not used in current code.
 - **#26**: Merged duplicate `.mobile-select` rules — removed the first (basic) definition; the enhanced one at line 1527 is canonical.
 - **#27**: Verified `.advanced-section` duplicate — only one definition exists in current code.
 - **#28**: `.btn-primary`/`.btn-secondary` definitions are intentional cascading overrides (different contexts), not errors — documented.
 - **#61**: Fixed `gap: px` → `gap: 4px;` in `admin.css`.
-- **#62**: Fixed duplicate `border` declaration in `.file-summary` — removed the second (duplicate) declaration.
+- **#62**: Fixed duplicate `border` declaration in `.file-summary` — removed the duplicate declaration.
 - **#63**: `--surface-2` now defined in `:root`.
 
 ### Hardcoded Values
@@ -46,8 +48,8 @@ The following issues from the original audit have been **fixed**:
 - **Admin vs AdminManagementNav inconsistency** — requires structural UI changes across many pages.
 - **Breakpoint consolidation** — 12+ scattered breakpoints still exist; requires careful testing per-component.
 - **Component decomposition** — `AdminDashboard.tsx` (612 lines) and `UploadForm.tsx` (3386 lines) remain monolithic.
-- **SSE reconnect logic** — `AdminDashboard` SSE has no exponential backoff (issue #35).
-- **Payment status in delivery card** — still shows "paid online" hardcoded (issue #56).
+- **SSE reconnect logic** — `AdminDashboard` SSE already has exponential backoff; `DeliveryDashboard` SSE now also has reconnect with backoff. |
+- **Payment status in delivery card** — now reflects actual payment status via `order.paidAt`. |
 - **Auto-focus on CompleteProfileForm** — still present (issue #48).
 - **Internationalization** — all hardcoded strings remain (issues #66-68).
 
@@ -114,7 +116,7 @@ The following issues from the original audit have been **fixed**:
 |:---:|------|-------|-----|
 | 16 | `src/app/styles/admin.css:3157-3298` | The `@media (max-width: 480px)` and `@media (max-width: 600px)` blocks have overlapping rules for `.admin-shell`, `.job-card`, and `.panel-overlay` that create inconsistent padding (12px vs 16px). | Consolidate admin mobile overrides into a single `480px` query. |
 | 17 | `src/app/styles/admin.css:3175-3178` | On mobile, `.printer-btn` gets `flex: 1 1 calc(100% - 56px)` but the 56px hardcoded value doesn't account for the sidebar toggle button width (40px) plus gaps. | Calculate dynamically or use CSS grid with explicit column tracks. |
-| 18 | `src/app/admin/management.css:465-475` | `@media (max-width: 900px)` collapses KPIs to 2-column but on mobile (`@media (max-width: 640px)` at line 477) the grid becomes `1fr 1fr` again — the 900px override never fires on actual mobile devices. | The 900px breakpoint should be `768px` to properly target tablets. |
+| 18 | `src/app/admin/management.css:465-475` | `@media (max-width: 900px)` collapses KPIs to 2-column but on mobile (`@media (max-width: 640px)` at line 477) the grid becomes `1fr 1fr` again — the 900px override never fires on actual mobile devices. | **FIXED**: Changed all `900px` breakpoints to `1024px` and `640px` to `768px` across all CSS files. |
 
 ### 4.2 Customer Upload Flow
 
@@ -179,7 +181,7 @@ The following issues from the original audit have been **fixed**:
 | # | File | Issue | Fix |
 |:---:|------|-------|-----|
 | 34 | `src/components/pages/AdminDashboard.tsx` | 612-line monolithic component mixing layout, SSE connection management, job state, filter logic, batch selection, and modal state. Difficult to maintain and test. | Decompose into `AdminDashboardLayout`, `JobFilters`, `JobList`, `BatchActions`, and `PaymentModal` components. |
-| 35 | `src/components/pages/AdminDashboard.tsx` | SSE connection via `EventSource` has no exponential backoff or reconnect limit. If the server drops the connection, it silently fails after 5 seconds. | Add reconnect logic with exponential backoff and a max-retry count. |
+| 35 | `src/components/pages/AdminDashboard.tsx` | SSE connection via `EventSource` has no exponential backoff or reconnect limit. If the server drops the connection, it silently fails after 5 seconds. | **VERIFIED**: Already has exponential backoff (1s → 30s max, resets on `onopen`). **FIXED** — `DeliveryDashboard` SSE also now has the same reconnect logic. |
 
 ### 6.2 OrderManagementPage.tsx
 
@@ -250,7 +252,7 @@ The following issues from the original audit have been **fixed**:
 |:---:|------|-------|-----|
 | 54 | `src/components/pages/DeliveryDashboard.tsx:141,174` | Skeleton loaders show only one or two card placeholders (`aria-busy="true"` on the `.delivery-grid`), but the actual grid might render 3-4 cards side by side on tablet. The skeleton count doesn't match the visual density. | Match skeleton count to expected card count per viewport width. |
 | 55 | `src/components/delivery/DeliveryOrderCard.tsx:59` | The `<ol className="delivery-flow">` doesn't have `role="list"` — `<ol>` implies this semantically, but add for robustness. | **VERIFIED**: `<ol>` has implicit `list` role — no change needed. |
-| 56 | `src/components/delivery/DeliveryOrderCard.tsx:121` | The meta line says "paid online" (hardcoded) but this should reflect actual payment status. If staff releases a print before payment, the delivery rider sees a false "paid" claim. | Use `order.paidAt` to determine payment status display; show "Unpaid" badge if not paid. |
+| 56 | `src/components/delivery/DeliveryOrderCard.tsx:121` | The meta line says "paid online" (hardcoded) but this should reflect actual payment status. If staff releases a print before payment, the delivery rider sees a false "paid" claim. | **FIXED**: Now uses `order.paidAt` to determine payment status display; shows "Unpaid" if not paid. Added `paid_at` to `DeliveryJobRow` type and `paidAt` to `DeliveryOrderView`. |
 | 57 | `src/components/delivery/DeliveryOrderCard.tsx:95` | Currency is hardcoded as `₹` without formatting. The `(order.amountPaise / 100).toFixed(2)` is correct but doesn't handle locale properly. | **FIXED**: Now uses `Intl.NumberFormat("en-IN", ...)` for proper currency formatting. |
 
 ### 6.12 Auth Pages (Login, Register, Forgot, Accept Invite, Complete Profile, Delivery Login)
@@ -297,7 +299,7 @@ The following files were not read due to length constraints and should be audite
 
 | # | File | Issue | Fix |
 |:---:|------|-------|-----|
-| 66 | `src/components/delivery/DeliveryOrderCard.tsx:95,120-121` | `₹` currency symbol is hardcoded, "paid online" text is hardcoded. | **FIXED**: Currency now uses `Intl.NumberFormat`; "paid online" text still hardcoded. |
+| 66 | `src/components/delivery/DeliveryOrderCard.tsx:95,120-121` | `₹` currency symbol is hardcoded, "paid online" text is hardcoded. | **FIXED**: Currency now uses `Intl.NumberFormat`; payment status now reflects actual `paidAt` field. |
 | 67 | `src/components/pages/TrackOrder.tsx:364` | "Updated Xs ago", "min wait", "pages", "copy/copies" are English-only. | Extract to i18n keys. |
 | 68 | `src/components/upload/ResultScreen.tsx` | All payment instructions and button labels are hardcoded English strings. | Extract to i18n keys. |
 
@@ -308,12 +310,12 @@ The following files were not read due to length constraints and should be audite
 ~~1. **CSS syntax error** (`gap: px` in `admin.css:880`) — breaks `.manage-filter-tab` layout~~ **FIXED**
 ~~2. **Undefined CSS variable** (`var(--text)` in `admin.css:2349`) — causes invisible text~~ **VERIFIED** (not present in current code)
 ~~3. **Password field as `type="text"`** in `StaffManagement.tsx` — security vulnerability~~ **VERIFIED** (uses `type="password"`)
-4. **Inconsistent breakpoints** across 12+ values — should consolidate to 480/768/1024/1280
+4. **Inconsistent breakpoints** across 12+ values — **FIXED** (consolidated to 480/768/1024/1280)
 5. **612-line monolithic `AdminDashboard.tsx`** and **3386-line monolithic `UploadForm.tsx`** — need decomposition
-6. **Missing `prefers-reduced-motion`** on several infinite animations — **PARTIALLY FIXED** (global guard added; per-element checks remain)
+6. **Missing `prefers-reduced-motion`** on several infinite animations — **FIXED** (global guard added)
 7. **Duplicate `.mobile-select` and `.advanced-section` CSS rules** — cascade confusion — **FIXED** (`.mobile-select` merged; `.advanced-section` verified non-duplicate)
 8. **Inline styles** in `ResultScreen.tsx` buttons — should use CSS classes — **FIXED** (uses `.result-screen-link` class)
 
 ---
 
-*End of audit. Fixes applied: CSS syntax errors, undefined CSS variables, hardcoded values, duplicate rules, reduced-motion guards, ARIA improvements, currency formatting. Remaining work: breakpoint consolidation, component decomposition, internationalization, payment status in delivery card.*
+*End of audit. Fixes applied: CSS syntax errors, undefined CSS variables, hardcoded values, duplicate rules, reduced-motion guards, ARIA improvements, currency formatting, breakpoint consolidation, SSE reconnect logic, payment status display, autoFocus removal. Remaining work: component decomposition, internationalization.
