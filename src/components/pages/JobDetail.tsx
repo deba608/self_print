@@ -116,45 +116,63 @@ export default function JobDetail({ id }: { id: string }) {
   }, [id]);
 
   async function setStatus(status: string) {
+    if (acting) return;
+    setActing(status);
     setError("");
-    const response = await fetch(`/api/admin/jobs/${id}/status`, {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status })
-    });
-    const body = await response.json();
-    if (!response.ok) {
-      setError(body.error ?? "Action failed");
-      return;
+    try {
+      const response = await fetch(`/api/admin/jobs/${id}/status`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status })
+      });
+      const body = await response.json();
+      if (!response.ok) {
+        setError(body.error ?? "Action failed");
+        return;
+      }
+      await load();
+    } finally {
+      setActing(null);
     }
-    await load();
   }
 
   async function setDeliveryStatus(deliveryStatus: string) {
+    if (acting) return;
+    setActing(deliveryStatus);
     setError("");
-    const response = await fetch(`/api/admin/jobs/${id}/delivery-status`, {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ deliveryStatus })
-    });
-    const body = await response.json();
-    if (!response.ok) {
-      setError(body.error ?? "Action failed");
-      return;
+    try {
+      const response = await fetch(`/api/admin/jobs/${id}/delivery-status`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ deliveryStatus })
+      });
+      const body = await response.json();
+      if (!response.ok) {
+        setError(body.error ?? "Action failed");
+        return;
+      }
+      await load();
+    } finally {
+      setActing(null);
     }
-    await load();
   }
 
   async function reprint() {
-    const response = await fetch(`/api/admin/jobs/${id}/reprint`, { method: "POST", credentials: "include" });
-    const body = await response.json();
-    if (!response.ok) {
-      setError(body.error ?? "Reprint failed");
-      return;
+    if (acting) return;
+    setActing("reprint");
+    try {
+      const response = await fetch(`/api/admin/jobs/${id}/reprint`, { method: "POST", credentials: "include" });
+      const body = await response.json();
+      if (!response.ok) {
+        setError(body.error ?? "Reprint failed");
+        return;
+      }
+      await load();
+    } finally {
+      setActing(null);
     }
-    await load();
   }
 
   async function saveSettings(event: React.FormEvent) {
@@ -290,7 +308,7 @@ export default function JobDetail({ id }: { id: string }) {
           <FileCard files={files} />
           <SummaryCard job={job} files={files} />
           <DeliveryCard job={job} />
-          <ActionsCard job={job} setStatus={setStatus} setDeliveryStatus={setDeliveryStatus} reprint={reprint} />
+          <ActionsCard job={job} acting={acting} setStatus={setStatus} setDeliveryStatus={setDeliveryStatus} reprint={reprint} />
         </section>
 
         <section
@@ -452,16 +470,19 @@ function deliveryStatusLabel(status?: string | null) {
 
 function ActionsCard({
   job,
+  acting,
   setStatus,
   setDeliveryStatus,
   reprint
 }: {
   job: Detail["job"];
+  acting: string | null;
   setStatus: (status: string) => void;
   setDeliveryStatus: (status: string) => void;
   reprint: () => void;
 }) {
   const [printing, setPrinting] = useState(false);
+  const busy = acting !== null || printing;
   // Auto = release to the agent queue; Manual = print via the browser dialog
   // right now, no agent involved.
   const [printMode, setPrintMode] = useState<"auto" | "manual">("auto");
