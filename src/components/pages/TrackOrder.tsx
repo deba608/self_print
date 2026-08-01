@@ -340,11 +340,11 @@ export default function TrackOrder({ initialToken }: { initialToken?: string }) 
               )}
             </div>
           ) : (
-            <ol className="track-timeline">
+             <ol className="track-timeline" role="list">
               {steps.map((s, i) => {
                 const state = tl.done[i] ? "done" : i === activeIdx ? "active" : "todo";
                 return (
-                  <li key={s.label} className={`track-step ${state}`}>
+                  <li key={s.label} className={`track-step ${state}`} aria-current={state === "active" ? "step" : undefined}>
                     <span className="track-step-dot" aria-hidden="true">
                       {state === "done" ? <Check size={16} strokeWidth={3} /> : s.icon}
                     </span>
