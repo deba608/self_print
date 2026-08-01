@@ -68,6 +68,14 @@
   --radius-full: 9999px;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
 *,
 *::before,
 *::after {
@@ -916,7 +924,6 @@ input, select, button {
   width: 100%;
   min-width: 0;
   text-align: left;
-}
 }
 
 .file-summary:active {
