@@ -50,19 +50,28 @@ export default function ResultScreen({
     jobsAhead?: number;
     deliveryStatus?: "out_for_delivery" | "delivered" | null;
   } | null>(null);
+  // Depend on primitives (not the liveStatus object) so a poll response that
+  // changes nothing terminal doesn't tear down and recreate the interval, and
+  // fetch once immediately so the timeline isn't stale for the first 5s.
+  const liveStatusStatus = liveStatus?.status ?? null;
+  const liveDeliveryStatus = liveStatus?.deliveryStatus ?? null;
   useEffect(() => {
     if (result.needsConversion) return;
-    if (liveStatus) {
-      const terminalFailure = !["pending_payment", "paid", "approved", "printing", "printed"].includes(liveStatus.status);
+    if (liveStatusStatus) {
+      const terminalFailure = !["pending_payment", "paid", "approved", "printing", "printed"].includes(liveStatusStatus);
       const orderComplete = deliveryMethod === "delivery"
-        ? liveStatus.status === "printed" && liveStatus.deliveryStatus === "delivered"
-        : liveStatus.status === "printed";
+        ? liveStatusStatus === "printed" && liveDeliveryStatus === "delivered"
+        : liveStatusStatus === "printed";
       if (terminalFailure || orderComplete) return;
     }
-    const interval = setInterval(async () => {
+    let cancelled = false;
+    async function poll() {
+      // Skip background polling while the tab is hidden — the immediate fetch
+      // on the next visible tick catches up.
+      if (document.visibilityState === "hidden") return;
       try {
         const res = await fetch(`/api/jobs/${result.token}/status`, { cache: "no-store" });
-        if (!res.ok) return;
+        if (!res.ok || cancelled) return;
         const body = await res.json();
         setLiveStatus({
           status: body.status,
@@ -80,9 +89,11 @@ export default function ResultScreen({
       } catch {
         /* transient network error — next tick retries */
       }
-    }, 5000);
-    return () => clearInterval(interval);
-  }, [result, liveStatus, deliveryMethod]);
+    }
+    poll();
+    const interval = setInterval(poll, 5000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, [result.token, result.needsConversion, liveStatusStatus, liveDeliveryStatus, deliveryMethod]);
 
   const { printType, duplex, paperSize, copies, pagesPerSheet } = settings;
   const amountRupees = (result.pricePaise / 100).toFixed(2);
@@ -399,7 +410,7 @@ export default function ResultScreen({
                 )}
                 <Link className="mini-track-view" href={`/track?token=${result.token}`}>
                   <Search size={13} aria-hidden="true" /> Track
-                </a>
+                </Link>
               </div>
             </div>
             {failed ? (

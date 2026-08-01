@@ -1154,7 +1154,7 @@ export default function UploadForm() {
               <Link className="recent-order-chip" href={`/track?token=${recentToken}`}>
                 <Search size={14} aria-hidden="true" />
                 Recent order #{recentToken} — track it
-              </a>
+              </Link>
             </div>
           )}
           {error && (
