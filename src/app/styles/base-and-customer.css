@@ -1216,63 +1216,6 @@ input, select, button {
   font-weight: 500;
 }
 
-/* Enhanced select styling with smooth caret animation */
-.mobile-select {
-  appearance: none;
-  -webkit-appearance: none;
-  background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='10' viewBox='0 0 24 24'%3E%3Cpath fill='%230d7a74' d='M7 10l5 5 5-5z'/%3E%3C/svg%3E") no-repeat right 12px center/14px 10px;
-  border: 2px solid var(--line);
-  padding: 10px 40px 10px 12px;
-  border-radius: 10px;
-  transition: box-shadow var(--duration-base) var(--ease-out), transform var(--duration-base) var(--ease-out), border-color var(--duration-base) var(--ease-out);
-  min-height: 44px;
-}
-.mobile-select:focus {
-  border-color: var(--accent);
-}
-
-/* Advanced options panel animations */
-.advanced-section {
-  border-radius: 12px;
-  overflow: hidden;
-  transition: box-shadow var(--duration-base) var(--ease-out);
-  border: 1px solid transparent;
-}
-.advanced-section summary {
-  list-style: none;
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  padding: 12px 14px;
-  cursor: pointer;
-  user-select: none;
-  font-weight: 700;
-  color: var(--muted);
-  background: transparent;
-  border-radius: 8px;
-}
-.advanced-section summary::-webkit-details-marker { display: none; }
-.advanced-section .adv-options {
-  padding: 12px 14px 18px;
-  background: linear-gradient(180deg, rgba(240,249,248,0.7), rgba(255,255,255,0.6));
-  transform-origin: top;
-  max-height: 0;
-  opacity: 0;
-  transform: translateY(-6px);
-  transition: max-height 260ms var(--ease-out), opacity 220ms var(--ease-out), transform 260ms var(--ease-out);
-}
-.advanced-section[open] {
-  border-color: rgba(13,122,116,0.06);
-}
-.advanced-section[open] .adv-options {
-  max-height: 600px;
-  opacity: 1;
-  transform: translateY(0);
-}
-
-.advanced-section summary svg { transition: transform var(--duration-base) var(--ease-out); }
-.advanced-section[open] summary svg { transform: rotate(90deg); }
-
 /* Button micro-interactions */
 .btn-primary, .btn-secondary {
   transition: transform 160ms var(--ease-out);

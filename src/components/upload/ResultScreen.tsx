@@ -496,10 +496,10 @@ export default function ResultScreen({
         );
       })()}
 
-      <a className="btn-secondary upload-another" style={{ marginTop: "0.75rem" }} href={`/track?token=${result.token}`}>
+      <a className="btn-secondary result-screen-link" href={`/track?token=${result.token}`}>
         <Search size={16} aria-hidden="true" /> Track this order
       </a>
-      <button className="btn-secondary upload-another" style={{ marginTop: "0.75rem" }} onClick={onReset}>Upload Another</button>
+      <button className="btn-secondary result-screen-link" onClick={onReset}>Upload Another</button>
       <div className="thank-you-note">
         <p>Thank you for using Self_Print</p>
         <p className="visit-again">We appreciate your business</p>
