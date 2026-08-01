@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import {
   AlertTriangle, Check, Clock, CreditCard, Eye, FileText, Loader2,
   MapPinned, MessageCircleWarning, Printer, RefreshCw, Truck, X,
@@ -10,7 +10,10 @@ import { manualPrint } from "@/lib/manualPrint";
 import Badge, { type BadgeVariant } from "@/components/ui/Badge";
 import type { Job } from "@/lib/types";
 
-export default function JobCard({
+// Memoized (see export below): the dashboard re-renders on every SSE tick /
+// poll, and without memo every card re-rendered each time. Callbacks take the
+// job id so the parent can pass stable useCallback references.
+function JobCard({
   job,
   selectionIndex,
   index,
@@ -23,9 +26,9 @@ export default function JobCard({
   job: Job;
   selectionIndex: number;   // 0 = not selected; 1+ = print order position
   index: number;
-  onToggleSelect: () => void;
-  onAction: (action: string) => void;
-  onView: () => void;
+  onToggleSelect: (jobId: string) => void;
+  onAction: (jobId: string, action: string) => void;
+  onView: (jobId: string) => void;
   actionLoading: boolean;
   onNotify: (kind: "ok" | "err", msg: string) => void;
 }) {
@@ -46,7 +49,7 @@ export default function JobCard({
   const status = statusMap[job.status] || { label: job.status, variant: "neutral" as BadgeVariant, icon: Clock };
   const formatRupees = (paise: number) => `₹${(paise / 100).toFixed(2)}`;
   const handleActionClick = (action: string) => {
-    onAction(action);
+    onAction(job.id, action);
   };
 
   const [printing, setPrinting] = useState(false);
@@ -78,7 +81,7 @@ export default function JobCard({
     <div className={`job-card ${job.status} ${flash ? "flash" : ""}`} style={{ animationDelay: `${Math.min(index, 8) * 35}ms` }}>
       <button
           className={`job-checkbox ${isSelected ? "selected" : ""}`}
-          onClick={(e) => { e.stopPropagation(); onToggleSelect(); }}
+          onClick={(e) => { e.stopPropagation(); onToggleSelect(job.id); }}
           aria-label={isSelected ? `Deselect job (position ${selectionIndex})` : "Select job"}
           type="button"
         >
@@ -129,7 +132,7 @@ export default function JobCard({
             <button
               type="button"
               className="job-issue-resolve"
-              onClick={(e) => { e.stopPropagation(); onAction("resolve_issue"); }}
+              onClick={(e) => { e.stopPropagation(); onAction(job.id, "resolve_issue"); }}
               disabled={actionLoading}
             >
               {actionLoading ? <Loader2 size={12} className="spin" /> : null}
@@ -257,7 +260,7 @@ export default function JobCard({
               {printing ? <Loader2 size={14} className="spin" /> : <Printer size={14} />}
             </button>
           )}
-          <button type="button" className="job-btn view" onClick={(event) => { event.preventDefault(); event.stopPropagation(); onView(); }} aria-label="Open job details">
+          <button type="button" className="job-btn view" onClick={(event) => { event.preventDefault(); event.stopPropagation(); onView(job.id); }} aria-label="Open job details">
             <Eye size={14} />
           </button>
           {job.status !== "printed" && job.status !== "cancelled" && (
@@ -288,3 +291,5 @@ export default function JobCard({
     </div>
   );
 }
+
+export default memo(JobCard);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AlertTriangle, Loader2, Truck, X } from "lucide-react";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
@@ -178,6 +178,8 @@ export default function AdminDashboard() {
     es.onerror = () => {
       const delay = sseBackoffRef.current;
       sseBackoffRef.current = Math.min(delay * 2, 30000);
+      // Clear any pending retry so error bursts can't stack reconnect timers.
+      if (sseRetryRef.current) clearTimeout(sseRetryRef.current);
       sseRetryRef.current = setTimeout(connectSSE, delay);
     };
     esRef.current = es;
@@ -256,7 +258,7 @@ export default function AdminDashboard() {
     mutateJobs();
   }
 
-  async function jobAction(jobId: string, action: string) {
+  const jobAction = useCallback(async (jobId: string, action: string) => {
     setActionLoading(jobId);
     setActionError("");
     try {
@@ -305,7 +307,7 @@ export default function AdminDashboard() {
     } finally {
       setActionLoading(null);
     }
-  }
+  }, [mutateJobs, pushToast, router]);
 
   async function batchPaid() {
     if (selectedJobs.length === 0) return;
@@ -404,12 +406,26 @@ export default function AdminDashboard() {
     }
   }
 
-  function toggleSelect(id: string) {
+  const toggleSelect = useCallback((id: string) => {
     setSelectedJobs((prev) => {
       if (prev.includes(id)) return prev.filter((x) => x !== id);
       return [...prev, id];
     });
-  }
+  }, []);
+
+  // Stable per-card handlers so memo(JobCard) can skip re-renders on
+  // dashboard-wide state churn (SSE ticks, unseen counter, toasts).
+  const handleCardAction = useCallback((jobId: string, action: string) => {
+    if (action === "cancelled" || action === "delivered") {
+      setConfirmAction({ action, jobId });
+    } else {
+      jobAction(jobId, action);
+    }
+  }, [jobAction]);
+
+  const handleCardView = useCallback((jobId: string) => {
+    router.push(`/admin/jobs/${jobId}`);
+  }, [router]);
 
   function selectAll() {
     const eligible = filteredJobs.map((j) => j.id);
@@ -597,11 +613,9 @@ export default function AdminDashboard() {
               job={job}
               selectionIndex={selectedJobs.indexOf(job.id) + 1}
               index={index}
-              onToggleSelect={() => toggleSelect(job.id)}
-              onAction={(action) => action === "cancelled" || action === "delivered"
-                ? setConfirmAction({ action, jobId: job.id })
-                : jobAction(job.id, action)}
-              onView={() => router.push(`/admin/jobs/${job.id}`)}
+              onToggleSelect={toggleSelect}
+              onAction={handleCardAction}
+              onView={handleCardView}
               actionLoading={actionLoading === job.id} onNotify={pushToast} />
           ))}
         </div>
