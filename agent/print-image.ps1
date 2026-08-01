@@ -115,8 +115,17 @@ $doc.add_PrintPage({
   # GDI puts the Graphics origin at the top-left of the *printable* area (past
   # the hardware margin), not the physical page corner. Shift it back so all
   # coordinates below are in true physical-page space (units: 1/100 inch).
-  $hardX = $e.PageSettings.HardMarginX
-  $hardY = $e.PageSettings.HardMarginY
+  # HardMarginX/Y are unreliable in landscape on some drivers (they keep
+  # portrait values); PrintableArea is documented as always portrait-relative,
+  # so derive the offsets from it and swap axes for landscape ourselves.
+  $pa = $e.PageSettings.PrintableArea
+  if ($e.PageSettings.Landscape) {
+    $hardX = $pa.Y
+    $hardY = $pa.X
+  } else {
+    $hardX = $pa.X
+    $hardY = $pa.Y
+  }
   $e.Graphics.TranslateTransform(-$hardX, -$hardY)
 
   # PageBounds is orientation-aware physical paper size in 1/100 inch.
@@ -149,6 +158,23 @@ $doc.add_PrintPage({
       $row = [Math]::Floor($n / $cols)
       $cellX = $area.Left + $col * $cellW
       $cellY = $area.Top + $row * $cellH
+
+      # Apply EXIF orientation — GDI ignores the tag, so phone photos stored
+      # rotated would otherwise print sideways/upside-down.
+      if ($img.PropertyIdList -contains 0x0112) {
+        $orient = [int]$img.GetPropertyItem(0x0112).Value[0]
+        $exifFlip = switch ($orient) {
+          2 { [System.Drawing.RotateFlipType]::RotateNoneFlipX }
+          3 { [System.Drawing.RotateFlipType]::Rotate180FlipNone }
+          4 { [System.Drawing.RotateFlipType]::Rotate180FlipX }
+          5 { [System.Drawing.RotateFlipType]::Rotate90FlipX }
+          6 { [System.Drawing.RotateFlipType]::Rotate90FlipNone }
+          7 { [System.Drawing.RotateFlipType]::Rotate270FlipX }
+          8 { [System.Drawing.RotateFlipType]::Rotate270FlipNone }
+          default { $null }
+        }
+        if ($null -ne $exifFlip) { $img.RotateFlip($exifFlip) }
+      }
 
       # Auto-rotate: a landscape source on a portrait cell (or vice versa) would
       # fit-scale down to ~70%. Rotating 90° fills the page as the user expects.
