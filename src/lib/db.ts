@@ -1,5 +1,6 @@
 import type { CustomerManagementRow, Job, JobFile, PricingConfig, PrinterOption, SseClient } from './types';
 import { FILE_RETENTION_DAYS } from './config';
+import { parseServiceAreaConfig, serializeServiceAreaConfig } from './service-area';
 
 // Check if Supabase is configured
 const isSupabase = Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
@@ -204,7 +205,9 @@ async function ensureJobColumns(database: any) {
     ['delivery_accuracy_meters', 'REAL'],
     ['delivery_location_captured_at', 'TEXT'],
     ['customer_user_id', 'TEXT'],
-    ['delivery_person_id', 'TEXT']
+    ['delivery_person_id', 'TEXT'],
+    ['delivery_pincode', 'TEXT'],
+    ['delivery_area', 'TEXT']
   ];
   for (const [name, definition] of additions) {
     if (!columns.has(name)) {
@@ -235,7 +238,8 @@ async function ensurePricingColumns(database: any) {
     ['a6_multiplier', 'REAL NOT NULL DEFAULT 0.5'],
     ['b5_multiplier', 'REAL NOT NULL DEFAULT 0.9'],
     ['duplex_bw_per_page_paise', 'INTEGER NOT NULL DEFAULT 100'],
-    ['delivery_fee_paise', 'INTEGER NOT NULL DEFAULT 0']
+    ['delivery_fee_paise', 'INTEGER NOT NULL DEFAULT 0'],
+    ['service_area_config', "TEXT NOT NULL DEFAULT ''"]
   ];
   for (const [name, definition] of additions) {
     if (!columns.has(name)) {
@@ -300,6 +304,8 @@ function mapJob(row: Record<string, unknown>, expiryMinutes: number = 1440): Job
     customerName: row.customer_name ? String(row.customer_name) : null,
     customerPhone: row.customer_phone ? String(row.customer_phone) : null,
     deliveryAddress: row.delivery_address ? String(row.delivery_address) : null,
+    deliveryPincode: row.delivery_pincode ? String(row.delivery_pincode) : null,
+    deliveryArea: row.delivery_area ? String(row.delivery_area) : null,
     deliveryFeePaise: Number(row.delivery_fee_paise ?? 0),
     deliveryStatus: row.delivery_status ? (row.delivery_status as Job['deliveryStatus']) : null,
     deliveryLatitude: row.delivery_latitude == null ? null : Number(row.delivery_latitude),
@@ -616,6 +622,8 @@ export async function createJobWithFiles(
     customerName: jobData.customerName ?? jobData.customer_name ?? null,
     customerPhone: jobData.customerPhone ?? jobData.customer_phone ?? null,
     deliveryAddress: jobData.deliveryAddress ?? jobData.delivery_address ?? null,
+    deliveryPincode: jobData.deliveryPincode ?? jobData.delivery_pincode ?? null,
+    deliveryArea: jobData.deliveryArea ?? jobData.delivery_area ?? null,
     deliveryFeePaise: jobData.deliveryFeePaise ?? jobData.delivery_fee_paise ?? 0,
     deliveryLatitude: jobData.deliveryLatitude ?? jobData.delivery_latitude ?? null,
     deliveryLongitude: jobData.deliveryLongitude ?? jobData.delivery_longitude ?? null,
@@ -631,15 +639,15 @@ export async function createJobWithFiles(
         id, token, status, customer_user_id, print_type, copies, page_range, paper_size,
         layout, pages_per_sheet, margins, scale, duplex, page_count, price_paise,
         needs_conversion, queue_position, delivery_method, customer_name, customer_phone,
-        delivery_address, delivery_fee_paise, delivery_latitude, delivery_longitude,
+        delivery_address, delivery_pincode, delivery_area, delivery_fee_paise, delivery_latitude, delivery_longitude,
         delivery_accuracy_meters, delivery_location_captured_at, created_at, updated_at
       )
-      VALUES (?, ?, 'pending_payment', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, 'pending_payment', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       jobId, j.token, j.customerUserId, j.printType, j.copies, j.pageRange, j.paperSize,
       j.layout, j.pagesPerSheet, j.margins, j.scale, j.duplex, j.pageCount, j.pricePaise,
       j.needsConversion, j.queuePosition, j.deliveryMethod, j.customerName, j.customerPhone,
-      j.deliveryAddress, j.deliveryFeePaise, j.deliveryLatitude, j.deliveryLongitude,
+      j.deliveryAddress, j.deliveryPincode, j.deliveryArea, j.deliveryFeePaise, j.deliveryLatitude, j.deliveryLongitude,
       j.deliveryAccuracyMeters, j.deliveryLocationCapturedAt, now, now
     );
 
@@ -831,23 +839,24 @@ export async function getPricing(): Promise<PricingConfig> {
   }
 
   const sqlite = await getDbInstance();
-  const row = sqlite.prepare('SELECT * FROM pricing_config WHERE id = 1').get() as Record<string, number> | undefined;
+  const row = sqlite.prepare('SELECT * FROM pricing_config WHERE id = 1').get() as Record<string, number | string> | undefined;
   if (!row) throw new Error('Pricing config not found. Run "npm run db:seed".');
   pricingCache = {
-    bwPerPagePaise: row.bw_per_page_paise,
-    colorPerPagePaise: row.color_per_page_paise,
-    photoPrintPaise: row.photo_print_paise,
-    copyMultiplier: row.copy_multiplier,
-    a3Multiplier: row.a3_multiplier ?? 2.5,
-    a4Multiplier: row.a4_multiplier ?? 1,
-    a5Multiplier: row.a5_multiplier ?? 0.7,
-    a6Multiplier: row.a6_multiplier ?? 0.5,
-    b5Multiplier: row.b5_multiplier ?? 0.9,
-    legalMultiplier: row.legal_multiplier ?? 1.25,
-    photoMultiplier: row.photo_multiplier ?? 1,
-    duplexBwPerPagePaise: row.duplex_bw_per_page_paise ?? 100,
-    expiryMinutes: row.expiry_minutes ?? 1440,
-    deliveryFeePaise: row.delivery_fee_paise ?? 0
+    bwPerPagePaise: row.bw_per_page_paise as number,
+    colorPerPagePaise: row.color_per_page_paise as number,
+    photoPrintPaise: row.photo_print_paise as number,
+    copyMultiplier: row.copy_multiplier as number,
+    a3Multiplier: (row.a3_multiplier as number) ?? 2.5,
+    a4Multiplier: (row.a4_multiplier as number) ?? 1,
+    a5Multiplier: (row.a5_multiplier as number) ?? 0.7,
+    a6Multiplier: (row.a6_multiplier as number) ?? 0.5,
+    b5Multiplier: (row.b5_multiplier as number) ?? 0.9,
+    legalMultiplier: (row.legal_multiplier as number) ?? 1.25,
+    photoMultiplier: (row.photo_multiplier as number) ?? 1,
+    duplexBwPerPagePaise: (row.duplex_bw_per_page_paise as number) ?? 100,
+    expiryMinutes: (row.expiry_minutes as number) ?? 1440,
+    deliveryFeePaise: (row.delivery_fee_paise as number) ?? 0,
+    serviceArea: parseServiceAreaConfig(row.service_area_config as string)
   };
   return pricingCache;
 }
@@ -867,13 +876,14 @@ export async function updatePricing(pricing: PricingConfig): Promise<void> {
       bw_per_page_paise = ?, color_per_page_paise = ?, photo_print_paise = ?,
       copy_multiplier = ?, a3_multiplier = ?, a4_multiplier = ?, a5_multiplier = ?,
       a6_multiplier = ?, b5_multiplier = ?, legal_multiplier = ?, photo_multiplier = ?,
-      duplex_bw_per_page_paise = ?, expiry_minutes = ?, delivery_fee_paise = ?, updated_at = ?
+      duplex_bw_per_page_paise = ?, expiry_minutes = ?, delivery_fee_paise = ?, service_area_config = ?, updated_at = ?
     WHERE id = 1
   `).run(
     pricing.bwPerPagePaise, pricing.colorPerPagePaise, pricing.photoPrintPaise,
     pricing.copyMultiplier, pricing.a3Multiplier, pricing.a4Multiplier, pricing.a5Multiplier,
     pricing.a6Multiplier, pricing.b5Multiplier, pricing.legalMultiplier, pricing.photoMultiplier,
-    pricing.duplexBwPerPagePaise, pricing.expiryMinutes, pricing.deliveryFeePaise, now
+    pricing.duplexBwPerPagePaise, pricing.expiryMinutes, pricing.deliveryFeePaise,
+    serializeServiceAreaConfig(pricing.serviceArea), now
   );
 }
 
