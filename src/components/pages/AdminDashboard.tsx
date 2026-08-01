@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { AlertTriangle, Loader2, Truck, X } from "lucide-react";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { ToastStack, useToasts } from "@/components/ui/Toast";
@@ -21,6 +21,7 @@ import ManageOrdersPanel from "@/components/admin/ManageOrdersPanel";
 
 export default function AdminDashboard() {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   // ── SWR data hooks ──────────────────────────────────────────────
   const { data: staff } = useCurrentStaff();
