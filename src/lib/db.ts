@@ -203,7 +203,8 @@ async function ensureJobColumns(database: any) {
     ['delivery_longitude', 'REAL'],
     ['delivery_accuracy_meters', 'REAL'],
     ['delivery_location_captured_at', 'TEXT'],
-    ['customer_user_id', 'TEXT']
+    ['customer_user_id', 'TEXT'],
+    ['delivery_person_id', 'TEXT']
   ];
   for (const [name, definition] of additions) {
     if (!columns.has(name)) {
@@ -304,7 +305,11 @@ function mapJob(row: Record<string, unknown>, expiryMinutes: number = 1440): Job
     deliveryLatitude: row.delivery_latitude == null ? null : Number(row.delivery_latitude),
     deliveryLongitude: row.delivery_longitude == null ? null : Number(row.delivery_longitude),
     deliveryAccuracyMeters: row.delivery_accuracy_meters == null ? null : Number(row.delivery_accuracy_meters),
-    deliveryLocationCapturedAt: row.delivery_location_captured_at ? String(row.delivery_location_captured_at) : null
+    deliveryLocationCapturedAt: row.delivery_location_captured_at ? String(row.delivery_location_captured_at) : null,
+    // SQLite has no staff_profiles table (staff login requires Supabase), so
+    // a self-assigned id here can never be resolved to a name.
+    deliveryPersonId: row.delivery_person_id ? String(row.delivery_person_id) : null,
+    deliveryPersonName: null
   };
 }
 
@@ -707,16 +712,25 @@ export async function updateJobStatus(id: string, status: string): Promise<void>
 // Delivery hand-off status, tracked independently of the print-progress
 // `status` column — mirrors how `paidAt` is decoupled from `status`. Only
 // ever set on delivery-method jobs; the API route enforces that.
-export async function updateDeliveryStatus(id: string, deliveryStatus: "packed" | "picked_up" | "out_for_delivery" | "delivered"): Promise<void> {
+export async function updateDeliveryStatus(
+  id: string,
+  deliveryStatus: "packed" | "picked_up" | "out_for_delivery" | "delivered",
+  deliveryPersonId?: string
+): Promise<void> {
   if (isSupabase) {
     const mod = await import('./db-supabase');
-    return mod.updateDeliveryStatus(id, deliveryStatus);
+    return mod.updateDeliveryStatus(id, deliveryStatus, deliveryPersonId);
   }
 
   const crypto = await import('node:crypto');
   const sqlite = await getDbInstance();
   const now = new Date().toISOString();
-  sqlite.prepare(`UPDATE jobs SET delivery_status = ?, updated_at = ? WHERE id = ?`).run(deliveryStatus, now, id);
+  if (deliveryPersonId) {
+    sqlite.prepare(`UPDATE jobs SET delivery_status = ?, delivery_person_id = ?, updated_at = ? WHERE id = ?`)
+      .run(deliveryStatus, deliveryPersonId, now, id);
+  } else {
+    sqlite.prepare(`UPDATE jobs SET delivery_status = ?, updated_at = ? WHERE id = ?`).run(deliveryStatus, now, id);
+  }
   sqlite.prepare("INSERT INTO print_events (id, job_id, event_type, message, created_at) VALUES (?, ?, ?, ?, ?)")
     .run(crypto.randomUUID(), id, deliveryStatus, `Delivery status set to ${deliveryStatus}.`, now);
 }

@@ -75,6 +75,12 @@ export type Job = {
   deliveryLongitude: number | null;
   deliveryAccuracyMeters: number | null;
   deliveryLocationCapturedAt: string | null;
+  // Rider who claimed this delivery (set by claim_delivery_job) or, when staff
+  // dispatch bypasses the claim flow, the admin who dispatched it — see
+  // admin/jobs/[id]/delivery-status. Name is resolved server-side; only
+  // Supabase mode has a staff_profiles table to resolve it from.
+  deliveryPersonId: string | null;
+  deliveryPersonName: string | null;
   file?: JobFile;
   fileCount?: number;
 };

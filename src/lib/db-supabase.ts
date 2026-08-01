@@ -55,8 +55,31 @@ function mapJob(row: any, expiryMinutes: number = 1440): Job {
     deliveryLatitude: row.delivery_latitude == null ? null : Number(row.delivery_latitude),
     deliveryLongitude: row.delivery_longitude == null ? null : Number(row.delivery_longitude),
     deliveryAccuracyMeters: row.delivery_accuracy_meters == null ? null : Number(row.delivery_accuracy_meters),
-    deliveryLocationCapturedAt: row.delivery_location_captured_at ? String(row.delivery_location_captured_at) : null
+    deliveryLocationCapturedAt: row.delivery_location_captured_at ? String(row.delivery_location_captured_at) : null,
+    deliveryPersonId: row.delivery_person_id ? String(row.delivery_person_id) : null,
+    // Resolved separately by attachDeliveryPersonNames — a raw row never has
+    // the joined staff name (delivery_person_id is a bare auth.users id).
+    deliveryPersonName: null
   };
+}
+
+// Batch-resolves each job's deliveryPersonId to a display name/email, in one
+// query for the whole page rather than one per job. Mutates and returns the
+// same array for convenience at call sites.
+async function attachDeliveryPersonNames(jobs: Job[]): Promise<Job[]> {
+  const ids = [...new Set(jobs.map((j) => j.deliveryPersonId).filter((id): id is string => !!id))];
+  if (ids.length === 0) return jobs;
+
+  const { data } = await supabase
+    .from('staff_profiles')
+    .select('id, display_name, email')
+    .in('id', ids);
+
+  const names = new Map((data ?? []).map((s: any) => [s.id, s.display_name || s.email]));
+  for (const job of jobs) {
+    if (job.deliveryPersonId) job.deliveryPersonName = names.get(job.deliveryPersonId) ?? null;
+  }
+  return jobs;
 }
 
 // Helper to convert Supabase row to JobFile type
@@ -111,7 +134,7 @@ export async function getJobs() {
     getPricing()
   ]);
   if (error) throw error;
-  return (data || []).map(row => mapJob(row, pricing.expiryMinutes));
+  return attachDeliveryPersonNames((data || []).map(row => mapJob(row, pricing.expiryMinutes)));
 }
 
 export async function getCustomerManagementRows(): Promise<CustomerManagementRow[]> {

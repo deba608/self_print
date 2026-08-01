@@ -4,6 +4,7 @@ import {
   Bell, BellRing, ChevronDown, LogOut, Loader2, Menu, Monitor, Printer, RefreshCw, Settings,
 } from "lucide-react";
 import ManageMenu from "./ManageMenu";
+import TopbarMoreMenu from "./TopbarMoreMenu";
 
 export default function AdminTopbar({
   printerName,
@@ -101,6 +102,15 @@ export default function AdminTopbar({
               <span>Pricing</span>
             </button>
           </div>
+
+          <TopbarMoreMenu
+            newJobCount={newJobCount}
+            soundOn={soundOn}
+            onToggleSound={onToggleSound}
+            onRefresh={onRefresh}
+            onOpenPricing={onOpenPricing}
+            showPricing={showPricing}
+          />
 
           <div className="topbar-divider" aria-hidden="true" />
 
