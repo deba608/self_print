@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState, useRef } from "react";
 import {
   ChevronLeft, CreditCard, Printer, RotateCcw, Save, X,
@@ -62,6 +63,11 @@ type PrintSettingsForm = {
 const paperSizeOptions = ["A3", "A4", "A5", "A6", "B5", "Letter", "Legal", "Photo"];
 
 export default function JobDetail({ id }: { id: string }) {
+  const router = useRouter();
+  const [cameFromQueue, setCameFromQueue] = useState(false);
+  useEffect(() => {
+    setCameFromQueue(document.referrer.includes("/admin") && !document.referrer.includes("/admin/jobs"));
+  }, []);
   const [detail, setDetail] = useState<Detail | null>(null);
   const [error, setError] = useState("");
   const [settings, setSettings] = useState<PrintSettingsForm | null>(null);

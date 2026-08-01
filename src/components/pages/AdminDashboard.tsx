@@ -49,8 +49,31 @@ export default function AdminDashboard() {
   const [selectedJobs, setSelectedJobs] = useState<string[]>([]);
   const [batchReleaseLoading, setBatchReleaseLoading] = useState(false);
   const [batchDeleteLoading, setBatchDeleteLoading] = useState(false);
-  const [filterStatus, setFilterStatus] = useState("all");
-  const [deliveryFilter, setDeliveryFilter] = useState<"all" | "pickup" | "delivery">("all");
+  const [filterStatus, setFilterStatusState] = useState(() => searchParams.get("status") ?? "all");
+  const [deliveryFilter, setDeliveryFilterState] = useState<"all" | "pickup" | "delivery">(
+    () => (searchParams.get("fulfillment") as "all" | "pickup" | "delivery" | null) ?? "all"
+  );
+
+  // Keep the current filters in the URL so navigating to a job's detail page
+  // and back (or a browser back/forward) restores the queue view instead of
+  // silently resetting to "All".
+  const updateFilterParams = useCallback((status: string, fulfillment: "all" | "pickup" | "delivery") => {
+    const params = new URLSearchParams();
+    if (status !== "all") params.set("status", status);
+    if (fulfillment !== "all") params.set("fulfillment", fulfillment);
+    const qs = params.toString();
+    router.replace(qs ? `/admin?${qs}` : "/admin", { scroll: false });
+  }, [router]);
+
+  const setFilterStatus = useCallback((status: string) => {
+    setFilterStatusState(status);
+    updateFilterParams(status, deliveryFilter);
+  }, [deliveryFilter, updateFilterParams]);
+
+  const setDeliveryFilter = useCallback((fulfillment: "all" | "pickup" | "delivery") => {
+    setDeliveryFilterState(fulfillment);
+    updateFilterParams(filterStatus, fulfillment);
+  }, [filterStatus, updateFilterParams]);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [actionError, setActionError] = useState("");
   const [confirmAction, setConfirmAction] = useState<{ action: "cancelled" | "delivered"; jobId: string } | null>(null);
@@ -578,7 +601,7 @@ export default function AdminDashboard() {
               onAction={(action) => action === "cancelled" || action === "delivered"
                 ? setConfirmAction({ action, jobId: job.id })
                 : jobAction(job.id, action)}
-              onView={() => window.location.href = `/admin/jobs/${job.id}`}
+              onView={() => router.push(`/admin/jobs/${job.id}`)}
               actionLoading={actionLoading === job.id} onNotify={pushToast} />
           ))}
         </div>
