@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Check, CheckSquare, Loader2, ListTodo, Printer, Square, Trash2, X } from "lucide-react";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 
@@ -22,6 +23,7 @@ export default function ManageOrdersPanel({
   onClose: () => void;
   onRefresh: () => void;
 }) {
+  const router = useRouter();
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [deleteLoading, setDeleteLoading] = useState<string | null>(null);
   const [bulkDeleting, setBulkDeleting] = useState(false);
@@ -54,7 +56,7 @@ export default function ManageOrdersPanel({
     try {
       const response = await fetch(`/api/admin/jobs/${jobId}`, { method: "DELETE", credentials: "include" });
       if (response.status === 401) {
-        window.location.reload();
+        router.push("/admin");
         return;
       }
       if (response.ok) {
@@ -82,7 +84,7 @@ export default function ManageOrdersPanel({
         body: JSON.stringify({ ids })
       });
       if (response.status === 401) {
-        window.location.reload();
+        router.push("/admin");
         return;
       }
       if (response.ok) {

@@ -189,8 +189,11 @@ export default function StaffManagement({ currentStaff }: { currentStaff: StaffP
   const isSuperAdmin = currentStaff.role === "super_admin";
   const superAdminCount = staff.filter((member) => member.role === "super_admin").length;
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  // silent=true refreshes in the background without swapping the rendered
+  // list for skeletons — used after invite/create/revoke so the table doesn't
+  // flash blank on every action.
+  const load = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     setError("");
     try {
       const res = await fetch("/api/admin/staff", { credentials: "include" });
@@ -200,7 +203,7 @@ export default function StaffManagement({ currentStaff }: { currentStaff: StaffP
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Unable to load staff members.");
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, []);
 
@@ -225,7 +228,7 @@ export default function StaffManagement({ currentStaff }: { currentStaff: StaffP
       setRole("admin");
       setInviteOk(true);
       setTimeout(() => setInviteOk(false), 3500);
-      await load();
+      await load(true);
     } catch (inviteFailure) {
       setInviteError(inviteFailure instanceof Error ? inviteFailure.message : "Unable to invite staff member.");
     } finally {
@@ -305,7 +308,7 @@ export default function StaffManagement({ currentStaff }: { currentStaff: StaffP
       setCreateRole("admin");
       setCreateOk(true);
       setTimeout(() => setCreateOk(false), 3500);
-      await load();
+      await load(true);
     } catch (createFailure) {
       setCreateError(createFailure instanceof Error ? createFailure.message : "Unable to create account.");
     } finally {

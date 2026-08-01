@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   CheckCircle2,
   Clock3,
@@ -77,6 +77,7 @@ export default function OrderManagementPage() {
     () => (searchParams.get("stage") as StageFilter | null) ?? "all"
   );
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState("");
   const [loadingMore, setLoadingMore] = useState(false);
 
   // Keep filters in the URL so returning from a job's detail page (or a
@@ -90,9 +91,15 @@ export default function OrderManagementPage() {
     router.replace(qs ? `/admin/orders?${qs}` : "/admin/orders", { scroll: false });
   };
 
+  // Filtering itself is instant (local state); only the URL sync is debounced —
+  // router.replace on every keystroke triggered a navigation/history churn per
+  // keypress, which janks typing on slow devices.
+  const urlSyncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (urlSyncTimer.current) clearTimeout(urlSyncTimer.current); }, []);
   const setQuery = (value: string) => {
     setQueryState(value);
-    updateFilterParams(value, fulfilment, stage);
+    if (urlSyncTimer.current) clearTimeout(urlSyncTimer.current);
+    urlSyncTimer.current = setTimeout(() => updateFilterParams(value, fulfilment, stage), 300);
   };
   const setFulfilment = (value: FulfilmentFilter) => {
     setFulfilmentState(value);
@@ -130,6 +137,7 @@ export default function OrderManagementPage() {
 
   async function updateDelivery(job: Job, deliveryStatus: "packed" | "out_for_delivery" | "delivered") {
     setUpdatingId(job.id);
+    setActionError("");
     try {
       const response = await fetch(`/api/admin/jobs/${job.id}/delivery-status`, {
         method: "POST",
@@ -141,7 +149,9 @@ export default function OrderManagementPage() {
       if (!response.ok) throw new Error(body.error ?? "Unable to update delivery.");
       mutate();
     } catch (updateError) {
-      // Error handled silently — next revalidation will fix stale data
+      // Surface the failure — before this, the button spinner just stopped
+      // with no feedback and the operator couldn't tell the update failed.
+      setActionError(updateError instanceof Error ? updateError.message : "Unable to update delivery.");
     } finally {
       setUpdatingId(null);
     }
@@ -203,6 +213,12 @@ export default function OrderManagementPage() {
           </div>
         ) : (
           <>
+            {actionError && (
+              <div className="admin-action-error" role="alert">
+                {actionError}
+                <button type="button" onClick={() => setActionError("")} aria-label="Dismiss error">×</button>
+              </div>
+            )}
             <section className="management-kpis" aria-label="Order overview">
               <article><span className="kpi-icon total"><FileText size={19} /></span><div><strong>{summary.total}</strong><small>Total orders</small></div></article>
               <article><span className="kpi-icon active"><Clock3 size={19} /></span><div><strong>{summary.active}</strong><small>Active queue</small></div></article>
