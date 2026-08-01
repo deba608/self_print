@@ -172,24 +172,28 @@ export default function TrackOrder({ initialToken }: { initialToken?: string }) 
   // Poll a loaded job every 5s so the timeline moves while the customer watches.
   // Delivery orders keep polling after "printed" — the delivery stages
   // (packed / picked up / out for delivery / delivered) still advance.
+  // Depends on settled-state primitives (not the job object) so each poll
+  // response doesn't tear down and recreate the interval, and skips re-renders
+  // when the payload hasn't changed.
+  const jobSettled = job
+    ? (job.deliveryMethod === "delivery" ? job.deliveryStatus === "delivered" : job.status === "printed")
+      || timelineFor(job).failed
+    : false;
   useEffect(() => {
-    if (!activeToken || !job) return;
-    const settled =
-      job.deliveryMethod === "delivery"
-        ? job.deliveryStatus === "delivered"
-        : job.status === "printed";
-    if (settled || timelineFor(job).failed) return;
+    if (!activeToken || jobSettled) return;
     const iv = setInterval(async () => {
+      if (document.visibilityState === "hidden") return;
       try {
         const res = await fetch(`/api/jobs/${activeToken}/status`, { cache: "no-store" });
         if (res.ok) {
-          setJob(await res.json());
+          const body = await res.json();
+          setJob((prev) => JSON.stringify(prev) === JSON.stringify(body) ? prev : body);
           setLastUpdatedAt(Date.now());
         }
       } catch { /* transient — next tick retries */ }
     }, 5000);
     return () => clearInterval(iv);
-  }, [activeToken, job]);
+  }, [activeToken, jobSettled]);
 
   function setDigit(i: number, value: string) {
     const v = value.replace(/\D/g, "");
