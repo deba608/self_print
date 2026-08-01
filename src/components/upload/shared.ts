@@ -24,6 +24,7 @@ export type Pricing = {
   shopUpiId?: string;
   shopUpiQr?: string;
   shopName?: string;
+  shopReviewUrl?: string;
   razorpayKeyId?: string;
 };
 

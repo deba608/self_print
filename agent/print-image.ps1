@@ -131,6 +131,12 @@ $doc.add_PrintPage({
   }
   $area = New-Object System.Drawing.Rectangle([int]$m, [int]$m, [int]($pageW - 2 * $m), [int]($pageH - 2 * $m))
 
+  # High-quality resampling — the GDI default (low bilinear) prints scaled
+  # images visibly soft/jagged.
+  $e.Graphics.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
+  $e.Graphics.PixelOffsetMode = [System.Drawing.Drawing2D.PixelOffsetMode]::HighQuality
+  $e.Graphics.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::HighQuality
+
   $cols = [int][Math]::Ceiling([Math]::Sqrt($sheetFiles.Count))
   $rows = [int][Math]::Ceiling($sheetFiles.Count / $cols)
   $cellW = $area.Width / $cols

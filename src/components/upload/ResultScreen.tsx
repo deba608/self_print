@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, Copy, CreditCard, Loader2, Printer, Search, Smartphone, Store, Truck, UploadCloud, X } from "lucide-react";
+import { Check, Copy, CreditCard, Loader2, Printer, Search, Smartphone, Star, Store, Truck, UploadCloud, X } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import BillReceipt, { type BillData } from "../BillReceipt";
 import { loadRazorpayCheckout, type Pricing } from "./shared";
@@ -90,6 +90,7 @@ export default function ResultScreen({
   const upiId = (pricing?.shopUpiId ?? "").trim();
   const upiQr = (pricing?.shopUpiQr ?? "").trim();
   const shopName = pricing?.shopName ?? "Print Shop";
+  const reviewUrl = (pricing?.shopReviewUrl ?? "").trim();
 
   // Receipt data — everything is already in client state at this point.
   const billPerPage = pricing
@@ -491,6 +492,19 @@ export default function ResultScreen({
             )}
             {st === "printed" && !isDeliveryOrder && (
               <p className="track-collect"><Store size={14} aria-hidden="true" /> Ready — collect at the counter!</p>
+            )}
+            {/* Order is only truly "done" once collected (pickup) or actually
+                delivered (delivery) — asking for a review before that would
+                be asking someone mid-wait, not someone who just got served. */}
+            {reviewUrl && st === "printed" && (!isDeliveryOrder || delivered) && (
+              <a
+                className="btn-secondary result-screen-link result-screen-review"
+                href={reviewUrl}
+                target="_blank"
+                rel="noreferrer"
+              >
+                <Star size={16} aria-hidden="true" /> Rate us on Google
+              </a>
             )}
           </div>
         );
