@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPricing, updatePricing } from "@/lib/db";
 import { requireAdminResponse } from "@/lib/security";
+import { validateServiceAreaConfig } from "@/lib/service-area";
 
 export async function GET() {
   const unauthorized = await requireAdminResponse();
@@ -25,6 +26,15 @@ export async function PUT(request: NextRequest) {
       }
     }
 
+    let serviceArea = (await getPricing()).serviceArea;
+    if (body.serviceArea !== undefined) {
+      const validated = validateServiceAreaConfig(body.serviceArea);
+      if ("error" in validated) {
+        return NextResponse.json({ error: validated.error }, { status: 400 });
+      }
+      serviceArea = validated.config;
+    }
+
     await updatePricing({
       bwPerPagePaise: body.bwPerPagePaise,
       colorPerPagePaise: body.colorPerPagePaise,
@@ -39,7 +49,8 @@ export async function PUT(request: NextRequest) {
       photoMultiplier: body.photoMultiplier,
       duplexBwPerPagePaise: body.duplexBwPerPagePaise,
       expiryMinutes: body.expiryMinutes,
-      deliveryFeePaise: body.deliveryFeePaise
+      deliveryFeePaise: body.deliveryFeePaise,
+      serviceArea
     });
 
     return NextResponse.json(await getPricing());
