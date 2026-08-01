@@ -5507,6 +5507,7 @@
   }
   .job-pay-row button {
     flex: 0 1 auto;
+    width: auto;
     min-height: 38px;
     padding: 8px 10px;
   }
