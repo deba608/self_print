@@ -155,7 +155,7 @@
 .mini-track {
   width: 100%;
   max-width: 340px;
-  margin: 4px auto 14px;
+  margin: 0 auto 18px;
   padding: 14px 16px;
   background: #fff;
   border: 1px solid var(--line);

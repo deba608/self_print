@@ -2452,7 +2452,7 @@ input, select, button {
 .result-screen > .btn-secondary {
   width: fit-content;
   min-width: 180px;
-  margin: 0 auto;
+  margin: 18px auto 0;
 }
 
 .result-success {
@@ -2897,7 +2897,7 @@ button.upi-pay-btn:disabled {
 /* Result screen action link (Upload Another) — Track this order now lives
    in the live-status card header instead (see .mini-track-view). */
 .result-screen-link {
-  margin-top: 0.75rem;
+  margin-top: 18px;
 }
 
 /* "Rate us on Google" — its own tinted panel with a one-line prompt, not
@@ -2909,10 +2909,9 @@ button.upi-pay-btn:disabled {
   flex-direction: column;
   align-items: center;
   gap: 10px;
-  width: fit-content;
-  min-width: 260px;
+  width: 100%;
   max-width: 340px;
-  margin: 20px auto 0;
+  margin: 0 auto 18px;
   padding: 16px;
   background: #fffbeb;
   border: 1px solid rgba(146, 64, 14, 0.18);
