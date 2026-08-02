@@ -266,7 +266,7 @@ export async function POST(request: NextRequest) {
     if (duplex !== "simplex" && selectedPageCount(pageCount, pageRange) < 2) {
       return NextResponse.json({ error: "Double-sided printing requires a document with at least 2 pages." }, { status: 400 });
     }
-    const printPricePaise = calculatePrice({ printType, copies, pageRange, paperSize, pageCount: Math.max(pageCount, 1), pricing, duplex });
+    const printPricePaise = calculatePrice({ printType, copies, pageRange, paperSize, pageCount: Math.max(pageCount, 1), pricing, duplex, pagesPerSheet });
     const deliveryFeePaise = deliveryMethod === "delivery" ? pricing.deliveryFeePaise : 0;
     const pricePaise = printPricePaise + deliveryFeePaise;
     const token = await randomToken();
@@ -471,7 +471,7 @@ async function handleBulk(form: FormData, customerUserId: string | null): Promis
   if (duplex !== "simplex" && pageCount < 2) {
     return NextResponse.json({ error: "Double-sided printing requires at least 2 pages." }, { status: 400 });
   }
-  const printPricePaise = calculatePrice({ printType, copies, pageRange: null, paperSize, pageCount: Math.max(pageCount, 1), pricing, duplex });
+  const printPricePaise = calculatePrice({ printType, copies, pageRange: null, paperSize, pageCount: Math.max(pageCount, 1), pricing, duplex, pagesPerSheet });
   const deliveryFeePaise = deliveryMethod === "delivery" ? pricing.deliveryFeePaise : 0;
   const pricePaise = printPricePaise + deliveryFeePaise;
   const token = await randomToken();

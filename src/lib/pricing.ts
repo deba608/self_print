@@ -40,6 +40,7 @@ export function calculatePrice(input: {
   pageCount: number;
   pricing: PricingConfig;
   duplex?: PrintDuplex;
+  pagesPerSheet?: number;
 }) {
   const selectedPages = selectedPageCount(input.pageCount, input.pageRange);
   const copies = Math.max(1, input.copies);
@@ -47,19 +48,24 @@ export function calculatePrice(input: {
     return Math.round(input.pricing.photoPrintPaise * copies);
   }
 
+  // N-up printing (pagesPerSheet > 1) crams multiple document pages onto one
+  // printed side, so the shop only consumes ceil(pages / pagesPerSheet)
+  // physical sides — that's what must be billed, not the raw page count.
+  const sides = Math.ceil(selectedPages / Math.max(1, Math.floor(input.pagesPerSheet ?? 1)));
+
   const isDuplex = input.duplex && input.duplex !== "simplex";
   const baseSimplex = input.printType === "bw" ? input.pricing.bwPerPagePaise : input.pricing.colorPerPagePaise;
   const baseDuplex = input.printType === "bw" ? input.pricing.duplexBwPerPagePaise : input.pricing.colorPerPagePaise;
 
-  // Customers pay exactly the advertised per-page rate — no hidden multiplier.
-  // Duplex full pairs use the duplex rate; a trailing odd page prints
-  // single-sided and costs the simplex rate.
+  // Customers pay exactly the advertised per-side rate — no hidden multiplier.
+  // Duplex full pairs (of sides) use the duplex rate; a trailing odd side
+  // prints single-sided and costs the simplex rate.
   let pageCostSum = 0;
   if (!isDuplex) {
-    pageCostSum = baseSimplex * selectedPages;
+    pageCostSum = baseSimplex * sides;
   } else {
-    const doubleSidedPages = Math.floor(selectedPages / 2) * 2;
-    const singleSidedPages = selectedPages % 2;
+    const doubleSidedPages = Math.floor(sides / 2) * 2;
+    const singleSidedPages = sides % 2;
     pageCostSum = (baseDuplex * doubleSidedPages) + (baseSimplex * singleSidedPages);
   }
 

@@ -79,7 +79,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   }
   const pricing = await getPricing();
   const pricePaise =
-    calculatePrice({ printType, copies, pageRange, paperSize, pageCount, pricing, duplex }) +
+    calculatePrice({ printType, copies, pageRange, paperSize, pageCount, pricing, duplex, pagesPerSheet }) +
     (existing.deliveryMethod === "delivery" ? existing.deliveryFeePaise : 0);
   const now = new Date().toISOString();
 

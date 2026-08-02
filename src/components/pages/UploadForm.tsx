@@ -500,13 +500,16 @@ export default function UploadForm() {
     const baseDuplex = (isDuplex && pricing.duplexBwPerPagePaise && printType === "bw") ? pricing.duplexBwPerPagePaise
       : printType === "bw" ? pricing.bwPerPagePaise : pricing.colorPerPagePaise;
 
-    // Mirrors calculatePrice: pay exactly the advertised per-page rate.
+    // N-up printing (pagesPerSheet > 1) crams multiple document pages onto one
+    // printed side, so only ceil(pages / pagesPerSheet) physical sides get
+    // billed — mirrors calculatePrice server-side.
+    const sides = Math.ceil(pages / Math.max(1, pagesPerSheet));
     let pageCostSum = 0;
     if (!isDuplex) {
-      pageCostSum = baseSimplex * pages;
+      pageCostSum = baseSimplex * sides;
     } else {
-      const doubleSidedPages = Math.floor(pages / 2) * 2;
-      const singleSidedPages = pages % 2;
+      const doubleSidedPages = Math.floor(sides / 2) * 2;
+      const singleSidedPages = sides % 2;
       pageCostSum = (baseDuplex * doubleSidedPages) + (baseSimplex * singleSidedPages);
     }
 
@@ -524,7 +527,7 @@ export default function UploadForm() {
     const printCost = Math.round(pageCostSum * copies * paperMultiplier * pricing.copyMultiplier) / 100;
     const deliveryFee = deliveryMethod === "delivery" ? pricing.deliveryFeePaise / 100 : 0;
     return printCost + deliveryFee;
-  }, [copies, selectedPages, paperSize, printType, pricing, duplex, isBulk, bulkTotalPages, deliveryMethod]);
+  }, [copies, selectedPages, paperSize, printType, pricing, duplex, isBulk, bulkTotalPages, deliveryMethod, pagesPerSheet]);
 
   // Physical sheets of paper per copy: pages are grouped pagesPerSheet-per-side,
   // and duplex halves the sheet count (rounded up for a trailing odd side).
