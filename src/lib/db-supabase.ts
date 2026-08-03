@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import crypto from 'node:crypto';
-import type { CustomerManagementRow, Job, JobFile, PricingConfig, PrinterOption, SseClient } from './types';
-import { FILE_RETENTION_DAYS, CART_ABANDON_MINUTES, LOGIN_EVENT_RETENTION_DAYS } from './config';
+import type { CustomerManagementRow, Job, JobFile, PricingConfig, PrinterOption, RetentionConfig, SseClient } from './types';
+import { FILE_RETENTION_DAYS, CART_ABANDON_MINUTES, LOGIN_EVENT_RETENTION_DAYS, STRAY_FILE_RETENTION_HOURS } from './config';
 import { DEFAULT_SERVICE_AREA, parseServiceAreaConfig, serializeServiceAreaConfig } from './service-area';
 import { chunk } from './util';
 
@@ -652,6 +652,47 @@ export async function updatePricing(pricing: PricingConfig) {
   if (error) throw error;
 }
 
+const RETENTION_DEFAULTS: RetentionConfig = {
+  cartAbandonMinutes: CART_ABANDON_MINUTES,
+  fileRetentionDays: FILE_RETENTION_DAYS,
+  strayFileRetentionHours: STRAY_FILE_RETENTION_HOURS,
+  loginEventRetentionDays: LOGIN_EVENT_RETENTION_DAYS,
+};
+
+export async function getRetentionConfig(): Promise<RetentionConfig> {
+  const { data, error } = await supabase
+    .from('retention_config')
+    .select('*')
+    .eq('id', 1)
+    .single();
+
+  if (error) {
+    if ((error as any).code === 'PGRST116') return RETENTION_DEFAULTS;
+    throw error;
+  }
+
+  return {
+    cartAbandonMinutes: data.cart_abandon_minutes ?? RETENTION_DEFAULTS.cartAbandonMinutes,
+    fileRetentionDays: data.file_retention_days ?? RETENTION_DEFAULTS.fileRetentionDays,
+    strayFileRetentionHours: data.stray_file_retention_hours ?? RETENTION_DEFAULTS.strayFileRetentionHours,
+    loginEventRetentionDays: data.login_event_retention_days ?? RETENTION_DEFAULTS.loginEventRetentionDays,
+  };
+}
+
+export async function updateRetentionConfig(config: RetentionConfig): Promise<void> {
+  const { error } = await supabase
+    .from('retention_config')
+    .upsert({
+      id: 1,
+      cart_abandon_minutes: config.cartAbandonMinutes,
+      file_retention_days: config.fileRetentionDays,
+      stray_file_retention_hours: config.strayFileRetentionHours,
+      login_event_retention_days: config.loginEventRetentionDays,
+      updated_at: new Date().toISOString(),
+    });
+  if (error) throw error;
+}
+
 export async function getAgentConfig() {
   const { data, error } = await supabase
     .from('agent_config')
@@ -805,9 +846,10 @@ export async function bulkDeleteJobs(ids: string[]) {
 const PRINTING_LEASE_MINUTES = 10;
 
 export async function cleanupOldJobs(): Promise<{ deleted: number; storagePaths: string[] }> {
-  const abandonedCutoff = new Date(Date.now() - CART_ABANDON_MINUTES * 60000).toISOString();
+  const retention = await getRetentionConfig();
+  const abandonedCutoff = new Date(Date.now() - retention.cartAbandonMinutes * 60000).toISOString();
   const leaseCutoff = new Date(Date.now() - PRINTING_LEASE_MINUTES * 60000).toISOString();
-  const fileRetentionCutoff = new Date(Date.now() - FILE_RETENTION_DAYS * 24 * 60 * 60000).toISOString();
+  const fileRetentionCutoff = new Date(Date.now() - retention.fileRetentionDays * 24 * 60 * 60000).toISOString();
   const now = new Date().toISOString();
 
   // Reset stale "printing" leases — agent crashed before completing.
@@ -881,7 +923,7 @@ export async function cleanupOldJobs(): Promise<{ deleted: number; storagePaths:
   }
 
   // Auth audit log retention — independent of order-history retention.
-  const loginEventCutoff = new Date(Date.now() - LOGIN_EVENT_RETENTION_DAYS * 24 * 60 * 60000).toISOString();
+  const loginEventCutoff = new Date(Date.now() - retention.loginEventRetentionDays * 24 * 60 * 60000).toISOString();
   const { error: loginPurgeErr } = await supabase
     .from('admin_login_events')
     .delete()

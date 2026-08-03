@@ -36,3 +36,21 @@ describe("logCleanupRun (SQLite)", () => {
     expect(rows[0].ran_at).toBeTruthy();
   });
 });
+
+describe("getRetentionConfig", () => {
+  let db: typeof import("./db");
+  beforeAll(async () => {
+    db = await import("./db");
+    await db.ensureDatabase();
+  });
+
+  it("returns sane defaults when no row exists yet", async () => {
+    const cfg = await db.getRetentionConfig();
+    expect(cfg).toEqual({
+      cartAbandonMinutes: 1440,
+      fileRetentionDays: 3,
+      strayFileRetentionHours: 2,
+      loginEventRetentionDays: 365,
+    });
+  });
+});

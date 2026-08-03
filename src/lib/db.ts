@@ -1,5 +1,5 @@
-import type { CustomerManagementRow, Job, JobFile, PricingConfig, PrinterOption, SseClient } from './types';
-import { FILE_RETENTION_DAYS, CART_ABANDON_MINUTES } from './config';
+import type { CustomerManagementRow, Job, JobFile, PricingConfig, PrinterOption, RetentionConfig, SseClient } from './types';
+import { FILE_RETENTION_DAYS, CART_ABANDON_MINUTES, STRAY_FILE_RETENTION_HOURS, LOGIN_EVENT_RETENTION_DAYS } from './config';
 import { chunk } from './util';
 import { parseServiceAreaConfig, serializeServiceAreaConfig } from './service-area';
 
@@ -167,6 +167,15 @@ async function initSchema(database: any) {
       event_type TEXT NOT NULL,
       message TEXT,
       created_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS retention_config (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      cart_abandon_minutes INTEGER NOT NULL DEFAULT 1440,
+      file_retention_days INTEGER NOT NULL DEFAULT 3,
+      stray_file_retention_hours INTEGER NOT NULL DEFAULT 2,
+      login_event_retention_days INTEGER NOT NULL DEFAULT 365,
+      updated_at TEXT
     );
 
     CREATE TABLE IF NOT EXISTS cleanup_events (
@@ -921,6 +930,54 @@ export async function updatePricing(pricing: PricingConfig): Promise<void> {
   );
 }
 
+const RETENTION_DEFAULTS: RetentionConfig = {
+  cartAbandonMinutes: CART_ABANDON_MINUTES,
+  fileRetentionDays: FILE_RETENTION_DAYS,
+  strayFileRetentionHours: STRAY_FILE_RETENTION_HOURS,
+  loginEventRetentionDays: LOGIN_EVENT_RETENTION_DAYS,
+};
+
+export async function getRetentionConfig(): Promise<RetentionConfig> {
+  if (isSupabase) {
+    const mod = await import('./db-supabase');
+    return mod.getRetentionConfig();
+  }
+
+  const sqlite = await getDbInstance();
+  const row = sqlite.prepare('SELECT * FROM retention_config WHERE id = 1').get() as Record<string, number> | undefined;
+  if (!row) return RETENTION_DEFAULTS;
+
+  return {
+    cartAbandonMinutes: row.cart_abandon_minutes ?? RETENTION_DEFAULTS.cartAbandonMinutes,
+    fileRetentionDays: row.file_retention_days ?? RETENTION_DEFAULTS.fileRetentionDays,
+    strayFileRetentionHours: row.stray_file_retention_hours ?? RETENTION_DEFAULTS.strayFileRetentionHours,
+    loginEventRetentionDays: row.login_event_retention_days ?? RETENTION_DEFAULTS.loginEventRetentionDays,
+  };
+}
+
+export async function updateRetentionConfig(config: RetentionConfig): Promise<void> {
+  if (isSupabase) {
+    const mod = await import('./db-supabase');
+    return mod.updateRetentionConfig(config);
+  }
+
+  const sqlite = await getDbInstance();
+  const now = new Date().toISOString();
+  sqlite.prepare(`
+    INSERT INTO retention_config (id, cart_abandon_minutes, file_retention_days, stray_file_retention_hours, login_event_retention_days, updated_at)
+    VALUES (1, ?, ?, ?, ?, ?)
+    ON CONFLICT(id) DO UPDATE SET
+      cart_abandon_minutes = excluded.cart_abandon_minutes,
+      file_retention_days = excluded.file_retention_days,
+      stray_file_retention_hours = excluded.stray_file_retention_hours,
+      login_event_retention_days = excluded.login_event_retention_days,
+      updated_at = excluded.updated_at
+  `).run(
+    config.cartAbandonMinutes, config.fileRetentionDays, config.strayFileRetentionHours,
+    config.loginEventRetentionDays, now
+  );
+}
+
 export async function getAgentConfig() {
   if (isSupabase) {
     const mod = await import('./db-supabase');
@@ -1091,9 +1148,10 @@ export async function cleanupOldJobs(): Promise<{ deleted: number; storagePaths:
   }
 
   const sqlite = await getDbInstance();
-  const abandonedCutoff = new Date(Date.now() - CART_ABANDON_MINUTES * 60000).toISOString();
+  const retention = await getRetentionConfig();
+  const abandonedCutoff = new Date(Date.now() - retention.cartAbandonMinutes * 60000).toISOString();
   const leaseCutoff = new Date(Date.now() - PRINTING_LEASE_MINUTES * 60000).toISOString();
-  const fileRetentionCutoff = new Date(Date.now() - FILE_RETENTION_DAYS * 24 * 60 * 60000).toISOString();
+  const fileRetentionCutoff = new Date(Date.now() - retention.fileRetentionDays * 24 * 60 * 60000).toISOString();
   const now = new Date().toISOString();
 
   // Reset stale "printing" leases — agent crashed before completing.
