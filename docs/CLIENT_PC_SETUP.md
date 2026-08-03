@@ -76,44 +76,22 @@ printer.
 1. **Install Node.js** — download the **LTS** version from
    [nodejs.org](https://nodejs.org), run the installer, click through
    Next/Next/Finish (defaults are fine).
-2. **Get the project files onto the PC** — either `git clone` this repo, or
-   copy the folder over (USB / network share). Any location is fine, e.g.
-   `C:\SelfPrint`.
-3. **Configure the agent** — copy `agent\config.example.json` to
-   `agent\config.json` and fill in:
-   ```json
-   {
-     "supabaseUrl": "https://your-project.supabase.co",
-     "supabaseKey": "your-service-role-key",
-     "tempDir": "./agent-temp",
-     "maxRetries": 3,
-     "fallbackPrinter": "Exact Windows printer name"
-   }
-   ```
-   - `supabaseUrl` / `supabaseKey`: same Supabase project from Step 1 — the
-     `service_role` key, not the anon key (the agent needs full access to
-     read/update jobs directly, bypassing the browser-facing API).
-   - `fallbackPrinter`: the printer's exact name as Windows shows it —
-     open **Settings → Bluetooth & devices → Printers & scanners** and copy
-     the name exactly (case and spacing matter).
-4. **Start the printer service** — double-click `agent\START-PRINTER.bat`.
-   - First run installs dependencies automatically (2–5 min, one-time; needs
-     internet for this step only).
-   - It checks Node is installed and `config.json` exists, and tells you
-     plainly what's wrong if not.
-   - When you see **"Connected"**, the agent is live and watching for jobs.
-   - **Keep this window open** — closing it stops printing. It also
-     auto-restarts itself if it crashes.
-5. **Make it start automatically on boot** — right-click
-   `agent\INSTALL-AUTOSTART.bat` → **Run as administrator**, run it once.
-   This registers a hidden Windows scheduled task so the agent starts
-   silently every time the PC turns on — no need to keep a window open or
-   remember to launch it after a restart or power cut.
-   - For this to be fully hands-off, also turn on **Windows auto-login** for
-     that PC's user account (Settings → Accounts → Sign-in options, or ask
-     whoever set up the PC) — otherwise the scheduled task still waits for
-     someone to log in first.
-6. **Test it end-to-end**: scan the shop QR code on your phone, upload a
+2. **Get the delivery zip from the developer** — you should receive a file
+   called `selfprint-agent.zip`. Copy it to the shop PC.
+3. **Unzip the pre-packaged agent folder** you received from the developer
+   (`selfprint-agent.zip`) — anywhere, e.g. `C:\SelfPrint`. It already
+   contains everything needed: dependencies, and `agent\config.json`
+   pre-filled with this shop's real Supabase credentials. Nothing to edit.
+4. **Double-click `agent\SETUP.bat`** — this single script checks Node is
+   installed, registers the printer service to start automatically every
+   time this computer turns on, and starts it immediately. Click "Yes" if
+   Windows asks for administrator permission.
+   - When you see **"DONE!"**, the printer service is live — no window
+     needs to stay open.
+   - For this to be fully hands-free, also turn on **Windows auto-login**
+     for that PC's user account (Settings → Accounts → Sign-in options) —
+     otherwise the scheduled task still waits for someone to log in first.
+5. **Test it end-to-end**: scan the shop QR code on your phone, upload a
    test file, have staff approve it from `/admin`, and confirm it prints.
    `agent\TEST-PRINTER.bat` also sends a one-off test page directly, useful
    for checking the printer connection without going through the full flow.
@@ -186,7 +164,7 @@ still needs the shop's own Wi-Fi to reach this PC.
 ## Day-to-day operation (either path)
 
 - **Printer service window** (Path A/B): must stay running. If it's closed,
-  reopen `agent\START-PRINTER.bat`. With autostart installed, a reboot fixes
+  reopen `agent\SETUP.bat`. With autostart installed, a reboot fixes
   it by itself.
 - **If printing stops working**: check the printer service window for a
   "[PROBLEM]" message — it's written in plain language for non-technical
@@ -203,7 +181,7 @@ still needs the shop's own Wi-Fi to reach this PC.
 | Symptom | Likely cause | Fix |
 |---|---|---|
 | "Node.js is not installed" | Node wasn't installed, or PATH wasn't refreshed | Install Node LTS, reboot, retry |
-| "Missing file: agent\config.json" | Config not copied/filled in | Copy `agent/config.example.json` → `config.json`, fill in Supabase keys |
+| "Missing file: agent\config.json" | The `selfprint-agent.zip` wasn't fully extracted | Make sure you extracted the entire `selfprint-agent.zip` to the shop PC; the config is pre-filled inside |
 | Agent runs but nothing prints | Wrong `fallbackPrinter` name | Re-check exact printer name in Windows Settings → Printers & scanners |
 | Customers can't reach the site (Path B) | Wrong IP, firewall blocking, or phone not on same Wi-Fi | Recheck `ipconfig`, allow Node.js through Windows Firewall, confirm same network |
 | Staff can't log in (Path B) | Local SQLite mode has no login by design | Expected — see `docs/LOCAL_DEV_AUTH.md`, or switch to Path A |
