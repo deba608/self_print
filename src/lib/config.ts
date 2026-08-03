@@ -36,6 +36,11 @@ export const STRAY_FILE_RETENTION_HOURS = Number(process.env.STRAY_FILE_RETENTIO
 // job_files metadata (filename, page count, price) are kept forever so order
 // history and receipts remain available — only the actual file content is deleted.
 export const FILE_RETENTION_DAYS = Number(process.env.FILE_RETENTION_DAYS ?? 3);
+// Staff login-event history (admin_login_events) is purged after this many
+// days. Job/order history is kept forever by design (see FILE_RETENTION_DAYS
+// comment above) — this constant applies only to auth audit log rows, which
+// carry no customer order data.
+export const LOGIN_EVENT_RETENTION_DAYS = Number(process.env.LOGIN_EVENT_RETENTION_DAYS ?? 365);
 
 // Warn in production if security-critical secrets are unset or still on dev defaults.
 // Skip during Next.js build (NEXT_PHASE=phase-production-build) — env vars may not

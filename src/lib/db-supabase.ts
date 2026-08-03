@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import crypto from 'node:crypto';
 import type { CustomerManagementRow, Job, JobFile, PricingConfig, PrinterOption, SseClient } from './types';
-import { FILE_RETENTION_DAYS, CART_ABANDON_MINUTES } from './config';
+import { FILE_RETENTION_DAYS, CART_ABANDON_MINUTES, LOGIN_EVENT_RETENTION_DAYS } from './config';
 import { DEFAULT_SERVICE_AREA, parseServiceAreaConfig, serializeServiceAreaConfig } from './service-area';
 import { chunk } from './util';
 
@@ -879,6 +879,14 @@ export async function cleanupOldJobs(): Promise<{ deleted: number; storagePaths:
       }
     }
   }
+
+  // Auth audit log retention — independent of order-history retention.
+  const loginEventCutoff = new Date(Date.now() - LOGIN_EVENT_RETENTION_DAYS * 24 * 60 * 60000).toISOString();
+  const { error: loginPurgeErr } = await supabase
+    .from('admin_login_events')
+    .delete()
+    .lt('logged_at', loginEventCutoff);
+  if (loginPurgeErr) throw loginPurgeErr;
 
   return { deleted: abandonedIds.length, storagePaths };
 }
