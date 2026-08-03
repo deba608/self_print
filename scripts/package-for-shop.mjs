@@ -25,11 +25,53 @@ if (!config.supabaseUrl || config.supabaseUrl.includes('your-project') || !confi
   process.exit(1);
 }
 
-// node_modules must be a full install (not --omit=dev): tsx (needed by
-// `npm run agent`) lives in devDependencies.
-const tsxBin = path.join(root, 'node_modules', '.bin', 'tsx.cmd');
+// agent/src/index.ts only imports @supabase/supabase-js, sharp, and
+// @hyzyla/pdfium (plus Node builtins) — everything else in the repo's
+// node_modules (Next.js, React, Razorpay, Leaflet, pdfjs-dist, Vitest, ...)
+// is there for the web app, not the agent, and was previously copied
+// wholesale into every delivery zip for no reason. Building a separate,
+// minimal node_modules containing only what the agent actually runs (plus
+// tsx, which executes it) cuts the zip from ~190MB of mostly-unused
+// dependencies down to just the native binaries (sharp/pdfium) it needs.
+// Versions are pinned to whatever's currently locked in the main
+// package-lock.json, so this never silently drifts from what's actually
+// been tested against.
+console.log('Resolving pinned versions for the agent\'s actual runtime deps...');
+const lock = JSON.parse(await import('fs/promises').then(m => m.readFile(path.join(root, 'package-lock.json'), 'utf8')));
+const AGENT_DEPS = ['@supabase/supabase-js', 'sharp', '@hyzyla/pdfium', 'tsx'];
+const pinned = {};
+for (const dep of AGENT_DEPS) {
+  const entry = lock.packages[`node_modules/${dep}`];
+  if (!entry) {
+    console.error(`Could not find "${dep}" in package-lock.json — has agent/src/index.ts started importing something new? Update AGENT_DEPS in scripts/package-for-shop.mjs.`);
+    process.exit(1);
+  }
+  pinned[dep] = entry.version;
+}
+
+const buildDir = path.join(root, 'dist-shop-package', '.agent-deps-build');
+mkdirSync(buildDir, { recursive: true });
+writeFileSync(path.join(buildDir, 'package.json'), JSON.stringify({
+  name: 'selfprint-agent',
+  private: true,
+  scripts: { agent: 'tsx agent/src/index.ts' },
+  dependencies: pinned
+}, null, 2));
+
+console.log(`Installing minimal agent-only dependencies (${Object.entries(pinned).map(([k, v]) => `${k}@${v}`).join(', ')})...`);
+// npm.cmd on Windows is a shell script, not a real executable — needs shell:true
+// to spawn. Args are fixed literals (no user input), so shell:true is safe here
+// despite Node's generic deprecation warning about that combination.
+const npmCmd = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+if (process.platform === 'win32') {
+  execFileSync(`${npmCmd} install --no-audit --no-fund`, { cwd: buildDir, stdio: 'inherit', shell: true });
+} else {
+  execFileSync(npmCmd, ['install', '--no-audit', '--no-fund'], { cwd: buildDir, stdio: 'inherit' });
+}
+
+const tsxBin = path.join(buildDir, 'node_modules', '.bin', 'tsx.cmd');
 if (!existsSync(tsxBin)) {
-  console.error('node_modules/.bin/tsx.cmd not found — run a plain "npm install" (not --omit=dev) before packaging.');
+  console.error('node_modules/.bin/tsx.cmd not found after install — something went wrong building the minimal dependency set.');
   process.exit(1);
 }
 
@@ -40,10 +82,11 @@ if (!existsSync(tsxBin)) {
 // they're meant to click, plus a README. Burying node_modules and a dozen
 // support files behind one extra folder is what keeps that first screen
 // readable for someone who isn't a developer.
-console.log('Copying package.json, package-lock.json, node_modules, agent/ into engine/...');
-cpSync(path.join(root, 'package.json'), path.join(engineDir, 'package.json'));
-cpSync(path.join(root, 'package-lock.json'), path.join(engineDir, 'package-lock.json'));
-cpSync(path.join(root, 'node_modules'), path.join(engineDir, 'node_modules'), { recursive: true });
+console.log('Copying minimal package.json/package-lock.json/node_modules, and agent/, into engine/...');
+cpSync(path.join(buildDir, 'package.json'), path.join(engineDir, 'package.json'));
+cpSync(path.join(buildDir, 'package-lock.json'), path.join(engineDir, 'package-lock.json'));
+cpSync(path.join(buildDir, 'node_modules'), path.join(engineDir, 'node_modules'), { recursive: true });
+rmSync(buildDir, { recursive: true, force: true });
 cpSync(path.join(root, 'agent'), path.join(engineDir, 'agent'), {
   recursive: true,
   // agent.log / agent.log.old are this dev machine's own run history —
