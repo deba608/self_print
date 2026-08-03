@@ -131,13 +131,13 @@ async function JobsList({ filter, limit }: { filter: Filter; limit: number }) {
   // job_files doesn't block it. This is safe: we only look up files for
   // job IDs that were already returned for the authenticated user above.
   const jobIds = jobs.map((j: any) => j.id);
-  let filesMap: Record<string, { id: string; original_name: string; storage_path: string; purged_at: string | null }[]> = {};
+  let filesMap: Record<string, { id: string; original_name: string; mime_type: string | null; storage_path: string; purged_at: string | null }[]> = {};
   if (jobIds.length > 0) {
     try {
       const adminClient = createAdminClient();
       const { data: filesData } = await adminClient
         .from("job_files")
-        .select("id, job_id, original_name, storage_path, purged_at")
+        .select("id, job_id, original_name, mime_type, storage_path, purged_at")
         .in("job_id", jobIds);
       if (filesData) {
         for (const f of filesData as any[]) {
@@ -251,7 +251,11 @@ async function JobsList({ filter, limit }: { filter: Filter; limit: number }) {
                       <span className="jobs-file-count">+{files.length - 1} more</span>
                     )}
                     {!isPurged && firstFile && (
-                      <JobFileViewButton fileId={firstFile.id} />
+                      <JobFileViewButton
+                        fileId={firstFile.id}
+                        fileName={firstFile.original_name}
+                        mimeType={firstFile.mime_type}
+                      />
                     )}
                   </div>
 
