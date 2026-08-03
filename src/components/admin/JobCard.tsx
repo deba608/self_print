@@ -21,7 +21,8 @@ function JobCard({
   onAction,
   onView,
   actionLoading,
-  onNotify
+  onNotify,
+  printerCanDuplex
 }: {
   job: Job;
   selectionIndex: number;   // 0 = not selected; 1+ = print order position
@@ -31,6 +32,9 @@ function JobCard({
   onView: (jobId: string) => void;
   actionLoading: boolean;
   onNotify: (kind: "ok" | "err", msg: string) => void;
+  // Whether the printer currently assigned to this job's mode (B/W or Color)
+  // supports duplex. Undefined = unknown (printer list not loaded yet) — no warning shown.
+  printerCanDuplex?: boolean;
 }) {
   const isSelected = selectionIndex > 0;
   // Print-progress status only — payment is tracked separately via job.paidAt
@@ -112,6 +116,13 @@ function JobCard({
             <span>{new Date(job.createdAt).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "2-digit" })} at {new Date(job.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
           </div>
         </div>
+
+        {job.duplex !== "simplex" && printerCanDuplex === false && (
+          <div className="job-warning">
+            <AlertTriangle size={14} aria-hidden="true" />
+            Double-sided job, but the assigned printer doesn't support duplex — will fail to print
+          </div>
+        )}
 
         {job.needsConversion === 1 && (
           <div className="job-warning">

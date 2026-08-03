@@ -63,9 +63,10 @@ export default function UserNavbar() {
     window.location.href = "/login";
   };
 
-  const activeTab = navItems.find((item) =>
+  const activeIndex = navItems.findIndex((item) =>
     item.href === "/" ? pathname === "/" : pathname.startsWith(item.href)
-  )?.href;
+  );
+  const activeTab = activeIndex >= 0 ? navItems[activeIndex].href : undefined;
   const showBottomNav = activeTab !== undefined;
 
   return (
@@ -149,6 +150,11 @@ export default function UserNavbar() {
       {showBottomNav && (
         <nav className="user-bottom-nav" aria-label="Primary navigation">
           <div className="user-bottom-nav-inner">
+            <div
+              className="user-bottom-nav-indicator"
+              style={{ transform: `translateX(${activeIndex * 100}%)` }}
+              aria-hidden="true"
+            />
             {navItems.map(({ href, label, icon: Icon }) => (
               <Link
                 key={href}

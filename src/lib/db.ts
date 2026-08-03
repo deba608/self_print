@@ -149,6 +149,7 @@ async function initSchema(database: any) {
       driver_name TEXT NOT NULL,
       port_name TEXT NOT NULL,
       is_default INTEGER NOT NULL DEFAULT 0,
+      can_duplex INTEGER NOT NULL DEFAULT 0,
       seen_at TEXT NOT NULL
     );
 
@@ -172,6 +173,7 @@ async function initSchema(database: any) {
   await ensurePricingColumns(database);
   await ensureJobFileColumns(database);
   await ensureAgentConfigColumns(database);
+  await ensureAgentPrinterColumns(database);
   database.exec(`CREATE INDEX IF NOT EXISTS idx_jobs_status ON jobs(status)`);
   database.exec(`CREATE INDEX IF NOT EXISTS idx_jobs_created ON jobs(created_at)`);
   database.exec(`CREATE INDEX IF NOT EXISTS idx_jobs_queue ON jobs(queue_position)`);
@@ -236,6 +238,15 @@ async function ensureAgentConfigColumns(database: any) {
     if (!columns.has(name)) {
       database.prepare(`ALTER TABLE agent_config ADD COLUMN ${name} TEXT`).run();
     }
+  }
+}
+
+async function ensureAgentPrinterColumns(database: any) {
+  const columns = new Set(
+    (database.prepare('PRAGMA table_info(agent_printers)').all() as Array<{ name: string }>).map((column) => column.name)
+  );
+  if (!columns.has('can_duplex')) {
+    database.prepare(`ALTER TABLE agent_printers ADD COLUMN can_duplex INTEGER NOT NULL DEFAULT 0`).run();
   }
 }
 
@@ -951,16 +962,17 @@ export async function replaceAgentPrinters(printers: Array<Omit<PrinterOption, '
     // Upsert (not delete-all) so multiple agents sharing this DB don't wipe each
     // other's printers — the admin sees the union of all live machines.
     const upsert = sqlite.prepare(`
-      INSERT INTO agent_printers (name, driver_name, port_name, is_default, seen_at)
-      VALUES (?, ?, ?, ?, ?)
+      INSERT INTO agent_printers (name, driver_name, port_name, is_default, can_duplex, seen_at)
+      VALUES (?, ?, ?, ?, ?, ?)
       ON CONFLICT(name) DO UPDATE SET
         driver_name = excluded.driver_name,
         port_name = excluded.port_name,
         is_default = excluded.is_default,
+        can_duplex = excluded.can_duplex,
         seen_at = excluded.seen_at
     `);
     for (const printer of printers) {
-      upsert.run(printer.name, printer.driverName, printer.portName, printer.isDefault ? 1 : 0, now);
+      upsert.run(printer.name, printer.driverName, printer.portName, printer.isDefault ? 1 : 0, printer.canDuplex ? 1 : 0, now);
     }
     // Drop printers no agent has reported for 5 min (machine offline / removed).
     sqlite.prepare('DELETE FROM agent_printers WHERE seen_at < ?').run(cutoff);
@@ -977,7 +989,7 @@ export async function getAgentPrinters(): Promise<PrinterOption[]> {
   // Hide printers no agent has reported recently (stale machine).
   const cutoff = new Date(Date.now() - 5 * 60 * 1000).toISOString();
   const rows = sqlite.prepare(`
-    SELECT name, driver_name, port_name, is_default, seen_at
+    SELECT name, driver_name, port_name, is_default, can_duplex, seen_at
     FROM agent_printers
     WHERE seen_at >= ?
     ORDER BY is_default DESC, name COLLATE NOCASE ASC
@@ -987,6 +999,7 @@ export async function getAgentPrinters(): Promise<PrinterOption[]> {
     driverName: String(row.driver_name),
     portName: String(row.port_name),
     isDefault: Boolean(row.is_default),
+    canDuplex: Boolean(row.can_duplex),
     seenAt: String(row.seen_at)
   }));
 }

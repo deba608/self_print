@@ -1456,6 +1456,15 @@
   color: var(--accent);
 }
 
+.no-duplex-tag {
+  padding: 4px 10px;
+  background: rgba(220, 38, 38, 0.1);
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #dc2626;
+}
+
 .printer-check {
   width: 28px;
   height: 28px;
@@ -1891,7 +1900,12 @@
 
 .job-card.printed {
   border-left: 3px solid var(--ok);
-  opacity: 0.75;
+  background: rgba(21, 128, 61, 0.06);
+  border-color: rgba(21, 128, 61, 0.18);
+}
+.job-card.printed:hover {
+  background: rgba(21, 128, 61, 0.09);
+  border-color: rgba(21, 128, 61, 0.24);
 }
 
 /* Left column of the /my-jobs card (token, date, print summary). Its own

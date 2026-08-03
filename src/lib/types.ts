@@ -147,6 +147,7 @@ export type PrinterOption = {
   driverName: string;
   portName: string;
   isDefault: boolean;
+  canDuplex: boolean;
   seenAt: string;
 };
 

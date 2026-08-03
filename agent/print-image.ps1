@@ -23,6 +23,43 @@ $doc = New-Object System.Drawing.Printing.PrintDocument
 $doc.PrinterSettings.PrinterName = $Printer
 if (-not $doc.PrinterSettings.IsValid) { Write-Error "Invalid printer: $Printer"; exit 2 }
 
+# Win32_Printer.DetectedErrorState codes that mean "will not physically print
+# right now" — worth failing loudly for so staff fix it (add paper, close
+# door, clear jam) instead of the job silently sitting in the spooler.
+# 3=Low Paper 4=No Paper 7=Door Open 8=Jammed 9=Offline 10=Service Requested
+# 11=Output Bin Full 12=Paper Problem
+function Get-PrinterBlockingError([string]$printerName) {
+  try {
+    $escaped = $printerName -replace "'", "''"
+    $wmi = Get-CimInstance -ClassName Win32_Printer -Filter "Name='$escaped'" -ErrorAction Stop
+    if (-not $wmi) { return $null }
+    $state = [int]$wmi.DetectedErrorState
+    $reason = switch ($state) {
+      3  { "low on paper" }
+      4  { "out of paper" }
+      7  { "door/cover open" }
+      8  { "paper jam" }
+      9  { "offline" }
+      10 { "needs service" }
+      11 { "output tray full" }
+      12 { "has a paper problem" }
+      default { $null }
+    }
+    if ($reason) { return $reason }
+    if ($wmi.WorkOffline) { return "offline" }
+  } catch {
+    # WMI not available / printer not queryable this way (e.g. some network
+    # queues) — skip the check rather than block printing on an unknown.
+  }
+  return $null
+}
+
+$blockingError = Get-PrinterBlockingError -printerName $Printer
+if ($blockingError) {
+  Write-Error "Printer '$Printer' is $blockingError. Fix the printer and retry the job."
+  exit 5
+}
+
 if ($Copies -lt 1) { $Copies = 1 }
 $doc.PrinterSettings.Copies = [int16]$Copies
 $doc.PrinterSettings.Collate = ($Collate -eq "true")

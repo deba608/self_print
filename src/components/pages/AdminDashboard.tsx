@@ -629,7 +629,10 @@ export default function AdminDashboard() {
               onToggleSelect={toggleSelect}
               onAction={handleCardAction}
               onView={handleCardView}
-              actionLoading={actionLoading === job.id} onNotify={pushToast} />
+              actionLoading={actionLoading === job.id} onNotify={pushToast}
+              printerCanDuplex={
+                printers.find((p) => p.name === (job.printType === "color" ? colorPrinterName : bwPrinterName))?.canDuplex
+              } />
           ))}
         </div>
       )}

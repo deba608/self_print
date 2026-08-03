@@ -54,6 +54,7 @@ type WindowsPrinter = {
   driverName: string;
   portName: string;
   isDefault: boolean;
+  canDuplex: boolean;
 };
 
 let config: AgentConfig;
@@ -269,8 +270,17 @@ async function processJob(jobId: string) {
     if (targetPrinter) {
       try {
         const installed = await listWindowsPrinters();
-        if (installed.length && !installed.some((p) => p.name === targetPrinter)) {
+        const match = installed.find((p) => p.name === targetPrinter);
+        if (installed.length && !match) {
           log(`Skipping job ${job.token}: printer "${targetPrinter}" not installed here (leaving for another agent).`);
+          return;
+        }
+        // Fail fast (before spooling) if this job needs duplex and the target
+        // printer can't do it — print-image.ps1 would also catch this, but
+        // that's after the file is downloaded and the job claimed as "printing".
+        if (match && job.duplex !== "simplex" && !match.canDuplex) {
+          await updateStatus(jobId, "failed", `Printer "${targetPrinter}" does not support double-sided (duplex) printing. Set this job to single-sided or select a duplex-capable printer.`);
+          log(`Job ${job.token} failed: printer "${targetPrinter}" has no duplex support.`);
           return;
         }
       } catch (e) {
@@ -323,6 +333,12 @@ async function processJob(jobId: string) {
                 setTimeout(() => reject(new Error("Print job timed out after 5 minutes")), PRINT_TIMEOUT_MS)
               )
             ]);
+            // Spooling to the printer finished for this file — this is as close
+            // to "physically out" as software can confirm. Windows/GDI has no
+            // generic API for "paper has left the tray"; only printer-specific
+            // SNMP status (not implemented) could give that, and not all shop
+            // printers support it. This event marks "sent, should be printing now".
+            await logEvent(jobId, "file_printed", `Printed ${file.original_name} (${idx + 1}/${files.length}) on ${printer}.`);
           } catch (e) {
             const msg = e instanceof Error ? e.message : String(e);
             throw new Error(`File "${file.original_name}": ${msg}`);
@@ -521,6 +537,7 @@ async function reportPrintersIfNeeded() {
       driver_name: printer.driverName,
       port_name: printer.portName,
       is_default: printer.isDefault ? 1 : 0,
+      can_duplex: printer.canDuplex ? 1 : 0,
       seen_at: now
     }));
     const { error: upsertError } = await (supabase.from("agent_printers") as any)
@@ -714,8 +731,18 @@ function paperName(paperSize: string) {
 
 async function listWindowsPrinters(): Promise<WindowsPrinter[]> {
   const script = [
+    'Add-Type -AssemblyName System.Drawing',
     '$printers = Get-Printer | Select-Object Name,DriverName,PortName,Default',
-    '$printers | ConvertTo-Json -Compress'
+    '$result = $printers | ForEach-Object {',
+    '  $canDuplex = $false',
+    '  try {',
+    '    $ps = New-Object System.Drawing.Printing.PrinterSettings',
+    '    $ps.PrinterName = $_.Name',
+    '    if ($ps.IsValid) { $canDuplex = $ps.CanDuplex }',
+    '  } catch {}',
+    '  [PSCustomObject]@{ Name = $_.Name; DriverName = $_.DriverName; PortName = $_.PortName; Default = $_.Default; CanDuplex = $canDuplex }',
+    '}',
+    '$result | ConvertTo-Json -Compress'
   ].join("; ");
   const output = await execPowerShell(script);
   if (!output.trim()) return [];
@@ -728,7 +755,8 @@ async function listWindowsPrinters(): Promise<WindowsPrinter[]> {
         name: String(item.Name ?? "").trim(),
         driverName: String(item.DriverName ?? "").trim(),
         portName: String(item.PortName ?? "").trim(),
-        isDefault: Boolean(item.Default)
+        isDefault: Boolean(item.Default),
+        canDuplex: Boolean(item.CanDuplex)
       };
     })
     .filter((printer) => printer.name);

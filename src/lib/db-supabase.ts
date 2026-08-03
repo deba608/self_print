@@ -700,6 +700,7 @@ export async function replaceAgentPrinters(printers: Array<Omit<PrinterOption, '
           driver_name: p.driverName,
           port_name: p.portName,
           is_default: p.isDefault ? 1 : 0,
+          can_duplex: p.canDuplex ? 1 : 0,
           seen_at: now
         })),
         { onConflict: 'name' }
@@ -730,6 +731,7 @@ export async function getAgentPrinters(): Promise<PrinterOption[]> {
     driverName: String(row.driver_name),
     portName: String(row.port_name),
     isDefault: Boolean(row.is_default),
+    canDuplex: Boolean(row.can_duplex),
     seenAt: String(row.seen_at)
   }));
 }

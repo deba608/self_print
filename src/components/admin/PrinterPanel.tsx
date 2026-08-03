@@ -81,6 +81,7 @@ export default function PrinterPanel({
                   <span className="printer-name">{printer.name}</span>
                   <span className="printer-driver">{printer.driverName}</span>
                 </div>
+                {!printer.canDuplex && <span className="no-duplex-tag" title="Can't print double-sided">No Duplex</span>}
                 {printer.isDefault && <span className="default-tag">Default</span>}
                 {selectedPrinter === printer.name && (
                   <div className="printer-check">
