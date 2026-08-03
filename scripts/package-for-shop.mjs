@@ -15,7 +15,7 @@ mkdirSync(stageDir, { recursive: true });
 // never connect and every job would sit stuck at "approved".
 const configPath = path.join(root, 'agent', 'config.json');
 if (!existsSync(configPath)) {
-  console.error('Missing agent/config.json — copy agent/config.example.json and fill in real values first.');
+  console.error('Missing agent/config.json — copy agent/dev-tools/config.example.json and fill in real values first.');
   process.exit(1);
 }
 const config = JSON.parse(await import('fs/promises').then(m => m.readFile(configPath, 'utf8')));

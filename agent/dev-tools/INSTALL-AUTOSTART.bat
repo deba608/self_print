@@ -1,7 +1,7 @@
 @echo off
 title SelfPrint - One-Time Auto-Start Installer
 color 0B
-cd /d "%~dp0.."
+cd /d "%~dp0..\.."
 
 REM --- Self-elevate to Administrator (needed to register startup task) ---
 net session >nul 2>nul
@@ -22,12 +22,12 @@ echo  Run this ONCE. Then you never touch it again.
 echo ------------------------------------------------
 echo.
 
-set "VBS=%~dp0START-PRINTER-BACKGROUND.vbs"
+set "VBS=%~dp0..\START-PRINTER-BACKGROUND.vbs"
 
 if not exist "%VBS%" (
   color 0C
-  echo  [PROBLEM] Cannot find START-PRINTER-BACKGROUND.vbs next to this file.
-  echo  Keep all files in the same folder and try again.
+  echo  [PROBLEM] Cannot find agent\START-PRINTER-BACKGROUND.vbs.
+  echo  This file expects to run from agent\dev-tools\ — keep it there.
   echo.
   pause
   exit /b

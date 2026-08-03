@@ -843,7 +843,7 @@ async function log(message: string) {
 async function loadConfig() {
   const configPath = path.resolve("agent/config.json");
   if (!existsSync(configPath)) {
-    throw new Error("Missing agent/config.json. Copy agent/config.example.json and edit it.");
+    throw new Error("Missing agent/config.json. Copy agent/dev-tools/config.example.json to agent/config.json and edit it.");
   }
   const parsed = JSON.parse(await fs.readFile(configPath, "utf8")) as Partial<AgentConfig> & Record<string, unknown>;
 

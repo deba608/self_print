@@ -203,7 +203,7 @@ cloud-hosted or fully local) is in
 [`docs/CLIENT_PC_SETUP.md`](docs/CLIENT_PC_SETUP.md). Short version for
 developers:
 
-Copy `agent/config.example.json` to `agent/config.json` and configure:
+Copy `agent/dev-tools/config.example.json` to `agent/config.json` and configure:
 
 ```json
 {
@@ -220,8 +220,15 @@ agent re-reads every 30s.
 
 Run `.\agent\SETUP.bat` — one script that checks Node is installed,
 registers the printer service to auto-start on every boot, and starts it
-immediately. (`START-PRINTER.bat` and `INSTALL-AUTOSTART.bat` still exist
-individually for troubleshooting/re-running just one half of that flow.)
+immediately. `agent\TEST-PRINTER.bat` sends a one-off test page to check the
+printer connection. Everything else — `START-PRINTER.bat`,
+`START-PRINTER-BACKGROUND.vbs`, `print-image.ps1` — is internal machinery
+SETUP.bat depends on; leave it in place, no need to open it.
+`agent\dev-tools\` holds developer/troubleshooting-only scripts
+(`INSTALL-AUTOSTART.bat`/`start-agent.bat` — superseded by `SETUP.bat`,
+kept for re-running just one half of that flow; `STOP-DEV-AGENT.bat` — kills
+a stray agent process on a developer's own machine; `config.example.json` —
+the config template).
 
 To hand a ready-to-run package to a non-technical client (no `git clone`, no
 config editing, `node_modules` pre-installed), run
