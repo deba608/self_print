@@ -732,14 +732,32 @@ function paperName(paperSize: string) {
 async function listWindowsPrinters(): Promise<WindowsPrinter[]> {
   const script = [
     'Add-Type -AssemblyName System.Drawing',
+    'Add-Type -AssemblyName System.Printing',
     '$printers = Get-Printer | Select-Object Name,DriverName,PortName,Default',
     '$result = $printers | ForEach-Object {',
     '  $canDuplex = $false',
+    // Primary check: the driver's PrintTicket capabilities via System.Printing —
+    // this is what the actual print path (Set-PrintConfiguration) relies on, and
+    // it's accurate for host-based/GDI drivers (e.g. Konica Minolta) where the
+    // legacy System.Drawing.Printing.PrinterSettings.CanDuplex flag lies (false)
+    // even though the driver and hardware do support duplex.
     '  try {',
-    '    $ps = New-Object System.Drawing.Printing.PrinterSettings',
-    '    $ps.PrinterName = $_.Name',
-    '    if ($ps.IsValid) { $canDuplex = $ps.CanDuplex }',
+    '    $server = New-Object System.Printing.LocalPrintServer',
+    '    $queue = $server.GetPrintQueue($_.Name)',
+    '    $caps = $queue.GetPrintCapabilities()',
+    '    if ($caps.DuplexingCapability -and ($caps.DuplexingCapability | Where-Object { $_ -ne "OneSided" -and $_ -ne "Unknown" })) {',
+    '      $canDuplex = $true',
+    '    }',
     '  } catch {}',
+    // Fallback: legacy GDI capability flag, in case System.Printing is
+    // unavailable or a driver reports capabilities the other way around.
+    '  if (-not $canDuplex) {',
+    '    try {',
+    '      $ps = New-Object System.Drawing.Printing.PrinterSettings',
+    '      $ps.PrinterName = $_.Name',
+    '      if ($ps.IsValid) { $canDuplex = $ps.CanDuplex }',
+    '    } catch {}',
+    '  }',
     '  [PSCustomObject]@{ Name = $_.Name; DriverName = $_.DriverName; PortName = $_.PortName; Default = $_.Default; CanDuplex = $canDuplex }',
     '}',
     '$result | ConvertTo-Json -Compress'
