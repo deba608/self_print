@@ -247,7 +247,7 @@ export default function OrderManagementPage() {
                         className={fulfilment === value ? "active" : ""}
                         onClick={() => setFulfilment(value)}
                       >
-                        {value === "all" ? "All" : value === "pickup" ? "Pickup" : "Delivery"}
+                        {value === "all" ? "All" : value === "pickup" ? "Pickup" : "Home Delivery"}
                       </button>
                     ))}
                   </div>
