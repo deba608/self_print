@@ -21,6 +21,11 @@ export const SESSION_SECRET = process.env.SESSION_SECRET ?? "dev-session-secret-
 // rejects empty/missing bearer tokens, so no guessable secret ships in the repo.
 export const DEFAULT_AGENT_TOKEN = process.env.AGENT_TOKEN ?? "";
 export const DEFAULT_EXPIRY_MINUTES = 1440;
+// Cleanup-only: how long an unpaid "pending_payment" cart can sit before its
+// row + files are deleted outright. Deliberately separate from the
+// customer-facing job/token expiry (DEFAULT_EXPIRY_MINUTES / pricing.expiryMinutes)
+// so changing what customers see never silently changes retention behavior.
+export const CART_ABANDON_MINUTES = Number(process.env.CART_ABANDON_MINUTES ?? 1440);
 // Privacy retention: uploaded file bytes for finished orders (printed/cancelled/
 // failed) are purged this many days after the job was created. The job row and
 // job_files metadata (filename, page count, price) are kept forever so order

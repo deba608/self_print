@@ -1,5 +1,5 @@
 import type { CustomerManagementRow, Job, JobFile, PricingConfig, PrinterOption, SseClient } from './types';
-import { FILE_RETENTION_DAYS } from './config';
+import { FILE_RETENTION_DAYS, CART_ABANDON_MINUTES } from './config';
 import { parseServiceAreaConfig, serializeServiceAreaConfig } from './service-area';
 
 // Check if Supabase is configured
@@ -1082,8 +1082,7 @@ export async function cleanupOldJobs(): Promise<{ deleted: number; storagePaths:
   }
 
   const sqlite = await getDbInstance();
-  const pricing = await getPricing();
-  const abandonedCutoff = new Date(Date.now() - pricing.expiryMinutes * 60000).toISOString();
+  const abandonedCutoff = new Date(Date.now() - CART_ABANDON_MINUTES * 60000).toISOString();
   const leaseCutoff = new Date(Date.now() - PRINTING_LEASE_MINUTES * 60000).toISOString();
   const fileRetentionCutoff = new Date(Date.now() - FILE_RETENTION_DAYS * 24 * 60 * 60000).toISOString();
   const now = new Date().toISOString();

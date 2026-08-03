@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import crypto from 'node:crypto';
 import type { CustomerManagementRow, Job, JobFile, PricingConfig, PrinterOption, SseClient } from './types';
-import { FILE_RETENTION_DAYS } from './config';
+import { FILE_RETENTION_DAYS, CART_ABANDON_MINUTES } from './config';
 import { DEFAULT_SERVICE_AREA, parseServiceAreaConfig, serializeServiceAreaConfig } from './service-area';
 
 const supabaseUrl = process.env.SUPABASE_URL?.trim();
@@ -804,8 +804,7 @@ export async function bulkDeleteJobs(ids: string[]) {
 const PRINTING_LEASE_MINUTES = 10;
 
 export async function cleanupOldJobs(): Promise<{ deleted: number; storagePaths: string[] }> {
-  const pricing = await getPricing();
-  const abandonedCutoff = new Date(Date.now() - pricing.expiryMinutes * 60000).toISOString();
+  const abandonedCutoff = new Date(Date.now() - CART_ABANDON_MINUTES * 60000).toISOString();
   const leaseCutoff = new Date(Date.now() - PRINTING_LEASE_MINUTES * 60000).toISOString();
   const fileRetentionCutoff = new Date(Date.now() - FILE_RETENTION_DAYS * 24 * 60 * 60000).toISOString();
   const now = new Date().toISOString();
