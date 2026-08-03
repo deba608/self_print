@@ -168,6 +168,14 @@ async function initSchema(database: any) {
       message TEXT,
       created_at TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS cleanup_events (
+      id TEXT PRIMARY KEY,
+      ran_at TEXT NOT NULL,
+      deleted_jobs INTEGER NOT NULL DEFAULT 0,
+      job_files_removed INTEGER NOT NULL DEFAULT 0,
+      stray_files_removed INTEGER NOT NULL DEFAULT 0
+    );
   `);
 
   await ensureJobColumns(database);
@@ -1133,6 +1141,22 @@ export async function cleanupOldJobs(): Promise<{ deleted: number; storagePaths:
   }
 
   return { deleted: abandonedIds.length, storagePaths };
+}
+
+export async function logCleanupRun(counts: {
+  deletedJobs: number;
+  jobFilesRemoved: number;
+  strayFilesRemoved: number;
+}): Promise<void> {
+  if (isSupabase) {
+    const mod = await import('./db-supabase');
+    return mod.logCleanupRun(counts);
+  }
+  const sqlite = await getDbInstance();
+  sqlite.prepare(`
+    INSERT INTO cleanup_events (id, ran_at, deleted_jobs, job_files_removed, stray_files_removed)
+    VALUES (?, ?, ?, ?, ?)
+  `).run(crypto.randomUUID(), new Date().toISOString(), counts.deletedJobs, counts.jobFilesRemoved, counts.strayFilesRemoved);
 }
 
 export async function filterActiveStoragePaths(paths: string[]): Promise<Set<string>> {

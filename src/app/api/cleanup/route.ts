@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { timingSafeEqual } from "node:crypto";
-import { cleanupOldJobs, filterActiveStoragePaths } from "@/lib/db";
+import { cleanupOldJobs, filterActiveStoragePaths, logCleanupRun } from "@/lib/db";
 import { deleteFile, listOldFiles } from "@/lib/storage";
 import { STRAY_FILE_RETENTION_HOURS } from "@/lib/config";
 
@@ -40,7 +40,13 @@ async function runCleanup() {
   
   await Promise.all(strayPaths.map((p) => deleteFile(p)));
 
-  return NextResponse.json({ 
+  await logCleanupRun({
+    deletedJobs: deleted,
+    jobFilesRemoved: storagePaths.length,
+    strayFilesRemoved: strayPaths.length,
+  });
+
+  return NextResponse.json({
     deletedJobs: deleted, 
     jobFilesRemoved: storagePaths.length,
     strayFilesRemoved: strayPaths.length 

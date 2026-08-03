@@ -883,6 +883,19 @@ export async function cleanupOldJobs(): Promise<{ deleted: number; storagePaths:
   return { deleted: abandonedIds.length, storagePaths };
 }
 
+export async function logCleanupRun(counts: {
+  deletedJobs: number;
+  jobFilesRemoved: number;
+  strayFilesRemoved: number;
+}): Promise<void> {
+  const { error } = await supabase.from('cleanup_events').insert({
+    deleted_jobs: counts.deletedJobs,
+    job_files_removed: counts.jobFilesRemoved,
+    stray_files_removed: counts.strayFilesRemoved,
+  });
+  if (error) throw error;
+}
+
 export async function filterActiveStoragePaths(paths: string[]): Promise<Set<string>> {
   if (paths.length === 0) return new Set();
   const active = new Set<string>();
