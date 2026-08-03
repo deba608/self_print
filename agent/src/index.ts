@@ -61,7 +61,8 @@ let supabase: ReturnType<typeof createClient>;
 let realtimeChannel: RealtimeChannel | null = null;
 let isShuttingDown = false;
 let isProcessing = false;
-let cachedPrinterName = "";
+let cachedBwPrinterName = "";
+let cachedColorPrinterName = "";
 let lastPrinterReportAt = 0;
 let reconnectAttempts = 0;
 let intervalsStarted = false;
@@ -73,7 +74,8 @@ async function main() {
   config = await loadConfig();
   supabase = createClient(config.supabaseUrl, config.supabaseKey);
 
-  cachedPrinterName = config.fallbackPrinter;
+  cachedBwPrinterName = config.fallbackPrinter;
+  cachedColorPrinterName = config.fallbackPrinter;
   await fs.mkdir(config.tempDir, { recursive: true });
   await rotateLogIfNeeded();
   await sweepStaleTempFiles();
@@ -263,7 +265,7 @@ async function processJob(jobId: string) {
     // Multiple agents may share one Supabase (e.g. a dev box + the shop PC). If
     // this agent doesn't have the target printer, leave the job "approved" so the
     // correct agent picks it up — never mark it "failed" for everyone.
-    const targetPrinter = cachedPrinterName || config.fallbackPrinter;
+    const targetPrinter = printerForJob(job);
     if (targetPrinter) {
       try {
         const installed = await listWindowsPrinters();
@@ -309,7 +311,7 @@ async function processJob(jobId: string) {
             log(`File downloaded: ${fileBytes.length} bytes`);
             await logEvent(jobId, "downloaded", `Downloaded ${file.original_name} (${(fileBytes.length / 1024).toFixed(0)} KB), file ${idx + 1}/${files.length}.`);
 
-            const printer = cachedPrinterName || config.fallbackPrinter;
+            const printer = printerForJob(job);
             if (!printer) throw new Error("No printer selected. Set a printer in admin dashboard.");
 
             log(`Printing ${job.copies} copy(s), paper: ${job.paper_size}, type: ${job.print_type}, printer: ${printer}...`);
@@ -476,17 +478,23 @@ async function updateStatus(jobId: string, status: string, message: string) {
   }
 }
 
+function printerForJob(job: SupabaseJob): string {
+  const printer = job.print_type === "color" ? cachedColorPrinterName : cachedBwPrinterName;
+  return printer || config.fallbackPrinter;
+}
+
 async function checkPrinterConfig() {
   try {
     const { data, error } = await supabase
       .from("agent_config")
-      .select("printer_name")
+      .select("printer_name, bw_printer_name, color_printer_name")
       .eq("id", 1)
-      .single() as { data: { printer_name: string } | null; error: { message: string } | null };
+      .single() as { data: { printer_name: string; bw_printer_name: string | null; color_printer_name: string | null } | null; error: { message: string } | null };
 
-    if (!error && data?.printer_name) {
-      cachedPrinterName = data.printer_name;
-      log(`Printer config: ${cachedPrinterName}`);
+    if (!error && data) {
+      cachedBwPrinterName = data.bw_printer_name || data.printer_name || cachedBwPrinterName;
+      cachedColorPrinterName = data.color_printer_name || data.printer_name || cachedColorPrinterName;
+      log(`Printer config: B/W=${cachedBwPrinterName}, Color=${cachedColorPrinterName}`);
     }
   } catch (error) {
     log(`Printer config check failed: ${error instanceof Error ? error.message : String(error)}`);

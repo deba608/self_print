@@ -654,26 +654,35 @@ export async function updatePricing(pricing: PricingConfig) {
 export async function getAgentConfig() {
   const { data, error } = await supabase
     .from('agent_config')
-    .select('printer_name, config_version')
+    .select('printer_name, bw_printer_name, color_printer_name, config_version')
     .eq('id', 1)
     .single();
-  
-  if (error) return { printerName: 'Microsoft Print to PDF', configVersion: 0 };
-  return { printerName: data.printer_name, configVersion: data.config_version };
+
+  if (error) return { printerName: 'Microsoft Print to PDF', bwPrinterName: '', colorPrinterName: '', configVersion: 0 };
+  return {
+    printerName: data.printer_name,
+    bwPrinterName: data.bw_printer_name || data.printer_name,
+    colorPrinterName: data.color_printer_name || data.printer_name,
+    configVersion: data.config_version
+  };
 }
 
-export async function updateAgentConfig(printerName: string) {
+export async function updateAgentConfig(printers: { bwPrinterName?: string; colorPrinterName?: string }) {
   const now = new Date().toISOString();
   const current = await getAgentConfig();
+  const bwPrinterName = printers.bwPrinterName ?? current.bwPrinterName ?? '';
+  const colorPrinterName = printers.colorPrinterName ?? current.colorPrinterName ?? '';
   const { error } = await supabase
     .from('agent_config')
     .update({
-      printer_name: printerName,
+      bw_printer_name: bwPrinterName,
+      color_printer_name: colorPrinterName,
+      printer_name: bwPrinterName || colorPrinterName,
       config_version: Number(current.configVersion ?? 0) + 1,
       updated_at: now
     })
     .eq('id', 1);
-  
+
   if (error) throw error;
 }
 

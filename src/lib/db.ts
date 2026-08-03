@@ -138,6 +138,8 @@ async function initSchema(database: any) {
     CREATE TABLE IF NOT EXISTS agent_config (
       id INTEGER PRIMARY KEY CHECK (id = 1),
       printer_name TEXT NOT NULL,
+      bw_printer_name TEXT,
+      color_printer_name TEXT,
       config_version INTEGER NOT NULL DEFAULT 0,
       updated_at TEXT NOT NULL
     );
@@ -169,6 +171,7 @@ async function initSchema(database: any) {
   await ensureJobColumns(database);
   await ensurePricingColumns(database);
   await ensureJobFileColumns(database);
+  await ensureAgentConfigColumns(database);
   database.exec(`CREATE INDEX IF NOT EXISTS idx_jobs_status ON jobs(status)`);
   database.exec(`CREATE INDEX IF NOT EXISTS idx_jobs_created ON jobs(created_at)`);
   database.exec(`CREATE INDEX IF NOT EXISTS idx_jobs_queue ON jobs(queue_position)`);
@@ -222,6 +225,17 @@ async function ensureJobFileColumns(database: any) {
   );
   if (!columns.has('purged_at')) {
     database.prepare(`ALTER TABLE job_files ADD COLUMN purged_at TEXT`).run();
+  }
+}
+
+async function ensureAgentConfigColumns(database: any) {
+  const columns = new Set(
+    (database.prepare('PRAGMA table_info(agent_config)').all() as Array<{ name: string }>).map((column) => column.name)
+  );
+  for (const name of ['bw_printer_name', 'color_printer_name']) {
+    if (!columns.has(name)) {
+      database.prepare(`ALTER TABLE agent_config ADD COLUMN ${name} TEXT`).run();
+    }
   }
 }
 
@@ -892,25 +906,36 @@ export async function getAgentConfig() {
     const mod = await import('./db-supabase');
     return mod.getAgentConfig();
   }
-  
+
   const sqlite = await getDbInstance();
-  const row = sqlite.prepare('SELECT printer_name, config_version FROM agent_config WHERE id = 1')
-    .get() as { printer_name: string; config_version: number } | undefined;
-  if (!row) return { printerName: 'Microsoft Print to PDF', configVersion: 0 };
-  return { printerName: row.printer_name, configVersion: row.config_version };
+  const row = sqlite.prepare('SELECT printer_name, bw_printer_name, color_printer_name, config_version FROM agent_config WHERE id = 1')
+    .get() as { printer_name: string; bw_printer_name: string | null; color_printer_name: string | null; config_version: number } | undefined;
+  if (!row) return { printerName: 'Microsoft Print to PDF', bwPrinterName: '', colorPrinterName: '', configVersion: 0 };
+  return {
+    printerName: row.printer_name,
+    bwPrinterName: row.bw_printer_name || row.printer_name,
+    colorPrinterName: row.color_printer_name || row.printer_name,
+    configVersion: row.config_version
+  };
 }
 
-export async function updateAgentConfig(printerName: string): Promise<void> {
+export async function updateAgentConfig(printers: { bwPrinterName?: string; colorPrinterName?: string }): Promise<void> {
   if (isSupabase) {
     const mod = await import('./db-supabase');
-    return mod.updateAgentConfig(printerName);
+    return mod.updateAgentConfig(printers);
   }
-  
+
   const sqlite = await getDbInstance();
   const now = new Date().toISOString();
+  const current = sqlite.prepare('SELECT bw_printer_name, color_printer_name FROM agent_config WHERE id = 1')
+    .get() as { bw_printer_name: string | null; color_printer_name: string | null } | undefined;
+  const bwPrinterName = printers.bwPrinterName ?? current?.bw_printer_name ?? '';
+  const colorPrinterName = printers.colorPrinterName ?? current?.color_printer_name ?? '';
   sqlite.prepare(`
-    UPDATE agent_config SET printer_name = ?, config_version = config_version + 1, updated_at = ? WHERE id = 1
-  `).run(printerName, now);
+    UPDATE agent_config
+    SET bw_printer_name = ?, color_printer_name = ?, printer_name = ?, config_version = config_version + 1, updated_at = ?
+    WHERE id = 1
+  `).run(bwPrinterName, colorPrinterName, bwPrinterName || colorPrinterName, now);
 }
 
 export async function replaceAgentPrinters(printers: Array<Omit<PrinterOption, 'seenAt'>>): Promise<void> {

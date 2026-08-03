@@ -5,17 +5,20 @@ import { Check, Monitor, Printer, X } from "lucide-react";
 import type { PrinterOption } from "@/lib/types";
 
 export default function PrinterPanel({
+  mode,
   printers,
   selectedPrinter,
   onSelect,
   onClose
 }: {
+  mode: "bw" | "color";
   printers: PrinterOption[];
   selectedPrinter: string;
   onSelect: (name: string) => void;
   onClose: () => void;
 }) {
   const [manualPrinter, setManualPrinter] = useState(selectedPrinter);
+  const modeLabel = mode === "color" ? "Color" : "B/W";
 
   const saveManualPrinter = () => {
     const printerName = manualPrinter.trim();
@@ -30,7 +33,7 @@ export default function PrinterPanel({
         <div className="panel-header">
           <div className="panel-title">
             <Monitor size={20} className="panel-icon" />
-            <h2>Select Printer</h2>
+            <h2>Select {modeLabel} Printer</h2>
           </div>
           <button type="button" className="panel-close" onClick={onClose} aria-label="Close">
             <X size={20} />

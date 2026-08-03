@@ -34,15 +34,16 @@ export default function AdminDashboard() {
   const total = jobsData?.total ?? 0;
   const cursor = jobsData?.cursor ?? null;
   const hasMore = !!cursor;
-  const printerName = printerConfig?.printerName ?? "";
+  const bwPrinterName = printerConfig?.bwPrinterName ?? "";
+  const colorPrinterName = printerConfig?.colorPrinterName ?? "";
 
   // ── Local UI state ──────────────────────────────────────────────
   const [loggingOut, setLoggingOut] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [showPrinter, setShowPrinter] = useState(false);
+  const [printerPanelMode, setPrinterPanelMode] = useState<"bw" | "color" | null>(null);
   // Printers list is only shown inside PrinterPanel — poll it only while the
   // panel is open instead of every 10s for the dashboard's whole lifetime.
-  const { data: printersData } = usePrinters({ refreshInterval: showPrinter ? 10000 : 0 });
+  const { data: printersData } = usePrinters({ refreshInterval: printerPanelMode ? 10000 : 0 });
   const printers = printersData?.printers ?? [];
   const [showManageOrders, setShowManageOrders] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -205,12 +206,12 @@ export default function AdminDashboard() {
     }
     function onKey(e: KeyboardEvent) {
       if (isTypingTarget(document.activeElement)) return;
-      const panelOpen = showSettings || showPrinter || showManageOrders || confirmAction !== null || sidebarOpen;
+      const panelOpen = showSettings || printerPanelMode !== null || showManageOrders || confirmAction !== null || sidebarOpen;
       if (panelOpen) {
         if (e.key === "Escape") {
           if (confirmAction) setConfirmAction(null);
           else if (showSettings) setShowSettings(false);
-          else if (showPrinter) setShowPrinter(false);
+          else if (printerPanelMode) setPrinterPanelMode(null);
           else if (showManageOrders) setShowManageOrders(false);
           else if (sidebarOpen) setSidebarOpen(false);
         }
@@ -230,7 +231,7 @@ export default function AdminDashboard() {
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [mutateJobs, showSettings, showPrinter, showManageOrders, confirmAction, sidebarOpen]);
+  }, [mutateJobs, showSettings, printerPanelMode, showManageOrders, confirmAction, sidebarOpen]);
 
   // ── Actions ─────────────────────────────────────────────────────
   async function logout() {
@@ -487,13 +488,14 @@ export default function AdminDashboard() {
   return (
     <div className={`admin-layout${sidebarCollapsed ? " sidebar-collapsed" : ""}`}>
       <AdminTopbar
-        printerName={printerName}
+        bwPrinterName={bwPrinterName}
+        colorPrinterName={colorPrinterName}
         newJobCount={newJobCount}
         soundOn={soundOn}
         onToggleSound={toggleSound}
         onRefresh={() => { mutateJobs(); }}
-        onOpenPricing={() => { setShowSettings(true); setShowPrinter(false); }}
-        onOpenPrinter={() => { setShowPrinter(true); setShowSettings(false); }}
+        onOpenPricing={() => { setShowSettings(true); setPrinterPanelMode(null); }}
+        onOpenPrinter={(mode) => { setPrinterPanelMode(mode); setShowSettings(false); }}
         onLogout={logout}
         loggingOut={loggingOut}
         staffName={staff?.displayName || staff?.email}
@@ -516,19 +518,25 @@ export default function AdminDashboard() {
         />
       )}
 
-      {showPrinter && (
+      {printerPanelMode && (
         <PrinterPanel
+          mode={printerPanelMode}
           printers={printers}
-          selectedPrinter={printerName}
+          selectedPrinter={printerPanelMode === "color" ? colorPrinterName : bwPrinterName}
           onSelect={async (name) => {
+            const field = printerPanelMode === "color" ? "colorPrinterName" : "bwPrinterName";
             await fetch("/api/admin/printer", {
               method: "PUT", credentials: "include",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ printerName: name })
+              body: JSON.stringify({ [field]: name })
             });
-            mutatePrinter({ printerName: name, configVersion: (printerConfig?.configVersion ?? 0) + 1 });
+            mutatePrinter({
+              bwPrinterName: printerPanelMode === "bw" ? name : bwPrinterName,
+              colorPrinterName: printerPanelMode === "color" ? name : colorPrinterName,
+              configVersion: (printerConfig?.configVersion ?? 0) + 1
+            });
           }}
-          onClose={() => setShowPrinter(false)}
+          onClose={() => setPrinterPanelMode(null)}
         />
       )}
 

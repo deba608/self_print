@@ -59,7 +59,7 @@ export function usePricing(opts?: SWRConfiguration<PricingConfig>) {
 
 // ─── Selected printer ──────────────────────────────────────────────
 
-export type PrinterConfigResponse = { printerName: string; configVersion: number };
+export type PrinterConfigResponse = { bwPrinterName: string; colorPrinterName: string; configVersion: number };
 
 export function usePrinter(opts?: SWRConfiguration<PrinterConfigResponse>) {
   return useSWR<PrinterConfigResponse>("/api/admin/printer", fetcher, {

@@ -7,7 +7,8 @@ import ManageMenu from "./ManageMenu";
 import TopbarMoreMenu from "./TopbarMoreMenu";
 
 export default function AdminTopbar({
-  printerName,
+  bwPrinterName,
+  colorPrinterName,
   newJobCount,
   soundOn,
   onToggleSound,
@@ -20,13 +21,14 @@ export default function AdminTopbar({
   showPricing,
   onToggleSidebar,
 }: {
-  printerName: string;
+  bwPrinterName: string;
+  colorPrinterName: string;
   newJobCount: number;
   soundOn: boolean;
   onToggleSound: () => void;
   onRefresh: () => void;
   onOpenPricing: () => void;
-  onOpenPrinter: () => void;
+  onOpenPrinter: (mode: "bw" | "color") => void;
   onLogout: () => Promise<void>;
   loggingOut: boolean;
   staffName?: string;
@@ -52,14 +54,26 @@ export default function AdminTopbar({
         </div>
 
         <button
-          className={`printer-btn ${printerName ? "active" : "empty"}`}
-          onClick={onOpenPrinter}
+          className={`printer-btn ${bwPrinterName ? "active" : "empty"}`}
+          onClick={() => onOpenPrinter("bw")}
           type="button"
-          aria-label={printerName ? `Selected printer ${printerName}` : "Select printer"}
+          aria-label={bwPrinterName ? `Selected B/W printer ${bwPrinterName}` : "Select B/W printer"}
         >
           <Monitor size={18} />
-          <span className="printer-label">{printerName || "Select Printer"}</span>
-          {printerName && <span className="printer-dot"></span>}
+          <span className="printer-label">B/W: {bwPrinterName || "Select Printer"}</span>
+          {bwPrinterName && <span className="printer-dot"></span>}
+          <ChevronDown size={16} className="chevron" />
+        </button>
+
+        <button
+          className={`printer-btn ${colorPrinterName ? "active" : "empty"}`}
+          onClick={() => onOpenPrinter("color")}
+          type="button"
+          aria-label={colorPrinterName ? `Selected color printer ${colorPrinterName}` : "Select color printer"}
+        >
+          <Monitor size={18} />
+          <span className="printer-label">Color: {colorPrinterName || "Select Printer"}</span>
+          {colorPrinterName && <span className="printer-dot"></span>}
           <ChevronDown size={16} className="chevron" />
         </button>
 
