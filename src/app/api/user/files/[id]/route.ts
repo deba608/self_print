@@ -1,7 +1,6 @@
-import fs from "node:fs";
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { createSignedDownloadUrl, readFileStream } from "@/lib/storage";
+import { readFileStream } from "@/lib/storage";
 import { clientIp, isRateLimited } from "@/lib/ratelimit";
 
 // Lets a signed-in customer view/download an original upload for one of
@@ -36,16 +35,16 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     return NextResponse.json({ error: "File was removed after the retention period." }, { status: 404 });
   }
 
-  const signedUrl = await createSignedDownloadUrl(file.storage_path);
-  if (signedUrl) {
-    return NextResponse.redirect(signedUrl);
-  }
-
-  // Local filesystem storage
-  if (!fs.existsSync(file.storage_path)) {
+  // Proxy the bytes through our own route with an explicit inline
+  // disposition — a redirect to Supabase's signed URL leaves the browser
+  // relying on Storage's own disposition default, which forces a download
+  // instead of an in-tab preview.
+  let stream: ReadableStream;
+  try {
+    stream = await readFileStream(file.storage_path);
+  } catch {
     return NextResponse.json({ error: "Stored file missing" }, { status: 404 });
   }
-  const stream = await readFileStream(file.storage_path);
   return new NextResponse(stream, {
     headers: {
       "Content-Type": file.mime_type ?? "application/octet-stream",
