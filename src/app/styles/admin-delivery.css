@@ -349,6 +349,10 @@
   padding: 8px;
 }
 
+.file-viewer-scroll .pdfjs-preview {
+  width: 100%;
+}
+
 .file-viewer-pages {
   display: flex;
   flex-direction: column;
