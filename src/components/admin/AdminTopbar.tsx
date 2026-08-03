@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  Bell, BellRing, ChevronDown, LogOut, Loader2, Menu, Monitor, Printer, RefreshCw, Settings,
+  Bell, BellRing, ChevronDown, LogOut, Loader2, Menu, Printer, RefreshCw, Settings,
 } from "lucide-react";
 import ManageMenu from "./ManageMenu";
 import TopbarMoreMenu from "./TopbarMoreMenu";
@@ -59,7 +59,7 @@ export default function AdminTopbar({
           type="button"
           aria-label={bwPrinterName ? `Selected B/W printer ${bwPrinterName}` : "Select B/W printer"}
         >
-          <Monitor size={18} />
+          <Printer size={18} />
           <span className="printer-label">B/W: {bwPrinterName || "Select Printer"}</span>
           {bwPrinterName && <span className="printer-dot"></span>}
           <ChevronDown size={16} className="chevron" />
@@ -71,7 +71,7 @@ export default function AdminTopbar({
           type="button"
           aria-label={colorPrinterName ? `Selected color printer ${colorPrinterName}` : "Select color printer"}
         >
-          <Monitor size={18} />
+          <Printer size={18} />
           <span className="printer-label">Color: {colorPrinterName || "Select Printer"}</span>
           {colorPrinterName && <span className="printer-dot"></span>}
           <ChevronDown size={16} className="chevron" />

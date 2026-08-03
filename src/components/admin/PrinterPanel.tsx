@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Monitor, Printer, X } from "lucide-react";
+import { Check, Printer, X } from "lucide-react";
 import type { PrinterOption } from "@/lib/types";
 
 export default function PrinterPanel({
@@ -32,7 +32,7 @@ export default function PrinterPanel({
       <div className="printer-panel" onClick={(e) => e.stopPropagation()}>
         <div className="panel-header">
           <div className="panel-title">
-            <Monitor size={20} className="panel-icon" />
+            <Printer size={20} className="panel-icon" />
             <h2>Select {modeLabel} Printer</h2>
           </div>
           <button type="button" className="panel-close" onClick={onClose} aria-label="Close">
