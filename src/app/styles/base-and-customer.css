@@ -476,27 +476,33 @@ input, select, button {
   margin: 0 auto;
   display: flex;
 }
-/* Sliding highlight that glides between tabs instead of the active state
+/* Sliding top bar that glides between tabs instead of the active state
    just popping in — JS only sets the index via translateX(N * 100%); the
-   width is fixed to one tab (1/3) so the math stays exact at any screen size.
+   indicator's own width is fixed to one tab (1/3) so the math stays exact
+   at any screen size. No background box — just the thin accent line, same
+   as the original design, but animated instead of snapping into place.
    ease-out-quint, no overshoot: with only 3 stops a bouncy curve visibly
    pokes past the edge tabs, which reads as glitchy rather than springy. */
 .user-bottom-nav-indicator {
   position: absolute;
-  top: 6px;
+  top: 0;
   left: 0;
   width: calc(100% / 3);
-  height: calc(100% - 12px);
+  height: 100%;
   transition: transform 260ms cubic-bezier(0.22, 1, 0.36, 1);
   pointer-events: none;
   z-index: 0;
 }
-.user-bottom-nav-indicator::after {
+.user-bottom-nav-indicator::before {
   content: "";
   position: absolute;
-  inset: 0 10px;
-  border-radius: 16px;
-  background: var(--accent-light);
+  top: 0;
+  left: 50%;
+  width: 34px;
+  height: 3px;
+  border-radius: 0 0 4px 4px;
+  background: var(--accent);
+  transform: translateX(-50%);
 }
 .user-bottom-link {
   position: relative;

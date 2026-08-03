@@ -1562,14 +1562,17 @@
   padding: 16px 0 40px;
 }
 
-/* === Filter Bar — minimalist inline tabs in navbar === */
+/* === Filter Bar — segmented control track matching fulfillment filter === */
 .filter-bar {
   display: flex;
-  gap: 6px;
+  gap: 2px;
+  margin: 0;
+  padding: 3px;
+  background: rgba(15, 23, 42, 0.04);
+  border-radius: 8px;
   overflow-x: auto;
-  padding: 2px 0;
-  -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
 }
 
 .filter-bar::-webkit-scrollbar {
@@ -1580,10 +1583,10 @@
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  padding: 6px 12px;
+  padding: 5px 12px;
   background: none;
-  border: 1px solid transparent;
-  border-radius: 8px;
+  border: none;
+  border-radius: 6px;
   font-size: 12.5px;
   font-weight: 600;
   color: var(--muted);
@@ -1613,17 +1616,16 @@
 
 .filter-tab:hover {
   color: var(--accent-strong);
-  background: rgba(13, 122, 116, 0.06);
 }
 
 .filter-tab:active {
-  transform: scale(0.96);
+  transform: scale(0.98);
 }
 
 .filter-tab.active {
   color: var(--accent-strong);
-  background: var(--accent-light);
-  border-color: rgba(13, 122, 116, 0.18);
+  background: var(--panel);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
 }
 
 .filter-count {
@@ -1640,8 +1642,8 @@
 }
 
 .filter-tab.active .filter-count {
-  color: #fff;
-  background: var(--accent);
+  color: var(--accent-strong);
+  background: rgba(13, 122, 116, 0.12);
 }
 
 /* === Batch Bar === */
