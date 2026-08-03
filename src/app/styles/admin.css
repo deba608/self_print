@@ -1899,13 +1899,32 @@
 }
 
 .job-card.printed {
-  border-left: 3px solid var(--ok);
-  background: rgba(21, 128, 61, 0.06);
-  border-color: rgba(21, 128, 61, 0.18);
+  border-left: 5px solid var(--ok);
+  background: linear-gradient(135deg, rgba(21, 128, 61, 0.13) 0%, rgba(21, 128, 61, 0.04) 60%);
+  border-color: rgba(21, 128, 61, 0.3);
+  box-shadow: 0 1px 3px rgba(21, 128, 61, 0.08);
 }
 .job-card.printed:hover {
-  background: rgba(21, 128, 61, 0.09);
-  border-color: rgba(21, 128, 61, 0.24);
+  background: linear-gradient(135deg, rgba(21, 128, 61, 0.17) 0%, rgba(21, 128, 61, 0.06) 60%);
+  border-color: rgba(21, 128, 61, 0.4);
+}
+/* Checkmark badge in the corner — recognizable at a glance without reading
+   the status pill, even in peripheral vision while scanning a long queue. */
+.job-card.printed::after {
+  content: "\2713";
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--ok);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 22px;
+  text-align: center;
+  box-shadow: 0 1px 4px rgba(21, 128, 61, 0.35);
 }
 
 /* Left column of the /my-jobs card (token, date, print summary). Its own
