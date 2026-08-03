@@ -137,22 +137,16 @@ export default function CustomerManagementPage() {
       title="User management"
       subtitle="Registered users and delivery customers with order history and contacts."
       actions={
-        <div className="management-actions-row">
-          <button
-            type="button"
-            className={`management-refresh management-export${exported ? " exported" : ""}`}
-            onClick={exportToCsv}
-            disabled={loading || filteredCustomers.length === 0}
-            title="Export current view to CSV"
-          >
-            {exported ? <Check size={16} aria-hidden="true" /> : <Download size={16} aria-hidden="true" />}
-            {exported ? "Exported" : "Export CSV"}
-          </button>
-          <button type="button" className="management-refresh" onClick={load} disabled={loading}>
-            <RefreshCw size={16} className={loading ? "spin" : ""} aria-hidden="true" />
-            Refresh
-          </button>
-        </div>
+        <button
+          type="button"
+          className="management-refresh"
+          onClick={load}
+          disabled={loading}
+          title="Refresh customer data"
+        >
+          <RefreshCw size={15} className={loading ? "spin" : ""} aria-hidden="true" />
+          <span>Refresh</span>
+        </button>
       }
     >
       <main className="management-page">
@@ -209,6 +203,16 @@ export default function CustomerManagementPage() {
                       </button>
                     ))}
                   </div>
+                  <button
+                    type="button"
+                    className={`customer-export-btn${exported ? " exported" : ""}`}
+                    onClick={exportToCsv}
+                    disabled={loading || filteredCustomers.length === 0}
+                    title="Export current view to CSV"
+                  >
+                    {exported ? <Check size={16} aria-hidden="true" /> : <Download size={16} aria-hidden="true" />}
+                    <span>{exported ? "Exported" : "Export CSV"}</span>
+                  </button>
                 </div>
                 {(query || kind !== "all") && (
                   <p className="customer-results-count" aria-live="polite">
