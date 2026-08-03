@@ -305,6 +305,30 @@
   white-space: nowrap;
 }
 
+.file-viewer-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.file-viewer-mode-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--fg);
+  background: none;
+  border: 1px solid var(--line);
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.file-viewer-mode-btn:hover {
+  background: var(--line);
+}
+
 .file-viewer-close {
   background: none;
   border: none;
