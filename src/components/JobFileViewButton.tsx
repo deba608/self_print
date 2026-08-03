@@ -1,13 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Eye, X } from "lucide-react";
+import { Eye, Loader2, X } from "lucide-react";
 
 // Sits inside the job card's <Link> (whole card navigates to /track), so the
-// click must not bubble. Opens an in-page overlay with the file embedded —
-// images via <img>, everything else (PDF) via <iframe> — instead of a new
-// tab, so the customer never leaves My Jobs.
+// click must not bubble. Opens an in-page overlay with the file rendered —
+// images via <img>, PDFs page-by-page onto canvases with pdf.js. An <iframe>
+// is useless here: Android Chrome has no inline PDF viewer and shows a
+// download placeholder instead, so we must rasterize ourselves.
 export default function JobFileViewButton({
   fileId,
   fileName,
@@ -31,9 +32,6 @@ export default function JobFileViewButton({
       document.body.style.overflow = "";
     };
   }, [open]);
-
-  const src = `/api/user/files/${fileId}`;
-  const isImage = (mimeType ?? "").startsWith("image/");
 
   return (
     <>
@@ -75,18 +73,108 @@ export default function JobFileViewButton({
                   <X size={18} aria-hidden="true" />
                 </button>
               </div>
-              <div className="file-viewer-body">
-                {isImage ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={src} alt={fileName} className="file-viewer-img" />
-                ) : (
-                  <iframe src={src} title={fileName} className="file-viewer-frame" />
-                )}
-              </div>
+              <FileViewerBody fileId={fileId} fileName={fileName} mimeType={mimeType} />
             </div>
           </div>,
           document.body
         )}
     </>
+  );
+}
+
+function FileViewerBody({
+  fileId,
+  fileName,
+  mimeType,
+}: {
+  fileId: string;
+  fileName: string;
+  mimeType: string | null;
+}) {
+  const src = `/api/user/files/${fileId}`;
+  const isImage = (mimeType ?? "").startsWith("image/");
+  const isPdf = (mimeType ?? "") === "application/pdf" || fileName.toLowerCase().endsWith(".pdf");
+
+  if (isImage) {
+    return (
+      <div className="file-viewer-body">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={src} alt={fileName} className="file-viewer-img" />
+      </div>
+    );
+  }
+  if (isPdf) {
+    return <PdfPagesViewer src={src} />;
+  }
+  // DOC/DOCX before conversion — nothing we can render client-side.
+  return (
+    <div className="file-viewer-body file-viewer-fallback">
+      <p>Preview isn&apos;t available for this file type.</p>
+      <a className="btn-secondary" href={src} download={fileName}>Download file</a>
+    </div>
+  );
+}
+
+// Renders every page of the PDF stacked vertically, sized to the container
+// width. Fetches once, renders sequentially; fine for typical print jobs.
+function PdfPagesViewer({ src }: { src: string }) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [state, setState] = useState<"loading" | "ready" | "error">("loading");
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(src, { cache: "no-store" });
+        if (!res.ok) throw new Error(String(res.status));
+        const data = await res.arrayBuffer();
+        const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+        pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
+        const pdf = await pdfjs.getDocument({ data } as unknown as Parameters<typeof pdfjs.getDocument>[0]).promise;
+        if (cancelled) return;
+        const container = containerRef.current;
+        if (!container) return;
+        container.innerHTML = "";
+        const width = Math.min(container.clientWidth - 16, 860);
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        for (let i = 1; i <= pdf.numPages; i++) {
+          if (cancelled) return;
+          const page = await pdf.getPage(i);
+          const base = page.getViewport({ scale: 1 });
+          const scale = width / base.width;
+          const viewport = page.getViewport({ scale: scale * dpr });
+          const canvas = document.createElement("canvas");
+          canvas.width = viewport.width;
+          canvas.height = viewport.height;
+          canvas.style.width = `${width}px`;
+          canvas.style.height = `${(viewport.height / dpr).toFixed(0)}px`;
+          canvas.className = "file-viewer-page";
+          container.appendChild(canvas);
+          const ctx = canvas.getContext("2d");
+          if (!ctx) continue;
+          await page.render({ canvasContext: ctx, viewport } as unknown as Parameters<typeof page.render>[0]).promise;
+        }
+        if (!cancelled) setState("ready");
+      } catch {
+        if (!cancelled) setState("error");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [src]);
+
+  return (
+    <div className="file-viewer-body file-viewer-scroll">
+      {state === "loading" && (
+        <p className="file-viewer-loading">
+          <Loader2 size={18} className="spin" aria-hidden="true" /> Loading preview…
+        </p>
+      )}
+      {state === "error" && (
+        <p className="file-viewer-loading" role="alert">Could not load the preview. Try again.</p>
+      )}
+      <div ref={containerRef} className="file-viewer-pages" />
+    </div>
   );
 }
