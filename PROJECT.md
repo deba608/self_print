@@ -64,7 +64,7 @@ id, job_id (FK cascade), original_name, stored_name, mime_type, size_bytes, file
 bw_per_page_paise, color_per_page_paise, photo_print_paise, copy_multiplier, a3/a4/a5/a6/b5/legal/photo_multiplier, duplex_bw_per_page_paise, expiry_minutes (default 1440), delivery_fee_paise, updated_at.
 
 ### `agent_config` (singleton id=1)
-printer_name, config_version (bumped so agents detect changes), updated_at.
+printer_name (legacy single-printer field, kept as fallback), bw_printer_name, color_printer_name (independent B/W vs. color printer selection — the agent picks per job's print_type, falling back to printer_name if the specific one is unset), config_version (bumped so agents detect changes), updated_at.
 
 ### `agent_printers`
 name (PK), driver_name, port_name, is_default, seen_at (heartbeat; stale >5min = offline).
@@ -96,7 +96,9 @@ Append-only audit log: id, job_id (FK cascade), event_type (created/paid/printin
 | `CRON_SECRET` | protects `/api/cleanup` |
 | `DATABASE_PATH`, `UPLOAD_DIR`, `MAX_UPLOAD_MB` (25), `SESSION_SECRET` (HMAC signing), `FILE_RETENTION_DAYS` (3), `VERCEL` (auto redirects SQLite/uploads to /tmp/selfprint) | config.ts extras |
 
-Agent config: `agent/config.json` (copy `config.example.json`) — supabaseUrl, supabaseKey, tempDir, maxRetries, fallbackPrinter (or falls back to SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY env).
+Agent config: `agent/config.json` (copy `config.example.json`) — supabaseUrl, supabaseKey, tempDir, maxRetries, fallbackPrinter (or falls back to SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY env; fallbackPrinter is only a startup default, overridden by `agent_config.bw_printer_name`/`color_printer_name` once set from `/admin`).
+
+Shop-PC delivery: `agent/SETUP.bat` is the one-click entry point (Node/config checks + Scheduled Task registration + immediate run, consolidating what `START-PRINTER.bat`/`INSTALL-AUTOSTART.bat` did as two separate steps — both still exist individually for troubleshooting). `scripts/package-for-shop.mjs` bundles `package.json` + `node_modules` + `agent/` (including the real, gitignored `config.json`) into `dist-shop-package/selfprint-agent.zip` so a non-technical client only unzips and double-clicks `SETUP.bat` — no `git clone`, no editing files, no `npm install` on-site. Full walkthrough (including a fully-local/no-Supabase alternative): `docs/CLIENT_PC_SETUP.md`.
 
 No hardcoded credentials: staff login is Supabase Auth (invite-only via `staff_profiles`); the agent uses the service-role key from `agent/config.json`.
 
@@ -113,12 +115,13 @@ Production hardening: config.ts logs console error at boot if NODE_ENV=productio
 
 ## Pricing logic (`src/lib/pricing.ts`)
 
-`calculatePrice({printType, copies, pageRange, paperSize, pageCount, pricing, duplex})`:
+`calculatePrice({printType, copies, pageRange, paperSize, pageCount, pricing, duplex, pagesPerSheet})`:
 1. Resolve effective page count from pageRange ("all"/empty → full doc, even/odd → half floor/ceil, explicit ranges "1-3,5" → parsed Set).
-2. Photo paper: flat `photoPrintPaise * copies`, bypasses other multipliers.
-3. Else: base per-page rate = bwPerPagePaise or colorPerPagePaise (simplex); duplex B/W uses duplexBwPerPagePaise for full double-sided pairs (`floor(pages/2)*2`) + simplex rate for trailing odd page; duplex color always uses simplex color rate.
-4. Page cost × copies × paper-size multiplier (a3/a4/a5/a6/b5/legalMultiplier; Letter maps to A4 multiplier) × copyMultiplier, rounded.
-5. Delivery jobs add flat deliveryFeePaise on top.
+2. Photo paper: flat `photoPrintPaise * copies`, bypasses other multipliers (pagesPerSheet not applicable).
+3. N-up: `sides = ceil(selectedPages / pagesPerSheet)` — bills by physical printed sides actually consumed, not raw document page count (a 4-up 8-page doc uses 2 sides).
+4. Else: base per-side rate = bwPerPagePaise or colorPerPagePaise (simplex); duplex B/W uses duplexBwPerPagePaise for full double-sided pairs of sides (`floor(sides/2)*2`) + simplex rate for a trailing odd side; duplex color always uses simplex color rate.
+5. Side cost × copies × paper-size multiplier (a3/a4/a5/a6/b5/legalMultiplier; Letter maps to A4 multiplier) × copyMultiplier, rounded.
+6. Delivery jobs add flat deliveryFeePaise on top.
 
 Admin-editable via `/api/admin/pricing`, cached in-memory (`pricingCache` in db.ts, invalidated on updatePricing).
 

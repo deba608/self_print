@@ -159,6 +159,9 @@ npm run db:seed    # Seed SQLite database
 npm run cleanup    # Remove finished + expired jobs
 npm run convert    # Convert DOC/DOCX to PDF (needs LibreOffice)
 npm run agent      # Start Windows print agent
+
+node scripts/create-owner.mjs <email> <password>  # Create/upsert a super_admin staff account
+node scripts/package-for-shop.mjs                 # Bundle a ready-to-run agent zip for the shop PC
 ```
 
 ## Setup
@@ -182,14 +185,23 @@ Without Supabase env vars, the app runs on local SQLite — guest upload works, 
 
 ### Staff Accounts
 
-Staff are invite-only. Create the first super admin manually:
+Staff are invite-only. Create the first super admin either:
 
-1. Supabase Dashboard → Authentication → Add user
-2. Insert a matching row in `staff_profiles` with `role = 'super_admin'`
+- Manually: Supabase Dashboard → Authentication → Add user, then insert a
+  matching row in `staff_profiles` with `role = 'super_admin'`
+- Or via script: `node scripts/create-owner.mjs <email> <password>` — creates
+  the Supabase Auth user (or reuses it if it already exists) and upserts the
+  `staff_profiles` row in one step. Requires `SUPABASE_URL` +
+  `SUPABASE_SERVICE_ROLE_KEY` in `.env`.
 
 Existing admins can invite more staff from the dashboard.
 
 ### Print Agent
+
+Full non-technical walkthrough for setting this up on the shop PC (either
+cloud-hosted or fully local) is in
+[`docs/CLIENT_PC_SETUP.md`](docs/CLIENT_PC_SETUP.md). Short version for
+developers:
 
 Copy `agent/config.example.json` to `agent/config.json` and configure:
 
@@ -197,20 +209,37 @@ Copy `agent/config.example.json` to `agent/config.json` and configure:
 {
   "supabaseUrl": "https://your-project.supabase.co",
   "supabaseKey": "your-service-role-key",
-  "fallbackPrinter": "Your Printer Name"
+  "fallbackPrinter": ""
 }
 ```
 
-Run `.\agent\START-PRINTER.bat`. For auto-start on boot, run `agent\INSTALL-AUTOSTART.bat` once.
+`fallbackPrinter` is only a startup default — the actual B/W and color
+printer selection happens per-mode from the `/admin` dashboard's Printer
+panel (`agent_config.bw_printer_name` / `color_printer_name`), which the
+agent re-reads every 30s.
+
+Run `.\agent\SETUP.bat` — one script that checks Node is installed,
+registers the printer service to auto-start on every boot, and starts it
+immediately. (`START-PRINTER.bat` and `INSTALL-AUTOSTART.bat` still exist
+individually for troubleshooting/re-running just one half of that flow.)
+
+To hand a ready-to-run package to a non-technical client (no `git clone`, no
+config editing, `node_modules` pre-installed), run
+`node scripts/package-for-shop.mjs` — bundles everything into
+`dist-shop-package/selfprint-agent.zip`.
 
 ## Features
 
 - Upload PDF, JPG, PNG, DOC/DOCX via mobile data
 - Print settings: B/W or color, copies, page range, paper size, layout, scale, duplex, pages-per-sheet
+- N-up printing (pages-per-sheet) billed by physical sheets used, not raw page count
 - Optional customer accounts with order history
-- Invite-only staff accounts (super admin / admin)
+- Invite-only staff accounts (super admin / admin / delivery)
 - Live admin dashboard with SSE updates
-- Printer selection, batch payment mark, configurable pricing
-- Home delivery as an alternative to counter pickup
+- Separate B/W and color printer selection, with per-job duplex-capability warnings
+- Batch payment mark, configurable pricing
+- Home delivery as an alternative to counter pickup, with optional GPS pin (skippable)
+- Razorpay checkout — all dashboard-enabled payment methods, not UPI-only
 - DOC/DOCX to PDF conversion via LibreOffice
 - Auto-cleanup of finished and expired jobs
+- One-click shop-PC agent setup package (`scripts/package-for-shop.mjs` + `agent/SETUP.bat`)
