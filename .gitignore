@@ -71,3 +71,6 @@ cookies.txt
 
 # Old abandoned projects
 electron-agent/
+
+# Packaged shop delivery build (generated, not source)
+dist-shop-package/
