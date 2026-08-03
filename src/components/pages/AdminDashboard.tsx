@@ -217,8 +217,8 @@ export default function AdminDashboard() {
         }
         return;
       }
-      const filterKeys = ["all", "pending_payment", "unpaid", "approved", "printing", "printed"];
-      if (e.key >= "1" && e.key <= "6") {
+      const filterKeys = ["all", "pending_payment", "printing", "printed"];
+      if (e.key >= "1" && e.key <= "4") {
         e.preventDefault();
         setFilterStatus(filterKeys[Number(e.key) - 1]);
       } else if (e.key === "r" || e.key === "R") {
@@ -448,12 +448,11 @@ export default function AdminDashboard() {
     : jobs.filter((j) => (j.deliveryMethod ?? "pickup") === deliveryFilter);
   const filteredJobs = filterStatus === "all"
     ? methodFilteredJobs
-    : filterStatus === "unpaid"
-      ? methodFilteredJobs.filter((j) => !j.paidAt && j.status !== "cancelled")
-      : filterStatus === "pending_payment"
-        ? methodFilteredJobs.filter((j) => j.status === "pending_payment" || j.status === "paid")
+    : filterStatus === "pending_payment"
+      ? methodFilteredJobs.filter((j) => j.status === "pending_payment" || j.status === "paid")
+      : filterStatus === "printing"
+        ? methodFilteredJobs.filter((j) => j.status === "approved" || j.status === "printing")
         : methodFilteredJobs.filter((j) => j.status === filterStatus);
-  const pending = jobs.filter((j) => !j.paidAt && j.status !== "cancelled");
   const outForDeliveryCount = jobs.filter((j) => j.deliveryStatus === "out_for_delivery").length;
 
   const recentAttempts = [...jobs]
@@ -468,8 +467,6 @@ export default function AdminDashboard() {
   const statusFilters = [
     { value: "all", label: "All" },
     { value: "pending_payment", label: "Queued" },
-    { value: "unpaid", label: "Unpaid" },
-    { value: "approved", label: "Ready" },
     { value: "printing", label: "Printing" },
     { value: "printed", label: "Done" },
   ];
@@ -477,10 +474,10 @@ export default function AdminDashboard() {
   const counts = statusFilters.reduce((acc, f) => {
     acc[f.value] = f.value === "all"
       ? jobs.length
-      : f.value === "unpaid"
-        ? jobs.filter((j) => !j.paidAt && j.status !== "cancelled").length
-        : f.value === "pending_payment"
-          ? jobs.filter((j) => j.status === "pending_payment" || j.status === "paid").length
+      : f.value === "pending_payment"
+        ? jobs.filter((j) => j.status === "pending_payment" || j.status === "paid").length
+        : f.value === "printing"
+          ? jobs.filter((j) => j.status === "approved" || j.status === "printing").length
           : jobs.filter((j) => j.status === f.value).length;
     return acc;
   }, {} as Record<string, number>);
