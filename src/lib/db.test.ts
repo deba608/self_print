@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from "vitest";
+import { describe, it, expect, beforeAll, beforeEach } from "vitest";
 import { rmSync } from "node:fs";
 import Database from "better-sqlite3";
 
@@ -44,6 +44,12 @@ describe("getRetentionConfig", () => {
     await db.ensureDatabase();
   });
 
+  beforeEach(async () => {
+    const raw = new Database("./data-test-cleanup-events.sqlite");
+    raw.prepare("DELETE FROM retention_config").run();
+    raw.close();
+  });
+
   it("returns sane defaults when no row exists yet", async () => {
     const cfg = await db.getRetentionConfig();
     expect(cfg).toEqual({
@@ -52,5 +58,85 @@ describe("getRetentionConfig", () => {
       strayFileRetentionHours: 2,
       loginEventRetentionDays: 365,
     });
+  });
+
+  it("round-trips an update through updateRetentionConfig and getRetentionConfig", async () => {
+    await db.updateRetentionConfig({
+      cartAbandonMinutes: 42,
+      fileRetentionDays: 9,
+      strayFileRetentionHours: 5,
+      loginEventRetentionDays: 100,
+    });
+
+    const cfg = await db.getRetentionConfig();
+    expect(cfg).toEqual({
+      cartAbandonMinutes: 42,
+      fileRetentionDays: 9,
+      strayFileRetentionHours: 5,
+      loginEventRetentionDays: 100,
+    });
+  });
+});
+
+describe("cleanupOldJobs file purge invariant (SQLite)", () => {
+  let db: typeof import("./db");
+  beforeAll(async () => {
+    db = await import("./db");
+    await db.ensureDatabase();
+  });
+
+  it("purges storage_path but keeps job_files metadata and the job row", async () => {
+    // Make the file-retention window effectively zero so a freshly finished
+    // job is immediately eligible for the privacy purge.
+    await db.updateRetentionConfig({
+      cartAbandonMinutes: 1440,
+      fileRetentionDays: 0,
+      strayFileRetentionHours: 2,
+      loginEventRetentionDays: 365,
+    });
+
+    const { jobId, fileId } = await db.createJob(
+      {
+        token: "test-token-" + Math.random().toString(36).slice(2),
+        printType: "bw",
+        copies: 1,
+        paperSize: "A4",
+        layout: "portrait",
+        pagesPerSheet: 1,
+        margins: "normal",
+        scale: 100,
+        duplex: "simplex",
+        pageCount: 1,
+        pricePaise: 100,
+        needsConversion: 0,
+        queuePosition: 1,
+      },
+      {
+        originalName: "report.pdf",
+        storedName: "stored-report.pdf",
+        mimeType: "application/pdf",
+        sizeBytes: 1234,
+        fileKind: "pdf",
+        storagePath: "originals/stored-report.pdf",
+      }
+    );
+
+    await db.updateJobStatus(jobId, "printed");
+
+    // Ensure the job's created_at is strictly before the purge cutoff computed
+    // inside cleanupOldJobs (which uses Date.now() at call time).
+    await new Promise((resolve) => setTimeout(resolve, 5));
+
+    await db.cleanupOldJobs();
+
+    const raw = new Database("./data-test-cleanup-events.sqlite", { readonly: true });
+    const jobRow = raw.prepare("SELECT * FROM jobs WHERE id = ?").get(jobId) as Record<string, unknown> | undefined;
+    const fileRow = raw.prepare("SELECT * FROM job_files WHERE id = ?").get(fileId) as Record<string, unknown> | undefined;
+    raw.close();
+
+    expect(jobRow).toBeTruthy();
+    expect(fileRow).toBeTruthy();
+    expect(fileRow!.storage_path).toBe("");
+    expect(fileRow!.original_name).toBe("report.pdf");
   });
 });

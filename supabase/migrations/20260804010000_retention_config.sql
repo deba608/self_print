@@ -7,5 +7,3 @@ create table if not exists retention_config (
   updated_at timestamptz not null default now(),
   constraint retention_config_singleton check (id = 1)
 );
-
-insert into retention_config (id) values (1) on conflict (id) do nothing;

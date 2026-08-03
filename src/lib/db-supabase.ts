@@ -667,7 +667,8 @@ export async function getRetentionConfig(): Promise<RetentionConfig> {
     .single();
 
   if (error) {
-    if ((error as any).code === 'PGRST116') return RETENTION_DEFAULTS;
+    const code = (error as any).code;
+    if (code === 'PGRST116' || code === 'PGRST205' || code === '42P01') return RETENTION_DEFAULTS;
     throw error;
   }
 
