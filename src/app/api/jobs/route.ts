@@ -248,7 +248,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const pricing = await getPricing();
+    // Pricing config, token allocation, and queue position are independent
+    // lookups — run them concurrently instead of serially.
+    const [pricing, token, queuePos] = await Promise.all([getPricing(), randomToken(), nextQueuePosition()]);
     if (deliveryMethod === "delivery") {
       const check = checkDeliveryServiceable(
         {
@@ -269,8 +271,6 @@ export async function POST(request: NextRequest) {
     const printPricePaise = calculatePrice({ printType, copies, pageRange, paperSize, pageCount: Math.max(pageCount, 1), pricing, duplex, pagesPerSheet });
     const deliveryFeePaise = deliveryMethod === "delivery" ? pricing.deliveryFeePaise : 0;
     const pricePaise = printPricePaise + deliveryFeePaise;
-    const token = await randomToken();
-    const queuePos = await nextQueuePosition();
 
     const jobData = {
       token,
@@ -474,8 +474,7 @@ async function handleBulk(form: FormData, customerUserId: string | null): Promis
   const printPricePaise = calculatePrice({ printType, copies, pageRange: null, paperSize, pageCount: Math.max(pageCount, 1), pricing, duplex, pagesPerSheet });
   const deliveryFeePaise = deliveryMethod === "delivery" ? pricing.deliveryFeePaise : 0;
   const pricePaise = printPricePaise + deliveryFeePaise;
-  const token = await randomToken();
-  const queuePos = await nextQueuePosition();
+  const [token, queuePos] = await Promise.all([randomToken(), nextQueuePosition()]);
 
   const jobData = {
     token,
