@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import Badge, { type BadgeVariant } from "@/components/ui/Badge";
 import EmptyState from "@/components/ui/EmptyState";
 import Skeleton from "@/components/ui/Skeleton";
@@ -125,21 +126,27 @@ async function JobsList({ filter, limit }: { filter: Filter; limit: number }) {
   const hasMore = fetched.length > limit;
   const jobs = hasMore ? fetched.slice(0, limit) : fetched;
 
-  // Fetch file metadata separately to avoid relational join issues with RLS.
-  // Note: customer RLS may not allow reading job_files — we gracefully fall
-  // back to "Document" for the name, and use job age alone for retention status.
+  // Fetch file metadata using the service-role admin client so RLS on
+  // job_files doesn't block it. This is safe: we only look up files for
+  // job IDs that were already returned for the authenticated user above.
   const jobIds = jobs.map((j: any) => j.id);
   let filesMap: Record<string, { original_name: string; storage_path: string; purged_at: string | null }[]> = {};
   if (jobIds.length > 0) {
-    const { data: filesData } = await supabase
-      .from("job_files")
-      .select("job_id, original_name, storage_path, purged_at")
-      .in("job_id", jobIds);
-    if (filesData) {
-      for (const f of filesData as any[]) {
-        if (!filesMap[f.job_id]) filesMap[f.job_id] = [];
-        filesMap[f.job_id].push(f);
+    try {
+      const adminClient = createAdminClient();
+      const { data: filesData } = await adminClient
+        .from("job_files")
+        .select("job_id, original_name, storage_path, purged_at")
+        .in("job_id", jobIds);
+      if (filesData) {
+        for (const f of filesData as any[]) {
+          if (!filesMap[f.job_id]) filesMap[f.job_id] = [];
+          filesMap[f.job_id].push(f);
+        }
       }
+    } catch {
+      // Admin client unavailable (e.g. SQLite-only local dev) — gracefully
+      // skip file names; retention status still uses age-based logic.
     }
   }
 
