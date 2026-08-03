@@ -1593,33 +1593,11 @@
   cursor: pointer;
   white-space: nowrap;
   flex-shrink: 0;
-  transition: all var(--duration-fast) var(--ease-out);
+  transition: none;
 }
-
-/* Status dot — same colour language as the job-card border (see
-   .job-card.<status> rules) so the filter row and the queue below it read
-   as one coherent colour system, not two unrelated UIs. Matched by tab
-   order: All, Queued, Printing, Done. */
-.filter-tab::before {
-  content: "";
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--line);
-  flex-shrink: 0;
-  transition: background var(--duration-fast) var(--ease-out);
-}
-.filter-tab:nth-child(1)::before { background: var(--muted); }
-.filter-tab:nth-child(2)::before { background: var(--info); }
-.filter-tab:nth-child(3)::before { background: var(--accent); }
-.filter-tab:nth-child(4)::before { background: var(--ok); }
 
 .filter-tab:hover {
   color: var(--accent-strong);
-}
-
-.filter-tab:active {
-  transform: scale(0.98);
 }
 
 .filter-tab.active {
@@ -1630,20 +1608,18 @@
 
 .filter-count {
   color: var(--muted);
-  font-size: 11px;
-  font-weight: 700;
+  font-size: 11.5px;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
-  min-width: 18px;
-  padding: 1px 5px;
-  border-radius: 999px;
-  background: rgba(15, 23, 42, 0.05);
-  text-align: center;
-  transition: all var(--duration-fast) var(--ease-out);
+  margin-left: 2px;
+  opacity: 0.75;
+  transition: none;
 }
 
 .filter-tab.active .filter-count {
   color: var(--accent-strong);
-  background: rgba(13, 122, 116, 0.12);
+  font-weight: 700;
+  opacity: 1;
 }
 
 /* === Batch Bar === */
@@ -5548,11 +5524,7 @@
 
   /* Fade the trailing edge of each scrollable chip row so truncation reads
      as "more to scroll" rather than content getting cut off mid-word. */
-  .filter-bar,
-  .delivery-filter-toggle {
-    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 20px), transparent);
-    mask-image: linear-gradient(to right, #000 calc(100% - 20px), transparent);
-  }
+
 
   /* Keep price, paid/unpaid badge, and the pay button on ONE line — forcing
      the button to 100% width used to push it onto its own separate row
