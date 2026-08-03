@@ -1628,7 +1628,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px 4px;
+  padding: 8px 0;
   margin-bottom: 4px;
 }
 
@@ -1901,18 +1901,18 @@
 .job-card.pending_payment,
 .job-card.paid {
   border: 1px solid var(--info);
-  border-left: 8px solid var(--info);
+  border-left: 10px solid var(--info);
 }
 
 .job-card.approved,
 .job-card.printing {
   border: 1px solid var(--accent);
-  border-left: 8px solid var(--accent);
+  border-left: 10px solid var(--accent);
 }
 
 .job-card.printed {
   border: 1px solid var(--ok);
-  border-left: 8px solid var(--ok);
+  border-left: 10px solid var(--ok);
 }
 .job-card.printed:hover {
   box-shadow: 0 2px 6px rgba(21, 128, 61, 0.1), 0 8px 20px rgba(21, 128, 61, 0.08);
@@ -1920,12 +1920,12 @@
 
 .job-card.failed {
   border: 1px solid var(--danger);
-  border-left: 8px solid var(--danger);
+  border-left: 10px solid var(--danger);
 }
 
 .job-card.cancelled {
   border: 1px solid var(--line);
-  border-left: 8px solid var(--muted);
+  border-left: 10px solid var(--muted);
   opacity: 0.7;
 }
 
@@ -5342,6 +5342,13 @@
   /* Topbar sits in the top-right cell, beside the sidebar — not over it. */
   .admin-topbar {
     grid-area: topbar;
+  }
+
+  .admin-topbar-inner {
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 24px;
   }
 
   /* Main content occupies the bottom-right cell, beside the sidebar. */

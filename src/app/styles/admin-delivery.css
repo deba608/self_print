@@ -203,6 +203,80 @@
 .jobs-list-card:hover .jobs-card-arrow { color: var(--accent); transform: translateX(2px); }
 .jobs-card-arrow { transition: color var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out); }
 
+/* ── File Name & Detailed Specs on Customer My-Jobs cards ───────────── */
+.jobs-card-file {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--fg);
+  min-width: 0;
+}
+
+.jobs-file-icon {
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.jobs-filename {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.jobs-file-count {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  background: var(--line);
+  padding: 2px 6px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.jobs-card-specs-tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.jobs-spec-chip {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  background: rgba(15, 23, 42, 0.04);
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(15, 23, 42, 0.06);
+}
+
+.jobs-retention-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 6px;
+  margin-top: 4px;
+}
+
+.jobs-retention-tag.active {
+  background: rgba(13, 122, 116, 0.08);
+  color: var(--accent);
+  border: 1px solid rgba(13, 122, 116, 0.2);
+}
+
+.jobs-retention-tag.purged {
+  background: rgba(100, 116, 139, 0.08);
+  color: #64748b;
+  border: 1px solid rgba(100, 116, 139, 0.2);
+}
+
 @media (max-width: 480px) {
   .jobs-page { gap: var(--space-4); }
   .jobs-page .jobs-filter-chips { gap: var(--space-2); }

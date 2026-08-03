@@ -11,6 +11,9 @@ import {
   Inbox,
   UploadCloud,
   ChevronRight,
+  FileText,
+  FileCheck,
+  FileMinus,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
@@ -91,14 +94,15 @@ async function JobsList({ filter, limit }: { filter: Filter; limit: number }) {
   }
 
   // Defense-in-depth alongside RLS's "customers can view own jobs" policy.
-  // Filter server-side and fetch limit+1 rows so we know whether to render
-  // "Show more" without a separate count query.
+  // Select file name, detailed specs, and storage state so file retention
+  // (3-day privacy purge) and filename display work seamlessly.
   let query = supabase
     .from("jobs")
     .select(
-      "id, token, status, print_type, copies, page_count, price_paise, created_at, paid_at, printed_at, delivery_method, delivery_status"
+      "id, token, status, print_type, copies, page_count, price_paise, created_at, paid_at, printed_at, delivery_method, delivery_status, paper_size, duplex, layout, pages_per_sheet, page_range, job_files(id, original_name, size_bytes, storage_path, purged_at)"
     )
     .eq("customer_user_id", user.id);
+
   if (filter === "done") {
     query = query.in("status", DONE_STATUSES);
   } else if (filter === "active") {
@@ -111,6 +115,7 @@ async function JobsList({ filter, limit }: { filter: Filter; limit: number }) {
   const fetched = error ? [] : data ?? [];
   const hasMore = fetched.length > limit;
   const jobs = hasMore ? fetched.slice(0, limit) : fetched;
+  const THREE_DAYS_MS = 3 * 24 * 60 * 60 * 1000;
 
   return (
     <>
@@ -160,13 +165,30 @@ async function JobsList({ filter, limit }: { filter: Filter; limit: number }) {
 
       {jobs.length > 0 && (
         <div className="job-list">
-          {jobs.map((job) => {
+          {jobs.map((job: any) => {
             const status = statusMap[job.status] || {
               label: job.status,
               variant: "neutral" as BadgeVariant,
               icon: Clock,
             };
             const isDelivery = job.delivery_method === "delivery";
+
+            // File details & 3-day retention check
+            const files = Array.isArray(job.job_files) ? job.job_files : [];
+            const firstFile = files.length > 0 ? files[0] : null;
+            const fileName = firstFile?.original_name || "Document";
+            const ageMs = Date.now() - new Date(job.created_at).getTime();
+            const isPurged = Boolean(firstFile?.purged_at || !firstFile?.storage_path || ageMs > THREE_DAYS_MS);
+
+            // Detailed specification labels
+            const paperSize = job.paper_size ?? "A4";
+            const duplexLabel = job.duplex === "simplex" || !job.duplex ? "Single-sided" : "Double-sided";
+            const printTypeLabel = job.print_type === "color" ? "Color" : "B&W";
+            const copiesLabel = `${job.copies} ${job.copies === 1 ? "copy" : "copies"}`;
+            const pagesLabel = `${job.page_count} ${job.page_count === 1 ? "page" : "pages"}`;
+            const layoutLabel = job.layout === "landscape" ? "Landscape" : "Portrait";
+            const pagesPerSheetLabel = job.pages_per_sheet > 1 ? `${job.pages_per_sheet}-up` : null;
+
             return (
               <Link
                 key={job.id}
@@ -181,12 +203,54 @@ async function JobsList({ filter, limit }: { filter: Filter; limit: number }) {
                     </span>
                     <ChevronRight className="jobs-card-arrow" size={18} aria-hidden="true" />
                   </div>
-                  <div className="muted jobs-card-specs">
-                    {job.print_type === "color" ? "Color" : "B&W"} &middot; {job.copies}{" "}
-                    {job.copies === 1 ? "copy" : "copies"} &middot; {job.page_count}{" "}
-                    {job.page_count === 1 ? "page" : "pages"}
+
+                  {/* File Name Display */}
+                  <div className="jobs-card-file">
+                    <FileText size={16} className="jobs-file-icon" aria-hidden="true" />
+                    <span className="jobs-filename" title={fileName}>
+                      {fileName}
+                    </span>
+                    {files.length > 1 && (
+                      <span className="jobs-file-count">+{files.length - 1} more</span>
+                    )}
+                  </div>
+
+                  {/* Detailed Print Specifications */}
+                  <div className="jobs-card-specs-tags">
+                    <span className="jobs-spec-chip">{printTypeLabel}</span>
+                    <span className="jobs-spec-chip">{paperSize}</span>
+                    <span className="jobs-spec-chip">{duplexLabel}</span>
+                    <span className="jobs-spec-chip">{copiesLabel}</span>
+                    <span className="jobs-spec-chip">{pagesLabel}</span>
+                    <span className="jobs-spec-chip">{layoutLabel}</span>
+                    {pagesPerSheetLabel && (
+                      <span className="jobs-spec-chip">{pagesPerSheetLabel}</span>
+                    )}
+                    {job.page_range && (
+                      <span className="jobs-spec-chip">Pages: {job.page_range}</span>
+                    )}
+                  </div>
+
+                  {/* 3-Day File Retention Indicator */}
+                  <div style={{ marginTop: "4px" }}>
+                    {isPurged ? (
+                      <span
+                        className="jobs-retention-tag purged"
+                        title="File content purged after 3 days for privacy; filename and receipt remain saved"
+                      >
+                        <FileMinus size={12} aria-hidden="true" /> File purged after 3 days · Filename retained
+                      </span>
+                    ) : (
+                      <span
+                        className="jobs-retention-tag active"
+                        title="File stored and available (3-day retention window)"
+                      >
+                        <FileCheck size={12} aria-hidden="true" /> File available (3-day retention)
+                      </span>
+                    )}
                   </div>
                 </div>
+
                 <div className="jobs-card-footer">
                   <div className="jobs-card-badges">
                     <Badge variant={status.variant} icon={status.icon}>
