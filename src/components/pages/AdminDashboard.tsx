@@ -573,7 +573,7 @@ export default function AdminDashboard() {
             {(["all", "pickup", "delivery"] as const).map((f) => (
               <button type="button" key={f} className={`delivery-filter-btn ${deliveryFilter === f ? "active" : ""}`}
                 onClick={() => setDeliveryFilter(f)} aria-pressed={deliveryFilter === f}>
-                {f === "all" ? "All Orders" : f === "pickup" ? "Pickup" : "Delivery"}
+                {f === "all" ? "All Orders" : f === "pickup" ? "Self Pickup" : "Delivery"}
                 {f === "delivery" && outForDeliveryCount > 0 && (
                   <span className="delivery-filter-count" title={`${outForDeliveryCount} out for delivery`}>
                     <Truck size={12} aria-hidden="true" />{outForDeliveryCount}
