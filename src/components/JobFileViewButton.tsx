@@ -2,25 +2,25 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Eye, GalleryHorizontal, GalleryVertical, Loader2, X } from "lucide-react";
+import { Eye, FileText, GalleryHorizontal, GalleryVertical, Loader2, X } from "lucide-react";
 import PdfCanvasPreview from "./upload/PdfCanvasPreview";
+
+export type ViewableFile = {
+  id: string;
+  name: string;
+  mimeType: string | null;
+};
 
 // Sits inside the job card's <Link> (whole card navigates to /track), so the
 // click must not bubble. Opens an in-page overlay with the file rendered —
 // images via <img>, PDFs through the same pdf.js pager used on the upload
-// form (fast first paint), with a toggle to a continuous scroll view that
-// stacks every page. An <iframe> is useless here: Android Chrome has no
-// inline PDF viewer.
-export default function JobFileViewButton({
-  fileId,
-  fileName,
-  mimeType,
-}: {
-  fileId: string;
-  fileName: string;
-  mimeType: string | null;
-}) {
+// form (fast first paint), with a toggle to a continuous scroll view. Bulk
+// jobs carry several files; a chip row above the preview switches between
+// them (each file is fetched lazily, only when first selected). An <iframe>
+// is useless here: Android Chrome has no inline PDF viewer.
+export default function JobFileViewButton({ files }: { files: ViewableFile[] }) {
   const [open, setOpen] = useState(false);
+  const [activeIdx, setActiveIdx] = useState(0);
 
   useEffect(() => {
     if (!open) return;
@@ -35,6 +35,9 @@ export default function JobFileViewButton({
     };
   }, [open]);
 
+  if (files.length === 0) return null;
+  const active = files[Math.min(activeIdx, files.length - 1)];
+
   return (
     <>
       <button
@@ -43,10 +46,11 @@ export default function JobFileViewButton({
         onClick={(e) => {
           e.preventDefault();
           e.stopPropagation();
+          setActiveIdx(0);
           setOpen(true);
         }}
       >
-        <Eye size={13} aria-hidden="true" /> View
+        <Eye size={13} aria-hidden="true" /> View{files.length > 1 ? ` (${files.length})` : ""}
       </button>
 
       {open &&
@@ -56,7 +60,7 @@ export default function JobFileViewButton({
             className="file-viewer-overlay"
             role="dialog"
             aria-modal="true"
-            aria-label={`Preview of ${fileName}`}
+            aria-label={`Preview of ${active.name}`}
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
@@ -64,10 +68,30 @@ export default function JobFileViewButton({
             }}
           >
             <div className="file-viewer-panel" onClick={(e) => e.stopPropagation()}>
+              {files.length > 1 && (
+                <div className="file-viewer-tabs" role="tablist" aria-label="Files in this order">
+                  {files.map((f, i) => (
+                    <button
+                      key={f.id}
+                      type="button"
+                      role="tab"
+                      aria-selected={i === activeIdx}
+                      className={`file-viewer-tab ${i === activeIdx ? "is-active" : ""}`}
+                      onClick={() => setActiveIdx(i)}
+                      title={f.name}
+                    >
+                      <FileText size={13} aria-hidden="true" />
+                      <span className="file-viewer-tab-name">{f.name}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {/* Keyed by file id so switching files fully resets viewer state. */}
               <FileViewer
-                fileId={fileId}
-                fileName={fileName}
-                mimeType={mimeType}
+                key={active.id}
+                fileId={active.id}
+                fileName={active.name}
+                mimeType={active.mimeType}
                 onClose={() => setOpen(false)}
               />
             </div>

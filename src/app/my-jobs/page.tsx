@@ -250,11 +250,13 @@ async function JobsList({ filter, limit }: { filter: Filter; limit: number }) {
                     {files.length > 1 && (
                       <span className="jobs-file-count">+{files.length - 1} more</span>
                     )}
-                    {!isPurged && firstFile && (
+                    {!isPurged && files.length > 0 && (
                       <JobFileViewButton
-                        fileId={firstFile.id}
-                        fileName={firstFile.original_name}
-                        mimeType={firstFile.mime_type}
+                        files={files.map((f) => ({
+                          id: f.id,
+                          name: f.original_name,
+                          mimeType: f.mime_type,
+                        }))}
                       />
                     )}
                   </div>
