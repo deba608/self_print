@@ -3,6 +3,7 @@ import crypto from 'node:crypto';
 import type { CustomerManagementRow, Job, JobFile, PricingConfig, PrinterOption, SseClient } from './types';
 import { FILE_RETENTION_DAYS, CART_ABANDON_MINUTES } from './config';
 import { DEFAULT_SERVICE_AREA, parseServiceAreaConfig, serializeServiceAreaConfig } from './service-area';
+import { chunk } from './util';
 
 const supabaseUrl = process.env.SUPABASE_URL?.trim();
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
@@ -828,15 +829,15 @@ export async function cleanupOldJobs(): Promise<{ deleted: number; storagePaths:
   if (expErr) throw expErr;
   const abandonedIds = (expired || []).map((r) => String(r.id));
 
-  if (abandonedIds.length > 0) {
+  for (const idBatch of chunk(abandonedIds, 200)) {
     const { data: files, error: fileErr } = await supabase
       .from('job_files')
       .select('storage_path')
-      .in('job_id', abandonedIds);
+      .in('job_id', idBatch);
     if (fileErr) throw fileErr;
     storagePaths.push(...(files || []).map((f) => String(f.storage_path)));
 
-    const { error: delErr } = await supabase.from('jobs').delete().in('id', abandonedIds);
+    const { error: delErr } = await supabase.from('jobs').delete().in('id', idBatch);
     if (delErr) throw delErr;
   }
 
@@ -854,22 +855,28 @@ export async function cleanupOldJobs(): Promise<{ deleted: number; storagePaths:
     .map((r) => String(r.id));
 
   if (finishedIds.length > 0) {
-    const { data: purgeFiles, error: purgeFileErr } = await supabase
-      .from('job_files')
-      .select('id, storage_path')
-      .in('job_id', finishedIds)
-      .is('purged_at', null)
-      .neq('storage_path', '');
-    if (purgeFileErr) throw purgeFileErr;
-
-    if ((purgeFiles || []).length > 0) {
-      storagePaths.push(...(purgeFiles || []).map((f) => String(f.storage_path)));
-      const purgeIds = (purgeFiles || []).map((f) => String(f.id));
-      const { error: updateErr } = await supabase
+    const purgeFiles: Array<{ id: unknown; storage_path: unknown }> = [];
+    for (const idBatch of chunk(finishedIds, 200)) {
+      const { data: batchFiles, error: purgeFileErr } = await supabase
         .from('job_files')
-        .update({ storage_path: '', purged_at: now })
-        .in('id', purgeIds);
-      if (updateErr) throw updateErr;
+        .select('id, storage_path')
+        .in('job_id', idBatch)
+        .is('purged_at', null)
+        .neq('storage_path', '');
+      if (purgeFileErr) throw purgeFileErr;
+      purgeFiles.push(...(batchFiles || []));
+    }
+
+    if (purgeFiles.length > 0) {
+      storagePaths.push(...purgeFiles.map((f) => String(f.storage_path)));
+      const purgeIds = purgeFiles.map((f) => String(f.id));
+      for (const idBatch of chunk(purgeIds, 200)) {
+        const { error: updateErr } = await supabase
+          .from('job_files')
+          .update({ storage_path: '', purged_at: now })
+          .in('id', idBatch);
+        if (updateErr) throw updateErr;
+      }
     }
   }
 

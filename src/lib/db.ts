@@ -1,5 +1,6 @@
 import type { CustomerManagementRow, Job, JobFile, PricingConfig, PrinterOption, SseClient } from './types';
 import { FILE_RETENTION_DAYS, CART_ABANDON_MINUTES } from './config';
+import { chunk } from './util';
 import { parseServiceAreaConfig, serializeServiceAreaConfig } from './service-area';
 
 // Check if Supabase is configured
@@ -1100,13 +1101,13 @@ export async function cleanupOldJobs(): Promise<{ deleted: number; storagePaths:
     SELECT id FROM jobs WHERE status = 'pending_payment' AND created_at < ? AND paid_at IS NULL
   `).all(abandonedCutoff) as Array<{ id: string }>;
   const abandonedIds = abandoned.map((r) => r.id);
-  if (abandonedIds.length > 0) {
-    const placeholders = abandonedIds.map(() => '?').join(',');
+  for (const idBatch of chunk(abandonedIds, 200)) {
+    const placeholders = idBatch.map(() => '?').join(',');
     const files = sqlite
       .prepare(`SELECT storage_path FROM job_files WHERE job_id IN (${placeholders})`)
-      .all(...abandonedIds) as Array<{ storage_path: string }>;
+      .all(...idBatch) as Array<{ storage_path: string }>;
     storagePaths.push(...files.map((f) => f.storage_path));
-    sqlite.prepare(`DELETE FROM jobs WHERE id IN (${placeholders})`).run(...abandonedIds);
+    sqlite.prepare(`DELETE FROM jobs WHERE id IN (${placeholders})`).run(...idBatch);
   }
 
   // 2) Privacy purge: finished orders (printed/cancelled/failed, and delivery
@@ -1143,11 +1144,10 @@ export async function filterActiveStoragePaths(paths: string[]): Promise<Set<str
   const sqlite = await getDbInstance();
   const active = new Set<string>();
   
-  for (let i = 0; i < paths.length; i += 100) {
-    const chunk = paths.slice(i, i + 100);
-    const placeholders = chunk.map(() => '?').join(',');
+  for (const pathBatch of chunk(paths, 100)) {
+    const placeholders = pathBatch.map(() => '?').join(',');
     const stmt = sqlite.prepare(`SELECT storage_path FROM job_files WHERE storage_path IN (${placeholders})`);
-    const rows = stmt.all(...chunk) as { storage_path: string }[];
+    const rows = stmt.all(...pathBatch) as { storage_path: string }[];
     for (const row of rows) active.add(row.storage_path);
   }
   return active;
