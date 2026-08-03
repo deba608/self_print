@@ -26,6 +26,11 @@ export const DEFAULT_EXPIRY_MINUTES = 1440;
 // customer-facing job/token expiry (DEFAULT_EXPIRY_MINUTES / pricing.expiryMinutes)
 // so changing what customers see never silently changes retention behavior.
 export const CART_ABANDON_MINUTES = Number(process.env.CART_ABANDON_MINUTES ?? 1440);
+// How long an uploaded file can sit without a matching job_files row before
+// the cleanup sweep deletes it as orphaned (e.g. upload succeeded but job
+// creation failed). Separate from CART_ABANDON_MINUTES because it targets
+// filesystem/storage orphans, not database rows.
+export const STRAY_FILE_RETENTION_HOURS = Number(process.env.STRAY_FILE_RETENTION_HOURS ?? 2);
 // Privacy retention: uploaded file bytes for finished orders (printed/cancelled/
 // failed) are purged this many days after the job was created. The job row and
 // job_files metadata (filename, page count, price) are kept forever so order

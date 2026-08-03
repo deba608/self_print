@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { timingSafeEqual } from "node:crypto";
 import { cleanupOldJobs, filterActiveStoragePaths } from "@/lib/db";
 import { deleteFile, listOldFiles } from "@/lib/storage";
+import { STRAY_FILE_RETENTION_HOURS } from "@/lib/config";
 
 // Deletes finished and expired jobs plus their stored files.
 // Requires CRON_SECRET env var. Vercel Cron sends `Authorization: Bearer <CRON_SECRET>`
@@ -28,10 +29,10 @@ async function runCleanup() {
   const { deleted, storagePaths } = await cleanupOldJobs();
   await Promise.all(storagePaths.map((p) => deleteFile(p)));
   
-  // Clean up stray files older than 2 hours
-  const twoHoursMs = 2 * 60 * 60 * 1000;
-  const oldOriginals = await listOldFiles('originals', twoHoursMs);
-  const oldConverted = await listOldFiles('converted', twoHoursMs);
+  // Clean up stray files older than STRAY_FILE_RETENTION_HOURS
+  const strayWindowMs = STRAY_FILE_RETENTION_HOURS * 60 * 60 * 1000;
+  const oldOriginals = await listOldFiles('originals', strayWindowMs);
+  const oldConverted = await listOldFiles('converted', strayWindowMs);
   const allOldPaths = [...oldOriginals, ...oldConverted];
   
   const activePaths = await filterActiveStoragePaths(allOldPaths);
