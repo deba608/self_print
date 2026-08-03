@@ -126,8 +126,8 @@ async function JobsList({ filter, limit }: { filter: Filter; limit: number }) {
   const jobs = hasMore ? fetched.slice(0, limit) : fetched;
 
   // Fetch file metadata separately to avoid relational join issues with RLS.
-  // Only the first file per job is shown; purged_at tells us if the 3-day
-  // retention window has already expired.
+  // Note: customer RLS may not allow reading job_files — we gracefully fall
+  // back to "Document" for the name, and use job age alone for retention status.
   const jobIds = jobs.map((j: any) => j.id);
   let filesMap: Record<string, { original_name: string; storage_path: string; purged_at: string | null }[]> = {};
   if (jobIds.length > 0) {
@@ -193,19 +193,19 @@ async function JobsList({ filter, limit }: { filter: Filter; limit: number }) {
             };
             const isDelivery = job.delivery_method === "delivery";
 
-            // File details
+            // File details — may be empty if RLS blocks the customer session
+            // from reading job_files; fall back to "Document" for the name.
             const files = filesMap[job.id] ?? [];
             const firstFile = files[0] ?? null;
             const fileName = firstFile?.original_name ?? null;
 
-            // 3-day retention: file is considered purged if purged_at is set,
-            // storage_path is empty, OR the job is older than 3 days.
+            // 3-day retention: use age alone so a fresh job never shows as
+            // purged just because the file metadata couldn't be fetched.
+            // If we DO have the row, also honour the explicit purged_at flag.
             const ageMs = Date.now() - new Date(job.created_at).getTime();
             const isPurged =
-              !firstFile ||
-              Boolean(firstFile.purged_at) ||
-              !firstFile.storage_path ||
-              ageMs > THREE_DAYS_MS;
+              ageMs > THREE_DAYS_MS ||
+              (firstFile != null && (Boolean(firstFile.purged_at) || !firstFile.storage_path));
 
             // Detailed specification labels
             const paperSize = job.paper_size ?? "A4";

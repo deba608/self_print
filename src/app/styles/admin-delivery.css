@@ -203,14 +203,14 @@
 .jobs-list-card:hover .jobs-card-arrow { color: var(--accent); transform: translateX(2px); }
 .jobs-card-arrow { transition: color var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out); }
 
-/* ── Customer My-Jobs cards: reduce left status bar to 8px (admin keeps 10px) ── */
+/* ── Customer My-Jobs cards: reduce left status bar to 5px (admin keeps 10px) ── */
 .jobs-list-card.pending_payment,
-.jobs-list-card.paid          { border-left-width: 8px; }
+.jobs-list-card.paid          { border-left-width: 5px; }
 .jobs-list-card.approved,
-.jobs-list-card.printing      { border-left-width: 8px; }
-.jobs-list-card.printed        { border-left-width: 8px; }
-.jobs-list-card.failed         { border-left-width: 8px; }
-.jobs-list-card.cancelled      { border-left-width: 8px; }
+.jobs-list-card.printing      { border-left-width: 5px; }
+.jobs-list-card.printed        { border-left-width: 5px; }
+.jobs-list-card.failed         { border-left-width: 5px; }
+.jobs-list-card.cancelled      { border-left-width: 5px; }
 
 
 .jobs-card-file {
