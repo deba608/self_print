@@ -76,13 +76,15 @@ printer.
 1. **Install Node.js** — download the **LTS** version from
    [nodejs.org](https://nodejs.org), run the installer, click through
    Next/Next/Finish (defaults are fine).
-2. **Get the delivery zip from the developer** — you should receive a file
-   called `selfprint-agent.zip`. Copy it to the shop PC.
-3. **Unzip the pre-packaged agent folder** you received from the developer
-   (`selfprint-agent.zip`) — anywhere, e.g. `C:\SelfPrint`. It already
-   contains everything needed: dependencies, and `agent\config.json`
-   pre-filled with this shop's real Supabase credentials. Nothing to edit.
-4. **Double-click `agent\SETUP.bat`** — this single script checks Node is
+2. **Get and unzip the delivery package** — receive `selfprint-agent.zip`
+   from the developer and copy it to the shop PC. Unzip it anywhere (e.g.
+   `C:\SelfPrint`). It contains everything needed: dependencies, and
+   `agent\config.json` pre-filled with this shop's real Supabase credentials.
+   Nothing to edit.
+   - **Security note**: the zip file contains a live Supabase service-role key
+     (inside `agent\config.json`). Delete the zip from your Downloads folder
+     after extraction — don't leave it sitting around unencrypted.
+3. **Double-click `agent\SETUP.bat`** — this single script checks Node is
    installed, registers the printer service to start automatically every
    time this computer turns on, and starts it immediately. Click "Yes" if
    Windows asks for administrator permission.
@@ -91,7 +93,7 @@ printer.
    - For this to be fully hands-free, also turn on **Windows auto-login**
      for that PC's user account (Settings → Accounts → Sign-in options) —
      otherwise the scheduled task still waits for someone to log in first.
-5. **Test it end-to-end**: scan the shop QR code on your phone, upload a
+4. **Test it end-to-end**: scan the shop QR code on your phone, upload a
    test file, have staff approve it from `/admin`, and confirm it prints.
    `agent\TEST-PRINTER.bat` also sends a one-off test page directly, useful
    for checking the printer connection without going through the full flow.
@@ -163,12 +165,14 @@ still needs the shop's own Wi-Fi to reach this PC.
 
 ## Day-to-day operation (either path)
 
-- **Printer service window** (Path A/B): must stay running. If it's closed,
-  reopen `agent\SETUP.bat`. With autostart installed, a reboot fixes
-  it by itself.
-- **If printing stops working**: check the printer service window for a
-  "[PROBLEM]" message — it's written in plain language for non-technical
-  staff, with a suggested fix.
+- **Printer service** (Path A/B): runs hidden in the background as the
+  "SelfPrintAgent" Windows Scheduled Task — no window appears after setup
+  completes. If printing stops, check the log file `agent\agent.log` for
+  diagnostic messages. To restart the service manually, either reboot the PC
+  or run this command in PowerShell or cmd:
+  ```powershell
+  schtasks /Run /TN SelfPrintAgent
+  ```
 - **Cleanup**: `npm run cleanup` removes finished/expired jobs and their
   files. Schedule this (Task Scheduler locally, or a Vercel Cron Job in
   Path A hitting `/api/cleanup` with `CRON_SECRET`) so storage doesn't grow
@@ -185,4 +189,4 @@ still needs the shop's own Wi-Fi to reach this PC.
 | Agent runs but nothing prints | Wrong `fallbackPrinter` name | Re-check exact printer name in Windows Settings → Printers & scanners |
 | Customers can't reach the site (Path B) | Wrong IP, firewall blocking, or phone not on same Wi-Fi | Recheck `ipconfig`, allow Node.js through Windows Firewall, confirm same network |
 | Staff can't log in (Path B) | Local SQLite mode has no login by design | Expected — see `docs/LOCAL_DEV_AUTH.md`, or switch to Path A |
-| Jobs stuck on "printing" | Agent crashed mid-job | Auto-reset after 10 minutes by the cleanup cron; or just reopen the agent window |
+| Jobs stuck on "printing" | Agent crashed mid-job | Auto-reset after 10 minutes by the cleanup cron; or restart immediately via `schtasks /Run /TN SelfPrintAgent`, or reboot the PC |
