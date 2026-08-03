@@ -21,6 +21,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import Badge, { type BadgeVariant } from "@/components/ui/Badge";
 import EmptyState from "@/components/ui/EmptyState";
 import Skeleton from "@/components/ui/Skeleton";
+import JobFileViewButton from "@/components/JobFileViewButton";
 
 // Status → badge mapping per docs/UI_UX_PLAN.md §1.2 — icon + text, never color alone.
 const statusMap: Record<string, { label: string; variant: BadgeVariant; icon: LucideIcon }> = {
@@ -130,13 +131,13 @@ async function JobsList({ filter, limit }: { filter: Filter; limit: number }) {
   // job_files doesn't block it. This is safe: we only look up files for
   // job IDs that were already returned for the authenticated user above.
   const jobIds = jobs.map((j: any) => j.id);
-  let filesMap: Record<string, { original_name: string; storage_path: string; purged_at: string | null }[]> = {};
+  let filesMap: Record<string, { id: string; original_name: string; storage_path: string; purged_at: string | null }[]> = {};
   if (jobIds.length > 0) {
     try {
       const adminClient = createAdminClient();
       const { data: filesData } = await adminClient
         .from("job_files")
-        .select("job_id, original_name, storage_path, purged_at")
+        .select("id, job_id, original_name, storage_path, purged_at")
         .in("job_id", jobIds);
       if (filesData) {
         for (const f of filesData as any[]) {
@@ -248,6 +249,9 @@ async function JobsList({ filter, limit }: { filter: Filter; limit: number }) {
                     </span>
                     {files.length > 1 && (
                       <span className="jobs-file-count">+{files.length - 1} more</span>
+                    )}
+                    {!isPurged && firstFile && (
+                      <JobFileViewButton fileId={firstFile.id} />
                     )}
                   </div>
 

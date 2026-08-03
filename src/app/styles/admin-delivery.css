@@ -245,6 +245,25 @@
   flex-shrink: 0;
 }
 
+.jobs-file-view-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  background: none;
+  border: 1px solid var(--line);
+  padding: 2px 8px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  cursor: pointer;
+  margin-left: auto;
+}
+.jobs-file-view-btn:hover {
+  background: var(--line);
+}
+
 .jobs-card-specs-tags {
   display: flex;
   flex-wrap: wrap;
