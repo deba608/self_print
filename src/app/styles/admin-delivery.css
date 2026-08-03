@@ -264,6 +264,85 @@
   background: var(--line);
 }
 
+/* In-page file preview overlay (My Jobs → View) */
+.file-viewer-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(15, 23, 42, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.file-viewer-panel {
+  background: var(--bg, #fff);
+  border-radius: 12px;
+  width: min(900px, 100%);
+  height: min(85vh, 100%);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+}
+
+.file-viewer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--line);
+  flex-shrink: 0;
+}
+
+.file-viewer-name {
+  font-size: 14px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-viewer-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  padding: 4px;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+.file-viewer-close:hover {
+  background: var(--line);
+  color: var(--fg);
+}
+
+.file-viewer-body {
+  flex: 1;
+  min-height: 0;
+  background: #525659;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: auto;
+}
+
+.file-viewer-frame {
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+.file-viewer-img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
 .jobs-card-specs-tags {
   display: flex;
   flex-wrap: wrap;
