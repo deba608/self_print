@@ -1,8 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
 import crypto from 'node:crypto';
-import type { CustomerManagementRow, Job, JobFile, PricingConfig, PrinterOption, SseClient } from './types';
-import { FILE_RETENTION_DAYS } from './config';
+import type { CustomerManagementRow, Job, JobFile, PricingConfig, PrinterOption, RetentionConfig, SseClient } from './types';
+import { FILE_RETENTION_DAYS, CART_ABANDON_MINUTES, LOGIN_EVENT_RETENTION_DAYS, STRAY_FILE_RETENTION_HOURS } from './config';
 import { DEFAULT_SERVICE_AREA, parseServiceAreaConfig, serializeServiceAreaConfig } from './service-area';
+import { chunk } from './util';
 
 const supabaseUrl = process.env.SUPABASE_URL?.trim();
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
@@ -651,6 +652,48 @@ export async function updatePricing(pricing: PricingConfig) {
   if (error) throw error;
 }
 
+const RETENTION_DEFAULTS: RetentionConfig = {
+  cartAbandonMinutes: CART_ABANDON_MINUTES,
+  fileRetentionDays: FILE_RETENTION_DAYS,
+  strayFileRetentionHours: STRAY_FILE_RETENTION_HOURS,
+  loginEventRetentionDays: LOGIN_EVENT_RETENTION_DAYS,
+};
+
+export async function getRetentionConfig(): Promise<RetentionConfig> {
+  const { data, error } = await supabase
+    .from('retention_config')
+    .select('*')
+    .eq('id', 1)
+    .single();
+
+  if (error) {
+    const code = (error as any).code;
+    if (code === 'PGRST116' || code === 'PGRST205' || code === '42P01') return RETENTION_DEFAULTS;
+    throw error;
+  }
+
+  return {
+    cartAbandonMinutes: data.cart_abandon_minutes ?? RETENTION_DEFAULTS.cartAbandonMinutes,
+    fileRetentionDays: data.file_retention_days ?? RETENTION_DEFAULTS.fileRetentionDays,
+    strayFileRetentionHours: data.stray_file_retention_hours ?? RETENTION_DEFAULTS.strayFileRetentionHours,
+    loginEventRetentionDays: data.login_event_retention_days ?? RETENTION_DEFAULTS.loginEventRetentionDays,
+  };
+}
+
+export async function updateRetentionConfig(config: RetentionConfig): Promise<void> {
+  const { error } = await supabase
+    .from('retention_config')
+    .upsert({
+      id: 1,
+      cart_abandon_minutes: config.cartAbandonMinutes,
+      file_retention_days: config.fileRetentionDays,
+      stray_file_retention_hours: config.strayFileRetentionHours,
+      login_event_retention_days: config.loginEventRetentionDays,
+      updated_at: new Date().toISOString(),
+    });
+  if (error) throw error;
+}
+
 export async function getAgentConfig() {
   const { data, error } = await supabase
     .from('agent_config')
@@ -804,10 +847,10 @@ export async function bulkDeleteJobs(ids: string[]) {
 const PRINTING_LEASE_MINUTES = 10;
 
 export async function cleanupOldJobs(): Promise<{ deleted: number; storagePaths: string[] }> {
-  const pricing = await getPricing();
-  const abandonedCutoff = new Date(Date.now() - pricing.expiryMinutes * 60000).toISOString();
+  const retention = await getRetentionConfig();
+  const abandonedCutoff = new Date(Date.now() - retention.cartAbandonMinutes * 60000).toISOString();
   const leaseCutoff = new Date(Date.now() - PRINTING_LEASE_MINUTES * 60000).toISOString();
-  const fileRetentionCutoff = new Date(Date.now() - FILE_RETENTION_DAYS * 24 * 60 * 60000).toISOString();
+  const fileRetentionCutoff = new Date(Date.now() - retention.fileRetentionDays * 24 * 60 * 60000).toISOString();
   const now = new Date().toISOString();
 
   // Reset stale "printing" leases — agent crashed before completing.
@@ -829,15 +872,15 @@ export async function cleanupOldJobs(): Promise<{ deleted: number; storagePaths:
   if (expErr) throw expErr;
   const abandonedIds = (expired || []).map((r) => String(r.id));
 
-  if (abandonedIds.length > 0) {
+  for (const idBatch of chunk(abandonedIds, 200)) {
     const { data: files, error: fileErr } = await supabase
       .from('job_files')
       .select('storage_path')
-      .in('job_id', abandonedIds);
+      .in('job_id', idBatch);
     if (fileErr) throw fileErr;
     storagePaths.push(...(files || []).map((f) => String(f.storage_path)));
 
-    const { error: delErr } = await supabase.from('jobs').delete().in('id', abandonedIds);
+    const { error: delErr } = await supabase.from('jobs').delete().in('id', idBatch);
     if (delErr) throw delErr;
   }
 
@@ -855,32 +898,100 @@ export async function cleanupOldJobs(): Promise<{ deleted: number; storagePaths:
     .map((r) => String(r.id));
 
   if (finishedIds.length > 0) {
-    const { data: purgeFiles, error: purgeFileErr } = await supabase
-      .from('job_files')
-      .select('id, storage_path')
-      .in('job_id', finishedIds)
-      .is('purged_at', null)
-      .neq('storage_path', '');
-    if (purgeFileErr) throw purgeFileErr;
-
-    if ((purgeFiles || []).length > 0) {
-      storagePaths.push(...(purgeFiles || []).map((f) => String(f.storage_path)));
-      const purgeIds = (purgeFiles || []).map((f) => String(f.id));
-      const { error: updateErr } = await supabase
+    const purgeFiles: Array<{ id: unknown; storage_path: unknown }> = [];
+    for (const idBatch of chunk(finishedIds, 200)) {
+      const { data: batchFiles, error: purgeFileErr } = await supabase
         .from('job_files')
-        .update({ storage_path: '', purged_at: now })
-        .in('id', purgeIds);
-      if (updateErr) throw updateErr;
+        .select('id, storage_path')
+        .in('job_id', idBatch)
+        .is('purged_at', null)
+        .neq('storage_path', '');
+      if (purgeFileErr) throw purgeFileErr;
+      purgeFiles.push(...(batchFiles || []));
     }
+
+    if (purgeFiles.length > 0) {
+      storagePaths.push(...purgeFiles.map((f) => String(f.storage_path)));
+      const purgeIds = purgeFiles.map((f) => String(f.id));
+      for (const idBatch of chunk(purgeIds, 200)) {
+        const { error: updateErr } = await supabase
+          .from('job_files')
+          .update({ storage_path: '', purged_at: now })
+          .in('id', idBatch);
+        if (updateErr) throw updateErr;
+      }
+    }
+  }
+
+  // Auth audit log retention — independent of order-history retention.
+  const loginEventCutoff = new Date(Date.now() - retention.loginEventRetentionDays * 24 * 60 * 60000).toISOString();
+  try {
+    const { error: loginPurgeErr } = await supabase
+      .from('admin_login_events')
+      .delete()
+      .lt('logged_at', loginEventCutoff);
+    if (loginPurgeErr) throw loginPurgeErr;
+  } catch (error) {
+    // Auxiliary auth-audit-log cleanup must never block or corrupt the
+    // primary job/file cleanup result (storagePaths must still reach the caller).
+    console.error('login-event purge failed:', error);
   }
 
   return { deleted: abandonedIds.length, storagePaths };
 }
 
+export async function logCleanupRun(counts: {
+  deletedJobs: number;
+  jobFilesRemoved: number;
+  strayFilesRemoved: number;
+}): Promise<void> {
+  const { error } = await supabase.from('cleanup_events').insert({
+    deleted_jobs: counts.deletedJobs,
+    job_files_removed: counts.jobFilesRemoved,
+    stray_files_removed: counts.strayFilesRemoved,
+  });
+  if (error) {
+    const code = (error as any).code;
+    if (code === 'PGRST205' || code === '42P01') {
+      console.warn('cleanup_events table missing (migration not applied yet), skipping log');
+      return;
+    }
+    throw error;
+  }
+}
+
+export async function getLatestCleanupEvent(): Promise<{
+  ranAt: string;
+  deletedJobs: number;
+  jobFilesRemoved: number;
+  strayFilesRemoved: number;
+} | null> {
+  const { data, error } = await supabase
+    .from('cleanup_events')
+    .select('ran_at, deleted_jobs, job_files_removed, stray_files_removed')
+    .order('ran_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    const code = (error as any).code;
+    if (code === 'PGRST205' || code === '42P01') return null;
+    throw error;
+  }
+  if (!data) return null;
+
+  return {
+    ranAt: data.ran_at,
+    deletedJobs: data.deleted_jobs,
+    jobFilesRemoved: data.job_files_removed,
+    strayFilesRemoved: data.stray_files_removed,
+  };
+}
+
 export async function filterActiveStoragePaths(paths: string[]): Promise<Set<string>> {
   if (paths.length === 0) return new Set();
   const active = new Set<string>();
-  
+
   for (let i = 0; i < paths.length; i += 100) {
     const chunk = paths.slice(i, i + 100);
     const { data, error } = await supabase

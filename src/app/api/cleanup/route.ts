@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { timingSafeEqual } from "node:crypto";
-import { cleanupOldJobs, filterActiveStoragePaths } from "@/lib/db";
+import { cleanupOldJobs, filterActiveStoragePaths, getRetentionConfig, logCleanupRun } from "@/lib/db";
 import { deleteFile, listOldFiles } from "@/lib/storage";
 
 // Deletes finished and expired jobs plus their stored files.
@@ -25,13 +25,14 @@ function authorized(request: NextRequest): boolean {
 }
 
 async function runCleanup() {
+  const retention = await getRetentionConfig();
   const { deleted, storagePaths } = await cleanupOldJobs();
   await Promise.all(storagePaths.map((p) => deleteFile(p)));
-  
-  // Clean up stray files older than 2 hours
-  const twoHoursMs = 2 * 60 * 60 * 1000;
-  const oldOriginals = await listOldFiles('originals', twoHoursMs);
-  const oldConverted = await listOldFiles('converted', twoHoursMs);
+
+  // Clean up stray files older than the configured retention window
+  const strayWindowMs = retention.strayFileRetentionHours * 60 * 60 * 1000;
+  const oldOriginals = await listOldFiles('originals', strayWindowMs);
+  const oldConverted = await listOldFiles('converted', strayWindowMs);
   const allOldPaths = [...oldOriginals, ...oldConverted];
   
   const activePaths = await filterActiveStoragePaths(allOldPaths);
@@ -39,7 +40,13 @@ async function runCleanup() {
   
   await Promise.all(strayPaths.map((p) => deleteFile(p)));
 
-  return NextResponse.json({ 
+  await logCleanupRun({
+    deletedJobs: deleted,
+    jobFilesRemoved: storagePaths.length,
+    strayFilesRemoved: strayPaths.length,
+  });
+
+  return NextResponse.json({
     deletedJobs: deleted, 
     jobFilesRemoved: storagePaths.length,
     strayFilesRemoved: strayPaths.length 

@@ -138,6 +138,13 @@ export type PricingConfig = {
   serviceArea: ServiceAreaConfig;
 };
 
+export type RetentionConfig = {
+  cartAbandonMinutes: number;
+  fileRetentionDays: number;
+  strayFileRetentionHours: number;
+  loginEventRetentionDays: number;
+};
+
 export type SseClient = {
   controller: ReadableStreamDefaultController;
 };

@@ -1,5 +1,6 @@
-import type { CustomerManagementRow, Job, JobFile, PricingConfig, PrinterOption, SseClient } from './types';
-import { FILE_RETENTION_DAYS } from './config';
+import type { CustomerManagementRow, Job, JobFile, PricingConfig, PrinterOption, RetentionConfig, SseClient } from './types';
+import { FILE_RETENTION_DAYS, CART_ABANDON_MINUTES, STRAY_FILE_RETENTION_HOURS, LOGIN_EVENT_RETENTION_DAYS } from './config';
+import { chunk } from './util';
 import { parseServiceAreaConfig, serializeServiceAreaConfig } from './service-area';
 
 // Check if Supabase is configured
@@ -166,6 +167,23 @@ async function initSchema(database: any) {
       event_type TEXT NOT NULL,
       message TEXT,
       created_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS retention_config (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      cart_abandon_minutes INTEGER NOT NULL DEFAULT 1440,
+      file_retention_days INTEGER NOT NULL DEFAULT 3,
+      stray_file_retention_hours INTEGER NOT NULL DEFAULT 2,
+      login_event_retention_days INTEGER NOT NULL DEFAULT 365,
+      updated_at TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS cleanup_events (
+      id TEXT PRIMARY KEY,
+      ran_at TEXT NOT NULL,
+      deleted_jobs INTEGER NOT NULL DEFAULT 0,
+      job_files_removed INTEGER NOT NULL DEFAULT 0,
+      stray_files_removed INTEGER NOT NULL DEFAULT 0
     );
   `);
 
@@ -912,6 +930,54 @@ export async function updatePricing(pricing: PricingConfig): Promise<void> {
   );
 }
 
+const RETENTION_DEFAULTS: RetentionConfig = {
+  cartAbandonMinutes: CART_ABANDON_MINUTES,
+  fileRetentionDays: FILE_RETENTION_DAYS,
+  strayFileRetentionHours: STRAY_FILE_RETENTION_HOURS,
+  loginEventRetentionDays: LOGIN_EVENT_RETENTION_DAYS,
+};
+
+export async function getRetentionConfig(): Promise<RetentionConfig> {
+  if (isSupabase) {
+    const mod = await import('./db-supabase');
+    return mod.getRetentionConfig();
+  }
+
+  const sqlite = await getDbInstance();
+  const row = sqlite.prepare('SELECT * FROM retention_config WHERE id = 1').get() as Record<string, number> | undefined;
+  if (!row) return RETENTION_DEFAULTS;
+
+  return {
+    cartAbandonMinutes: row.cart_abandon_minutes ?? RETENTION_DEFAULTS.cartAbandonMinutes,
+    fileRetentionDays: row.file_retention_days ?? RETENTION_DEFAULTS.fileRetentionDays,
+    strayFileRetentionHours: row.stray_file_retention_hours ?? RETENTION_DEFAULTS.strayFileRetentionHours,
+    loginEventRetentionDays: row.login_event_retention_days ?? RETENTION_DEFAULTS.loginEventRetentionDays,
+  };
+}
+
+export async function updateRetentionConfig(config: RetentionConfig): Promise<void> {
+  if (isSupabase) {
+    const mod = await import('./db-supabase');
+    return mod.updateRetentionConfig(config);
+  }
+
+  const sqlite = await getDbInstance();
+  const now = new Date().toISOString();
+  sqlite.prepare(`
+    INSERT INTO retention_config (id, cart_abandon_minutes, file_retention_days, stray_file_retention_hours, login_event_retention_days, updated_at)
+    VALUES (1, ?, ?, ?, ?, ?)
+    ON CONFLICT(id) DO UPDATE SET
+      cart_abandon_minutes = excluded.cart_abandon_minutes,
+      file_retention_days = excluded.file_retention_days,
+      stray_file_retention_hours = excluded.stray_file_retention_hours,
+      login_event_retention_days = excluded.login_event_retention_days,
+      updated_at = excluded.updated_at
+  `).run(
+    config.cartAbandonMinutes, config.fileRetentionDays, config.strayFileRetentionHours,
+    config.loginEventRetentionDays, now
+  );
+}
+
 export async function getAgentConfig() {
   if (isSupabase) {
     const mod = await import('./db-supabase');
@@ -1082,10 +1148,10 @@ export async function cleanupOldJobs(): Promise<{ deleted: number; storagePaths:
   }
 
   const sqlite = await getDbInstance();
-  const pricing = await getPricing();
-  const abandonedCutoff = new Date(Date.now() - pricing.expiryMinutes * 60000).toISOString();
+  const retention = await getRetentionConfig();
+  const abandonedCutoff = new Date(Date.now() - retention.cartAbandonMinutes * 60000).toISOString();
   const leaseCutoff = new Date(Date.now() - PRINTING_LEASE_MINUTES * 60000).toISOString();
-  const fileRetentionCutoff = new Date(Date.now() - FILE_RETENTION_DAYS * 24 * 60 * 60000).toISOString();
+  const fileRetentionCutoff = new Date(Date.now() - retention.fileRetentionDays * 24 * 60 * 60000).toISOString();
   const now = new Date().toISOString();
 
   // Reset stale "printing" leases — agent crashed before completing.
@@ -1101,13 +1167,13 @@ export async function cleanupOldJobs(): Promise<{ deleted: number; storagePaths:
     SELECT id FROM jobs WHERE status = 'pending_payment' AND created_at < ? AND paid_at IS NULL
   `).all(abandonedCutoff) as Array<{ id: string }>;
   const abandonedIds = abandoned.map((r) => r.id);
-  if (abandonedIds.length > 0) {
-    const placeholders = abandonedIds.map(() => '?').join(',');
+  for (const idBatch of chunk(abandonedIds, 200)) {
+    const placeholders = idBatch.map(() => '?').join(',');
     const files = sqlite
       .prepare(`SELECT storage_path FROM job_files WHERE job_id IN (${placeholders})`)
-      .all(...abandonedIds) as Array<{ storage_path: string }>;
+      .all(...idBatch) as Array<{ storage_path: string }>;
     storagePaths.push(...files.map((f) => f.storage_path));
-    sqlite.prepare(`DELETE FROM jobs WHERE id IN (${placeholders})`).run(...abandonedIds);
+    sqlite.prepare(`DELETE FROM jobs WHERE id IN (${placeholders})`).run(...idBatch);
   }
 
   // 2) Privacy purge: finished orders (printed/cancelled/failed, and delivery
@@ -1135,6 +1201,45 @@ export async function cleanupOldJobs(): Promise<{ deleted: number; storagePaths:
   return { deleted: abandonedIds.length, storagePaths };
 }
 
+export async function logCleanupRun(counts: {
+  deletedJobs: number;
+  jobFilesRemoved: number;
+  strayFilesRemoved: number;
+}): Promise<void> {
+  if (isSupabase) {
+    const mod = await import('./db-supabase');
+    return mod.logCleanupRun(counts);
+  }
+  const sqlite = await getDbInstance();
+  sqlite.prepare(`
+    INSERT INTO cleanup_events (id, ran_at, deleted_jobs, job_files_removed, stray_files_removed)
+    VALUES (?, ?, ?, ?, ?)
+  `).run(crypto.randomUUID(), new Date().toISOString(), counts.deletedJobs, counts.jobFilesRemoved, counts.strayFilesRemoved);
+}
+
+export async function getLatestCleanupEvent(): Promise<{
+  ranAt: string;
+  deletedJobs: number;
+  jobFilesRemoved: number;
+  strayFilesRemoved: number;
+} | null> {
+  if (isSupabase) {
+    const mod = await import('./db-supabase');
+    return mod.getLatestCleanupEvent();
+  }
+  const sqlite = await getDbInstance();
+  const row = sqlite.prepare(
+    'SELECT ran_at, deleted_jobs, job_files_removed, stray_files_removed FROM cleanup_events ORDER BY ran_at DESC LIMIT 1'
+  ).get() as { ran_at: string; deleted_jobs: number; job_files_removed: number; stray_files_removed: number } | undefined;
+  if (!row) return null;
+  return {
+    ranAt: row.ran_at,
+    deletedJobs: row.deleted_jobs,
+    jobFilesRemoved: row.job_files_removed,
+    strayFilesRemoved: row.stray_files_removed,
+  };
+}
+
 export async function filterActiveStoragePaths(paths: string[]): Promise<Set<string>> {
   if (isSupabase) {
     const mod = await import('./db-supabase');
@@ -1144,11 +1249,10 @@ export async function filterActiveStoragePaths(paths: string[]): Promise<Set<str
   const sqlite = await getDbInstance();
   const active = new Set<string>();
   
-  for (let i = 0; i < paths.length; i += 100) {
-    const chunk = paths.slice(i, i + 100);
-    const placeholders = chunk.map(() => '?').join(',');
+  for (const pathBatch of chunk(paths, 100)) {
+    const placeholders = pathBatch.map(() => '?').join(',');
     const stmt = sqlite.prepare(`SELECT storage_path FROM job_files WHERE storage_path IN (${placeholders})`);
-    const rows = stmt.all(...chunk) as { storage_path: string }[];
+    const rows = stmt.all(...pathBatch) as { storage_path: string }[];
     for (const row of rows) active.add(row.storage_path);
   }
   return active;

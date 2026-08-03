@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { ChevronsLeft, ChevronsRight, X } from "lucide-react";
 import {
   BarChart2,
+  Database,
   LayoutDashboard,
   ListTodo,
   MapPin,
@@ -22,6 +23,7 @@ const navItems = [
   { href: "/admin/accounts", icon: BarChart2, label: "Accounts" },
   { href: "/admin/staff", icon: Users, label: "Staff" },
   { href: "/admin/security", icon: ShieldCheck, label: "Security" },
+  { href: "/admin/data-retention", icon: Database, label: "Data Management" },
 ];
 
 export default function AdminSidebar({
