@@ -51,6 +51,15 @@ function JobCard({
   };
 
   const status = statusMap[job.status] || { label: job.status, variant: "neutral" as BadgeVariant, icon: Clock };
+  // Same colour group the card's border uses (see .job-card.<status> in
+  // admin.css) — left-edge chip repeats that colour so it reads before the
+  // status pill on the right does, while scanning a long queue top-to-bottom.
+  const statusColorGroup: Record<string, string> = {
+    pending_payment: "info", paid: "info",
+    approved: "accent", printing: "accent",
+    printed: "ok", failed: "danger", cancelled: "muted",
+  };
+  const statusColor = statusColorGroup[job.status] ?? "muted";
   const formatRupees = (paise: number) => `₹${(paise / 100).toFixed(2)}`;
   const handleActionClick = (action: string) => {
     onAction(job.id, action);
@@ -97,6 +106,7 @@ function JobCard({
       <div className="job-content">
         <div className="job-header">
           <div className="job-title">
+            <span className={`job-status-chip job-status-chip--${statusColor}`}>{status.label}</span>
             <span className="queue-num">#{job.queuePosition}</span>
             <span className="job-token">Token {job.token}</span>
           </div>

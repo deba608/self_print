@@ -2073,6 +2073,26 @@
   letter-spacing: 0.3px;
 }
 
+/* Left-edge status chip — same colour group as the card's border, so the
+   colour cue appears twice (border + chip) before the status pill on the
+   right does. Small rounded tag, not a full pill. */
+.job-status-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+.job-status-chip--info    { background: var(--info-light); color: var(--info); }
+.job-status-chip--accent  { background: var(--accent-light); color: var(--accent-strong); }
+.job-status-chip--ok      { background: var(--ok-light); color: var(--ok); }
+.job-status-chip--danger  { background: var(--danger-light); color: var(--danger); }
+.job-status-chip--muted   { background: #eef1f5; color: var(--muted); }
+
 .job-meta {
   display: flex;
   align-items: center;
