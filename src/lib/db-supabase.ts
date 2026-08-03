@@ -925,11 +925,17 @@ export async function cleanupOldJobs(): Promise<{ deleted: number; storagePaths:
 
   // Auth audit log retention — independent of order-history retention.
   const loginEventCutoff = new Date(Date.now() - retention.loginEventRetentionDays * 24 * 60 * 60000).toISOString();
-  const { error: loginPurgeErr } = await supabase
-    .from('admin_login_events')
-    .delete()
-    .lt('logged_at', loginEventCutoff);
-  if (loginPurgeErr) throw loginPurgeErr;
+  try {
+    const { error: loginPurgeErr } = await supabase
+      .from('admin_login_events')
+      .delete()
+      .lt('logged_at', loginEventCutoff);
+    if (loginPurgeErr) throw loginPurgeErr;
+  } catch (error) {
+    // Auxiliary auth-audit-log cleanup must never block or corrupt the
+    // primary job/file cleanup result (storagePaths must still reach the caller).
+    console.error('login-event purge failed:', error);
+  }
 
   return { deleted: abandonedIds.length, storagePaths };
 }
@@ -944,7 +950,14 @@ export async function logCleanupRun(counts: {
     job_files_removed: counts.jobFilesRemoved,
     stray_files_removed: counts.strayFilesRemoved,
   });
-  if (error) throw error;
+  if (error) {
+    const code = (error as any).code;
+    if (code === 'PGRST205' || code === '42P01') {
+      console.warn('cleanup_events table missing (migration not applied yet), skipping log');
+      return;
+    }
+    throw error;
+  }
 }
 
 export async function getLatestCleanupEvent(): Promise<{

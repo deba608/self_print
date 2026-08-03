@@ -7,3 +7,7 @@ create table if not exists retention_config (
   updated_at timestamptz not null default now(),
   constraint retention_config_singleton check (id = 1)
 );
+
+alter table public.retention_config enable row level security;
+revoke all on public.retention_config from anon, authenticated;
+grant select, insert, update on public.retention_config to service_role;

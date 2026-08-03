@@ -7,3 +7,7 @@ create table if not exists cleanup_events (
 );
 
 create index if not exists idx_cleanup_events_ran_at on cleanup_events(ran_at desc);
+
+alter table public.cleanup_events enable row level security;
+revoke all on public.cleanup_events from anon, authenticated;
+grant select, insert on public.cleanup_events to service_role;
