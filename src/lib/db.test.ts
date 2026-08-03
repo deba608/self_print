@@ -37,6 +37,38 @@ describe("logCleanupRun (SQLite)", () => {
   });
 });
 
+describe("getLatestCleanupEvent (SQLite)", () => {
+  let db: typeof import("./db");
+  beforeAll(async () => {
+    db = await import("./db");
+    await db.ensureDatabase();
+  });
+
+  beforeEach(() => {
+    const raw = new Database("./data-test-cleanup-events.sqlite");
+    raw.prepare("DELETE FROM cleanup_events").run();
+    raw.close();
+  });
+
+  it("returns null when no cleanup has run yet", async () => {
+    const latest = await db.getLatestCleanupEvent();
+    expect(latest).toBeNull();
+  });
+
+  it("returns the most recent run's counts", async () => {
+    await db.logCleanupRun({ deletedJobs: 1, jobFilesRemoved: 2, strayFilesRemoved: 0 });
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    await db.logCleanupRun({ deletedJobs: 9, jobFilesRemoved: 8, strayFilesRemoved: 7 });
+
+    const latest = await db.getLatestCleanupEvent();
+    expect(latest).not.toBeNull();
+    expect(latest?.deletedJobs).toBe(9);
+    expect(latest?.jobFilesRemoved).toBe(8);
+    expect(latest?.strayFilesRemoved).toBe(7);
+    expect(latest?.ranAt).toBeTruthy();
+  });
+});
+
 describe("getRetentionConfig", () => {
   let db: typeof import("./db");
   beforeAll(async () => {

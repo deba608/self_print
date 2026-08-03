@@ -1217,6 +1217,29 @@ export async function logCleanupRun(counts: {
   `).run(crypto.randomUUID(), new Date().toISOString(), counts.deletedJobs, counts.jobFilesRemoved, counts.strayFilesRemoved);
 }
 
+export async function getLatestCleanupEvent(): Promise<{
+  ranAt: string;
+  deletedJobs: number;
+  jobFilesRemoved: number;
+  strayFilesRemoved: number;
+} | null> {
+  if (isSupabase) {
+    const mod = await import('./db-supabase');
+    return mod.getLatestCleanupEvent();
+  }
+  const sqlite = await getDbInstance();
+  const row = sqlite.prepare(
+    'SELECT ran_at, deleted_jobs, job_files_removed, stray_files_removed FROM cleanup_events ORDER BY ran_at DESC LIMIT 1'
+  ).get() as { ran_at: string; deleted_jobs: number; job_files_removed: number; stray_files_removed: number } | undefined;
+  if (!row) return null;
+  return {
+    ranAt: row.ran_at,
+    deletedJobs: row.deleted_jobs,
+    jobFilesRemoved: row.job_files_removed,
+    strayFilesRemoved: row.stray_files_removed,
+  };
+}
+
 export async function filterActiveStoragePaths(paths: string[]): Promise<Set<string>> {
   if (isSupabase) {
     const mod = await import('./db-supabase');

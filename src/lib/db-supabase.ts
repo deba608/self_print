@@ -947,10 +947,38 @@ export async function logCleanupRun(counts: {
   if (error) throw error;
 }
 
+export async function getLatestCleanupEvent(): Promise<{
+  ranAt: string;
+  deletedJobs: number;
+  jobFilesRemoved: number;
+  strayFilesRemoved: number;
+} | null> {
+  const { data, error } = await supabase
+    .from('cleanup_events')
+    .select('ran_at, deleted_jobs, job_files_removed, stray_files_removed')
+    .order('ran_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    const code = (error as any).code;
+    if (code === 'PGRST205' || code === '42P01') return null;
+    throw error;
+  }
+  if (!data) return null;
+
+  return {
+    ranAt: data.ran_at,
+    deletedJobs: data.deleted_jobs,
+    jobFilesRemoved: data.job_files_removed,
+    strayFilesRemoved: data.stray_files_removed,
+  };
+}
+
 export async function filterActiveStoragePaths(paths: string[]): Promise<Set<string>> {
   if (paths.length === 0) return new Set();
   const active = new Set<string>();
-  
+
   for (let i = 0; i < paths.length; i += 100) {
     const chunk = paths.slice(i, i + 100);
     const { data, error } = await supabase
