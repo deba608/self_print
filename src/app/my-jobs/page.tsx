@@ -71,6 +71,7 @@ function JobListSkeleton() {
 // heavy users instead of fetching every job they ever printed.
 const PAGE_SIZE = 30;
 const MAX_LIMIT = 300;
+const THREE_DAYS_MS = 3 * 24 * 60 * 60 * 1000;
 
 async function JobsList({ filter, limit }: { filter: Filter; limit: number }) {
   // Any failure (e.g. Supabase env not configured in pure-SQLite local dev)
@@ -94,15 +95,15 @@ async function JobsList({ filter, limit }: { filter: Filter; limit: number }) {
   }
 
   // Defense-in-depth alongside RLS's "customers can view own jobs" policy.
-  // Select file name, detailed specs, and storage state so file retention
-  // (3-day privacy purge) and filename display work seamlessly.
+  // Filter server-side and fetch limit+1 rows so we know whether to render
+  // "Show more" without a separate count query.
+  // Extended to include print spec columns for the detailed job card view.
   let query = supabase
     .from("jobs")
     .select(
-      "id, token, status, print_type, copies, page_count, price_paise, created_at, paid_at, printed_at, delivery_method, delivery_status, paper_size, duplex, layout, pages_per_sheet, page_range, job_files(id, original_name, size_bytes, storage_path, purged_at)"
+      "id, token, status, print_type, copies, page_count, price_paise, created_at, paid_at, printed_at, delivery_method, delivery_status, paper_size, duplex, layout, pages_per_sheet, page_range"
     )
     .eq("customer_user_id", user.id);
-
   if (filter === "done") {
     query = query.in("status", DONE_STATUSES);
   } else if (filter === "active") {
@@ -112,10 +113,35 @@ async function JobsList({ filter, limit }: { filter: Filter; limit: number }) {
     .order("created_at", { ascending: false })
     .limit(limit + 1);
 
-  const fetched = error ? [] : data ?? [];
+  if (error) {
+    return (
+      <div className="error-msg" role="alert">
+        Could not load your jobs. Try again.
+      </div>
+    );
+  }
+
+  const fetched = data ?? [];
   const hasMore = fetched.length > limit;
   const jobs = hasMore ? fetched.slice(0, limit) : fetched;
-  const THREE_DAYS_MS = 3 * 24 * 60 * 60 * 1000;
+
+  // Fetch file metadata separately to avoid relational join issues with RLS.
+  // Only the first file per job is shown; purged_at tells us if the 3-day
+  // retention window has already expired.
+  const jobIds = jobs.map((j: any) => j.id);
+  let filesMap: Record<string, { original_name: string; storage_path: string; purged_at: string | null }[]> = {};
+  if (jobIds.length > 0) {
+    const { data: filesData } = await supabase
+      .from("job_files")
+      .select("job_id, original_name, storage_path, purged_at")
+      .in("job_id", jobIds);
+    if (filesData) {
+      for (const f of filesData as any[]) {
+        if (!filesMap[f.job_id]) filesMap[f.job_id] = [];
+        filesMap[f.job_id].push(f);
+      }
+    }
+  }
 
   return (
     <>
@@ -138,13 +164,7 @@ async function JobsList({ filter, limit }: { filter: Filter; limit: number }) {
         ))}
       </nav>
 
-      {error && (
-        <div className="error-msg" role="alert">
-          Could not load your jobs. Try again.
-        </div>
-      )}
-
-      {!error && jobs.length === 0 && (
+      {jobs.length === 0 && (
         <EmptyState
           icon={Inbox}
           title={filter === "all" ? "No orders yet" : `No ${filter} orders`}
@@ -173,21 +193,30 @@ async function JobsList({ filter, limit }: { filter: Filter; limit: number }) {
             };
             const isDelivery = job.delivery_method === "delivery";
 
-            // File details & 3-day retention check
-            const files = Array.isArray(job.job_files) ? job.job_files : [];
-            const firstFile = files.length > 0 ? files[0] : null;
-            const fileName = firstFile?.original_name || "Document";
+            // File details
+            const files = filesMap[job.id] ?? [];
+            const firstFile = files[0] ?? null;
+            const fileName = firstFile?.original_name ?? null;
+
+            // 3-day retention: file is considered purged if purged_at is set,
+            // storage_path is empty, OR the job is older than 3 days.
             const ageMs = Date.now() - new Date(job.created_at).getTime();
-            const isPurged = Boolean(firstFile?.purged_at || !firstFile?.storage_path || ageMs > THREE_DAYS_MS);
+            const isPurged =
+              !firstFile ||
+              Boolean(firstFile.purged_at) ||
+              !firstFile.storage_path ||
+              ageMs > THREE_DAYS_MS;
 
             // Detailed specification labels
             const paperSize = job.paper_size ?? "A4";
-            const duplexLabel = job.duplex === "simplex" || !job.duplex ? "Single-sided" : "Double-sided";
+            const duplexLabel =
+              job.duplex === "simplex" || !job.duplex ? "Single-sided" : "Double-sided";
             const printTypeLabel = job.print_type === "color" ? "Color" : "B&W";
             const copiesLabel = `${job.copies} ${job.copies === 1 ? "copy" : "copies"}`;
             const pagesLabel = `${job.page_count} ${job.page_count === 1 ? "page" : "pages"}`;
             const layoutLabel = job.layout === "landscape" ? "Landscape" : "Portrait";
-            const pagesPerSheetLabel = job.pages_per_sheet > 1 ? `${job.pages_per_sheet}-up` : null;
+            const pagesPerSheetLabel =
+              job.pages_per_sheet > 1 ? `${job.pages_per_sheet}-up` : null;
 
             return (
               <Link
@@ -207,8 +236,8 @@ async function JobsList({ filter, limit }: { filter: Filter; limit: number }) {
                   {/* File Name Display */}
                   <div className="jobs-card-file">
                     <FileText size={16} className="jobs-file-icon" aria-hidden="true" />
-                    <span className="jobs-filename" title={fileName}>
-                      {fileName}
+                    <span className="jobs-filename" title={fileName ?? "Document"}>
+                      {fileName ?? "Document"}
                     </span>
                     {files.length > 1 && (
                       <span className="jobs-file-count">+{files.length - 1} more</span>
@@ -238,14 +267,14 @@ async function JobsList({ filter, limit }: { filter: Filter; limit: number }) {
                         className="jobs-retention-tag purged"
                         title="File content purged after 3 days for privacy; filename and receipt remain saved"
                       >
-                        <FileMinus size={12} aria-hidden="true" /> File purged after 3 days · Filename retained
+                        <FileMinus size={12} aria-hidden="true" /> File purged · Name retained
                       </span>
                     ) : (
                       <span
                         className="jobs-retention-tag active"
                         title="File stored and available (3-day retention window)"
                       >
-                        <FileCheck size={12} aria-hidden="true" /> File available (3-day retention)
+                        <FileCheck size={12} aria-hidden="true" /> File available · 3-day retention
                       </span>
                     )}
                   </div>

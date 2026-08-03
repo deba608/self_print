@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { BadgeCheck, Check, Hand, Loader2, Package, Printer, Search, Store, Truck, X, PackageCheck, UploadCloud, Download, MessageCircleWarning } from "lucide-react";
+import { BadgeCheck, Check, Hand, Loader2, Package, Printer, Search, Smartphone, Store, Truck, X, PackageCheck, UploadCloud, Download, MessageCircleWarning } from "lucide-react";
 import BillReceipt, { type BillData } from "../BillReceipt";
+import { loadRazorpayCheckout, type Pricing } from "../upload/shared";
 
 type TrackData = {
   status: string;
@@ -83,6 +84,16 @@ export default function TrackOrder({ initialToken }: { initialToken?: string }) 
   // fetch, plus a 1s ticker so the label counts up between polls.
   const [lastUpdatedAt, setLastUpdatedAt] = useState<number | null>(null);
   const [now, setNow] = useState(() => Date.now());
+  const [pricing, setPricing] = useState<Pricing | null>(null);
+  const [payState, setPayState] = useState<"idle" | "processing">("idle");
+  const [payError, setPayError] = useState("");
+
+  useEffect(() => {
+    fetch("/api/pricing")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((p) => setPricing(p))
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (!lastUpdatedAt) return;
@@ -112,6 +123,73 @@ export default function TrackOrder({ initialToken }: { initialToken?: string }) 
     } finally {
       setReportSending(false);
     }
+  }
+
+  async function payNow() {
+    if (!activeToken || !job) return;
+    setPayError("");
+    setPayState("processing");
+
+    const loaded = await loadRazorpayCheckout();
+    if (!loaded) {
+      setPayState("idle");
+      setPayError("Could not load the payment window. Check your connection and retry.");
+      return;
+    }
+
+    let order: { orderId: string; amount: number; currency: string; keyId: string };
+    try {
+      const res = await fetch("/api/payments/order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: activeToken }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 409 && data.alreadyPaid) {
+        setPayState("idle");
+        setJob((j) => (j ? { ...j, paidAt: new Date().toISOString() } : j));
+        return;
+      }
+      if (!res.ok) throw new Error(data.error ?? "Could not start payment.");
+      order = data;
+    } catch (err) {
+      setPayState("idle");
+      setPayError(err instanceof Error ? err.message : "Could not start payment.");
+      return;
+    }
+
+    const rzp = new (window as any).Razorpay({
+      key: order.keyId,
+      order_id: order.orderId,
+      amount: order.amount,
+      currency: order.currency,
+      name: pricing?.shopName ?? "Print Shop",
+      description: `Token ${activeToken}`,
+      theme: { color: "#2563eb" },
+      handler: async (response: any) => {
+        try {
+          const verifyRes = await fetch("/api/payments/verify", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ...response, token: activeToken }),
+          });
+          if (!verifyRes.ok) throw new Error("Payment could not be verified.");
+          setPayState("idle");
+          setJob((j) => (j ? { ...j, paidAt: new Date().toISOString() } : j));
+        } catch (err) {
+          setPayState("idle");
+          setPayError(err instanceof Error ? err.message : "Payment verification failed. Show the counter your payment.");
+        }
+      },
+      modal: {
+        ondismiss: () => setPayState("idle"),
+      },
+    });
+    rzp.on("payment.failed", (resp: any) => {
+      setPayState("idle");
+      setPayError(resp?.error?.description ?? "Payment failed. Please try again.");
+    });
+    rzp.open();
   }
 
   async function loadReceipt() {
@@ -378,6 +456,28 @@ export default function TrackOrder({ initialToken }: { initialToken?: string }) 
               {receiptLoading ? <Loader2 size={16} className="spin" aria-hidden="true" /> : <Download size={16} aria-hidden="true" />}
               Download receipt
             </button>
+          )}
+
+          {!job.paidAt && Boolean((pricing?.razorpayKeyId ?? "").trim()) && job.pricePaise >= 100 && (
+            <div className="upi-card track-pay-card">
+              <div className="upi-card-top">
+                <span className="upi-tag"><Smartphone size={13} aria-hidden="true" /> Payment pending</span>
+                <div className="upi-amount">₹{(job.pricePaise / 100).toFixed(2)}</div>
+              </div>
+              <button
+                type="button"
+                className="upi-pay-btn"
+                onClick={payNow}
+                disabled={payState === "processing"}
+              >
+                {payState === "processing" ? (
+                  <><Loader2 size={20} className="spin" aria-hidden="true" /> Opening…</>
+                ) : (
+                  <><Smartphone size={20} aria-hidden="true" /> Pay ₹{(job.pricePaise / 100).toFixed(2)} now</>
+                )}
+              </button>
+              {payError && <p className="pay-error" role="alert">{payError}</p>}
+            </div>
           )}
           {receiptError && <div className="error-msg" role="alert">{receiptError}</div>}
           {receipt && <BillReceipt bill={receipt} />}
