@@ -76,14 +76,14 @@ $doc.DefaultPageSettings.Color = ($Color -eq "true")
 $ps = $doc.PrinterSettings.PaperSizes | Where-Object { $_.PaperName -like "*$PaperName*" } | Select-Object -First 1
 if ($ps) { $doc.DefaultPageSettings.PaperSize = $ps }
 
-# Double-sided requested: fail loudly if the printer can't duplex, rather than
-# silently printing single-sided (which would overcharge/underdeliver). The agent
-# surfaces this stderr as the job's failure message so staff can switch the job to
-# single-sided or route it to a duplex-capable printer.
+# Double-sided requested. CanDuplex is only advisory here: host-based/GDI
+# drivers (e.g. KONICA MINOLTA 205i) report $false even though the hardware
+# duplexes fine, so never hard-fail on it — set the duplex DEVMODE regardless
+# and rely on the Set-PrintConfiguration queue rewrite below, which is the
+# path those drivers actually honor.
 if ($Duplex -ne "simplex") {
   if (-not $doc.PrinterSettings.CanDuplex) {
-    Write-Error "Printer '$Printer' does not support double-sided (duplex) printing. Set this job to single-sided or use a duplex-capable printer."
-    exit 4
+    Write-Output "WARN: printer '$Printer' reports no duplex support - attempting double-sided anyway (detection is unreliable for host-based drivers)."
   }
   $doc.PrinterSettings.Duplex = if ($Duplex -eq "short-edge") {
     [System.Drawing.Printing.Duplex]::Horizontal

@@ -275,13 +275,12 @@ async function processJob(jobId: string) {
           log(`Skipping job ${job.token}: printer "${targetPrinter}" not installed here (leaving for another agent).`);
           return;
         }
-        // Fail fast (before spooling) if this job needs duplex and the target
-        // printer can't do it — print-image.ps1 would also catch this, but
-        // that's after the file is downloaded and the job claimed as "printing".
+        // Duplex capability detection is unreliable for some host-based/GDI
+        // drivers (e.g. Konica Minolta) — both Windows APIs can report false
+        // for hardware that duplexes fine. Treat it as advisory: warn and let
+        // the print attempt decide, instead of failing the job up front.
         if (match && job.duplex !== "simplex" && !match.canDuplex) {
-          await updateStatus(jobId, "failed", `Printer "${targetPrinter}" does not support double-sided (duplex) printing. Set this job to single-sided or select a duplex-capable printer.`);
-          log(`Job ${job.token} failed: printer "${targetPrinter}" has no duplex support.`);
-          return;
+          log(`Job ${job.token}: printer "${targetPrinter}" reports no duplex support — attempting double-sided anyway (detection can be wrong for host-based drivers).`);
         }
       } catch (e) {
         log(`Local printer check failed, proceeding anyway: ${e instanceof Error ? e.message : String(e)}`);

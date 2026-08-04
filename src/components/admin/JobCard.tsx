@@ -120,7 +120,7 @@ function JobCard({
         {job.duplex !== "simplex" && printerCanDuplex === false && (
           <div className="job-warning">
             <AlertTriangle size={14} aria-hidden="true" />
-            Double-sided job, but the assigned printer doesn't support duplex — will fail to print
+            Double-sided job — the assigned printer reports no duplex support. Printing will still be attempted (detection can be wrong); check the output.
           </div>
         )}
 
