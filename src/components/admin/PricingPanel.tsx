@@ -26,6 +26,18 @@ const defaultPricing: NumericPricing = {
   deliveryFeePaise: 0,
 };
 
+// Strip non-numeric extras (e.g. serviceArea) off the incoming pricing
+// object — the draft must contain exactly the numeric fields, or the
+// fill-every-value check below trips on an object-valued key.
+function toDraft(pricing: NumericPricing & Record<string, unknown>): PricingDraft {
+  const draft = {} as Record<string, number | "">;
+  for (const key of Object.keys(defaultPricing) as Array<keyof NumericPricing>) {
+    const value = pricing[key];
+    draft[key] = typeof value === "number" && Number.isFinite(value) ? value : defaultPricing[key];
+  }
+  return draft as PricingDraft;
+}
+
 function normalizePricingDraft(draft: PricingDraft): NumericPricing | null {
   const entries = Object.entries(draft) as Array<[keyof NumericPricing, number | ""]>;
   if (entries.some(([, value]) => value === "" || !Number.isFinite(value))) {
@@ -48,7 +60,7 @@ export default function PricingPanel({
   onSave: (data: NumericPricing) => Promise<void>;
   onClose: () => void;
 }) {
-  const [formData, setFormData] = useState<PricingDraft>(pricing || defaultPricing);
+  const [formData, setFormData] = useState<PricingDraft>(toDraft(pricing || defaultPricing));
   const [priceInputs, setPriceInputs] = useState({
     bwPerPagePaise: formatPaiseInput((pricing || defaultPricing).bwPerPagePaise),
     colorPerPagePaise: formatPaiseInput((pricing || defaultPricing).colorPerPagePaise),
@@ -62,7 +74,7 @@ export default function PricingPanel({
 
   useEffect(() => {
     const nextPricing = pricing || defaultPricing;
-    setFormData(nextPricing);
+    setFormData(toDraft(nextPricing));
     setPriceInputs({
       bwPerPagePaise: formatPaiseInput(nextPricing.bwPerPagePaise),
       colorPerPagePaise: formatPaiseInput(nextPricing.colorPerPagePaise),
