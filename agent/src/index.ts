@@ -275,13 +275,12 @@ async function processJob(jobId: string) {
           log(`Skipping job ${job.token}: printer "${targetPrinter}" not installed here (leaving for another agent).`);
           return;
         }
-        // Duplex capability detection is unreliable for some host-based/GDI
-        // drivers (e.g. Konica Minolta) — both Windows APIs can report false
-        // for hardware that duplexes fine. Treat it as advisory: warn and let
-        // the print attempt decide, instead of failing the job up front.
-        if (match && job.duplex !== "simplex" && !match.canDuplex) {
-          log(`Job ${job.token}: printer "${targetPrinter}" reports no duplex support — attempting double-sided anyway (detection can be wrong for host-based drivers).`);
-        }
+        // Duplex capability check disabled for now: detection is unreliable for
+        // host-based/GDI drivers (e.g. Konica Minolta) — both Windows APIs can
+        // report false for hardware that duplexes fine. Re-enable if wanted:
+        // if (match && job.duplex !== "simplex" && !match.canDuplex) {
+        //   log(`Job ${job.token}: printer "${targetPrinter}" reports no duplex support.`);
+        // }
       } catch (e) {
         log(`Local printer check failed, proceeding anyway: ${e instanceof Error ? e.message : String(e)}`);
       }

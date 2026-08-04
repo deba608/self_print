@@ -117,12 +117,15 @@ function JobCard({
           </div>
         </div>
 
+        {/* Duplex-capability warning disabled for now — Windows detection is
+            unreliable for host-based drivers (e.g. Konica Minolta reports no
+            duplex despite supporting it). Re-enable if wanted:
         {job.duplex !== "simplex" && printerCanDuplex === false && (
           <div className="job-warning">
             <AlertTriangle size={14} aria-hidden="true" />
-            Double-sided job — the assigned printer reports no duplex support. Printing will still be attempted (detection can be wrong); check the output.
+            Double-sided job — the assigned printer reports no duplex support.
           </div>
-        )}
+        )} */}
 
         {job.needsConversion === 1 && (
           <div className="job-warning">

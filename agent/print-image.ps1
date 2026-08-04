@@ -82,9 +82,11 @@ if ($ps) { $doc.DefaultPageSettings.PaperSize = $ps }
 # and rely on the Set-PrintConfiguration queue rewrite below, which is the
 # path those drivers actually honor.
 if ($Duplex -ne "simplex") {
-  if (-not $doc.PrinterSettings.CanDuplex) {
-    Write-Output "WARN: printer '$Printer' reports no duplex support - attempting double-sided anyway (detection is unreliable for host-based drivers)."
-  }
+  # Capability warning disabled for now (CanDuplex lies for host-based drivers
+  # like KONICA MINOLTA 205i). Re-enable if wanted:
+  # if (-not $doc.PrinterSettings.CanDuplex) {
+  #   Write-Output "WARN: printer '$Printer' reports no duplex support - attempting double-sided anyway."
+  # }
   $doc.PrinterSettings.Duplex = if ($Duplex -eq "short-edge") {
     [System.Drawing.Printing.Duplex]::Horizontal
   } else {
