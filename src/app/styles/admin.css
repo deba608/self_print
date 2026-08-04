@@ -4295,6 +4295,17 @@
   gap: 12px;
 }
 
+/* Retention settings uses the same field/input styling as the invite form,
+   but has 4 same-shaped fields plus a full-width submit button — its own
+   grid instead of reusing the 3-column name/role/submit layout above. */
+.retention-form {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.retention-form .staff-invite-btn {
+  grid-column: 1 / -1;
+  justify-self: start;
+}
+
 .staff-field {
   display: flex;
   flex-direction: column;
