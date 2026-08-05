@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   AlertCircle,
+  CalendarX,
   CheckCircle2,
   Clock,
   Database,
@@ -75,6 +76,12 @@ export default function DataRetentionManagement() {
   const [saveOk, setSaveOk] = useState(false);
   const [saveError, setSaveError] = useState("");
 
+  const [purgeBeforeDate, setPurgeBeforeDate] = useState("");
+  const [purging, setPurging] = useState(false);
+  const [purgeResult, setPurgeResult] = useState<number | null>(null);
+  const [purgeError, setPurgeError] = useState("");
+  const [purgeConfirm, setPurgeConfirm] = useState(false);
+
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     setError("");
@@ -133,6 +140,33 @@ export default function DataRetentionManagement() {
       setSaveError(saveFailure instanceof Error ? saveFailure.message : "Unable to save retention settings.");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handlePurge() {
+    if (!purgeBeforeDate || purging) return;
+    if (!purgeConfirm) {
+      setPurgeConfirm(true);
+      return;
+    }
+    setPurging(true);
+    setPurgeError("");
+    setPurgeResult(null);
+    try {
+      const res = await fetch("/api/admin/accounts/purge", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ beforeDate: purgeBeforeDate }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error ?? "Unable to clear records.");
+      setPurgeResult(body.deleted ?? 0);
+    } catch (purgeFailure) {
+      setPurgeError(purgeFailure instanceof Error ? purgeFailure.message : "Unable to clear records.");
+    } finally {
+      setPurging(false);
+      setPurgeConfirm(false);
     }
   }
 
@@ -238,6 +272,59 @@ export default function DataRetentionManagement() {
           <div className="staff-message error" role="alert">
             <AlertCircle size={17} aria-hidden="true" />
             {saveError}
+          </div>
+        )}
+      </section>
+
+      <section className="staff-invite-card" aria-labelledby="clear-records-title">
+        <div className="staff-section-heading">
+          <span className="staff-section-icon danger"><CalendarX size={20} aria-hidden="true" /></span>
+          <div>
+            <h2 id="clear-records-title">Clear old records</h2>
+            <p>
+              Finished orders (printed, cancelled, failed, expired) are kept forever so Accounts history
+              stays intact — automatic cleanup no longer deletes them. Use this to permanently remove
+              old ones yourself when you want to reclaim space. Active or unpaid-in-progress jobs are
+              never affected.
+            </p>
+          </div>
+        </div>
+
+        <div className="retention-purge-row">
+          <div className="staff-field">
+            <label htmlFor="purge-before-date">Delete finished orders created before</label>
+            <div className="time-input">
+              <Clock size={16} className="time-icon" aria-hidden="true" />
+              <input
+                id="purge-before-date"
+                type="date"
+                value={purgeBeforeDate}
+                onChange={(e) => { setPurgeBeforeDate(e.target.value); setPurgeConfirm(false); setPurgeResult(null); setPurgeError(""); }}
+                disabled={purging}
+              />
+            </div>
+          </div>
+          <button
+            type="button"
+            className="staff-invite-btn danger"
+            onClick={handlePurge}
+            disabled={!purgeBeforeDate || purging}
+          >
+            {purging ? <Loader2 size={17} className="spin" aria-hidden="true" /> : <Trash2 size={17} aria-hidden="true" />}
+            {purging ? "Clearing..." : purgeConfirm ? "Click again to confirm" : "Clear records"}
+          </button>
+        </div>
+
+        {purgeResult !== null && (
+          <div className="staff-message success" role="status">
+            <CheckCircle2 size={17} aria-hidden="true" />
+            {purgeResult === 0 ? "No matching records to clear." : `Cleared ${purgeResult} record${purgeResult === 1 ? "" : "s"}.`}
+          </div>
+        )}
+        {purgeError && (
+          <div className="staff-message error" role="alert">
+            <AlertCircle size={17} aria-hidden="true" />
+            {purgeError}
           </div>
         )}
       </section>

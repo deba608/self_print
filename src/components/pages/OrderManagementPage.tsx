@@ -46,6 +46,7 @@ function statusLabel(status: Job["status"]) {
     printed: "Printed",
     failed: "Needs attention",
     cancelled: "Cancelled",
+    expired: "Expired",
   };
   return labels[status];
 }

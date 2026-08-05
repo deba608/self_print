@@ -197,7 +197,7 @@ export async function getCustomerManagementRows(): Promise<CustomerManagementRow
     }
     const customer = customers.get(id)!;
     customer.totalOrders += 1;
-    if (!["printed", "cancelled", "failed"].includes(String(row.status))) customer.activeOrders += 1;
+    if (!["printed", "cancelled", "failed", "expired"].includes(String(row.status))) customer.activeOrders += 1;
     if (row.delivery_method === "delivery") customer.deliveryOrders += 1;
     if (row.delivery_status === "delivered") customer.deliveredOrders += 1;
     if (row.paid_at) customer.totalSpentPaise += Number(row.price_paise);
@@ -286,7 +286,7 @@ export async function getJobsAhead(job: Job): Promise<number> {
     .from('jobs')
     .select('id', { count: 'exact', head: true })
     .lt('queue_position', job.queuePosition)
-    .not('status', 'in', '("printed","cancelled","failed")')
+    .not('status', 'in', '("printed","cancelled","failed","expired")')
     .gte('created_at', dayStart.toISOString())
     .lt('created_at', dayEnd.toISOString());
   if (error) throw error;
@@ -821,7 +821,7 @@ export async function getJobSummary() {
   if (jobsError) throw jobsError;
   
   const totalPaise = jobs?.reduce((sum, j) => sum + Number(j.price_paise), 0) || 0;
-  const activeJobs = jobs?.filter(j => !['printed', 'cancelled', 'failed'].includes(j.status)).length || 0;
+  const activeJobs = jobs?.filter(j => !['printed', 'cancelled', 'failed', 'expired'].includes(j.status)).length || 0;
   
   return { jobs: activeJobs, totalPaise };
 }
@@ -840,8 +840,21 @@ export async function bulkDeleteJobs(ids: string[]) {
     .from('jobs')
     .delete()
     .in('id', ids);
-  
+
   if (error) throw error;
+}
+
+// IDs of jobs that are done (printed/cancelled/failed/expired) and created
+// before `beforeIso` — the set eligible for a manual "clear old records"
+// purge. Never includes jobs still in flight.
+export async function getFinishedJobIdsBefore(beforeIso: string): Promise<string[]> {
+  const { data, error } = await supabase
+    .from('jobs')
+    .select('id')
+    .in('status', ['printed', 'cancelled', 'failed', 'expired'])
+    .lt('created_at', beforeIso);
+  if (error) throw error;
+  return (data || []).map((r) => String(r.id));
 }
 
 const PRINTING_LEASE_MINUTES = 10;
@@ -862,7 +875,11 @@ export async function cleanupOldJobs(): Promise<{ deleted: number; storagePaths:
 
   const storagePaths: string[] = [];
 
-  // 1) Abandoned unpaid carts: no order was ever placed, so the whole row goes.
+  // 1) Abandoned unpaid carts: no order was ever placed. Mark them "expired"
+  // and purge their file bytes, but keep the job + job_files rows — Accounts
+  // analytics reads directly from `jobs`, so hard-deleting these erased
+  // revenue/job-count history for that day. A row with no bytes costs
+  // nothing to keep around.
   const { data: expired, error: expErr } = await supabase
     .from('jobs')
     .select('id')
@@ -875,13 +892,27 @@ export async function cleanupOldJobs(): Promise<{ deleted: number; storagePaths:
   for (const idBatch of chunk(abandonedIds, 200)) {
     const { data: files, error: fileErr } = await supabase
       .from('job_files')
-      .select('storage_path')
-      .in('job_id', idBatch);
+      .select('id, storage_path')
+      .in('job_id', idBatch)
+      .is('purged_at', null)
+      .neq('storage_path', '');
     if (fileErr) throw fileErr;
-    storagePaths.push(...(files || []).map((f) => String(f.storage_path)));
+    const batchFiles = files || [];
+    storagePaths.push(...batchFiles.map((f) => String(f.storage_path)));
 
-    const { error: delErr } = await supabase.from('jobs').delete().in('id', idBatch);
-    if (delErr) throw delErr;
+    if (batchFiles.length > 0) {
+      const { error: purgeErr } = await supabase
+        .from('job_files')
+        .update({ storage_path: '', purged_at: now })
+        .in('id', batchFiles.map((f) => String(f.id)));
+      if (purgeErr) throw purgeErr;
+    }
+
+    const { error: expireErr } = await supabase
+      .from('jobs')
+      .update({ status: 'expired', updated_at: now })
+      .in('id', idBatch);
+    if (expireErr) throw expireErr;
   }
 
   // 2) Privacy purge: finished orders (printed/cancelled/failed, and delivery

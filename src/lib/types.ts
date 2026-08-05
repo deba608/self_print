@@ -7,7 +7,8 @@ export type JobStatus =
   | "printing"
   | "printed"
   | "failed"
-  | "cancelled";
+  | "cancelled"
+  | "expired";
 
 export type PrintType = "bw" | "color";
 export type PaperSize = "A3" | "A4" | "A5" | "A6" | "B5" | "Letter" | "Legal" | "Photo";

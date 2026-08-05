@@ -4376,6 +4376,27 @@
 }
 
 .staff-invite-btn:disabled { cursor: not-allowed; opacity: 0.55; box-shadow: none; }
+
+.staff-invite-btn.danger {
+  background: var(--danger);
+  border-color: var(--danger);
+  box-shadow: 0 4px 12px rgba(185, 28, 28, 0.2);
+}
+.staff-invite-btn.danger:hover:not(:disabled) {
+  background: #991b1b;
+  box-shadow: 0 6px 16px rgba(185, 28, 28, 0.28);
+}
+
+.staff-section-icon.danger { color: var(--danger); background: var(--danger-light); }
+
+.retention-purge-row {
+  display: flex;
+  align-items: end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.retention-purge-row .staff-field { flex: 1 1 220px; }
+.retention-purge-row .staff-invite-btn { flex-shrink: 0; }
 .staff-role-help {
   margin: 9px 0 0;
   color: var(--muted);

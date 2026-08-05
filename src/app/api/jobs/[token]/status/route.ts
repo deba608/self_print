@@ -20,7 +20,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
   try {
     const job = await getJobByToken(token);
-    const jobsAhead = ["printed", "cancelled", "failed"].includes(job.status)
+    const jobsAhead = ["printed", "cancelled", "failed", "expired"].includes(job.status)
       ? 0
       : await getJobsAhead(job);
     // Public tracking data only — the token is the sole credential, so no

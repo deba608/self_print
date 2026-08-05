@@ -74,7 +74,7 @@ function addJobToCustomerSummary(
   }
 ) {
   summary.totalOrders += 1;
-  if (!["printed", "cancelled", "failed"].includes(job.status)) summary.activeOrders += 1;
+  if (!["printed", "cancelled", "failed", "expired"].includes(job.status)) summary.activeOrders += 1;
   if (job.deliveryMethod === "delivery") summary.deliveryOrders += 1;
   if (job.deliveryStatus === "delivered") summary.deliveredOrders += 1;
   if (job.paidAt) summary.totalSpentPaise += job.pricePaise;
@@ -572,7 +572,7 @@ export async function getJobsAhead(job: Job): Promise<number> {
   dayEnd.setUTCDate(dayEnd.getUTCDate() + 1);
   const row = sqlite.prepare(`
     SELECT COUNT(*) as n FROM jobs
-    WHERE queue_position < ? AND status NOT IN ('printed', 'cancelled', 'failed')
+    WHERE queue_position < ? AND status NOT IN ('printed', 'cancelled', 'failed', 'expired')
       AND created_at >= ? AND created_at < ?
   `).get(job.queuePosition, dayStart.toISOString(), dayEnd.toISOString()) as { n: number };
   return row.n;
@@ -1108,7 +1108,7 @@ export async function getJobSummary() {
   const sqlite = await getDbInstance();
   const jobs = sqlite.prepare('SELECT price_paise, status FROM jobs').all() as Array<{ price_paise: number; status: string }>;
   const totalPaise = jobs.reduce((sum, j) => sum + j.price_paise, 0);
-  const activeJobs = jobs.filter(j => !['printed', 'cancelled', 'failed'].includes(j.status)).length;
+  const activeJobs = jobs.filter(j => !['printed', 'cancelled', 'failed', 'expired'].includes(j.status)).length;
   return { jobs: activeJobs, totalPaise };
 }
 
@@ -1127,9 +1127,26 @@ export async function bulkDeleteJobs(ids: string[]): Promise<void> {
     const mod = await import('./db-supabase');
     return mod.bulkDeleteJobs(ids);
   }
-  
+
   const sqlite = await getDbInstance();
   sqlite.prepare(`DELETE FROM jobs WHERE id IN (${ids.map(() => '?').join(',')})`).run(...ids);
+}
+
+// IDs of jobs that are done (printed/cancelled/failed/expired) and created
+// before `beforeIso` — the set eligible for a manual "clear old records"
+// purge. Never includes jobs still in flight, so an accidental wide date
+// range can't delete an active order.
+export async function getFinishedJobIdsBefore(beforeIso: string): Promise<string[]> {
+  if (isSupabase) {
+    const mod = await import('./db-supabase');
+    return mod.getFinishedJobIdsBefore(beforeIso);
+  }
+  const sqlite = await getDbInstance();
+  const rows = sqlite.prepare(`
+    SELECT id FROM jobs
+    WHERE status IN ('printed', 'cancelled', 'failed', 'expired') AND created_at < ?
+  `).all(beforeIso) as Array<{ id: string }>;
+  return rows.map((r) => r.id);
 }
 
 // Deletes abandoned unpaid carts (never became a real order) and purges the
@@ -1162,7 +1179,10 @@ export async function cleanupOldJobs(): Promise<{ deleted: number; storagePaths:
 
   const storagePaths: string[] = [];
 
-  // 1) Abandoned unpaid carts: no order was ever placed, so the whole row goes.
+  // 1) Abandoned unpaid carts: no order was ever placed. Mark them "expired"
+  // and purge their file bytes, but keep the row — Accounts analytics reads
+  // directly from `jobs`, so hard-deleting these erased revenue/job-count
+  // history for that day.
   const abandoned = sqlite.prepare(`
     SELECT id FROM jobs WHERE status = 'pending_payment' AND created_at < ? AND paid_at IS NULL
   `).all(abandonedCutoff) as Array<{ id: string }>;
@@ -1170,10 +1190,16 @@ export async function cleanupOldJobs(): Promise<{ deleted: number; storagePaths:
   for (const idBatch of chunk(abandonedIds, 200)) {
     const placeholders = idBatch.map(() => '?').join(',');
     const files = sqlite
-      .prepare(`SELECT storage_path FROM job_files WHERE job_id IN (${placeholders})`)
-      .all(...idBatch) as Array<{ storage_path: string }>;
+      .prepare(`SELECT id, storage_path FROM job_files WHERE job_id IN (${placeholders}) AND purged_at IS NULL AND storage_path <> ''`)
+      .all(...idBatch) as Array<{ id: string; storage_path: string }>;
     storagePaths.push(...files.map((f) => f.storage_path));
-    sqlite.prepare(`DELETE FROM jobs WHERE id IN (${placeholders})`).run(...idBatch);
+    if (files.length > 0) {
+      const purgeStmt = sqlite.prepare(`UPDATE job_files SET storage_path = '', purged_at = ? WHERE id = ?`);
+      sqlite.transaction((rows: typeof files) => {
+        for (const f of rows) purgeStmt.run(now, f.id);
+      })(files);
+    }
+    sqlite.prepare(`UPDATE jobs SET status = 'expired', updated_at = ? WHERE id IN (${placeholders})`).run(now, ...idBatch);
   }
 
   // 2) Privacy purge: finished orders (printed/cancelled/failed, and delivery

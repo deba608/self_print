@@ -566,7 +566,7 @@ function ActionsCard({
             {printing ? <Loader2 size={16} className="spin" /> : <Printer size={16} />} Manual Print
           </button>
         )}
-        {!["printed", "cancelled", "failed"].includes(job.status) && (
+        {!["printed", "cancelled", "failed", "expired"].includes(job.status) && (
           <button type="button" className="job-btn cancel-text" onClick={() => setStatus("cancelled")} disabled={busy}>
             {acting === "cancelled" ? <Loader2 size={16} className="spin" /> : <X size={16} />} Cancel
           </button>
