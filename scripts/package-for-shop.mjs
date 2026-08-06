@@ -166,18 +166,54 @@ if (process.argv.includes('--publish')) {
     process.exit(1);
   }
 
+  // Read the previous manifest — it drives both the version guard and the
+  // code/full decision. A missing object means "first publish"; any OTHER
+  // error is a real problem (wrong bucket, bad key, network) and must not
+  // quietly degrade into "first publish".
+  const { data: latestBlob, error: downloadError } = await supabase.storage
+    .from('agent-updates').download('latest.json');
+  const notFound = downloadError && (
+    String(downloadError.statusCode ?? '') === '404' ||
+    /not[ _]?found/i.test(downloadError.message ?? '')
+  );
+  if (downloadError && !notFound) {
+    console.error(`Could not read the current latest.json: ${downloadError.message}`);
+    process.exit(1);
+  }
+
+  let lastManifest = null;
+  if (latestBlob) {
+    try {
+      lastManifest = JSON.parse(await latestBlob.text());
+    } catch {
+      console.error('The published latest.json is not valid JSON — fix or delete it before publishing.');
+      process.exit(1);
+    }
+  }
+
+  // Agents only accept a strictly greater version, so republishing downwards
+  // would upload bytes nobody ever installs.
+  if (typeof lastManifest?.version === 'string') {
+    const cmp = (a, b) => {
+      const as = a.split('.');
+      const bs = b.split('.');
+      for (let i = 0; i < Math.max(as.length, bs.length); i++) {
+        const av = Number(as[i] ?? 0) || 0;
+        const bv = Number(bs[i] ?? 0) || 0;
+        if (av !== bv) return av < bv ? -1 : 1;
+      }
+      return 0;
+    };
+    if (cmp(version, lastManifest.version) <= 0) {
+      console.error(`agent/version.json is ${version}, but ${lastManifest.version} is already published — agents only install strictly higher versions. Bump it.`);
+      process.exit(1);
+    }
+  }
+
   // code vs full: a "code" update only replaces agent/ (scripts + src), which
   // is safe when node_modules is unchanged. If any pinned dependency moved,
   // the payload has to carry the whole engine instead.
-  const { data: latestBlob } = await supabase.storage.from('agent-updates').download('latest.json');
-  let lastDeps = null;
-  if (latestBlob) {
-    try {
-      lastDeps = JSON.parse(await latestBlob.text()).deps ?? null;
-    } catch {
-      // No/unreadable previous manifest — treat as a first publish (full).
-    }
-  }
+  const lastDeps = lastManifest?.deps ?? null;
   const depsChanged = !lastDeps || AGENT_DEPS.some(d => lastDeps[d] !== pinned[d]);
   const kind = depsChanged ? 'full' : 'code';
 
@@ -234,7 +270,17 @@ if (process.argv.includes('--publish')) {
       upsert: true
     });
   if (up2.error) {
+    // The zip is up but nothing points at it, and the "already published"
+    // guard would block every retry of this version. Roll the zip back so a
+    // fixed re-run works without hand-deleting objects in the dashboard.
     console.error(`latest.json upload failed: ${up2.error.message}`);
+    try {
+      const { error: removeError } = await supabase.storage.from('agent-updates').remove([zipName]);
+      if (removeError) throw removeError;
+      console.error(`Rolled back the orphaned ${zipName} — safe to re-run once the cause is fixed.`);
+    } catch (err) {
+      console.error(`Could not roll back ${zipName} (${err?.message ?? err}) — delete it manually before re-running, or the "already published" guard will block this version.`);
+    }
     process.exit(1);
   }
 
