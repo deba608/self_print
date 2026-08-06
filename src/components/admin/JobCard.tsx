@@ -290,7 +290,9 @@ function JobCard({
       <div className="job-pay-row">
         <span className="job-price">{formatRupees(job.pricePaise)}</span>
         {job.paidAt ? (
-          <Badge variant="success" icon={Check}>Paid</Badge>
+          <Badge variant="success" icon={Check}>
+            {job.paidVia === "online" ? "Paid online" : "Paid"}
+          </Badge>
         ) : job.status !== "cancelled" ? (
           <Badge variant="warning" icon={CreditCard}>Unpaid</Badge>
         ) : null}
