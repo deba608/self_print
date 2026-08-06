@@ -10,12 +10,23 @@ REM Sleeps use `ping` rather than `timeout` on purpose: this script is spawned
 REM detached with stdio ignored, and `timeout` fails with "input redirection is
 REM not supported" when stdin is not a console.
 REM
+REM This script runs as its OWN one-shot scheduled task ("SelfPrintUpdater"),
+REM NOT as a child of the agent: `schtasks /End /TN SelfPrintAgent` terminates
+REM that task's whole job object, and a detached child would be killed with it.
+REM Every exit path best-effort deletes SelfPrintUpdater so the task list stays
+REM clean; deleting a still-running one-shot task does not stop this process.
+REM
 REM INVARIANT: every failure branch must leave a working agent installed and
 REM restart the scheduled task.
 set "ROOT={{ROOT}}"
 set "KIND={{KIND}}"
 set "TARGET={{VERSION}}"
 set "LOG=%ROOT%\update-staging\updater.log"
+
+REM Never hold a directory handle inside engine\ - the agent's cwd is
+REM <root>\engine, and an inherited cwd there makes every full-kind rmdir/ren of
+REM engine\ fail. Park at %ROOT% deterministically.
+cd /d "%ROOT%"
 
 echo [%date% %time%] updater start kind=%KIND% target=%TARGET% >> "%LOG%"
 
@@ -40,6 +51,7 @@ if %tries% geq 60 (
   echo [%time%] agent never exited, aborting swap >> "%LOG%"
   echo agent process did not exit within 60s> "%ROOT%\update-rollback.txt"
   schtasks /Run /TN "SelfPrintAgent" >nul 2>nul
+  schtasks /Delete /TN "SelfPrintUpdater" /F >nul 2>nul
   exit /b 1
 )
 ping -n 2 127.0.0.1 >nul
@@ -84,6 +96,7 @@ goto healthloop
 echo [%time%] new agent healthy, removing backup >> "%LOG%"
 if "%KIND%"=="full" ( rmdir /S /Q "%ROOT%\engine.bak" ) else ( rmdir /S /Q "%ROOT%\engine\agent.bak" )
 rmdir /S /Q "%ROOT%\update-staging\payload" >nul 2>nul
+schtasks /Delete /TN "SelfPrintUpdater" /F >nul 2>nul
 exit /b 0
 
 :unhealthy
@@ -121,6 +134,7 @@ goto rollbackloop
 echo [%time%] rollback complete, previous version restored >> "%LOG%"
 echo new agent failed health check within 90s> "%ROOT%\update-rollback.txt"
 schtasks /Run /TN "SelfPrintAgent" >nul 2>nul
+schtasks /Delete /TN "SelfPrintUpdater" /F >nul 2>nul
 exit /b 1
 
 :rollbackfailed
@@ -128,6 +142,7 @@ echo [%time%] ROLLBACK FAILED - manual recovery needed >> "%LOG%"
 echo [%time%] previous version is still in engine.bak or engine\agent.bak >> "%LOG%"
 echo ROLLBACK FAILED - manual recovery needed: previous version is in engine.bak or engine\agent.bak> "%ROOT%\update-rollback.txt"
 schtasks /Run /TN "SelfPrintAgent" >nul 2>nul
+schtasks /Delete /TN "SelfPrintUpdater" /F >nul 2>nul
 exit /b 2
 
 :restorefull
@@ -145,4 +160,5 @@ echo [%time%] rename failed >> "%LOG%"
 :swapfail2
 echo file swap failed, restored previous version> "%ROOT%\update-rollback.txt"
 schtasks /Run /TN "SelfPrintAgent" >nul 2>nul
+schtasks /Delete /TN "SelfPrintUpdater" /F >nul 2>nul
 exit /b 1

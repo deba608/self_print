@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { existsSync, readFileSync } from "node:fs";
-import { spawn, execFileSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { compareVersions, parseLatestJson, sha256Hex } from "./update-lib";
 
@@ -21,7 +21,7 @@ let deps: UpdaterDeps;
 // the SUBSCRIBED one-shot and the interval tick both past it while the initial
 // select is still resolving, racing two updaters.
 let inFlight: Promise<void> | null = null;
-// Set once the bat is spawned: this process is about to exit, so never start
+// Set once the updater task is launched: this process is about to exit, so never start
 // another check even if a timer fires in the handoff window.
 let handedOff = false;
 
@@ -57,6 +57,34 @@ export async function stageUpdate(zipBytes: Buffer, expectedSha: string, dir: st
   }
 }
 
+/** Name of the one-shot task that runs the swap script. Shared with the bat. */
+export const UPDATER_TASK = "SelfPrintUpdater";
+
+/**
+ * Run updater.bat OUTSIDE this process tree.
+ *
+ * The bat's first action is `schtasks /End /TN SelfPrintAgent`, which terminates
+ * that task instance's entire job object. A child of ours — even spawned with
+ * detached: true, which does NOT break out of a Windows job object — would be
+ * killed along with the agent, mid-swap. Registering our own one-shot task makes
+ * the updater a child of the Task Scheduler service instead.
+ *
+ * Throws if either schtasks call fails (execFileSync throws on a non-zero exit).
+ */
+export function launchUpdaterTask(batPath: string): void {
+  execFileSync(
+    "schtasks",
+    [
+      "/Create", "/TN", UPDATER_TASK,
+      "/TR", `cmd /c "${batPath}"`,
+      "/SC", "ONCE", "/ST", "00:00",
+      "/RL", "HIGHEST", "/F",
+    ],
+    { stdio: "ignore" },
+  );
+  execFileSync("schtasks", ["/Run", "/TN", UPDATER_TASK], { stdio: "ignore" });
+}
+
 export function renderUpdaterBat(
   template: string,
   vars: { root: string; kind: "code" | "full"; version: string },
@@ -80,7 +108,7 @@ async function audit(from: string | null, to: string | null, status: string, mes
 
 /**
  * Full update pipeline. Every failure branch returns with the OLD version still
- * running; only the very last step (bat spawned) exits this process.
+ * running; only the very last step (updater task launched) exits this process.
  */
 export function checkForUpdateCommand(): Promise<void> {
   if (handedOff) return Promise.resolve();
@@ -135,24 +163,16 @@ async function runUpdateCheck(): Promise<void> {
     await setStatus("swapping");
     deps.log("Update staged; handing off to updater.bat and exiting.");
     handedOff = true;
-    const child = spawn("cmd.exe", ["/c", batPath], { detached: true, stdio: "ignore", windowsHide: true });
-    // If the spawn itself fails we must NOT exit — nothing would restart us.
-    let spawnFailed = false;
-    child.on("error", (e) => {
-      spawnFailed = true;
-      deps.log(`Failed to launch updater.bat (staying on ${mine}): ${e.message}`);
-    });
-    child.unref();
-    setTimeout(() => {
-      if (!spawnFailed) {
-        process.exit(0);
-        return;
-      }
+    try {
+      launchUpdaterTask(batPath);
+    } catch (e) {
+      // Nothing was swapped yet — fall into the catch below, old version lives on.
       handedOff = false;
-      void fs.rm(path.join(shopRoot, "update-pending.txt"), { force: true }).catch(() => undefined);
-      void setStatus("failed", "could not launch updater.bat").catch(() => undefined);
-      void audit(mine, target, "failed", "could not launch updater.bat").catch(() => undefined);
-    }, 500); // give the spawn a beat to detach
+      throw new Error(
+        `could not launch the ${UPDATER_TASK} task: ${e instanceof Error ? e.message : String(e)}`,
+      );
+    }
+    setTimeout(() => process.exit(0), 500); // let the task actually start
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     deps.log(`Update failed (old version keeps running): ${msg}`);

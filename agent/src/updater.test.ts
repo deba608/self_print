@@ -3,7 +3,13 @@ import { mkdtempSync, mkdirSync, writeFileSync, existsSync, readFileSync } from 
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
-import { stageUpdate, renderUpdaterBat, heartbeatContent } from "./updater";
+import {
+  stageUpdate,
+  renderUpdaterBat,
+  heartbeatContent,
+  launchUpdaterTask,
+  UPDATER_TASK,
+} from "./updater";
 import { sha256Hex } from "./update-lib";
 
 describe("stageUpdate", () => {
@@ -46,6 +52,21 @@ describe("stageUpdate", () => {
   });
 });
 
+describe("launchUpdaterTask", () => {
+  it("throws when schtasks cannot be run, so the caller keeps the old version", () => {
+    // The failure contract matters more than the happy path: a silent failure
+    // here would exit the agent with no updater running. We do NOT register a
+    // real task in tests — clearing PATH makes the schtasks lookup fail.
+    const realPath = process.env.PATH;
+    process.env.PATH = "";
+    try {
+      expect(() => launchUpdaterTask("C:\\nope\\run-update.bat")).toThrow();
+    } finally {
+      process.env.PATH = realPath;
+    }
+  });
+});
+
 describe("renderUpdaterBat", () => {
   it("substitutes all placeholders", () => {
     const out = renderUpdaterBat("x {{ROOT}} {{KIND}} {{VERSION}}", {
@@ -64,6 +85,24 @@ describe("renderUpdaterBat", () => {
     // config.json must be copied back out of the backup on both swap kinds.
     expect(out).toContain("engine.bak\\agent\\config.json");
     expect(out).toContain("agent.bak\\config.json");
+  });
+
+  it("leaves the engine directory before swapping (inherited cwd would lock it)", () => {
+    const template = readFileSync(path.resolve("agent/updater-template.bat"), "utf8");
+    const cd = template.indexOf('cd /d "%ROOT%"');
+    expect(cd).toBeGreaterThan(-1);
+    expect(cd).toBeLessThan(template.indexOf(":swap"));
+    expect(cd).toBeLessThan(template.indexOf('schtasks /End /TN "SelfPrintAgent"'));
+  });
+
+  it("cleans up its own one-shot task on every exit path", () => {
+    const template = readFileSync(path.resolve("agent/updater-template.bat"), "utf8");
+    const exits = template.match(/^\s*exit \/b \d/gm) ?? [];
+    const deletes = template.match(/schtasks \/Delete \/TN "SelfPrintUpdater" \/F/g) ?? [];
+    expect(exits.length).toBeGreaterThan(0);
+    expect(deletes.length).toBe(exits.length);
+    // The task name must match what updater.ts registers.
+    expect(UPDATER_TASK).toBe("SelfPrintUpdater");
   });
 
   it("stops the scheduled task before touching files", () => {
