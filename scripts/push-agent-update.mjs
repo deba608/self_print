@@ -92,4 +92,4 @@ if (updateError) {
   process.exit(1);
 }
 
-console.log(`Requested update to ${latest.version} — agent will pick it up within ~5s of its next poll.`);
+console.log(`Requested update to ${latest.version} — agent will pick it up on its next config poll (~30s).`);

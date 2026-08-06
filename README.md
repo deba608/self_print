@@ -261,29 +261,38 @@ To ship a version:
    `agent-<version>.zip`, then writes `latest.json` last so a half-finished
    publish never advertises a payload. It picks `kind: "code"` (just `agent/`)
    when no runtime dependency moved, `kind: "full"` (whole engine incl.
-   `node_modules`) when they did.
+   `node_modules`) when they did — the first publish is always `full`.
 3. Trigger the install: press **Install update** on the "Print agent" card in
    `/admin` → Printer panel (super admins only), or run
    `npm run agent:push-update` from the dev machine. Both write the same
-   `agent_config` row; the agent picks it up within ~5s of its next poll.
+   `agent_config` row; the agent notices on its 30s config poll (or immediately
+   if its Realtime connection re-establishes in the meantime).
 4. Watch the card: `requested` → `downloading` → `swapping` → `success`. A job
-   that is mid-print defers the update to the next poll.
+   that is mid-print defers the update to the next poll. There is no "success"
+   spinner — a finished update just shows "Up to date." plus a
+   `Last update: <version> — success` line.
 
-When it goes wrong:
+When it goes wrong (both statuses leave a working agent installed):
 
-- **`failed`** — nothing was swapped, the old version is still running (bad
-  sha256, missing/mismatched `latest.json`, the updater task would not launch,
-  or a swap that never completed after a power loss). The reason is on the card.
-- **`rolled_back`** — the new version was installed but never wrote a health
-  heartbeat within 90s, so the previous version was restored automatically and
-  restarted. The card turns red with the reason.
+- **`failed`** — the agent aborted before handing off; nothing was swapped and
+  the old version never stopped. Causes: sha256 mismatch, `latest.json` missing
+  or naming a different version than the target, the `SelfPrintUpdater` task
+  refusing to launch, or a swap detected as incomplete at the next startup
+  (power loss mid-swap).
+- **`rolled_back`** — the updater script ran and reverted. Any of: the agent
+  process did not exit within 60s, the rename/copy swap itself failed, or the
+  new version wrote no health heartbeat within 90s. The previous version is
+  restored and restarted; the card turns red and the reason string is shown on
+  the last-update line.
 
-Where to look, in order: the "Print agent" card (status + message + last event),
+Where to look, in order: the "Print agent" card (running version + health badge
++ in-flight status + last update event and its reason),
 `<shop-root>\update-staging\updater.log` (the swap script's own trace), and
-`engine\agent\agent.log` (the agent's log). Markers left in the shop root
-(`update-pending.txt`, `update-rollback.txt`, `agent-health.txt`) are the
-handshake between the agent and the updater and are cleared on the next start.
-If `updater.log` says `ROLLBACK FAILED`, the previous install is still sitting
+`engine\agent\agent.log` (the agent's log). The shop root also holds the
+handshake files: `update-pending.txt` / `update-rollback.txt` are written by the
+agent and the updater and consumed (then deleted) by the next agent startup,
+while `agent-health.txt` is deleted by the updater before each swap and
+rewritten by every agent start. If `updater.log` says `ROLLBACK FAILED`, the previous install is still sitting
 in `engine.bak` / `engine\agent.bak` and needs a manual rename.
 
 ## Features
