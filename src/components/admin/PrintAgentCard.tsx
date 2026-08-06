@@ -59,11 +59,14 @@ export default function PrintAgentCard() {
   const [posting, setPosting] = useState(false);
   const [error, setError] = useState("");
 
-  const { data, isLoading, mutate } = useSWR<AgentUpdateResponse>(
+  // 5s while the agent is mid-upgrade; 60s otherwise. The resting poll is not
+  // optional: healthy/relative-time are computed at render, so without it an
+  // open modal would keep showing a long-dead agent as "healthy, just now".
+  const { data, error: loadError, isLoading, mutate } = useSWR<AgentUpdateResponse>(
     isSuperAdmin ? "/api/admin/agent-update" : null,
     fetcher,
     { revalidateOnFocus: false, refreshInterval: (latest) =>
-        IN_FLIGHT.includes(latest?.state?.updateStatus ?? "") ? 5000 : 0 }
+        IN_FLIGHT.includes(latest?.state?.updateStatus ?? "") ? 5000 : 60000 }
   );
 
   if (!isSuperAdmin) return null;
@@ -109,6 +112,10 @@ export default function PrintAgentCard() {
           <Loader2 size={16} className="spin" aria-hidden="true" />
           <span>Checking agent version…</span>
         </div>
+      ) : loadError ? (
+        // A failed GET must not render as "unknown / offline" — that would
+        // report a network problem as a dead agent.
+        <p className="agent-update-error" role="alert">Couldn’t load agent status.</p>
       ) : (
         <>
           <div className="agent-update-row">
@@ -134,11 +141,16 @@ export default function PrintAgentCard() {
             </div>
           )}
 
+          {/* Nothing to install: say so, rather than showing a greyed-out
+              button with no explanation. */}
+          {!showAvailable && !inFlight ? (
+            <p className="agent-update-uptodate">Up to date.</p>
+          ) : (
           <button
             type="button"
             className="btn-primary agent-update-btn"
             onClick={install}
-            disabled={inFlight || posting || !showAvailable}
+            disabled={inFlight || posting}
           >
             {inFlight ? (
               <>
@@ -157,6 +169,7 @@ export default function PrintAgentCard() {
               </>
             )}
           </button>
+          )}
 
           {lastEvent && (
             <p className={`agent-update-last ${eventFailed ? "failed" : ""}`}>
