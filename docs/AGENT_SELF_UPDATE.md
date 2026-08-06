@@ -249,6 +249,20 @@ The swap ran but the new version failed the health check. Check:
 
 ## Developer Notes
 
+### Sending the initial zip to the client
+
+`npm run package:shop` (without `--publish`) produces
+`dist-shop-package/selfprint-agent.zip`. Send it to the client via:
+
+- **WhatsApp / Telegram** — easiest; most clients already have it
+- **Google Drive / OneDrive link** — better for large zips (first install is
+  ~100 MB because it includes `node_modules`)
+- **USB drive** — if the shop PC has no internet during setup
+
+The client unzips it anywhere, double-clicks `SETUP.bat`, and that's the
+entire first-time setup. After that, all updates go through the dashboard —
+you never need to send another zip.
+
 ### Running on a dev machine
 
 On your own PC (not a shop PC), run the agent directly:

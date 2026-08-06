@@ -76,11 +76,16 @@ printer.
 1. **Install Node.js** — download the **LTS** version from
    [nodejs.org](https://nodejs.org), run the installer, click through
    Next/Next/Finish (defaults are fine).
-2. **Get and unzip the delivery package** — receive `selfprint-agent.zip`
-   from the developer and copy it to the shop PC. Unzip it anywhere (e.g.
-   `C:\SelfPrint`). It contains everything needed: dependencies, and
-   `agent\config.json` pre-filled with this shop's real Supabase credentials.
-   Nothing to edit.
+2. **Get and unzip the delivery package** — the developer builds
+   `selfprint-agent.zip` by running `npm run package:shop` on their machine,
+   then sends it to you. Recommended transfer methods (pick one):
+   - WhatsApp / Telegram — easiest for most clients; just share the file
+   - Google Drive / OneDrive link — good for larger zips
+   - USB drive — if the shop PC has no internet yet
+
+   Copy the zip to the shop PC and unzip it anywhere (e.g. `C:\SelfPrint`).
+   It contains everything needed: Node dependencies, and `agent\config.json`
+   pre-filled with this shop's real Supabase credentials. Nothing to edit.
    - **Security note**: the zip file contains a live Supabase service-role key
      (inside `agent\config.json`). Delete the zip from your Downloads folder
      after extraction — don't leave it sitting around unencrypted.
