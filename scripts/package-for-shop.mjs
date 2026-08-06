@@ -284,5 +284,19 @@ if (process.argv.includes('--publish')) {
     process.exit(1);
   }
 
+  // Delete old agent-*.zip files now that latest.json points at the new one.
+  const { data: allFiles } = await supabase.storage.from('agent-updates').list('');
+  const oldZips = (allFiles ?? [])
+    .map(f => f.name)
+    .filter(n => n.startsWith('agent-') && n.endsWith('.zip') && n !== zipName);
+  if (oldZips.length > 0) {
+    const { error: cleanErr } = await supabase.storage.from('agent-updates').remove(oldZips);
+    if (cleanErr) {
+      console.warn(`Could not delete old zips (${cleanErr.message}) — clean them manually in the dashboard.`);
+    } else {
+      console.log(`Deleted ${oldZips.length} old zip(s): ${oldZips.join(', ')}`);
+    }
+  }
+
   console.log(`Published ${kind} update ${version}, sha256=${sha256}`);
 }
