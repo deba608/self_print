@@ -1,0 +1,834 @@
+<title>SelfPrint Agent Self-Update — Implementation Guide</title>
+<style>
+  :root {
+    --bg: #F7F7F5;
+    --bg-alt: #EEECEA;
+    --bg-code: #E8E6E1;
+    --text: #18181B;
+    --text-muted: #6B6B74;
+    --text-faint: #A0A0A8;
+    --accent: #0D7A74;
+    --accent-tint: #EAF5F4;
+    --accent-dark: #0A5E59;
+    --warn: #C2620A;
+    --warn-tint: #FEF3E8;
+    --success: #1A7F4B;
+    --success-tint: #EDFAF3;
+    --danger: #B91C1C;
+    --danger-tint: #FEF2F2;
+    --border: #D8D6D0;
+    --border-strong: #BFBCB5;
+    --rule: #E2E0DA;
+    --step-num: #CFCDC8;
+    --tag-dev: #EAF5F4;
+    --tag-dev-text: #0A5E59;
+    --tag-auto: #EDFAF3;
+    --tag-auto-text: #1A7F4B;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #13141A; --bg-alt: #1C1D25; --bg-code: #21222C;
+      --text: #E4E3DF; --text-muted: #8F8F9A; --text-faint: #555560;
+      --accent: #2BB5AD; --accent-tint: #0D2E2C; --accent-dark: #5DCFC8;
+      --warn: #E8854A; --warn-tint: #261A0E;
+      --success: #3AB870; --success-tint: #0E221A;
+      --danger: #F87171; --danger-tint: #2A1010;
+      --border: #2C2D38; --border-strong: #3E3F4E; --rule: #242530;
+      --step-num: #2E2F3C; --tag-dev: #0D2E2C; --tag-dev-text: #5DCFC8;
+      --tag-auto: #0E221A; --tag-auto-text: #3AB870;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #13141A; --bg-alt: #1C1D25; --bg-code: #21222C;
+    --text: #E4E3DF; --text-muted: #8F8F9A; --text-faint: #555560;
+    --accent: #2BB5AD; --accent-tint: #0D2E2C; --accent-dark: #5DCFC8;
+    --warn: #E8854A; --warn-tint: #261A0E;
+    --success: #3AB870; --success-tint: #0E221A;
+    --danger: #F87171; --danger-tint: #2A1010;
+    --border: #2C2D38; --border-strong: #3E3F4E; --rule: #242530;
+    --step-num: #2E2F3C; --tag-dev: #0D2E2C; --tag-dev-text: #5DCFC8;
+    --tag-auto: #0E221A; --tag-auto-text: #3AB870;
+  }
+  :root[data-theme="light"] {
+    --bg: #F7F7F5; --bg-alt: #EEECEA; --bg-code: #E8E6E1;
+    --text: #18181B; --text-muted: #6B6B74; --text-faint: #A0A0A8;
+    --accent: #0D7A74; --accent-tint: #EAF5F4; --accent-dark: #0A5E59;
+    --warn: #C2620A; --warn-tint: #FEF3E8;
+    --success: #1A7F4B; --success-tint: #EDFAF3;
+    --danger: #B91C1C; --danger-tint: #FEF2F2;
+    --border: #D8D6D0; --border-strong: #BFBCB5; --rule: #E2E0DA;
+    --step-num: #CFCDC8; --tag-dev: #EAF5F4; --tag-dev-text: #0A5E59;
+    --tag-auto: #EDFAF3; --tag-auto-text: #1A7F4B;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    font-size: 15px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .layout {
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    grid-template-rows: auto 1fr;
+    min-height: 100vh;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+
+  header {
+    grid-column: 1 / -1;
+    padding: 40px 40px 28px;
+    border-bottom: 1px solid var(--rule);
+    display: flex;
+    align-items: flex-end;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+  .header-eyebrow {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--text-faint); margin-bottom: 6px;
+  }
+  header h1 {
+    font-size: 26px; font-weight: 700; letter-spacing: -0.03em;
+    line-height: 1.2; color: var(--text);
+  }
+  header h1 span { color: var(--accent); }
+  .header-meta { margin-left: auto; display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+  .badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 3px 10px; border-radius: 20px; font-size: 11.5px;
+    font-weight: 600; letter-spacing: 0.02em;
+  }
+  .badge-done { background: var(--success-tint); color: var(--success); border: 1px solid color-mix(in srgb, var(--success) 20%, transparent); }
+  .badge-merged { background: var(--accent-tint); color: var(--accent-dark); border: 1px solid color-mix(in srgb, var(--accent) 20%, transparent); }
+
+  nav {
+    grid-column: 1; padding: 32px 24px 32px 40px;
+    position: sticky; top: 0; height: 100vh; overflow-y: auto;
+    border-right: 1px solid var(--rule);
+  }
+  .nav-label {
+    font-size: 10.5px; font-weight: 700; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--text-faint); margin-bottom: 12px;
+  }
+  nav ul { list-style: none; }
+  nav ul li + li { margin-top: 2px; }
+  nav a {
+    display: block; font-size: 13px; color: var(--text-muted);
+    text-decoration: none; padding: 4px 8px; border-radius: 5px;
+    transition: background 0.12s, color 0.12s; line-height: 1.4;
+  }
+  nav a:hover { background: var(--bg-alt); color: var(--text); }
+  nav a.active { color: var(--accent); background: var(--accent-tint); font-weight: 500; }
+  .nav-sub { padding-left: 12px; margin-top: 2px; }
+  .nav-sub a { font-size: 12px; color: var(--text-faint); }
+
+  main { grid-column: 2; padding: 40px 48px 80px; min-width: 0; }
+
+  section { scroll-margin-top: 24px; }
+  section + section { margin-top: 56px; border-top: 1px solid var(--rule); padding-top: 48px; }
+
+  .section-eyebrow {
+    font-size: 10.5px; font-weight: 700; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--accent); margin-bottom: 8px;
+  }
+  h2 {
+    font-size: 20px; font-weight: 700; letter-spacing: -0.02em;
+    line-height: 1.25; text-wrap: balance; margin-bottom: 20px;
+  }
+  h3 {
+    font-size: 14px; font-weight: 700; letter-spacing: -0.01em;
+    margin-top: 28px; margin-bottom: 10px; color: var(--text);
+  }
+  p { margin-bottom: 14px; color: var(--text); max-width: 64ch; }
+  p:last-child { margin-bottom: 0; }
+
+  code {
+    font-family: ui-monospace, 'Cascadia Code', 'SF Mono', Consolas, monospace;
+    font-size: 12.5px; background: var(--bg-code);
+    padding: 1px 5px; border-radius: 4px; color: var(--accent-dark);
+  }
+  pre {
+    background: var(--bg-code); border: 1px solid var(--border);
+    border-radius: 8px; padding: 16px 18px; overflow-x: auto; margin: 14px 0;
+  }
+  pre code { background: none; padding: 0; color: var(--text); font-size: 12.5px; line-height: 1.7; }
+
+  .steps { display: flex; flex-direction: column; gap: 0; }
+  .step {
+    display: grid; grid-template-columns: 40px 1fr;
+    gap: 0 16px; padding: 20px 0; border-top: 1px solid var(--rule);
+  }
+  .step:first-child { border-top: none; padding-top: 0; }
+  .step-num {
+    font-size: 22px; font-weight: 800; color: var(--step-num);
+    font-variant-numeric: tabular-nums; line-height: 1.3;
+    letter-spacing: -0.02em; padding-top: 1px;
+  }
+  .step-content h4 { font-size: 14px; font-weight: 700; margin-bottom: 6px; color: var(--text); }
+  .step-content p { font-size: 14px; margin-bottom: 8px; max-width: 58ch; }
+  .step-content pre { margin: 8px 0; }
+  .step-tag {
+    display: inline-block; font-size: 10px; font-weight: 700;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    padding: 2px 7px; border-radius: 4px; margin-bottom: 6px;
+  }
+  .tag-dev { background: var(--tag-dev); color: var(--tag-dev-text); }
+  .tag-auto { background: var(--tag-auto); color: var(--tag-auto-text); }
+  .tag-warn { background: var(--warn-tint); color: var(--warn); }
+
+  .callout {
+    padding: 12px 16px; border-radius: 8px; border-left: 3px solid;
+    margin: 16px 0; font-size: 13.5px; max-width: 68ch;
+  }
+  .callout-warn { background: var(--warn-tint); border-color: var(--warn); }
+  .callout-warn strong { color: var(--warn); }
+  .callout-info { background: var(--accent-tint); border-color: var(--accent); }
+  .callout-info strong { color: var(--accent-dark); }
+  .callout-success { background: var(--success-tint); border-color: var(--success); }
+  .callout-success strong { color: var(--success); }
+
+  .flow { display: flex; flex-direction: column; gap: 0; margin: 20px 0; max-width: 580px; }
+  .flow-row { display: flex; align-items: stretch; gap: 12px; }
+  .flow-left { display: flex; flex-direction: column; align-items: center; width: 28px; flex-shrink: 0; }
+  .flow-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); margin-top: 5px; flex-shrink: 0; }
+  .flow-line { width: 1.5px; flex: 1; background: var(--border-strong); margin: 3px 0; min-height: 12px; }
+  .flow-body { padding: 6px 0 14px; flex: 1; }
+  .flow-title { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 2px; }
+  .flow-desc { font-size: 12.5px; color: var(--text-muted); line-height: 1.5; }
+  .flow-row:last-child .flow-dot { background: var(--success); }
+  .flow-row.flow-branch .flow-dot { background: var(--warn); }
+
+  .data-table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 13px; }
+  .data-table th {
+    text-align: left; font-size: 10.5px; font-weight: 700;
+    letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-faint);
+    padding: 6px 12px 8px; border-bottom: 1px solid var(--border-strong);
+  }
+  .data-table td { padding: 9px 12px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  .data-table tr:last-child td { border-bottom: none; }
+  .data-table td:first-child code { font-size: 11.5px; }
+  .data-table td:last-child { color: var(--text-muted); }
+  .table-wrap { overflow-x: auto; }
+
+  .client-big {
+    text-align: center; padding: 40px 32px;
+    background: var(--success-tint);
+    border: 1px solid color-mix(in srgb, var(--success) 25%, transparent);
+    border-radius: 12px; margin: 20px 0;
+  }
+  .client-big .icon { font-size: 36px; margin-bottom: 12px; line-height: 1; }
+  .client-big h3 { font-size: 18px; color: var(--success); font-weight: 700; margin-bottom: 8px; }
+  .client-big p { font-size: 14px; color: var(--text-muted); margin: 0 auto; max-width: 42ch; }
+
+  .send-options { display: flex; gap: 12px; flex-wrap: wrap; margin: 16px 0; }
+  .send-option {
+    flex: 1; min-width: 140px; padding: 14px 16px;
+    background: var(--bg-alt); border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+  .send-option .so-label { font-size: 12px; font-weight: 700; margin-bottom: 4px; color: var(--text); }
+  .send-option .so-note { font-size: 11.5px; color: var(--text-muted); }
+
+  .checklist { list-style: none; margin: 12px 0; display: flex; flex-direction: column; gap: 6px; }
+  .checklist li {
+    display: flex; gap: 10px; align-items: flex-start;
+    font-size: 13.5px; padding: 8px 12px;
+    background: var(--bg-alt); border-radius: 6px;
+  }
+  .check-box {
+    width: 16px; height: 16px; border: 1.5px solid var(--border-strong);
+    border-radius: 4px; flex-shrink: 0; margin-top: 1px;
+  }
+  .check-label { color: var(--text); }
+  .check-note { font-size: 11.5px; color: var(--text-muted); margin-top: 1px; }
+
+  .status-pill {
+    display: inline-block; font-size: 11px; font-weight: 600;
+    padding: 2px 8px; border-radius: 10px; vertical-align: middle;
+  }
+  .s-requested  { background: var(--bg-code); color: var(--text-muted); }
+  .s-progress   { background: #FEF3E8; color: #C2620A; }
+  .s-swapping   { background: #EEF1FD; color: #3D5AF1; }
+  .s-completed  { background: var(--success-tint); color: var(--success); }
+  .s-failed     { background: var(--danger-tint); color: var(--danger); }
+  .s-rolledback { background: var(--warn-tint); color: var(--warn); }
+
+  @media (max-width: 780px) {
+    .layout { grid-template-columns: 1fr; }
+    nav { display: none; }
+    header { padding: 24px 20px 18px; }
+    main { padding: 24px 20px 60px; grid-column: 1; }
+    .send-options { flex-direction: column; }
+  }
+</style>
+
+<div class="layout">
+  <header>
+    <div>
+      <div class="header-eyebrow">SelfPrint · Feature Guide</div>
+      <h1>Agent <span>Self-Update</span><br>Complete Guide</h1>
+    </div>
+    <div class="header-meta">
+      <span class="badge badge-done">Shipped ✓</span>
+      <span class="badge badge-merged">PR #18 merged</span>
+    </div>
+  </header>
+
+  <nav>
+    <div class="nav-label">Contents</div>
+    <ul>
+      <li><a href="#overview">Overview</a></li>
+      <li><a href="#files">What Was Built</a></li>
+      <li><a href="#flow">Update Flow</a></li>
+      <li><a href="#one-time">One-Time Setup</a></li>
+      <li><a href="#publish">Publishing Updates</a>
+        <ul class="nav-sub">
+          <li><a href="#bump">1. Bump version</a></li>
+          <li><a href="#publish-cmd">2. Publish command</a></li>
+          <li><a href="#trigger">3. Trigger install</a></li>
+          <li><a href="#watch">4. Watch progress</a></li>
+        </ul>
+      </li>
+      <li><a href="#shop-pc">What Happens on Shop PC</a></li>
+      <li><a href="#client">Client Setup</a></li>
+      <li><a href="#send-zip">Sending the Zip</a></li>
+      <li><a href="#rollback">Rollback & Recovery</a></li>
+      <li><a href="#troubleshoot">Troubleshooting</a></li>
+      <li><a href="#checklist">Checklist</a></li>
+    </ul>
+  </nav>
+
+  <main>
+
+    <!-- OVERVIEW -->
+    <section id="overview">
+      <div class="section-eyebrow">Overview</div>
+      <h2>Zero-touch updates for the shop PC</h2>
+      <p>
+        Previously, updating the print agent on the shop PC required re-shipping a zip file
+        and walking a non-technical client through reinstalling it. Every code change — bug
+        fix, new printer feature, dependency update — was stuck behind that manual process.
+      </p>
+      <p>
+        This feature makes updates invisible to the client. The developer publishes a release
+        from their machine, presses Install in the admin dashboard topbar, and the agent on
+        the shop PC downloads, verifies, swaps, and restarts itself — rolling back automatically
+        if anything goes wrong. The client never touches anything.
+      </p>
+      <div class="callout callout-info">
+        <strong>Key invariant:</strong> Every failure branch ends with the old version printing.
+        Worst case is the shop stays on its current version — exactly where it is today.
+      </div>
+    </section>
+
+    <!-- WHAT WAS BUILT -->
+    <section id="files">
+      <div class="section-eyebrow">What Was Built</div>
+      <h2>New files and what each one does</h2>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>File</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><code>agent/version.json</code></td>
+              <td>Single source of truth for the running agent version. Bundled in every zip. Checked after a swap to verify extraction was complete.</td>
+            </tr>
+            <tr>
+              <td><code>agent/src/update-lib.ts</code></td>
+              <td>Pure helpers: <code>compareVersions(a,b)</code>, <code>parseLatestJson(raw)</code> (validates Storage manifest), <code>sha256Hex(buf)</code>. No side effects — fully unit-tested.</td>
+            </tr>
+            <tr>
+              <td><code>agent/src/updater.ts</code></td>
+              <td>Full update pipeline. Polls <code>agent_config</code> for a command, downloads + verifies zip, extracts to staging, writes the bat, exits agent. Also handles post-update status reporting and the 30s periodic heartbeat.</td>
+            </tr>
+            <tr>
+              <td><code>agent/updater-template.bat</code></td>
+              <td>Windows batch script that swaps files. Runs as a separate <code>SelfPrintUpdater</code> scheduled task (outside the agent's process). Renames engine dirs → restarts agent → polls for heartbeat → deletes backup on success, or restores on timeout.</td>
+            </tr>
+            <tr>
+              <td><code>scripts/package-for-shop.mjs</code></td>
+              <td>Extended with <code>--publish</code> flag. Detects <em>code-only</em> (~100 KB) vs <em>full</em> (~100 MB) payload, sha256s the zip, uploads it to <code>agent-updates</code> bucket, writes <code>latest.json</code> last, then deletes old zips.</td>
+            </tr>
+            <tr>
+              <td><code>scripts/push-agent-update.mjs</code></td>
+              <td>CLI trigger — writes the same <code>agent_config</code> row as the dashboard Install button. Use from terminal or CI.</td>
+            </tr>
+            <tr>
+              <td><code>src/app/api/admin/agent-update/route.ts</code></td>
+              <td>GET returns agent state + latest published version. POST triggers install (super_admin only). Treats in-flight status older than 30 min as stale so the button re-enables after a stuck update.</td>
+            </tr>
+            <tr>
+              <td><code>src/components/admin/AgentUpdateBadge.tsx</code></td>
+              <td>Topbar navbar badge (super_admin only). Expanding-ring dot animation when update available. Popup with running version, available version, and Install button. Page-open banner once per session. SWR polls 5s in-flight, 60s at rest.</td>
+            </tr>
+            <tr>
+              <td><code>supabase/migrations/20260806000000_agent_self_update.sql</code></td>
+              <td>Adds 6 columns to <code>agent_config</code> and creates the <code>agent_update_events</code> audit table. Must be applied to Supabase before the feature works.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- FLOW -->
+    <section id="flow">
+      <div class="section-eyebrow">Architecture</div>
+      <h2>How an update flows end to end</h2>
+      <div class="callout callout-info">
+        <strong>Key point:</strong> The admin dashboard never touches the shop PC directly.
+        It writes one DB row. The agent — already running on the shop PC — pulls everything
+        itself over outbound HTTPS. No open ports, no VPN, no SSH.
+      </div>
+      <div class="flow">
+        <div class="flow-row">
+          <div class="flow-left"><div class="flow-dot"></div><div class="flow-line"></div></div>
+          <div class="flow-body">
+            <div class="flow-title">Developer bumps version + publishes</div>
+            <div class="flow-desc">Edit <code>agent/version.json</code> → run <code>npm run package:shop -- --publish</code>. Zip lands in private <code>agent-updates</code> Supabase bucket. <code>latest.json</code> written last.</div>
+          </div>
+        </div>
+        <div class="flow-row">
+          <div class="flow-left"><div class="flow-dot"></div><div class="flow-line"></div></div>
+          <div class="flow-body">
+            <div class="flow-title">Admin clicks Install in topbar navbar</div>
+            <div class="flow-desc"><code>POST /api/admin/agent-update</code> writes <code>update_target_version</code> and <code>update_status = requested</code> to <code>agent_config</code> table in Supabase.</div>
+          </div>
+        </div>
+        <div class="flow-row">
+          <div class="flow-left"><div class="flow-dot"></div><div class="flow-line"></div></div>
+          <div class="flow-body">
+            <div class="flow-title">Agent picks up command (~1s via Realtime, max 30s poll)</div>
+            <div class="flow-desc">Agent has a persistent WebSocket to Supabase Realtime. DB row change pushes instantly. 30s fallback poll covers Realtime drops. Waits if a print job is in progress.</div>
+          </div>
+        </div>
+        <div class="flow-row">
+          <div class="flow-left"><div class="flow-dot"></div><div class="flow-line"></div></div>
+          <div class="flow-body">
+            <div class="flow-title">Download → verify SHA-256 → extract</div>
+            <div class="flow-desc">Downloads zip from <code>agent-updates</code> bucket via service-role key. Verifies sha256 against <code>latest.json</code>. Extracts to <code>update-staging/</code>.</div>
+          </div>
+        </div>
+        <div class="flow-row">
+          <div class="flow-left"><div class="flow-dot"></div><div class="flow-line"></div></div>
+          <div class="flow-body">
+            <div class="flow-title">Writes BAT + exits</div>
+            <div class="flow-desc">Generates <code>run-update.bat</code> with paths baked in. Writes <code>update-pending.txt</code>. Sets status <code>swapping</code>. Calls <code>process.exit(0)</code> — Windows Scheduled Task auto-restarts it.</div>
+          </div>
+        </div>
+        <div class="flow-row">
+          <div class="flow-left"><div class="flow-dot"></div><div class="flow-line"></div></div>
+          <div class="flow-body">
+            <div class="flow-title">New boot → hands off to SelfPrintUpdater task</div>
+            <div class="flow-desc">Restarted agent sees <code>update-pending.txt</code>, launches <code>SelfPrintUpdater</code> scheduled task (sibling process — not a child), exits again so the BAT can touch its files.</div>
+          </div>
+        </div>
+        <div class="flow-row">
+          <div class="flow-left"><div class="flow-dot"></div><div class="flow-line"></div></div>
+          <div class="flow-body">
+            <div class="flow-title">BAT swaps files on disk</div>
+            <div class="flow-desc">Renames <code>engine → engine.bak</code> (5-attempt retry). For <em>code</em> update: copies new <code>agent/</code> only. For <em>full</em> update: renames extracted dir to <code>engine</code>. Starts SelfPrintAgent task.</div>
+          </div>
+        </div>
+        <div class="flow-row">
+          <div class="flow-left"><div class="flow-dot"></div><div class="flow-line"></div></div>
+          <div class="flow-body">
+            <div class="flow-title">New agent boots + runs self-check</div>
+            <div class="flow-desc">PDFium WASM loads, Sharp native binding works, ≥1 printer enumerable, Supabase reachable. All pass → writes <code>agent-health.txt</code>, sets DB to <code>completed</code>.</div>
+          </div>
+        </div>
+        <div class="flow-row">
+          <div class="flow-left"><div class="flow-dot"></div></div>
+          <div class="flow-body">
+            <div class="flow-title">BAT sees heartbeat → success</div>
+            <div class="flow-desc">Deletes <code>engine.bak</code> and staging files. Writes <code>agent_update_events</code> audit row.</div>
+          </div>
+        </div>
+        <div class="flow-row flow-branch" style="margin-top:12px; padding-top:12px; border-top: 1px dashed var(--border);">
+          <div class="flow-left"><div class="flow-dot"></div></div>
+          <div class="flow-body">
+            <div class="flow-title">No heartbeat within 3 min → automatic rollback</div>
+            <div class="flow-desc">BAT renames <code>engine.bak → engine</code>, starts old SelfPrintAgent. Old agent sets status <code>rolled_back</code> with reason. Client keeps printing — zero interruption.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ONE-TIME SETUP -->
+    <section id="one-time">
+      <div class="section-eyebrow">One-Time Setup</div>
+      <h2>Do this once per Supabase project</h2>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-content">
+            <span class="step-tag tag-dev">Supabase</span>
+            <h4>Apply the database migration</h4>
+            <p>Go to Supabase Dashboard → SQL Editor. Open <code>supabase/migrations/20260806000000_agent_self_update.sql</code> from this repo in a text editor, paste the entire contents, click Run. You should see "Success. No rows returned."</p>
+            <p>Or via CLI: <code>npx supabase db push</code></p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-content">
+            <span class="step-tag tag-dev">Supabase</span>
+            <h4>Create the private Storage bucket</h4>
+            <p>Supabase Dashboard → Storage → New bucket. Name: <code>agent-updates</code>. Toggle: <strong>Private</strong> (not public). Save. Do not create any folders inside — the publish script manages it.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-content">
+            <span class="step-tag tag-dev">Config</span>
+            <h4>Confirm agent config</h4>
+            <p>In <code>agent/config.json</code>, confirm <code>"updateMode": "manual"</code> is set. The agent refuses to start if this is anything else.</p>
+            <pre><code>{
+  "supabaseUrl": "https://your-project.supabase.co",
+  "supabaseKey": "your-service-role-key",
+  "updateMode": "manual",
+  "fallbackPrinter": "",
+  "tempDir": "./agent-temp",
+  "maxRetries": 3
+}</code></pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PUBLISHING -->
+    <section id="publish">
+      <div class="section-eyebrow">Developer Workflow</div>
+      <h2>Publishing an update (every release)</h2>
+
+      <div id="bump">
+        <h3>Step 1 — Bump the version</h3>
+        <p>Edit <code>agent/version.json</code>:</p>
+        <pre><code>{ "version": "1.0.1" }</code></pre>
+        <p>Must be dotted numeric and strictly greater than the currently published version. The publish script checks and refuses to proceed if not. Cannot republish an existing version.</p>
+      </div>
+
+      <div id="publish-cmd">
+        <h3>Step 2 — Run the publish command</h3>
+        <pre><code>npm run package:shop -- --publish</code></pre>
+        <p>What this does automatically:</p>
+        <ol style="padding-left:20px; color:var(--text-muted); font-size:14px; line-height:2;">
+          <li>Validates <code>agent/config.json</code> has real credentials</li>
+          <li>Resolves pinned versions of the 4 agent deps from <code>package-lock.json</code></li>
+          <li>Decides payload kind: <strong>code</strong> (~100 KB) if only scripts changed, <strong>full</strong> (~100 MB with node_modules) if a dep version moved</li>
+          <li>Strips <code>config.json</code> from payload — shop credentials never travel in a zip</li>
+          <li>Checks bucket: refuses if this version already exists</li>
+          <li>Uploads <code>agent-1.0.1.zip</code> to bucket</li>
+          <li>Writes <code>latest.json</code> last (zip first so manifest never points at missing file)</li>
+          <li>Deletes all previous <code>agent-*.zip</code> files (only current version kept)</li>
+        </ol>
+        <div class="callout callout-success">
+          <strong>First publish?</strong> Always produces a <em>full</em> zip (no previous manifest to compare deps against). Subsequent releases are usually <em>code-only</em> unless you update a runtime dependency.
+        </div>
+      </div>
+
+      <div id="trigger">
+        <h3>Step 3 — Trigger the install</h3>
+        <p><strong>Option A — Admin dashboard (recommended):</strong><br>
+        Log in as super_admin. The <strong>Update</strong> button appears in the topbar navbar when the agent's running version differs from the published version. Click it → popup opens → click <strong>Install v1.0.1</strong>.</p>
+        <p><strong>Option B — Terminal:</strong></p>
+        <pre><code>npm run agent:push-update</code></pre>
+        <p>Both write the same <code>agent_config</code> row. Agent picks it up via Realtime within ~1 second.</p>
+      </div>
+
+      <div id="watch">
+        <h3>Step 4 — Watch progress in the topbar badge</h3>
+        <p>The badge polls every 5 seconds while in-flight and updates in real time:</p>
+        <div class="table-wrap" style="margin: 12px 0;">
+          <table class="data-table" style="max-width: 560px;">
+            <thead><tr><th>Status</th><th>Meaning</th></tr></thead>
+            <tbody>
+              <tr><td><span class="status-pill s-requested">requested</span></td><td>DB row written, agent hasn't polled yet (max ~30s)</td></tr>
+              <tr><td><span class="status-pill s-progress">downloading</span></td><td>Agent downloading zip from Supabase Storage</td></tr>
+              <tr><td><span class="status-pill s-swapping">swapping</span></td><td>Agent exited, BAT is renaming files on disk</td></tr>
+              <tr><td><span class="status-pill s-completed">completed</span></td><td>New version running and healthy — badge disappears</td></tr>
+              <tr><td><span class="status-pill s-failed">failed</span></td><td>Aborted before swap — old version still running, safe to retry</td></tr>
+              <tr><td><span class="status-pill s-rolledback">rolled_back</span></td><td>Swap ran, new version failed health check, old version restored</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="callout callout-info">
+          <strong>Mid-print job?</strong> The agent defers the update until the job finishes. Max ~5 minutes of extra wait.
+        </div>
+      </div>
+    </section>
+
+    <!-- SHOP PC DETAIL -->
+    <section id="shop-pc">
+      <div class="section-eyebrow">Under the Hood</div>
+      <h2>What happens on the shop PC in detail</h2>
+
+      <h3>Why a separate BAT task?</h3>
+      <p>Windows prevents a process from replacing its own executable while it's running.
+      The agent can't overwrite <code>engine/</code> from inside it.
+      Solution: the agent exits → Windows restarts it → the new boot immediately launches
+      <code>SelfPrintUpdater</code> as a <em>sibling</em> scheduled task (not a child process),
+      then exits again. The BAT runs freely outside any agent process and renames the dirs.</p>
+
+      <h3>File layout during a swap</h3>
+      <pre><code>Before swap:                   After successful swap:
+&lt;shop-root&gt;/                   &lt;shop-root&gt;/
+├── engine/      (old)          ├── engine/          (new version)
+├── update-staging/             ├── engine.bak/      (deleted after heartbeat)
+│   └── update-extract/ (new)  └── update-staging/  (cleaned up)
+└── update-pending.txt          </code></pre>
+
+      <h3>Heartbeat files</h3>
+      <table class="data-table" style="max-width: 520px; margin: 12px 0;">
+        <thead><tr><th>File</th><th>Written by</th><th>Consumed by</th></tr></thead>
+        <tbody>
+          <tr><td><code>agent-health.txt</code></td><td>Agent every 30s</td><td>BAT waits for it post-swap</td></tr>
+          <tr><td><code>update-pending.txt</code></td><td>Agent pre-exit</td><td>Next boot → triggers updater launch</td></tr>
+          <tr><td><code>update-rollback.txt</code></td><td>BAT on rollback</td><td>Agent reads on boot → sets DB status</td></tr>
+          <tr><td><code>update-failed.txt</code></td><td>BAT on timeout</td><td>Agent reads on boot → sets DB status</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Safety guards built in</h3>
+      <table class="data-table" style="max-width: 560px; margin: 12px 0;">
+        <thead><tr><th>Guard</th><th>Where</th></tr></thead>
+        <tbody>
+          <tr><td>No downgrade — agent checks new &gt; current before download</td><td><code>agent/src/updater.ts</code></td></tr>
+          <tr><td>No republish same version — bucket checked before upload</td><td><code>scripts/package-for-shop.mjs</code></td></tr>
+          <tr><td>SHA-256 verify before any file is extracted</td><td><code>agent/src/updater.ts</code></td></tr>
+          <tr><td><code>config.json</code> excluded from every payload</td><td><code>scripts/package-for-shop.mjs</code></td></tr>
+          <tr><td>Dev machine guard — updater no-ops if cwd ≠ <code>engine/</code></td><td><code>agent/src/updater.ts</code></td></tr>
+          <tr><td>Stale in-flight reset after 30 min (agent crash recovery)</td><td><code>/api/admin/agent-update</code></td></tr>
+          <tr><td>BAT rename retry loop (5 attempts, 2s apart) for Windows file locking</td><td><code>agent/updater-template.bat</code></td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- CLIENT -->
+    <section id="client">
+      <div class="section-eyebrow">Client Side</div>
+      <h2>What the shop needs to do</h2>
+      <div class="client-big">
+        <div class="icon">✓</div>
+        <h3>Nothing. Updates are automatic.</h3>
+        <p>Once SETUP.bat has been run once, the shop never needs to do anything again. Updates happen silently in the background, never during a print.</p>
+      </div>
+      <p>Initial setup — one time only:</p>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-content">
+            <span class="step-tag tag-dev">One-time only</span>
+            <h4>Install Node.js</h4>
+            <p>Download LTS from <a href="https://nodejs.org" style="color:var(--accent)">nodejs.org</a>. Run installer, click through defaults. Open PowerShell and run <code>node --version</code> to confirm. Reboot if not found.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-content">
+            <span class="step-tag tag-dev">One-time only</span>
+            <h4>Receive and extract the zip from the developer</h4>
+            <p>Unzip anywhere (e.g. <code>C:\SelfPrint</code>). Right-click → Extract All. After extraction: <code>SETUP.bat</code>, <code>TEST-PRINTER.bat</code>, <code>README.txt</code>, and <code>engine\</code> folder.</p>
+            <div class="callout callout-warn" style="margin-top:8px;">
+              <strong>Security:</strong> Delete the original .zip from Downloads after extracting. It contains a live Supabase service-role key inside <code>engine\agent\config.json</code>.
+            </div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-content">
+            <span class="step-tag tag-dev">One-time only</span>
+            <h4>Double-click SETUP.bat</h4>
+            <p>Click Yes on the Windows permission prompt. Wait for the <strong>DONE!</strong> message. The agent is now running as a Windows Scheduled Task ("SelfPrintAgent") and will auto-start on every boot — no window needs to stay open.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">4</div>
+          <div class="step-content">
+            <span class="step-tag tag-auto">Automatic forever after</span>
+            <h4>All future updates are pushed silently</h4>
+            <p>The developer publishes a new version and presses Install in the dashboard. The agent updates itself in the background — usually within a minute — without interrupting any print jobs. The shop operator sees nothing.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SEND ZIP -->
+    <section id="send-zip">
+      <div class="section-eyebrow">Delivery</div>
+      <h2>How to send the zip to the client</h2>
+      <p><code>npm run package:shop</code> (without <code>--publish</code>) produces <code>dist-shop-package/selfprint-agent.zip</code> — about 100 MB because it includes pre-built <code>node_modules</code>. The client runs no <code>npm install</code>.</p>
+      <div class="send-options">
+        <div class="send-option">
+          <div class="so-label">WhatsApp / Telegram</div>
+          <div class="so-note">Easiest for most clients — share the file directly in chat</div>
+        </div>
+        <div class="send-option">
+          <div class="so-label">Google Drive / OneDrive</div>
+          <div class="so-note">Best for large files — upload and share a download link</div>
+        </div>
+        <div class="send-option">
+          <div class="so-label">USB Drive</div>
+          <div class="so-note">Use if the shop PC has no internet yet during setup</div>
+        </div>
+      </div>
+      <div class="callout callout-success">
+        <strong>After this one zip, you're done sending files forever.</strong> All future updates go through the dashboard — you publish to Supabase Storage, the agent pulls them itself.
+      </div>
+    </section>
+
+    <!-- ROLLBACK -->
+    <section id="rollback">
+      <div class="section-eyebrow">Safety</div>
+      <h2>Rollback and manual recovery</h2>
+
+      <h3>Automatic rollback (normal path)</h3>
+      <p>If the new agent fails its startup self-check (any of: PDFium fails to load, Sharp binding broken, no printers, Supabase unreachable), no heartbeat is written. The BAT waits 3 minutes, then:</p>
+      <ol style="padding-left:20px; color:var(--text-muted); font-size:14px; line-height:2.2;">
+        <li>Renames <code>engine → engine-broken</code></li>
+        <li>Renames <code>engine.bak → engine</code></li>
+        <li>Starts SelfPrintAgent → old version boots</li>
+        <li>Old agent sets DB status <code>rolled_back</code> with reason string</li>
+      </ol>
+      <p>Dashboard badge turns red. Shop keeps printing. Fix the build and re-publish.</p>
+
+      <h3>Manual recovery (rare — power loss mid-swap)</h3>
+      <p>If power was lost exactly during the file rename, <code>engine.bak</code> may exist but <code>engine</code> is gone. On the shop PC in PowerShell:</p>
+      <pre><code># In the directory where you extracted the zip (e.g. C:\SelfPrint):
+Rename-Item engine.bak engine
+schtasks /Run /TN SelfPrintAgent</code></pre>
+      <p>If both <code>engine</code> and <code>engine.bak</code> exist and you want to revert:</p>
+      <pre><code>Remove-Item engine -Recurse -Force
+Rename-Item engine.bak engine
+schtasks /Run /TN SelfPrintAgent</code></pre>
+    </section>
+
+    <!-- TROUBLESHOOTING -->
+    <section id="troubleshoot">
+      <div class="section-eyebrow">Troubleshooting</div>
+      <h2>Common problems and fixes</h2>
+
+      <h3>Dashboard shows "Updating…" forever</h3>
+      <p>Status stuck at <code>requested</code> or <code>downloading</code>. Agent not picking up the command.</p>
+      <ol style="padding-left:20px; font-size:14px; color:var(--text-muted); line-height:2.2;">
+        <li>Check Windows Task Scheduler on shop PC for "SelfPrintAgent" — must be Running</li>
+        <li>If missing: run SETUP.bat again on shop PC</li>
+        <li>Check shop PC internet connection</li>
+        <li>Reset stuck status manually in Supabase SQL Editor:</li>
+      </ol>
+      <pre><code>UPDATE agent_config
+SET update_status = null, update_target_version = null,
+    update_started_at = null, update_message = null
+WHERE id = 1;</code></pre>
+      <p>Then retry from the dashboard.</p>
+
+      <h3>Status shows <span class="status-pill s-failed">failed</span></h3>
+      <p>Agent aborted before handing off to BAT. Old version still running. Check <code>engine\agent\agent.log</code> on shop PC.</p>
+      <table class="data-table" style="max-width: 500px; margin: 12px 0;">
+        <thead><tr><th>Log says</th><th>Fix</th></tr></thead>
+        <tbody>
+          <tr><td>SHA-256 mismatch</td><td>Corrupted download — retry; if persistent, re-publish</td></tr>
+          <tr><td>latest.json missing</td><td>Re-create <code>agent-updates</code> bucket or re-publish</td></tr>
+          <tr><td>SelfPrintUpdater not found</td><td>Run SETUP.bat again on shop PC</td></tr>
+          <tr><td>Downgrade refused</td><td>Bump <code>agent/version.json</code> higher before re-publishing</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Status shows <span class="status-pill s-rolledback">rolled_back</span></h3>
+      <p>Swap ran but new version failed health check. Old version restored. Check in order:</p>
+      <ol style="padding-left:20px; font-size:14px; color:var(--text-muted); line-height:2.2;">
+        <li><code>update-staging\updater.log</code> on shop PC — BAT's own trace</li>
+        <li><code>engine\agent\agent.log</code> — look for "SELF-CHECK FAILED"</li>
+        <li>If <code>updater.log</code> says "ROLLBACK FAILED": rename <code>engine.bak → engine</code> manually</li>
+      </ol>
+
+      <h3>Internet drops mid-update</h3>
+      <table class="data-table" style="max-width: 540px; margin: 12px 0;">
+        <thead><tr><th>When it drops</th><th>Effect</th></tr></thead>
+        <tbody>
+          <tr><td>Before download starts</td><td>Agent retries on next 30s poll — no harm</td></tr>
+          <tr><td>Mid-download</td><td>Download fails → <code>failed</code> → retry from dashboard</td></tr>
+          <tr><td>After download (zip on disk)</td><td>Swap runs offline (file renames) — completes fine</td></tr>
+          <tr><td>After swap, before heartbeat</td><td>No heartbeat → BAT rolls back after 3 min</td></tr>
+          <tr><td>After heartbeat written</td><td>Done — DB updated when connection recovers</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- CHECKLIST -->
+    <section id="checklist">
+      <div class="section-eyebrow">Before You Ship</div>
+      <h2>First-time setup checklist</h2>
+      <ul class="checklist">
+        <li>
+          <div class="check-box"></div>
+          <div>
+            <div class="check-label">Apply Supabase migration <code>20260806000000_agent_self_update.sql</code></div>
+            <div class="check-note">Dashboard → SQL Editor → paste → Run</div>
+          </div>
+        </li>
+        <li>
+          <div class="check-box"></div>
+          <div>
+            <div class="check-label">Create private Storage bucket <code>agent-updates</code></div>
+            <div class="check-note">Dashboard → Storage → New bucket → Private</div>
+          </div>
+        </li>
+        <li>
+          <div class="check-box"></div>
+          <div>
+            <div class="check-label">Confirm <code>updateMode: "manual"</code> in <code>agent/config.json</code></div>
+          </div>
+        </li>
+        <li>
+          <div class="check-box"></div>
+          <div>
+            <div class="check-label">Run <code>npm run package:shop -- --publish</code> to seed the bucket</div>
+            <div class="check-note">Verify zip + latest.json appear in Supabase Storage dashboard</div>
+          </div>
+        </li>
+        <li>
+          <div class="check-box"></div>
+          <div>
+            <div class="check-label">Confirm "Update" button visible in topbar navbar (super_admin login)</div>
+          </div>
+        </li>
+        <li>
+          <div class="check-box"></div>
+          <div>
+            <div class="check-label">End-to-end: good build update → status shows <span class="status-pill s-completed">completed</span></div>
+            <div class="check-note">On a real or shop-like Windows PC with the agent installed via SETUP.bat</div>
+          </div>
+        </li>
+        <li>
+          <div class="check-box"></div>
+          <div>
+            <div class="check-label">End-to-end: broken build → status shows <span class="status-pill s-rolledback">rolled_back</span>, old version printing</div>
+            <div class="check-note">Required — rollback must run on real hardware at least once before going live</div>
+          </div>
+        </li>
+      </ul>
+    </section>
+
+  </main>
+</div>
+
+<script>
+  const sections = document.querySelectorAll('section[id]');
+  const navLinks = document.querySelectorAll('nav a');
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        navLinks.forEach(a => a.classList.remove('active'));
+        const active = document.querySelector(`nav a[href="#${e.target.id}"]`);
+        if (active) active.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-20% 0px -60% 0px' });
+  sections.forEach(s => observer.observe(s));
+</script>
