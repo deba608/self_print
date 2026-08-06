@@ -1,6 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
 import crypto from 'node:crypto';
 import type { CustomerManagementRow, Job, JobFile, PricingConfig, PrinterOption, RetentionConfig, SseClient } from './types';
+// Type-only import: erased at compile time, so this does not create a runtime
+// cycle with db.ts (which only reaches this module via dynamic import()).
+import type { AgentUpdateState } from './db';
 import { FILE_RETENTION_DAYS, CART_ABANDON_MINUTES, LOGIN_EVENT_RETENTION_DAYS, STRAY_FILE_RETENTION_HOURS } from './config';
 import { DEFAULT_SERVICE_AREA, parseServiceAreaConfig, serializeServiceAreaConfig } from './service-area';
 import { chunk } from './util';
@@ -729,20 +732,25 @@ export async function updateAgentConfig(printers: { bwPrinterName?: string; colo
   if (error) throw error;
 }
 
-export async function getAgentUpdateState() {
+export async function getAgentUpdateState(): Promise<AgentUpdateState> {
   const { data, error } = await supabase
     .from('agent_config')
     .select('agent_version, agent_healthy_at, update_target_version, update_status, update_message, update_started_at')
     .eq('id', 1)
     .single();
 
+  // PGRST116 = "no rows" from .single(), which just means the config row has not
+  // been seeded yet. Any other error (missing column, RLS denial) is real: throw,
+  // so callers never mistake a broken query for "no update has happened".
+  if (error && error.code !== 'PGRST116') throw error;
   const row = error ? null : data;
 
-  const { data: events } = await supabase
+  const { data: events, error: eventsError } = await supabase
     .from('agent_update_events')
     .select('from_version, to_version, status, message, created_at')
     .order('id', { ascending: false })
     .limit(1);
+  if (eventsError) throw eventsError;
   const event = events?.[0];
 
   return {
@@ -764,7 +772,7 @@ export async function getAgentUpdateState() {
   };
 }
 
-export async function requestAgentUpdate(targetVersion: string) {
+export async function requestAgentUpdate(targetVersion: string): Promise<void> {
   const now = new Date().toISOString();
   const current = await getAgentConfig();
   const { error } = await supabase

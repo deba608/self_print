@@ -203,8 +203,23 @@ describe("agent update state (SQLite)", () => {
   });
 
   it("requestAgentUpdate sets requested state and bumps config_version", async () => {
+    const readUpdatedAt = () => {
+      const raw = new Database("./data-test-cleanup-events.sqlite", { readonly: true });
+      const row = raw.prepare("SELECT updated_at FROM agent_config WHERE id = 1").get() as { updated_at: string };
+      raw.close();
+      return row.updated_at;
+    };
+
+    // Force a distinct ISO timestamp so the updated_at comparison is meaningful.
+    const raw = new Database("./data-test-cleanup-events.sqlite");
+    raw.prepare("UPDATE agent_config SET updated_at = '2000-01-01T00:00:00.000Z' WHERE id = 1").run();
+    raw.close();
+    const updatedAtBefore = readUpdatedAt();
+
     const before = await db.getAgentConfig();
     await db.requestAgentUpdate("1.2.0");
+
+    expect(readUpdatedAt()).not.toBe(updatedAtBefore);
 
     const state = await db.getAgentUpdateState();
     expect(state.updateTargetVersion).toBe("1.2.0");
