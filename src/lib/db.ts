@@ -142,7 +142,22 @@ async function initSchema(database: any) {
       bw_printer_name TEXT,
       color_printer_name TEXT,
       config_version INTEGER NOT NULL DEFAULT 0,
+      agent_version TEXT,
+      agent_healthy_at TEXT,
+      update_target_version TEXT,
+      update_status TEXT,
+      update_message TEXT,
+      update_started_at TEXT,
       updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS agent_update_events (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      from_version TEXT,
+      to_version TEXT,
+      status TEXT NOT NULL,
+      message TEXT,
+      created_at TEXT NOT NULL
     );
 
     CREATE TABLE IF NOT EXISTS agent_printers (
@@ -252,7 +267,11 @@ async function ensureAgentConfigColumns(database: any) {
   const columns = new Set(
     (database.prepare('PRAGMA table_info(agent_config)').all() as Array<{ name: string }>).map((column) => column.name)
   );
-  for (const name of ['bw_printer_name', 'color_printer_name']) {
+  for (const name of [
+    'bw_printer_name', 'color_printer_name',
+    'agent_version', 'agent_healthy_at', 'update_target_version',
+    'update_status', 'update_message', 'update_started_at'
+  ]) {
     if (!columns.has(name)) {
       database.prepare(`ALTER TABLE agent_config ADD COLUMN ${name} TEXT`).run();
     }
@@ -1013,6 +1032,91 @@ export async function updateAgentConfig(printers: { bwPrinterName?: string; colo
     SET bw_printer_name = ?, color_printer_name = ?, printer_name = ?, config_version = config_version + 1, updated_at = ?
     WHERE id = 1
   `).run(bwPrinterName, colorPrinterName, bwPrinterName || colorPrinterName, now);
+}
+
+/** Self-update lifecycle status for the Windows print agent. */
+export type AgentUpdateStatus = 'requested' | 'downloading' | 'swapping' | 'success' | 'failed' | 'rolled_back';
+
+export type AgentUpdateEvent = {
+  fromVersion: string | null;
+  toVersion: string | null;
+  status: string;
+  message: string | null;
+  createdAt: string;
+};
+
+export type AgentUpdateState = {
+  agentVersion: string | null;
+  agentHealthyAt: string | null;
+  updateTargetVersion: string | null;
+  updateStatus: string | null;
+  updateMessage: string | null;
+  updateStartedAt: string | null;
+  lastEvent: AgentUpdateEvent | null;
+};
+
+/** Current self-update state plus the most recent audit event, if any. */
+export async function getAgentUpdateState(): Promise<AgentUpdateState> {
+  if (isSupabase) {
+    const mod = await import('./db-supabase');
+    return mod.getAgentUpdateState();
+  }
+
+  const sqlite = await getDbInstance();
+  const row = sqlite.prepare(`
+    SELECT agent_version, agent_healthy_at, update_target_version,
+           update_status, update_message, update_started_at
+    FROM agent_config WHERE id = 1
+  `).get() as {
+    agent_version: string | null; agent_healthy_at: string | null;
+    update_target_version: string | null; update_status: string | null;
+    update_message: string | null; update_started_at: string | null;
+  } | undefined;
+  const event = sqlite.prepare(`
+    SELECT from_version, to_version, status, message, created_at
+    FROM agent_update_events ORDER BY id DESC LIMIT 1
+  `).get() as {
+    from_version: string | null; to_version: string | null;
+    status: string; message: string | null; created_at: string;
+  } | undefined;
+
+  return {
+    agentVersion: row?.agent_version ?? null,
+    agentHealthyAt: row?.agent_healthy_at ?? null,
+    updateTargetVersion: row?.update_target_version ?? null,
+    updateStatus: row?.update_status ?? null,
+    updateMessage: row?.update_message ?? null,
+    updateStartedAt: row?.update_started_at ?? null,
+    lastEvent: event
+      ? {
+          fromVersion: event.from_version ?? null,
+          toVersion: event.to_version ?? null,
+          status: event.status,
+          message: event.message ?? null,
+          createdAt: event.created_at
+        }
+      : null
+  };
+}
+
+/**
+ * Queues a version upgrade for the agent. Bumps config_version so the agent's
+ * existing config-poll picks the request up on its next cycle.
+ */
+export async function requestAgentUpdate(targetVersion: string): Promise<void> {
+  if (isSupabase) {
+    const mod = await import('./db-supabase');
+    return mod.requestAgentUpdate(targetVersion);
+  }
+
+  const sqlite = await getDbInstance();
+  const now = new Date().toISOString();
+  sqlite.prepare(`
+    UPDATE agent_config
+    SET update_target_version = ?, update_status = 'requested', update_message = NULL,
+        update_started_at = ?, config_version = config_version + 1, updated_at = ?
+    WHERE id = 1
+  `).run(targetVersion, now, now);
 }
 
 export async function replaceAgentPrinters(printers: Array<Omit<PrinterOption, 'seenAt'>>): Promise<void> {

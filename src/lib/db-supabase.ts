@@ -729,6 +729,59 @@ export async function updateAgentConfig(printers: { bwPrinterName?: string; colo
   if (error) throw error;
 }
 
+export async function getAgentUpdateState() {
+  const { data, error } = await supabase
+    .from('agent_config')
+    .select('agent_version, agent_healthy_at, update_target_version, update_status, update_message, update_started_at')
+    .eq('id', 1)
+    .single();
+
+  const row = error ? null : data;
+
+  const { data: events } = await supabase
+    .from('agent_update_events')
+    .select('from_version, to_version, status, message, created_at')
+    .order('id', { ascending: false })
+    .limit(1);
+  const event = events?.[0];
+
+  return {
+    agentVersion: row?.agent_version ?? null,
+    agentHealthyAt: row?.agent_healthy_at ?? null,
+    updateTargetVersion: row?.update_target_version ?? null,
+    updateStatus: row?.update_status ?? null,
+    updateMessage: row?.update_message ?? null,
+    updateStartedAt: row?.update_started_at ?? null,
+    lastEvent: event
+      ? {
+          fromVersion: event.from_version ?? null,
+          toVersion: event.to_version ?? null,
+          status: event.status as string,
+          message: event.message ?? null,
+          createdAt: event.created_at as string
+        }
+      : null
+  };
+}
+
+export async function requestAgentUpdate(targetVersion: string) {
+  const now = new Date().toISOString();
+  const current = await getAgentConfig();
+  const { error } = await supabase
+    .from('agent_config')
+    .update({
+      update_target_version: targetVersion,
+      update_status: 'requested',
+      update_message: null,
+      update_started_at: now,
+      config_version: Number(current.configVersion ?? 0) + 1,
+      updated_at: now
+    })
+    .eq('id', 1);
+
+  if (error) throw error;
+}
+
 export async function replaceAgentPrinters(printers: Array<Omit<PrinterOption, 'seenAt'>>) {
   const now = new Date().toISOString();
 
