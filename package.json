@@ -11,7 +11,8 @@
     "db:seed": "tsx --env-file-if-exists=.env scripts/seed.ts",
     "cleanup": "tsx --env-file-if-exists=.env scripts/cleanup.ts",
     "convert": "tsx --env-file-if-exists=.env scripts/convert.ts",
-    "agent": "tsx agent/src/index.ts"
+    "agent": "tsx agent/src/index.ts",
+    "package:shop": "node scripts/package-for-shop.mjs"
   },
   "dependencies": {
     "@hyzyla/pdfium": "^2.1.13",
