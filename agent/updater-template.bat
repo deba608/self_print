@@ -19,7 +19,18 @@ set "LOG=%ROOT%\update-staging\updater.log"
 
 echo [%date% %time%] updater start kind=%KIND% target=%TARGET% >> "%LOG%"
 
-REM 1. Wait (max 60s) for the agent's node process to release engine\ files.
+REM 0. Stop the scheduled task FIRST. START-PRINTER.bat wraps `npm run agent` in
+REM an infinite restart loop, so killing node alone just makes the wrapper
+REM relaunch it 5s later - the wait loop below would never clear, and a
+REM relaunched agent would hold engine\ open during the rename. /End kills the
+REM whole task process tree (wscript -> cmd wrapper -> node). Both :healthy and
+REM :unhealthy /Run the task again, which starts the wrapper fresh.
+REM Note: the task is registered with RestartCount 999, which only restarts a
+REM task that FAILED; /End is a normal stop, so it does not fight us here.
+schtasks /End /TN "SelfPrintAgent" >nul 2>nul
+
+REM 1. Belt and braces: wait (max 60s) for the agent's node process to exit and
+REM release engine\ files.
 set /a tries=0
 :waitloop
 tasklist /FI "IMAGENAME eq node.exe" 2>nul | find /I "node.exe" >nul
@@ -61,7 +72,8 @@ REM 2. Wait up to 90s for the new agent's health heartbeat with the target versi
 set /a tries=0
 :healthloop
 if exist "%ROOT%\agent-health.txt" (
-  findstr /C:"%TARGET%" "%ROOT%\agent-health.txt" >nul && goto healthy
+  REM /X = whole-line match, so target 1.1 does not match a 1.1.5 heartbeat.
+  findstr /X /C:"%TARGET%" "%ROOT%\agent-health.txt" >nul && goto healthy
 )
 set /a tries+=1
 if %tries% geq 90 goto unhealthy
@@ -76,17 +88,47 @@ exit /b 0
 
 :unhealthy
 echo [%time%] no heartbeat in 90s, rolling back >> "%LOG%"
+REM Stop the task again (:swap restarted it, so the wrapper loop is alive and
+REM would relaunch node the moment we kill it), then kill the stuck agent and
+REM give Windows/AV a beat to drop file handles before deleting.
+schtasks /End /TN "SelfPrintAgent" >nul 2>nul
 taskkill /IM node.exe /F >nul 2>nul
+ping -n 3 127.0.0.1 >nul
+
+REM Retry the delete+restore: a lingering handle can make rmdir fail partially,
+REM and a failed ren would otherwise leave the half-deleted new tree in place
+REM while the good copy sits in .bak.
+set /a rb=0
+:rollbackloop
 if "%KIND%"=="full" (
-  rmdir /S /Q "%ROOT%\engine"
-  ren "%ROOT%\engine.bak" engine
+  rmdir /S /Q "%ROOT%\engine" >nul 2>nul
+  ren "%ROOT%\engine.bak" engine >nul 2>nul
 ) else (
-  rmdir /S /Q "%ROOT%\engine\agent"
-  ren "%ROOT%\engine\agent.bak" agent
+  rmdir /S /Q "%ROOT%\engine\agent" >nul 2>nul
+  ren "%ROOT%\engine\agent.bak" agent >nul 2>nul
 )
+REM Done only when the live install is back AND no backup is left behind.
+if exist "%ROOT%\engine\agent\version.json" (
+  if not exist "%ROOT%\engine.bak" if not exist "%ROOT%\engine\agent.bak" goto rollbackdone
+)
+set /a rb+=1
+if %rb% geq 5 goto rollbackfailed
+echo [%time%] rollback attempt %rb% incomplete, retrying >> "%LOG%"
+ping -n 3 127.0.0.1 >nul
+goto rollbackloop
+
+:rollbackdone
+echo [%time%] rollback complete, previous version restored >> "%LOG%"
 echo new agent failed health check within 90s> "%ROOT%\update-rollback.txt"
 schtasks /Run /TN "SelfPrintAgent" >nul 2>nul
 exit /b 1
+
+:rollbackfailed
+echo [%time%] ROLLBACK FAILED - manual recovery needed >> "%LOG%"
+echo [%time%] previous version is still in engine.bak or engine\agent.bak >> "%LOG%"
+echo ROLLBACK FAILED - manual recovery needed: previous version is in engine.bak or engine\agent.bak> "%ROOT%\update-rollback.txt"
+schtasks /Run /TN "SelfPrintAgent" >nul 2>nul
+exit /b 2
 
 :restorefull
 echo [%time%] full swap failed, restoring engine.bak >> "%LOG%"

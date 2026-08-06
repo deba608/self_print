@@ -1,9 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { mkdtempSync, writeFileSync, existsSync, readFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, existsSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
-import { stageUpdate, renderUpdaterBat } from "./updater";
+import { stageUpdate, renderUpdaterBat, heartbeatContent } from "./updater";
 import { sha256Hex } from "./update-lib";
 
 describe("stageUpdate", () => {
@@ -13,19 +13,36 @@ describe("stageUpdate", () => {
     expect(existsSync(path.join(dir, "payload"))).toBe(false);
   });
 
-  it("extracts a valid zip into payload/", async () => {
+  function zipOf(contents: (src: string) => void): { dir: string; bytes: Buffer } {
     const dir = mkdtempSync(path.join(tmpdir(), "upd-"));
     const src = mkdtempSync(path.join(tmpdir(), "src-"));
-    writeFileSync(path.join(src, "hello.txt"), "hi");
+    contents(src);
     const zip = path.join(dir, "p.zip");
     execFileSync("powershell", [
       "-NoProfile",
       "-Command",
       `Compress-Archive -Path "${src}\\*" -DestinationPath "${zip}"`,
     ]);
-    const bytes = readFileSync(zip);
+    return { dir, bytes: readFileSync(zip) };
+  }
+
+  it("extracts a valid zip into payload/", async () => {
+    const { dir, bytes } = zipOf((src) => {
+      mkdirSync(path.join(src, "agent"));
+      writeFileSync(path.join(src, "agent", "version.json"), '{"version":"1.1.0"}');
+      writeFileSync(path.join(src, "hello.txt"), "hi");
+    });
     await stageUpdate(bytes, sha256Hex(bytes), dir);
     expect(existsSync(path.join(dir, "payload", "hello.txt"))).toBe(true);
+    expect(existsSync(path.join(dir, "payload", "agent", "version.json"))).toBe(true);
+  });
+
+  it("rejects an incomplete payload and removes it", async () => {
+    const { dir, bytes } = zipOf((src) => {
+      writeFileSync(path.join(src, "stray.txt"), "no agent dir here");
+    });
+    await expect(stageUpdate(bytes, sha256Hex(bytes), dir)).rejects.toThrow(/incomplete/);
+    expect(existsSync(path.join(dir, "payload"))).toBe(false);
   });
 });
 
@@ -47,5 +64,34 @@ describe("renderUpdaterBat", () => {
     // config.json must be copied back out of the backup on both swap kinds.
     expect(out).toContain("engine.bak\\agent\\config.json");
     expect(out).toContain("agent.bak\\config.json");
+  });
+
+  it("stops the scheduled task before touching files", () => {
+    const template = readFileSync(path.resolve("agent/updater-template.bat"), "utf8");
+    const end = template.indexOf('schtasks /End /TN "SelfPrintAgent"');
+    // START-PRINTER.bat relaunches the agent 5s after it exits, so the task
+    // (whole process tree) must be stopped before the wait loop and the swap.
+    expect(end).toBeGreaterThan(-1);
+    expect(end).toBeLessThan(template.indexOf(":waitloop"));
+    expect(end).toBeLessThan(template.indexOf(":swap"));
+    // ...and again before the rollback kills node.
+    expect(template.indexOf('schtasks /End', end + 1)).toBeGreaterThan(template.indexOf(":unhealthy"));
+  });
+
+  it("matches the heartbeat version on a whole line, not a substring", () => {
+    const template = readFileSync(path.resolve("agent/updater-template.bat"), "utf8");
+    expect(template).toContain('findstr /X /C:"%TARGET%"');
+  });
+
+  it("writes a heartbeat findstr /X can actually match", () => {
+    // findstr /X does not match the last line of a file with no terminator.
+    expect(heartbeatContent("1.1.0")).toBe("1.1.0\r\n");
+  });
+
+  it("retries the rollback and reports a hard failure", () => {
+    const template = readFileSync(path.resolve("agent/updater-template.bat"), "utf8");
+    expect(template).toContain(":rollbackloop");
+    expect(template).toContain(":rollbackfailed");
+    expect(template).toContain("ROLLBACK FAILED - manual recovery needed");
   });
 });
