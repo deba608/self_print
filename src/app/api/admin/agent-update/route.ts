@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireStaff } from "@/lib/security";
+import { requireAdmin } from "@/lib/security";
 import { getAgentUpdateState, requestAgentUpdate } from "@/lib/db";
 import { createClient } from "@supabase/supabase-js";
 
@@ -23,6 +23,10 @@ async function fetchLatest() {
     const { data } = await client.storage.from("agent-updates").download("latest.json");
     if (!data) return null;
     const j = JSON.parse(await data.text());
+    // A corrupt or half-written manifest is the same as no manifest: without a
+    // usable version there is nothing to queue, and letting it through would
+    // hand requestAgentUpdate(undefined) to the database.
+    if (typeof j.version !== "string" || !j.version) return null;
 
     // Payload size is metadata-only, so a failure here must not lose the
     // manifest — the UI just shows the version without a size.
@@ -43,20 +47,35 @@ async function fetchLatest() {
   }
 }
 
-export async function GET() {
-  const staff = await requireStaff();
-  if (!staff || staff.role !== "super_admin") {
-    return NextResponse.json({ error: "Super admin required" }, { status: 401 });
+/**
+ * 401 when nobody is logged in, 403 when a logged-in admin lacks the role —
+ * same split as the other super_admin-only routes, so the client can tell
+ * "sign in again" apart from "not your permission level".
+ */
+async function requireSuperAdmin(): Promise<NextResponse | null> {
+  const admin = await requireAdmin();
+  if (!admin) {
+    return NextResponse.json({ error: "Admin login required" }, { status: 401 });
   }
+  if (admin.role !== "super_admin") {
+    return NextResponse.json(
+      { error: "Only super admins can trigger agent updates" },
+      { status: 403 }
+    );
+  }
+  return null;
+}
+
+export async function GET() {
+  const denied = await requireSuperAdmin();
+  if (denied) return denied;
   const [state, latest] = await Promise.all([getAgentUpdateState(), fetchLatest()]);
   return NextResponse.json({ state, latest });
 }
 
 export async function POST() {
-  const staff = await requireStaff();
-  if (!staff || staff.role !== "super_admin") {
-    return NextResponse.json({ error: "Super admin required" }, { status: 401 });
-  }
+  const denied = await requireSuperAdmin();
+  if (denied) return denied;
   const [state, latest] = await Promise.all([getAgentUpdateState(), fetchLatest()]);
   if (!latest) {
     return NextResponse.json({ error: "No published update found" }, { status: 400 });
