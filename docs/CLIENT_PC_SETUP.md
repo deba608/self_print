@@ -173,11 +173,12 @@ still needs the shop's own Wi-Fi to reach this PC.
   ```powershell
   schtasks /Run /TN SelfPrintAgent
   ```
-- **Updates**: nothing to do. When a new version of the printer service is
-  released, it installs itself in the background (never while a job is
-  printing) and restarts on its own — no download, no re-running SETUP.bat,
-  no settings to re-enter. If the new version doesn't come up healthy, the
-  PC automatically goes back to the version that was working.
+- **Updates**: nothing to do on the shop PC. When the developer publishes a
+  new agent version and clicks **Install** in the admin dashboard, the agent
+  downloads and applies the update itself in the background (never while a job
+  is printing) and restarts automatically. If the new version doesn't start
+  cleanly, the PC rolls back to the previous version on its own — no manual
+  intervention. Full details: [`docs/AGENT_SELF_UPDATE.md`](AGENT_SELF_UPDATE.md).
 - **Cleanup**: `npm run cleanup` removes finished/expired jobs and their
   files. Schedule this (Task Scheduler locally, or a Vercel Cron Job in
   Path A hitting `/api/cleanup` with `CRON_SECRET`) so storage doesn't grow
@@ -195,3 +196,4 @@ still needs the shop's own Wi-Fi to reach this PC.
 | Customers can't reach the site (Path B) | Wrong IP, firewall blocking, or phone not on same Wi-Fi | Recheck `ipconfig`, allow Node.js through Windows Firewall, confirm same network |
 | Staff can't log in (Path B) | Local SQLite mode has no login by design | Expected — see `docs/LOCAL_DEV_AUTH.md`, or switch to Path A |
 | Jobs stuck on "printing" | Agent crashed mid-job | Auto-reset after 10 minutes by the cleanup cron; or restart immediately via `schtasks /Run /TN SelfPrintAgent`, or reboot the PC |
+| Dashboard shows "Updating…" forever | Update stuck — agent not running or internet down | Check Task Scheduler for "SelfPrintAgent"; run SETUP.bat again if missing; see `docs/AGENT_SELF_UPDATE.md` for full troubleshooting |

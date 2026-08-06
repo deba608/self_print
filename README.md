@@ -240,60 +240,28 @@ config editing, `node_modules` pre-installed), run
 
 ### Shipping an agent update
 
-Once a shop PC is running the agent, new agent versions are pushed to it —
-nobody has to touch the shop PC again.
+Once a shop PC is running the agent, new agent versions are pushed from the
+admin dashboard — nobody has to touch the shop PC again.
 
-One-time setup (per Supabase project):
+**Full runbook**: [`docs/AGENT_SELF_UPDATE.md`](docs/AGENT_SELF_UPDATE.md)
 
-- Apply `supabase/migrations/20260806000000_agent_self_update.sql` (adds the
-  update columns on `agent_config` and the `agent_update_events` audit table).
-- Create a **private** Storage bucket named `agent-updates`. The publish step
-  does not create it for you.
-- Leave `"updateMode": "manual"` in `agent/config.json` — it is the only mode
-  implemented; anything else is refused at agent startup.
+Quick steps:
 
-To ship a version:
-
-1. Bump `agent/version.json` (dotted numeric, e.g. `1.0.0` → `1.0.1`). It must
-   be strictly greater than what is already published, and a version that is
-   already in the bucket cannot be republished.
-2. `npm run package:shop -- --publish` — builds the zip, uploads
-   `agent-<version>.zip`, then writes `latest.json` last so a half-finished
-   publish never advertises a payload. It picks `kind: "code"` (just `agent/`)
-   when no runtime dependency moved, `kind: "full"` (whole engine incl.
-   `node_modules`) when they did — the first publish is always `full`.
-3. Trigger the install: press **Install update** on the "Print agent" card in
-   `/admin` → Printer panel (super admins only), or run
-   `npm run agent:push-update` from the dev machine. Both write the same
-   `agent_config` row; the agent notices on its 30s config poll (or immediately
-   if its Realtime connection re-establishes in the meantime).
-4. Watch the card: `requested` → `downloading` → `swapping` → `success`. A job
-   that is mid-print defers the update to the next poll. There is no "success"
-   spinner — a finished update just shows "Up to date." plus a
-   `Last update: <version> — success` line.
-
-When it goes wrong (both statuses leave a working agent installed):
-
-- **`failed`** — the agent aborted before handing off; nothing was swapped and
-  the old version never stopped. Causes: sha256 mismatch, `latest.json` missing
-  or naming a different version than the target, the `SelfPrintUpdater` task
-  refusing to launch, or a swap detected as incomplete at the next startup
-  (power loss mid-swap).
-- **`rolled_back`** — the updater script ran and reverted. Any of: the agent
-  process did not exit within 60s, the rename/copy swap itself failed, or the
-  new version wrote no health heartbeat within 90s. The previous version is
-  restored and restarted; the card turns red and the reason string is shown on
-  the last-update line.
-
-Where to look, in order: the "Print agent" card (running version + health badge
-+ in-flight status + last update event and its reason),
-`<shop-root>\update-staging\updater.log` (the swap script's own trace), and
-`engine\agent\agent.log` (the agent's log). The shop root also holds the
-handshake files: `update-pending.txt` / `update-rollback.txt` are written by the
-agent and the updater and consumed (then deleted) by the next agent startup,
-while `agent-health.txt` is deleted by the updater before each swap and
-rewritten by every agent start. If `updater.log` says `ROLLBACK FAILED`, the previous install is still sitting
-in `engine.bak` / `engine\agent.bak` and needs a manual rename.
+1. **One-time setup** (per Supabase project): apply
+   `supabase/migrations/20260806000000_agent_self_update.sql` and create a
+   **private** Storage bucket named `agent-updates`.
+2. **Bump version**: edit `agent/version.json` (must be strictly greater than
+   what is already published).
+3. **Publish**: `npm run package:shop -- --publish` — builds a minimal zip,
+   uploads it, writes `latest.json` last, deletes old zips. Chooses `kind:
+   "code"` (just `agent/`, ~100 KB) when only scripts changed, `kind: "full"`
+   (with `node_modules`, ~100 MB) when a runtime dependency moved.
+4. **Install**: click the **Update** button in the admin topbar navbar (super
+   admin only) → Install, or run `npm run agent:push-update` from the dev
+   machine. The agent picks it up via Realtime within ~1s (30s fallback poll).
+5. **Watch**: topbar badge shows `requested → downloading → swapping →
+   completed`. Failed or rolled-back updates show in red with a reason string.
+   Both failure modes leave the old version running — safe to retry.
 
 ## Features
 
