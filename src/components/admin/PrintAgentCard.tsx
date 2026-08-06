@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import useSWR from "swr";
 import { Download, Loader2, RefreshCw } from "lucide-react";
 import { useCurrentStaff } from "@/hooks/useAdmin";
@@ -59,6 +59,16 @@ export default function PrintAgentCard() {
   const [posting, setPosting] = useState(false);
   const [error, setError] = useState("");
 
+  // Wall-clock tick. The poll alone can't keep the age readouts honest: when
+  // the agent is dead the payload never changes, SWR sees a structurally equal
+  // response and skips the re-render, so "healthy / just now" would stay frozen
+  // on screen. This forces a re-render every 30s regardless of the data.
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const timer = setInterval(() => setTick((n) => n + 1), 30000);
+    return () => clearInterval(timer);
+  }, []);
+
   // 5s while the agent is mid-upgrade; 60s otherwise. The resting poll is not
   // optional: healthy/relative-time are computed at render, so without it an
   // open modal would keep showing a long-dead agent as "healthy, just now".
@@ -112,9 +122,11 @@ export default function PrintAgentCard() {
           <Loader2 size={16} className="spin" aria-hidden="true" />
           <span>Checking agent version…</span>
         </div>
-      ) : loadError ? (
-        // A failed GET must not render as "unknown / offline" — that would
-        // report a network problem as a dead agent.
+      ) : loadError && !data ? (
+        // A failed GET with nothing cached must not render as "unknown /
+        // offline" — that would report a network problem as a dead agent.
+        // With cached data we keep the card and flag it as possibly stale,
+        // so one dropped background poll can't blank an active install.
         <p className="agent-update-error" role="alert">Couldn’t load agent status.</p>
       ) : (
         <>
@@ -146,29 +158,33 @@ export default function PrintAgentCard() {
           {!showAvailable && !inFlight ? (
             <p className="agent-update-uptodate">Up to date.</p>
           ) : (
-          <button
-            type="button"
-            className="btn-primary agent-update-btn"
-            onClick={install}
-            disabled={inFlight || posting}
-          >
-            {inFlight ? (
-              <>
-                <Loader2 size={16} className="spin" aria-hidden="true" />
-                Installing… ({status})
-              </>
-            ) : posting ? (
-              <>
-                <Loader2 size={16} className="spin" aria-hidden="true" />
-                Starting…
-              </>
-            ) : (
-              <>
-                <Download size={16} aria-hidden="true" />
-                Install update
-              </>
-            )}
-          </button>
+            <button
+              type="button"
+              className="btn-primary agent-update-btn"
+              onClick={install}
+              disabled={inFlight || posting}
+            >
+              {inFlight ? (
+                <>
+                  <Loader2 size={16} className="spin" aria-hidden="true" />
+                  Installing… ({status})
+                </>
+              ) : posting ? (
+                <>
+                  <Loader2 size={16} className="spin" aria-hidden="true" />
+                  Starting…
+                </>
+              ) : (
+                <>
+                  <Download size={16} aria-hidden="true" />
+                  Install update
+                </>
+              )}
+            </button>
+          )}
+
+          {loadError && (
+            <p className="agent-update-stale">Status may be stale — couldn’t refresh.</p>
           )}
 
           {lastEvent && (

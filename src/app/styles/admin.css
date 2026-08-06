@@ -1640,6 +1640,12 @@
   cursor: not-allowed;
 }
 
+.agent-update-stale {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
 .agent-update-uptodate {
   margin: 4px 0 0;
   font-size: 13px;
