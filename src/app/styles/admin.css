@@ -1555,6 +1555,109 @@
   cursor: not-allowed;
 }
 
+/* Print agent version / self-update card (owner only, inside the printer panel) */
+.agent-update-card {
+  margin-top: 14px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: #fafbfc;
+}
+
+.agent-update-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  color: var(--muted);
+}
+
+.agent-update-head h3 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.agent-update-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.agent-update-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+
+.agent-update-label {
+  min-width: 68px;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.agent-update-value {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.agent-update-time {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.agent-badge {
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.agent-badge.healthy {
+  background: var(--accent-light);
+  color: var(--accent);
+}
+
+.agent-badge.offline {
+  background: rgba(220, 38, 38, 0.1);
+  color: #b45454;
+}
+
+.agent-update-btn {
+  width: 100%;
+  margin-top: 4px;
+  justify-content: center;
+}
+
+.agent-update-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.agent-update-last {
+  margin: 10px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.agent-update-last.failed {
+  color: var(--danger);
+  font-weight: 700;
+}
+
+.agent-update-error {
+  margin: 8px 0 0;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--danger);
+}
+
 /* === Admin Dashboard === */
 .admin-shell {
   width: min(1200px, calc(100% - 32px));
