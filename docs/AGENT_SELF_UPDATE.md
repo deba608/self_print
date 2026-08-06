@@ -1,300 +1,505 @@
 # Agent Self-Update
 
-Zero-touch updates for the shop PC print agent. Once the agent is installed via
-`SETUP.bat`, all future updates are pushed from the admin dashboard — no one
-needs to touch the shop PC again.
+Zero-touch updates for the shop PC print agent. Once the agent is installed
+via `SETUP.bat`, all future versions are pushed from the admin dashboard —
+nobody needs to touch the shop PC again.
 
 ---
 
 ## How It Works (overview)
 
 ```
-Developer machine                   Supabase                     Shop PC
-─────────────────                   ────────                     ───────
+Developer machine                   Supabase                     Shop PC (Windows)
+─────────────────                   ────────                     ─────────────────
 npm run package:shop -- --publish
-  → uploads agent-1.0.1.zip  ──►  Storage bucket: agent-updates
-  → writes latest.json        ──►  (agent polls or Realtime push)  ──►  agent downloads zip
-                                                                          verifies SHA-256
-Admin dashboard → Install button                                          writes run-update.bat
-  → POST /api/admin/agent-update ──► agent_config.update_status          exits process
-                                     = 'requested'                         │
-                                          ▲                               Windows restarts agent
-                                          │                               new agent hands off to
-                                     agent writes back:                   SelfPrintUpdater task
-                                     'downloading' → 'swapping'           swaps files
-                                     → 'completed'                        new agent boots
-                                                                          writes heartbeat ──►
+  → uploads agent-1.0.1.zip  ──►  Storage: agent-updates/
+  → writes latest.json        ──►
+
+Admin dashboard → Install button
+  → POST /api/admin/agent-update ──► agent_config row:
+                                      update_status = 'requested'
+                                      update_target = '1.0.1'
+                                                          │
+                                                          │  Realtime push (~1s)
+                                                          │  or 30s poll fallback
+                                                          ▼
+                                                     Agent sees 'requested'
+                                                     downloads zip from Storage
+                                                     verifies SHA-256
+                                                     writes run-update.bat
+                                                     exits process
+                                                          │
+                                                     Windows restarts agent
+                                                          │
+                                                     new boot hands off to
+                                                     SelfPrintUpdater task
+                                                     swaps files on disk
+                                                          │
+                                                     new agent starts
+                                                     runs self-check
+                                                     writes heartbeat ──► agent_config:
+                                                                           update_status = 'completed'
+                                                                           agent_version = '1.0.1'
 ```
 
-The admin dashboard never touches the shop PC directly. It only writes one
-database row. The agent — already running on the shop PC — polls that row,
-pulls the zip from Supabase Storage over regular HTTPS, and applies the
-update to its own files.
+The admin dashboard never touches the shop PC directly. It writes one DB row.
+The agent (always running on the shop PC) polls that row, pulls the zip from
+Supabase Storage over HTTPS, and applies the update itself.
 
 ---
 
-## One-Time Setup (per project)
+## One-Time Setup (per Supabase project)
 
-Before the first publish:
+Do this once before the first publish. You only need to do it again if you
+create a new Supabase project.
 
-1. **Apply the migration**
-   Run `supabase/migrations/20260806000000_agent_self_update.sql` against your
-   Supabase project. It adds the self-update columns to `agent_config` and
-   creates the `agent_update_events` audit table.
+### Step 1 — Apply the database migration
 
-   Via the Supabase dashboard: SQL Editor → paste and run the file.
-   Via CLI: `supabase db push` (if you have the Supabase CLI set up).
+The migration adds self-update columns to `agent_config` and creates the
+`agent_update_events` audit table.
 
-2. **Create the Storage bucket**
-   Supabase dashboard → Storage → New bucket → name: `agent-updates` →
-   **Private** (not public). The publish script does not create it.
+**Via Supabase dashboard (no CLI needed):**
+1. Go to your Supabase project → **SQL Editor** (left sidebar).
+2. Open `supabase/migrations/20260806000000_agent_self_update.sql` from this
+   repo in a text editor.
+3. Paste the entire contents into the SQL Editor.
+4. Click **Run**.
+5. You should see "Success. No rows returned." — that means it worked.
 
-3. **Confirm `updateMode`**
-   `agent/config.json` must have `"updateMode": "manual"` (the only implemented
-   mode). The agent refuses to start if this is set to anything else.
+**Via Supabase CLI:**
+```powershell
+npx supabase link --project-ref YOUR_PROJECT_REF
+npx supabase db push
+```
+
+### Step 2 — Create the Storage bucket
+
+1. In Supabase → **Storage** (left sidebar) → **New bucket**.
+2. Name: `agent-updates`
+3. Toggle: **Private** (not public — the agent authenticates with the
+   service-role key)
+4. Click **Save**.
+
+Do not create any folders inside it — the publish script manages the contents.
+
+### Step 3 — Confirm agent config
+
+In `agent/config.json`, confirm `"updateMode": "manual"` is set. This is the
+only implemented mode — the agent refuses to start if it's set to anything
+else.
+
+```json
+{
+  "supabaseUrl": "https://your-project.supabase.co",
+  "supabaseKey": "your-service-role-key",
+  "updateMode": "manual",
+  "fallbackPrinter": "",
+  "tempDir": "./agent-temp",
+  "maxRetries": 3
+}
+```
 
 ---
 
 ## Publishing a New Version
 
-### 1. Bump the version
+### Step 1 — Bump the version number
 
 Edit `agent/version.json`:
 ```json
 { "version": "1.0.1" }
 ```
 
-Must be a dotted numeric string strictly greater than what is already
-published. The publish script and the agent both enforce this — republishing
-the same version or going backwards is refused.
+Rules:
+- Must be a dotted numeric string: `1.0.0`, `1.2.3`, `2.0.0`, etc.
+- Must be **strictly greater** than the version currently in `latest.json` in
+  the bucket. The publish script checks this and refuses to proceed if not.
+- You cannot republish an existing version. If `agent-1.0.1.zip` already
+  exists in the bucket, the script stops with an error. Bump the version and
+  try again.
 
-### 2. Run the publish command
+### Step 2 — Run the publish command
+
+From your developer machine (project root):
 
 ```powershell
 npm run package:shop -- --publish
 ```
 
-What this does:
-- Builds a minimal agent zip (only the deps the agent actually uses —
-  `@supabase/supabase-js`, `sharp`, `@hyzyla/pdfium`, `tsx` — not the full
-  Next.js node_modules)
-- Decides the payload **kind**:
-  - `code` — only `agent/` folder changed (scripts + src), node_modules
-    identical → small zip (~100 KB)
-  - `full` — a runtime dependency version changed → includes entire
-    `engine/node_modules` (~100 MB)
-- Strips `agent/config.json` from the payload (shop credentials never travel
-  in an update)
-- Uploads `agent-1.0.1.zip` to the `agent-updates` bucket
-- Writes `latest.json` last (so a half-finished upload never advertises a
-  missing file)
-- Deletes all previous `agent-*.zip` files from the bucket (only the current
-  version is kept)
+This script does the following — all automatic:
 
-### 3. Trigger the install
+1. **Validates** `agent/config.json` has real Supabase credentials (not
+   placeholder values)
+2. **Resolves pinned versions** of the four agent runtime deps from
+   `package-lock.json`: `@supabase/supabase-js`, `sharp`, `@hyzyla/pdfium`,
+   `tsx`
+3. **Installs** a minimal `node_modules` containing only those four packages
+   (cuts zip size from ~190 MB to ~5 MB for code-only updates)
+4. **Decides payload kind**:
+   - `code` — only `agent/` folder changed since last publish (scripts + src),
+     no runtime dependency version moved → ~100 KB zip
+   - `full` — at least one runtime dependency version changed, or this is the
+     first publish → full engine including `node_modules` → ~100 MB zip
+5. **Strips `agent/config.json`** from the payload — shop credentials never
+   travel in an update zip
+6. **Checks** the `agent-updates` bucket to confirm this version isn't already
+   published
+7. **Checks** `latest.json` to confirm new version > currently published version
+8. **Uploads** `agent-1.0.1.zip` to the bucket
+9. **Writes `latest.json`** last (zip first so the manifest never points at a
+   missing file):
+   ```json
+   {
+     "version": "1.0.1",
+     "kind": "code",
+     "file": "agent-1.0.1.zip",
+     "sha256": "abc123...",
+     "publishedAt": "2026-08-07T10:00:00.000Z",
+     "deps": { "@supabase/supabase-js": "2.x.x", ... }
+   }
+   ```
+10. **Deletes** all previous `agent-*.zip` files from the bucket (only the
+    current version is kept — saves Storage space)
 
-**From the admin dashboard** (recommended):
-- Log in as super_admin
-- The "Update" button appears in the topbar navbar when a new version is
-  detected (the agent's running version differs from `latest.json`)
-- Click it → popup shows running version, available version, and an
-  **Install** button
-- Click Install → done
+You'll see output like:
+```
+Resolving pinned versions...
+Installing minimal agent-only dependencies...
+Zipping code update payload...
+Uploading agent-1.0.1.zip (87 KB)...
+Published code update 1.0.1, sha256=abc123...
+Deleted 1 old zip(s): agent-1.0.0.zip
+```
 
-**From the command line**:
+### Step 3 — Trigger the install on the shop PC
+
+**Option A — Admin dashboard (recommended):**
+1. Log in to `/admin` as **super_admin**.
+2. The **Update** button appears in the topbar navbar when the agent's running
+   version differs from the published version.
+3. Click **Update** → a popup opens showing:
+   - Running version (what's on the shop PC now)
+   - Available version (what you just published)
+   - Install button
+4. Click **Install v1.0.1**.
+5. The button shows a spinner — the popup closes, and the topbar badge starts
+   polling every 5 seconds.
+
+**Option B — Command line:**
 ```powershell
 npm run agent:push-update
 ```
+Does exactly the same thing as the Install button — writes the same DB row.
 
-Both write the same `agent_config` row. The agent picks it up via its
-Supabase Realtime subscription (near-instant) or within 30 seconds on the
-fallback poll.
+### Step 4 — Watch progress
 
-### 4. Watch progress
+The topbar Update badge polls every 5 seconds while in-flight and updates in
+real time:
 
-The topbar badge polls every 5 seconds while an update is in flight:
-
-| Status | Meaning |
+| Badge shows | Meaning |
 |---|---|
-| `requested` | Command written to DB, agent hasn't picked it up yet |
-| `downloading` | Agent is downloading the zip from Storage |
-| `swapping` | Agent has exited, SelfPrintUpdater BAT is swapping files |
-| `completed` | New version running and healthy |
-| `failed` | Aborted before swap — old version still running |
+| `requested` | DB row written; agent hasn't polled yet (max ~30s wait) |
+| `downloading` | Agent is downloading the zip from Supabase Storage |
+| `swapping` | Agent exited; SelfPrintUpdater BAT is replacing files on disk |
+| `completed` | New version is running and has passed the health self-check |
+| `failed` | Agent aborted before the swap — old version still running, safe to retry |
 | `rolled_back` | Swap ran but new version failed health check — old version restored |
 
-A job that is mid-print defers the update to the next 30s poll — updates
-never interrupt a running print.
+A print job that is currently running **defers the update** — the agent waits
+until the job finishes before proceeding. At most 5 minutes of extra wait.
+
+When done, the badge disappears (nothing to report — up to date).
 
 ---
 
-## What Happens on the Shop PC
+## What Happens on the Shop PC (detailed)
 
-### Step-by-step
+### Phase 1 — Agent picks up the command
 
-1. Agent reads `update_status = 'requested'` from `agent_config`
-2. Downloads `latest.json` → verifies target version > running version
-3. Downloads the zip → verifies SHA-256 against `latest.json`
-4. Sets status `downloading` → `swapping`
-5. Writes `update-pending.txt` (crash-recovery marker)
-6. Writes `run-update.bat` (SelfPrintUpdater task script with baked-in paths)
-7. **Exits** — Windows Scheduled Task "SelfPrintAgent" auto-restarts it
+1. Agent's Supabase Realtime subscription fires within ~1 second of the DB
+   row being written (WebSocket connection to Supabase). Fallback: 30s poll.
+2. `checkForUpdateCommand()` in `agent/src/updater.ts` reads `agent_config`.
+3. Guards that run before anything is downloaded:
+   - `update_status` must be `requested`
+   - `update_target_version` must be strictly greater than running version
+   - Agent must not be mid-print (`isProcessing` flag)
+4. Sets status `downloading` in DB.
 
-8. New agent boot detects `update-pending.txt` → launches
-   **SelfPrintUpdater** task → exits again (hands off to the separate task)
+### Phase 2 — Download and verify
 
-9. **SelfPrintUpdater BAT** (runs outside the agent process):
-   ```
-   engine/           ← current live agent
-   engine.bak/       ← backup (renamed from engine before swap)
-   update-extract/   ← freshly unzipped new version
-   ```
-   - Renames `engine → engine.bak` (5-attempt retry loop for Windows file locking)
-   - For `code` update: copies new `agent/` into existing `engine/`
-   - For `full` update: renames `update-extract → engine`
-   - Starts SelfPrintAgent scheduled task
-   - **Waits up to 3 minutes** for `agent-health.txt` to be updated
+1. Downloads `latest.json` from the `agent-updates` Storage bucket.
+2. Verifies `latest.json.version` matches `update_target_version` in DB.
+3. Downloads `agent-<version>.zip` (~100 KB for code, ~100 MB for full).
+4. Verifies SHA-256 of downloaded bytes against `latest.json.sha256`. If
+   mismatch: sets status `failed`, stops — nothing on disk was touched.
+5. Extracts zip to `update-staging/update-extract/`.
 
-10. New agent boots, runs startup self-check (PDFium, sharp, printer enumeration,
-    Supabase reachability), writes `agent-health.txt`
-11. BAT sees fresh heartbeat → deletes `engine.bak`, writes status `completed`
+### Phase 3 — Handoff to the updater BAT
 
-### Rollback
+1. Sets status `swapping` in DB.
+2. Writes `update-pending.txt` with `from=1.0.0,to=1.0.1` (crash-recovery
+   marker — survives a power cut mid-swap).
+3. Writes `run-update.bat` from the `updater-template.bat` template, with
+   the actual file paths baked in.
+4. **Exits the agent process.** Windows Scheduled Task auto-restarts it.
 
-If the new agent does not write a heartbeat within 3 minutes:
+### Phase 4 — New agent boot (brief handoff)
 
-- BAT writes `update-failed.txt`
-- Deletes failed `engine/`, renames `engine.bak → engine`
-- Starts old SelfPrintAgent
-- Old agent boots, reads `update-rollback.txt` → sets DB status `rolled_back`
-  with reason string
+1. New agent process starts (same binary — still old files at this point).
+2. Startup detects `update-pending.txt` → this is a post-update boot.
+3. Launches **SelfPrintUpdater** scheduled task (which runs `run-update.bat`
+   as a separate Windows process — outside the agent's own process so it can
+   replace the agent's files).
+4. Agent exits immediately (so SelfPrintUpdater can touch `engine/`).
 
-Both `failed` and `rolled_back` leave a working agent running. The topbar
-badge turns red and shows the reason. You can retry from the dashboard
-immediately.
+### Phase 5 — SelfPrintUpdater BAT does the file swap
+
+The BAT runs as a separate Windows Scheduled Task — completely outside the
+agent process — so it can replace agent files without Windows file-locking
+issues.
+
+```
+Before swap:                        After swap:
+<shop-root>/                        <shop-root>/
+├── engine/         (old version)   ├── engine/         (new version)
+├── update-staging/                 ├── engine.bak/     (old version backup)
+│   └── update-extract/  (new)      └── update-staging/ (cleaned up)
+└── update-pending.txt              └── update-pending.txt (still present)
+```
+
+Steps inside the BAT:
+
+1. **Rename** `engine → engine.bak` (5-attempt retry loop with 2s delay between
+   tries — handles Windows file-locking edge cases)
+2. For `code` update: **copy** new `agent/` folder into existing `engine/` (node_modules untouched)
+   For `full` update: **rename** `update-extract → engine`
+3. **Start** SelfPrintAgent scheduled task → new agent version boots
+4. **Wait** up to 3 minutes, checking `agent-health.txt` every 5 seconds
+
+### Phase 6 — New agent health check
+
+1. New agent boots, runs startup self-check:
+   - PDFium WASM library loads
+   - Sharp native binding works
+   - At least one Windows printer is enumerable
+   - Supabase is reachable
+2. If any check fails: no heartbeat is written → BAT detects this → rollback
+3. If all checks pass: writes `agent-health.txt` with current timestamp
+4. BAT sees fresh heartbeat → confirms success:
+   - Deletes `engine.bak/`
+   - Deletes `update-staging/update-extract/` and `update.zip`
+   - Writes status `completed` + `agent_version = 1.0.1` + `agent_healthy_at = now()` to DB
+   - Deletes `update-pending.txt`
+
+### Rollback path
+
+If the new agent does NOT write a heartbeat within 3 minutes:
+
+1. BAT stops waiting, writes `update-failed.txt` with reason
+2. Deletes broken `engine/`, renames `engine.bak → engine`
+3. Starts SelfPrintAgent → old version boots again
+4. Old agent reads `update-rollback.txt` → writes status `rolled_back` with
+   reason to DB
+5. Dashboard topbar badge turns red, shows reason string
+
+Both `failed` and `rolled_back` leave a working agent running. Safe to retry
+from the dashboard immediately after fixing the underlying problem.
+
+---
+
+## Sending the Zip to the Client (first install)
+
+`npm run package:shop` (without `--publish`) produces the initial install zip
+at `dist-shop-package/selfprint-agent.zip`. This is a ~100 MB file because it
+includes pre-built `node_modules` — the shop PC needs no `npm install`.
+
+**How to send it:**
+
+- **WhatsApp / Telegram** — easiest for most clients; just share the file in chat
+- **Google Drive / OneDrive link** — recommended for large files; upload and share a download link
+- **USB drive** — if the shop PC has no internet yet during setup
+
+After the client runs `SETUP.bat` once, they never need another zip — all
+future updates come through the dashboard automatically.
 
 ---
 
 ## Troubleshooting
 
-### Dashboard shows "Updating…" forever
+### Dashboard shows "Updating…" / `requested` status for more than 1 minute
 
-The update is stuck in `requested` or `downloading`. Most common causes:
+The agent hasn't picked up the command. Causes:
 
-- **Agent not running** — check Windows Task Scheduler on the shop PC for
-  "SelfPrintAgent". If it's not running, double-click SETUP.bat again.
-- **No internet on shop PC** — agent can't reach Supabase Storage.
-- **Stale stuck status** — the API auto-resets in-flight status older than 30
-  minutes. Or reset manually in Supabase SQL editor:
-  ```sql
-  UPDATE agent_config
-  SET update_status = null, update_target_version = null,
-      update_started_at = null, update_message = null
-  WHERE id = 1;
-  ```
+1. **Agent not running on shop PC** — check Windows Task Scheduler for
+   "SelfPrintAgent". If missing or stopped, run `SETUP.bat` again on the
+   shop PC, or:
+   ```powershell
+   schtasks /Run /TN SelfPrintAgent
+   ```
+
+2. **No internet on shop PC** — agent can't reach Supabase. Fix the connection
+   and the agent will pick up on its next 30s poll.
+
+3. **Stuck status from a previous failed attempt** — clear it manually in
+   Supabase SQL Editor:
+   ```sql
+   UPDATE agent_config
+   SET update_status = null,
+       update_target_version = null,
+       update_started_at = null,
+       update_message = null
+   WHERE id = 1;
+   ```
+   Then retry from the dashboard.
 
 ### Status shows `failed`
 
 The agent aborted before handing off to the updater BAT. The old version is
-still running. Check in order:
+still running — nothing was swapped.
 
-1. `engine/agent/agent.log` — look for "SELF-CHECK FAILED" or SHA mismatch errors
-2. Confirm `latest.json` in the `agent-updates` bucket is valid JSON with the
-   right version
+Check `engine\agent\agent.log` on the shop PC. Common causes:
+
+| Log message | Fix |
+|---|---|
+| SHA-256 mismatch | Corrupted download — retry; if it keeps failing, delete and re-publish the version |
+| `latest.json` missing | Create the `agent-updates` bucket if it doesn't exist, or re-publish |
+| `SelfPrintUpdater` task not found | Run `SETUP.bat` again on the shop PC to re-register the tasks |
+| Downgrade refused | `update_target_version` in DB is ≤ running version — check `agent/version.json` was bumped correctly before publishing |
 
 ### Status shows `rolled_back`
 
-The swap ran but the new version failed the health check. Check:
+The swap ran but the new agent failed the health check. The old version was
+restored automatically.
 
-1. `update-staging/updater.log` on the shop PC — the BAT's own trace
-2. `engine/agent/agent.log` — startup errors from the new version
-3. If `updater.log` says "ROLLBACK FAILED", `engine.bak` is still present —
-   rename it manually to `engine`
+Check in order:
+
+1. **`update-staging\updater.log`** on the shop PC — the BAT's own trace,
+   shows exactly which step failed and why.
+2. **`engine\agent\agent.log`** — startup errors from the new version attempt.
+   Look for "SELF-CHECK FAILED".
+3. If `updater.log` says **"ROLLBACK FAILED"**: `engine.bak/` is still present
+   and the swap left no usable `engine/`. Rename manually:
+   ```powershell
+   ren "C:\SelfPrint\engine.bak" "engine"
+   schtasks /Run /TN SelfPrintAgent
+   ```
 
 ### Internet drops during update
 
-| When | Effect |
+| When internet drops | Effect |
 |---|---|
-| Before download starts | Agent retries on next poll — no harm |
-| Mid-download | Download fails → status `failed` → retry from dashboard |
-| After download, zip on disk | Swap runs fully offline (just file operations) — OK |
-| After swap, before heartbeat | New agent can't reach Supabase → no heartbeat → rollback |
-| After heartbeat written | Done — status written when connection recovers |
+| Before download starts | Agent retries on next 30s poll — no harm |
+| Mid-download (zip transfer) | Download fails → status `failed` → retry from dashboard |
+| After download, zip on disk | Swap runs fully offline (just file renames) — completes fine |
+| After swap, before heartbeat | New agent can't reach Supabase → no heartbeat → BAT rolls back after 3 min |
+| After heartbeat written | Done — DB status written when connection recovers |
+
+### Agent healthy badge shows "offline" in the Printer panel
+
+The agent's `agent_healthy_at` timestamp is >5 minutes old (or null). The
+agent writes a heartbeat every 30 seconds. If it shows offline:
+
+- Agent may not be running — check Task Scheduler
+- Supabase Realtime or DB write is failing — check `agent.log` for errors
+- First time setup — agent needs to run once post-SETUP.bat to write the
+  first heartbeat
 
 ---
 
 ## Files on the Shop PC
 
 ```
-<shop-root>/                     ← where selfprint-agent.zip was extracted
-├── engine/                      ← live agent (agent/ + node_modules + package.json)
-│   └── agent/
-│       ├── agent.log            ← agent runtime log (rotates at 5 MB → agent.log.old)
-│       ├── agent-health.txt     ← heartbeat timestamp (updated every 30s)
-│       ├── config.json          ← shop credentials (never replaced by updates)
-│       ├── src/                 ← agent source
-│       └── version.json         ← running version number
-├── engine.bak/                  ← previous version (present during swap, deleted on success)
+<shop-root>/                     ← where selfprint-agent.zip was unzipped
+├── SETUP.bat                    ← run once to register scheduled tasks
+├── TEST-PRINTER.bat             ← send a test page to verify printer
+├── README.txt
+├── engine/                      ← live agent (replaced during updates)
+│   ├── agent/
+│   │   ├── agent.log            ← agent runtime log (rotates at 5 MB)
+│   │   ├── agent.log.old        ← previous log rotation
+│   │   ├── agent-health.txt     ← heartbeat (updated every 30s by running agent)
+│   │   ├── config.json          ← shop credentials (NEVER replaced by updates)
+│   │   ├── version.json         ← running version number
+│   │   ├── src/                 ← agent TypeScript source
+│   │   ├── SETUP.bat            ← real setup script (called by root SETUP.bat)
+│   │   └── print-image.ps1     ← Windows GDI print helper
+│   ├── node_modules/            ← runtime dependencies
+│   └── package.json
+├── engine.bak/                  ← backup of previous version (present during swap only)
 ├── update-staging/
 │   ├── update.zip               ← downloaded payload (deleted after extract)
 │   ├── update-extract/          ← unzipped payload (deleted after swap)
-│   └── updater.log              ← SelfPrintUpdater BAT trace
-├── update-pending.txt           ← written pre-swap, consumed by next agent boot
-├── update-rollback.txt          ← written by BAT on rollback, consumed by agent
-├── update-failed.txt            ← written by BAT on failure, consumed by agent
-└── agent-health.txt             ← same as engine/agent/agent-health.txt (symlink target)
+│   └── updater.log              ← SelfPrintUpdater BAT output
+├── update-pending.txt           ← written pre-swap; consumed (deleted) after heartbeat
+├── update-rollback.txt          ← written by BAT on rollback; consumed by agent
+└── update-failed.txt            ← written by BAT on failure; consumed by agent
 ```
 
 ---
 
 ## Developer Notes
 
-### Sending the initial zip to the client
+### Running the agent on a dev machine
 
-`npm run package:shop` (without `--publish`) produces
-`dist-shop-package/selfprint-agent.zip`. Send it to the client via:
-
-- **WhatsApp / Telegram** — easiest; most clients already have it
-- **Google Drive / OneDrive link** — better for large zips (first install is
-  ~100 MB because it includes `node_modules`)
-- **USB drive** — if the shop PC has no internet during setup
-
-The client unzips it anywhere, double-clicks `SETUP.bat`, and that's the
-entire first-time setup. After that, all updates go through the dashboard —
-you never need to send another zip.
-
-### Running on a dev machine
-
-On your own PC (not a shop PC), run the agent directly:
+On your own PC (not a shop PC), run the agent directly from the terminal:
 ```powershell
 npm run agent
 ```
 
-Do NOT run `SETUP.bat` on a dev machine — it installs real Windows Scheduled
-Tasks. The updater guard (`IS_ENGINE_CWD` check in `agent/src/updater.ts`)
-blocks the self-update logic from firing when the working directory is the
-repo root rather than `engine/`.
+Do **NOT** run `SETUP.bat` on a dev machine — it installs real Windows
+Scheduled Tasks ("SelfPrintAgent", "SelfPrintUpdater") that run on boot.
+
+The updater guard in `agent/src/updater.ts` prevents self-update logic from
+running on a dev machine:
+```typescript
+const IS_ENGINE_CWD = path.basename(process.cwd()) === "engine";
+// update check returns immediately if not in the engine/ directory
+if (!IS_ENGINE_CWD) return;
+```
 
 For a persistent dev agent (survives terminal close), use PM2:
 ```powershell
 npm install -g pm2
 pm2 start "npm run agent" --name selfprint-agent --cwd "C:\path\to\Selfprint"
-pm2 save && pm2 startup
+pm2 save
+pm2 startup
 ```
 
-### Adding the update migration to a fresh Supabase project
-
-```sql
--- Run this in Supabase SQL editor (or via supabase db push)
--- File: supabase/migrations/20260806000000_agent_self_update.sql
+Stop/start:
+```powershell
+pm2 stop selfprint-agent
+pm2 start selfprint-agent
+pm2 logs selfprint-agent
 ```
-
-See the migration file for the exact SQL — it adds columns to `agent_config`
-and creates the `agent_update_events` table.
 
 ### Version number rules
 
-- Format: dotted numeric, e.g. `1.0.0`, `1.2.3`, `2.0.0`
+- Format: dotted numeric only — `1.0.0`, `1.2.3`, `2.0.0`
 - Must be strictly greater than currently published version
-- Cannot republish an existing version (bucket check blocks it)
-- Agent refuses to install a version ≤ its running version (downgrade guard)
+- Cannot republish an existing version (publish script checks the bucket)
+- Agent refuses to install any version ≤ its running version (downgrade guard
+  in `agent/src/updater.ts`)
+- The `package:shop` script also compares against `latest.json` in the bucket
+  and rejects a downgrade at publish time
+
+### What "code" vs "full" means for update size
+
+| Kind | Contents | Typical size | When |
+|---|---|---|---|
+| `code` | `agent/` folder only (src + scripts) | ~100 KB | No runtime dependency changed |
+| `full` | Entire `engine/` (code + node_modules) | ~100 MB | Any of the 4 runtime deps changed version |
+
+The first publish is always `full` (no `latest.json` to compare deps against).
+Subsequent publishes are usually `code` unless you `npm update` one of the
+four agent-specific packages.
+
+### Audit log
+
+Every update attempt is logged to the `agent_update_events` table in Supabase.
+View it in the Table Editor, or query:
+```sql
+SELECT * FROM agent_update_events ORDER BY created_at DESC LIMIT 20;
+```
+
+Columns: `event_type` (requested / downloading / completed / failed /
+rolled_back), `from_version`, `to_version`, `message`, `created_at`.
