@@ -172,3 +172,94 @@ describe("cleanupOldJobs file purge invariant (SQLite)", () => {
     expect(fileRow!.original_name).toBe("report.pdf");
   });
 });
+
+describe("agent update state (SQLite)", () => {
+  let db: typeof import("./db");
+  beforeAll(async () => {
+    db = await import("./db");
+    await db.ensureDatabase();
+  });
+
+  beforeEach(async () => {
+    const raw = new Database("./data-test-cleanup-events.sqlite");
+    raw.prepare("DELETE FROM agent_update_events").run();
+    raw.prepare(
+      `UPDATE agent_config SET agent_version = NULL, agent_healthy_at = NULL,
+       update_target_version = NULL, update_status = NULL, update_message = NULL,
+       update_started_at = NULL WHERE id = 1`
+    ).run();
+    raw.close();
+  });
+
+  it("returns null fields before any update", async () => {
+    const state = await db.getAgentUpdateState();
+    expect(state.agentVersion).toBeNull();
+    expect(state.agentHealthyAt).toBeNull();
+    expect(state.updateTargetVersion).toBeNull();
+    expect(state.updateStatus).toBeNull();
+    expect(state.updateMessage).toBeNull();
+    expect(state.updateStartedAt).toBeNull();
+    expect(state.lastEvent).toBeNull();
+  });
+
+  it("requestAgentUpdate sets requested state and bumps config_version", async () => {
+    const readUpdatedAt = () => {
+      const raw = new Database("./data-test-cleanup-events.sqlite", { readonly: true });
+      const row = raw.prepare("SELECT updated_at FROM agent_config WHERE id = 1").get() as { updated_at: string };
+      raw.close();
+      return row.updated_at;
+    };
+
+    // Force a distinct ISO timestamp so the updated_at comparison is meaningful.
+    const raw = new Database("./data-test-cleanup-events.sqlite");
+    raw.prepare("UPDATE agent_config SET updated_at = '2000-01-01T00:00:00.000Z' WHERE id = 1").run();
+    raw.close();
+    const updatedAtBefore = readUpdatedAt();
+
+    const before = await db.getAgentConfig();
+    await db.requestAgentUpdate("1.2.0");
+
+    expect(readUpdatedAt()).not.toBe(updatedAtBefore);
+
+    const state = await db.getAgentUpdateState();
+    expect(state.updateTargetVersion).toBe("1.2.0");
+    expect(state.updateStatus).toBe("requested");
+    expect(state.updateStartedAt).toBeTruthy();
+    expect(state.updateMessage).toBeNull();
+
+    const after = await db.getAgentConfig();
+    expect(after.configVersion).toBe(before.configVersion + 1);
+  });
+
+  it("requestAgentUpdate clears a stale update_message from a previous attempt", async () => {
+    const raw = new Database("./data-test-cleanup-events.sqlite");
+    raw.prepare(
+      `UPDATE agent_config SET update_status = 'failed', update_message = 'boom' WHERE id = 1`
+    ).run();
+    raw.close();
+
+    await db.requestAgentUpdate("2.0.0");
+    const state = await db.getAgentUpdateState();
+    expect(state.updateStatus).toBe("requested");
+    expect(state.updateMessage).toBeNull();
+  });
+
+  it("reports the most recent agent_update_events row as lastEvent", async () => {
+    const raw = new Database("./data-test-cleanup-events.sqlite");
+    const insert = raw.prepare(
+      `INSERT INTO agent_update_events (from_version, to_version, status, message, created_at)
+       VALUES (?, ?, ?, ?, ?)`
+    );
+    insert.run("1.0.0", "1.1.0", "success", null, new Date().toISOString());
+    insert.run("1.1.0", "1.2.0", "rolled_back", "swap failed", new Date().toISOString());
+    raw.close();
+
+    const state = await db.getAgentUpdateState();
+    expect(state.lastEvent).not.toBeNull();
+    expect(state.lastEvent?.fromVersion).toBe("1.1.0");
+    expect(state.lastEvent?.toVersion).toBe("1.2.0");
+    expect(state.lastEvent?.status).toBe("rolled_back");
+    expect(state.lastEvent?.message).toBe("swap failed");
+    expect(state.lastEvent?.createdAt).toBeTruthy();
+  });
+});

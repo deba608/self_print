@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Check, Printer, X } from "lucide-react";
 import type { PrinterOption } from "@/lib/types";
+import PrintAgentCard from "./PrintAgentCard";
 
 export default function PrinterPanel({
   mode,
@@ -94,6 +95,9 @@ export default function PrinterPanel({
               </button>
             ))
           )}
+
+          {/* Owner-only: renders nothing for admins/delivery staff. */}
+          <PrintAgentCard />
         </div>
       </div>
     </div>

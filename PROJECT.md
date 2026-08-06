@@ -24,6 +24,9 @@ npm run cleanup     # purge printed/cancelled/expired uploads
 npm run agent       # run Windows print agent
 npm run convert     # DOCX->PDF conversion CLI
 npm test            # vitest
+npm run package:shop            # bundle shop-PC agent zip
+npm run package:shop -- --publish  # + publish self-update payload to Storage
+npm run agent:push-update       # queue that update for the shop PC (CLI twin of the admin button)
 ```
 
 ## Architecture
@@ -64,7 +67,10 @@ id, job_id (FK cascade), original_name, stored_name, mime_type, size_bytes, file
 bw_per_page_paise, color_per_page_paise, photo_print_paise, copy_multiplier, a3/a4/a5/a6/b5/legal/photo_multiplier, duplex_bw_per_page_paise, expiry_minutes (default 1440), delivery_fee_paise, updated_at.
 
 ### `agent_config` (singleton id=1)
-printer_name (legacy single-printer field, kept as fallback), bw_printer_name, color_printer_name (independent B/W vs. color printer selection — the agent picks per job's print_type, falling back to printer_name if the specific one is unset), config_version (bumped so agents detect changes), updated_at.
+printer_name (legacy single-printer field, kept as fallback), bw_printer_name, color_printer_name (independent B/W vs. color printer selection — the agent picks per job's print_type, falling back to printer_name if the specific one is unset), config_version (bumped so agents detect changes), updated_at, plus self-update state: agent_version (version the agent reports running), agent_healthy_at (last health heartbeat), update_target_version, update_status (`requested`/`downloading`/`swapping`/`success`/`failed`/`rolled_back`), update_message, update_started_at.
+
+### `agent_update_events`
+Append-only audit of update attempts: id, from_version, to_version, status (`success`/`failed`/`rolled_back`), message, created_at. Written by the agent (service-role); staff read-only via RLS. Migration: `supabase/migrations/20260806000000_agent_self_update.sql`, with SQLite parity in `src/lib/db.ts`.
 
 ### `agent_printers`
 name (PK), driver_name, port_name, is_default, seen_at (heartbeat; stale >5min = offline).
@@ -96,7 +102,9 @@ Append-only audit log: id, job_id (FK cascade), event_type (created/paid/printin
 | `CRON_SECRET` | protects `/api/cleanup` |
 | `DATABASE_PATH`, `UPLOAD_DIR`, `MAX_UPLOAD_MB` (25), `SESSION_SECRET` (HMAC signing), `FILE_RETENTION_DAYS` (3), `VERCEL` (auto redirects SQLite/uploads to /tmp/selfprint) | config.ts extras |
 
-Agent config: `agent/config.json` (copy `agent/dev-tools/config.example.json`) — supabaseUrl, supabaseKey, tempDir, maxRetries, fallbackPrinter (or falls back to SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY env; fallbackPrinter is only a startup default, overridden by `agent_config.bw_printer_name`/`color_printer_name` once set from `/admin`).
+Agent config: `agent/config.json` (copy `agent/dev-tools/config.example.json`) — supabaseUrl, supabaseKey, tempDir, maxRetries, fallbackPrinter (or falls back to SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY env; fallbackPrinter is only a startup default, overridden by `agent_config.bw_printer_name`/`color_printer_name` once set from `/admin`); `updateMode` — only `"manual"` is implemented, anything else is refused at startup.
+
+Agent self-update: `agent/version.json` is the installed version. `npm run package:shop -- --publish` uploads `agent-<version>.zip` then `latest.json` (last, so a partial publish never advertises a payload; an orphaned zip is rolled back on failure) into the private `agent-updates` Storage bucket — refusing to republish an existing version or to go backwards. `kind` is `code` (just `agent/`) unless a runtime dep moved, then `full`. Installs are triggered from the "Print agent" card in `/admin`'s Printer panel (`src/app/api/admin/agent-update/route.ts`, super_admin only) or `npm run agent:push-update` — both just write `agent_config` and bump config_version; there is no direct channel to the shop PC. `agent/src/updater.ts` verifies sha256, stages into `<root>/update-staging/payload`, renders `agent/updater-template.bat` and runs it as its own one-shot `SelfPrintUpdater` scheduled task (a child would be killed with the agent's job object), then exits. The bat swaps, restarts `SelfPrintAgent`, and waits 90s for `agent-health.txt` to contain the target version; no heartbeat → restore the backup, write `update-rollback.txt`, restart. Markers `update-pending.txt`/`update-rollback.txt` are read on next startup to report `success`/`failed`/`rolled_back`; trace lives in `update-staging/updater.log`. Updates defer while a job is printing.
 
 `agent/` layout: only `SETUP.bat` (client-facing entry point) and `TEST-PRINTER.bat` (optional troubleshooting) are meant to be run directly. `config.json`, `print-image.ps1`, `START-PRINTER.bat`, `START-PRINTER-BACKGROUND.vbs`, and `src/` are internal machinery with hardcoded relative paths to each other/the repo root — don't move them. `agent/dev-tools/` holds developer-only scripts (`INSTALL-AUTOSTART.bat`/`start-agent.bat` — superseded by `SETUP.bat`; `STOP-DEV-AGENT.bat` — kills a stray agent process on a dev machine; `config.example.json` — the config template) that a shop-PC client never needs to see or run.
 
@@ -177,3 +185,4 @@ The agent talks to Supabase directly (service-role key); there is no HTTP agent 
 - No customer auth required (guest flow supported alongside registered accounts).
 - Agent API: bearer token auth. Admin: Supabase Auth session.
 - Dual DB backend (SQLite dev / Supabase prod) via single smart-router module — no separate codepaths in feature code.
+- Agent updates are pushed through the database, not to the agent: the shop PC sits behind NAT, so `agent_config` is the only channel, and every failure path leaves a working agent installed (health-gated rollback).

@@ -173,6 +173,11 @@ still needs the shop's own Wi-Fi to reach this PC.
   ```powershell
   schtasks /Run /TN SelfPrintAgent
   ```
+- **Updates**: nothing to do. When a new version of the printer service is
+  released, it installs itself in the background (never while a job is
+  printing) and restarts on its own — no download, no re-running SETUP.bat,
+  no settings to re-enter. If the new version doesn't come up healthy, the
+  PC automatically goes back to the version that was working.
 - **Cleanup**: `npm run cleanup` removes finished/expired jobs and their
   files. Schedule this (Task Scheduler locally, or a Vercel Cron Job in
   Path A hitting `/api/cleanup` with `CRON_SECRET`) so storage doesn't grow
