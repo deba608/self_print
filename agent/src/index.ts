@@ -144,8 +144,15 @@ async function startupSelfCheckAndHeartbeat() {
       "base64")).png().toBuffer();                    // 2. sharp native binding works
     const printers = await listWindowsPrinters();     // 3. >=1 printer
     if (!printers.length) throw new Error("no printers enumerated");
-    await reportPostUpdateStatus();                   // 4. supabase reachable (this write proves it)
+    // reportPostUpdateStatus sets status="success" and returns without deleting
+    // the pending marker on the success path — we must delete it here, AFTER
+    // writeHealthHeartbeat, so that a Supabase blip causing no heartbeat still
+    // leaves the marker for the rollback's audit row (from/to versions).
+    const pendingPath = await reportPostUpdateStatus(); // 4. supabase reachable
     await writeHealthHeartbeat();
+    if (pendingPath) {
+      await import("node:fs/promises").then(m => m.rm(pendingPath, { force: true })).catch(() => {});
+    }
     log(`Self-check passed — agent v${currentVersion()} healthy.`);
   } catch (err) {
     log(`SELF-CHECK FAILED (no heartbeat written): ${err instanceof Error ? err.message : String(err)}`);
@@ -218,11 +225,12 @@ function startIntervals() {
     if (!isShuttingDown) reportPrintersIfNeeded();
   }, PRINTER_REPORT_INTERVAL);
 
-  // Piggyback the update poll on the printer-config cadence — no extra timer.
+  // Piggyback the update poll and heartbeat refresh on the printer-config cadence.
   setInterval(() => {
     if (!isShuttingDown) {
       checkPrinterConfig();
       checkForUpdateCommand().catch(() => {});
+      writeHealthHeartbeat().catch(() => {});
     }
   }, 30000);
 

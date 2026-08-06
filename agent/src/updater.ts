@@ -6,7 +6,12 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { compareVersions, parseLatestJson, sha256Hex } from "./update-lib";
 
 // File/path contract shared with agent/updater-template.bat — keep in sync.
-const shopRoot = path.resolve(process.cwd(), "..");
+// The shop-PC layout is <root>/engine/ (cwd when the agent runs).
+// On a dev machine `npm run agent` runs from the repo root, so ".." would be
+// the parent of the whole repo — guard against that to prevent the updater from
+// staging into ~/Desktop or registering a real scheduled task on the dev box.
+const IS_ENGINE_CWD = path.basename(process.cwd()) === "engine";
+const shopRoot = IS_ENGINE_CWD ? path.resolve(process.cwd(), "..") : process.cwd();
 const stagingDir = path.join(shopRoot, "update-staging");
 const agentDir = path.join(process.cwd(), "agent");
 
@@ -120,6 +125,10 @@ export function checkForUpdateCommand(): Promise<void> {
 }
 
 async function runUpdateCheck(): Promise<void> {
+  // Dev machines run from the repo root, not from engine/. Never trigger a real
+  // update swap there — the paths would point into the wrong directory.
+  if (!IS_ENGINE_CWD) return;
+
   const mine = currentVersion();
   const { data, error } = (await deps.supabase
     .from("agent_config")
@@ -128,8 +137,13 @@ async function runUpdateCheck(): Promise<void> {
     .single()) as any;
   if (error || !data?.update_target_version) return;
   if (data.update_status !== "requested") return;
-  if (compareVersions(data.update_target_version, mine) === 0) {
+  const cmp = compareVersions(data.update_target_version, mine);
+  if (cmp === 0) {
     await setStatus("success", "already on this version");
+    return;
+  }
+  if (cmp < 0) {
+    await setStatus("failed", `target ${data.update_target_version} is older than running ${mine}; downgrade not supported`);
     return;
   }
   if (deps.isProcessing()) {
@@ -185,12 +199,28 @@ async function runUpdateCheck(): Promise<void> {
   }
 }
 
-/** Startup: report the outcome of a swap that happened while we were down. */
-export async function reportPostUpdateStatus(): Promise<void> {
+/**
+ * Startup: report the outcome of a swap that happened while we were down.
+ * Returns the pending marker path when the success branch is taken and the
+ * caller must delete it AFTER writing the health heartbeat.
+ */
+export async function reportPostUpdateStatus(): Promise<string | undefined> {
   const mine = currentVersion();
   const rollbackMarker = path.join(shopRoot, "update-rollback.txt");
+  const failedMarker = path.join(shopRoot, "update-failed.txt");
   const pendingMarker = path.join(shopRoot, "update-pending.txt");
-  if (existsSync(rollbackMarker)) {
+  // "never exited" abort: nothing was swapped, bat wrote update-failed.txt.
+  if (existsSync(failedMarker)) {
+    const reason = (await fs.readFile(failedMarker, "utf8")).trim();
+    const pending = existsSync(pendingMarker)
+      ? (await fs.readFile(pendingMarker, "utf8")).trim().split(" ")
+      : [null, null];
+    await setStatus("failed", reason);
+    await audit(pending[0], pending[1], "failed", reason);
+    await fs.rm(failedMarker, { force: true });
+    await fs.rm(pendingMarker, { force: true });
+    deps.log(`Previous update aborted (no swap): ${reason}`);
+  } else if (existsSync(rollbackMarker)) {
     const reason = (await fs.readFile(rollbackMarker, "utf8")).trim();
     const pending = existsSync(pendingMarker)
       ? (await fs.readFile(pendingMarker, "utf8")).trim().split(" ")
@@ -206,6 +236,10 @@ export async function reportPostUpdateStatus(): Promise<void> {
       await setStatus("success");
       await audit(from, to, "success");
       deps.log(`Update to ${mine} succeeded.`);
+      // Keep pendingMarker alive until writeHealthHeartbeat() completes so
+      // that a rollback triggered by a failed heartbeat still has from/to in
+      // the audit row. Caller deletes it after the heartbeat write.
+      return pendingMarker;
     } else {
       // Power loss mid-swap: the bat never finished, so it wrote no rollback
       // marker. Without this the status stays "swapping" forever and blocks

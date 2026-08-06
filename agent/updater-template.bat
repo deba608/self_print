@@ -49,7 +49,9 @@ if errorlevel 1 goto prep
 set /a tries+=1
 if %tries% geq 60 (
   echo [%time%] agent never exited, aborting swap >> "%LOG%"
-  echo agent process did not exit within 60s> "%ROOT%\update-rollback.txt"
+  REM Nothing was swapped — write a failed marker (not rollback) so the
+  REM restarting agent sets status="failed" rather than "rolled_back".
+  echo agent process did not exit within 60s> "%ROOT%\update-failed.txt"
   schtasks /Run /TN "SelfPrintAgent" >nul 2>nul
   schtasks /Delete /TN "SelfPrintUpdater" /F >nul 2>nul
   exit /b 1
@@ -94,7 +96,21 @@ goto healthloop
 
 :healthy
 echo [%time%] new agent healthy, removing backup >> "%LOG%"
-if "%KIND%"=="full" ( rmdir /S /Q "%ROOT%\engine.bak" ) else ( rmdir /S /Q "%ROOT%\engine\agent.bak" )
+REM Preserve agent.log from the old version before the full-kind backup is
+REM deleted — README tells the operator to check it after an update.
+if "%KIND%"=="full" (
+  if exist "%ROOT%\engine.bak\agent\agent.log" (
+    copy /Y "%ROOT%\engine.bak\agent\agent.log" "%ROOT%\engine\agent\agent.log.old" >nul 2>nul
+  )
+  rmdir /S /Q "%ROOT%\engine.bak"
+) else (
+  rmdir /S /Q "%ROOT%\engine\agent.bak"
+)
+REM Clean up the staging area: payload was extracted from update.zip, and
+REM run-update.bat was the rendered updater script. Neither is needed after a
+REM successful swap (a fresh zip is always downloaded for the next update).
+del /Q "%ROOT%\update-staging\update.zip" >nul 2>nul
+del /Q "%ROOT%\update-staging\run-update.bat" >nul 2>nul
 rmdir /S /Q "%ROOT%\update-staging\payload" >nul 2>nul
 schtasks /Delete /TN "SelfPrintUpdater" /F >nul 2>nul
 exit /b 0
@@ -147,14 +163,42 @@ exit /b 2
 
 :restorefull
 echo [%time%] full swap failed, restoring engine.bak >> "%LOG%"
+set /a rbf=0
+:restorefull_loop
 rmdir /S /Q "%ROOT%\engine" >nul 2>nul
-ren "%ROOT%\engine.bak" engine
-goto swapfail2
+ren "%ROOT%\engine.bak" engine >nul 2>nul
+if exist "%ROOT%\engine\agent\version.json" (
+  if not exist "%ROOT%\engine.bak" goto swapfail2
+)
+set /a rbf+=1
+if %rbf% geq 5 (
+  echo [%time%] RESTORE FAILED - engine.bak not renamed, manual recovery needed >> "%LOG%"
+  echo RESTORE FAILED - engine.bak could not be renamed back to engine, manual recovery needed> "%ROOT%\update-rollback.txt"
+  schtasks /Run /TN "SelfPrintAgent" >nul 2>nul
+  schtasks /Delete /TN "SelfPrintUpdater" /F >nul 2>nul
+  exit /b 2
+)
+ping -n 3 127.0.0.1 >nul
+goto restorefull_loop
 :restorecode
 echo [%time%] code swap failed, restoring agent.bak >> "%LOG%"
+set /a rbc=0
+:restorecode_loop
 rmdir /S /Q "%ROOT%\engine\agent" >nul 2>nul
-ren "%ROOT%\engine\agent.bak" agent
-goto swapfail2
+ren "%ROOT%\engine\agent.bak" agent >nul 2>nul
+if exist "%ROOT%\engine\agent\version.json" (
+  if not exist "%ROOT%\engine\agent.bak" goto swapfail2
+)
+set /a rbc+=1
+if %rbc% geq 5 (
+  echo [%time%] RESTORE FAILED - agent.bak not renamed, manual recovery needed >> "%LOG%"
+  echo RESTORE FAILED - agent.bak could not be renamed back to agent, manual recovery needed> "%ROOT%\update-rollback.txt"
+  schtasks /Run /TN "SelfPrintAgent" >nul 2>nul
+  schtasks /Delete /TN "SelfPrintUpdater" /F >nul 2>nul
+  exit /b 2
+)
+ping -n 3 127.0.0.1 >nul
+goto restorecode_loop
 :swapfail
 echo [%time%] rename failed >> "%LOG%"
 :swapfail2

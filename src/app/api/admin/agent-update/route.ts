@@ -81,10 +81,18 @@ export async function POST() {
     return NextResponse.json({ error: "No published update found" }, { status: 400 });
   }
   if (IN_FLIGHT.includes(state.updateStatus ?? "")) {
-    return NextResponse.json(
-      { error: `Update already in progress (${state.updateStatus})` },
-      { status: 409 }
-    );
+    // If the shop PC died mid-update, update_started_at can be arbitrarily old
+    // and nothing will ever clear it. Treat it as stale after 30 minutes so
+    // a new install attempt isn't blocked forever.
+    const stale =
+      state.updateStartedAt &&
+      Date.now() - new Date(state.updateStartedAt).getTime() > 30 * 60 * 1000;
+    if (!stale) {
+      return NextResponse.json(
+        { error: `Update already in progress (${state.updateStatus})` },
+        { status: 409 }
+      );
+    }
   }
   if (state.agentVersion === latest.version) {
     return NextResponse.json({ error: `Agent already on ${latest.version}` }, { status: 400 });
