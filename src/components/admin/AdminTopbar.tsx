@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import ManageMenu from "./ManageMenu";
 import TopbarMoreMenu from "./TopbarMoreMenu";
+import AgentUpdateBadge from "./AgentUpdateBadge";
 
 export default function AdminTopbar({
   bwPrinterName,
@@ -20,6 +21,7 @@ export default function AdminTopbar({
   staffName,
   showPricing,
   onToggleSidebar,
+  isSuperAdmin,
 }: {
   bwPrinterName: string;
   colorPrinterName: string;
@@ -34,6 +36,7 @@ export default function AdminTopbar({
   staffName?: string;
   showPricing: boolean;
   onToggleSidebar?: () => void;
+  isSuperAdmin?: boolean;
 }) {
   return (
     <header className="admin-topbar">
@@ -104,6 +107,7 @@ export default function AdminTopbar({
 
 
             <ManageMenu />
+            {isSuperAdmin && <AgentUpdateBadge />}
 
             <button
               type="button"

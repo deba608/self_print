@@ -498,6 +498,7 @@ export default function AdminDashboard() {
         staffName={staff?.displayName || staff?.email}
         showPricing={showSettings}
         onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
+        isSuperAdmin={staff?.role === "super_admin"}
       />
       <AdminSidebar
         open={sidebarOpen}

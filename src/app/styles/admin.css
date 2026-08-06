@@ -1671,6 +1671,204 @@
   color: var(--danger);
 }
 
+/* === Agent Update Badge (topbar) === */
+
+.update-badge-wrap {
+  position: relative;
+}
+
+.update-badge-btn {
+  position: relative;
+}
+
+.update-badge-btn.update-state-failed {
+  color: var(--danger);
+}
+
+/* Dot indicator on the badge button */
+.update-dot {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  border: 1.5px solid var(--surface);
+}
+
+.update-dot-available {
+  background: var(--primary);
+}
+
+.update-dot-failed {
+  background: var(--danger);
+}
+
+.update-dot-progress {
+  background: #f59e0b;
+  animation: update-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes update-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(1.3); }
+}
+
+/* Dropdown popup */
+.update-popup {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 288px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.06);
+  z-index: 200;
+  overflow: hidden;
+}
+
+.update-popup-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.update-popup-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.update-popup-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  padding: 2px;
+  border-radius: 4px;
+}
+.update-popup-close:hover { color: var(--text); background: var(--hover-bg); }
+
+.update-popup-rows {
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.update-popup-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 12.5px;
+}
+
+.update-popup-label {
+  color: var(--muted);
+  min-width: 62px;
+  flex-shrink: 0;
+}
+
+.update-popup-val {
+  color: var(--text);
+  font-weight: 500;
+}
+
+.update-popup-sub {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.update-popup-failed {
+  color: var(--danger);
+}
+
+.update-popup-err {
+  margin: 0 14px 10px;
+  font-size: 12px;
+  color: var(--danger);
+  font-weight: 600;
+}
+
+.update-popup-install-btn {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: calc(100% - 28px);
+  margin: 4px 14px 14px;
+  padding: 9px 14px;
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  border-radius: 7px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  justify-content: center;
+  transition: background 0.15s;
+}
+.update-popup-install-btn:hover:not(:disabled) { background: var(--primary-dark, #2a3fc0); }
+.update-popup-install-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.update-popup-progress {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  color: var(--muted);
+  padding: 6px 14px 14px;
+}
+
+/* Floating banner on page open */
+.update-banner {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--surface);
+  border: 1px solid var(--primary);
+  border-radius: 10px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+  font-size: 13px;
+  color: var(--text);
+  z-index: 500;
+  white-space: nowrap;
+}
+
+.update-banner-install {
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  padding: 4px 12px;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.update-banner-install:hover { background: var(--primary-dark, #2a3fc0); }
+
+.update-banner-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  padding: 2px;
+  border-radius: 3px;
+}
+.update-banner-close:hover { color: var(--text); }
+
 /* === Admin Dashboard === */
 .admin-shell {
   width: min(1200px, calc(100% - 32px));
