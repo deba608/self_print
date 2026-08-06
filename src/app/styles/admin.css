@@ -1697,7 +1697,7 @@
 }
 
 .update-dot-available {
-  background: var(--primary);
+  background: var(--accent);
 }
 
 .update-dot-failed {
@@ -1739,7 +1739,7 @@
 .update-popup-title {
   font-size: 13px;
   font-weight: 700;
-  color: var(--text);
+  color: var(--ink);
 }
 
 .update-popup-close {
@@ -1752,7 +1752,7 @@
   padding: 2px;
   border-radius: 4px;
 }
-.update-popup-close:hover { color: var(--text); background: var(--hover-bg); }
+.update-popup-close:hover { color: var(--ink); background: var(--surface-hover); }
 
 .update-popup-rows {
   padding: 10px 14px;
@@ -1775,7 +1775,7 @@
 }
 
 .update-popup-val {
-  color: var(--text);
+  color: var(--ink);
   font-weight: 500;
 }
 
@@ -1802,7 +1802,7 @@
   width: calc(100% - 28px);
   margin: 4px 14px 14px;
   padding: 9px 14px;
-  background: var(--primary);
+  background: var(--accent);
   color: #fff;
   border: none;
   border-radius: 7px;
@@ -1812,7 +1812,7 @@
   justify-content: center;
   transition: background 0.15s;
 }
-.update-popup-install-btn:hover:not(:disabled) { background: var(--primary-dark, #2a3fc0); }
+.update-popup-install-btn:hover:not(:disabled) { background: var(--accent-strong); }
 .update-popup-install-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
 .update-popup-progress {
@@ -1835,17 +1835,17 @@
   gap: 10px;
   padding: 10px 14px;
   background: var(--surface);
-  border: 1px solid var(--primary);
+  border: 1px solid var(--accent);
   border-radius: 10px;
   box-shadow: 0 4px 16px rgba(0,0,0,0.12);
   font-size: 13px;
-  color: var(--text);
+  color: var(--ink);
   z-index: 500;
   white-space: nowrap;
 }
 
 .update-banner-install {
-  background: var(--primary);
+  background: var(--accent);
   color: #fff;
   border: none;
   border-radius: 5px;
@@ -1855,7 +1855,7 @@
   cursor: pointer;
   transition: background 0.15s;
 }
-.update-banner-install:hover { background: var(--primary-dark, #2a3fc0); }
+.update-banner-install:hover { background: var(--accent-strong); }
 
 .update-banner-close {
   background: none;
@@ -1867,7 +1867,7 @@
   padding: 2px;
   border-radius: 3px;
 }
-.update-banner-close:hover { color: var(--text); }
+.update-banner-close:hover { color: var(--ink); }
 
 /* === Admin Dashboard === */
 .admin-shell {
