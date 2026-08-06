@@ -5,6 +5,13 @@ import { execFile } from "node:child_process";
 import { createClient, RealtimeChannel } from "@supabase/supabase-js";
 import sharp from "sharp";
 import { PDFiumLibrary } from "@hyzyla/pdfium";
+import {
+  initUpdater,
+  checkForUpdateCommand,
+  reportPostUpdateStatus,
+  writeHealthHeartbeat,
+  currentVersion
+} from "./updater";
 
 type AgentConfig = {
   supabaseUrl: string;
@@ -12,6 +19,7 @@ type AgentConfig = {
   tempDir: string;
   maxRetries: number;
   fallbackPrinter: string;
+  updateMode: string;
 };
 
 type SupabaseJob = {
@@ -73,7 +81,12 @@ const POLL_INTERVAL = 5000;
 
 async function main() {
   config = await loadConfig();
+  if (config.updateMode !== "manual") {
+    await log(`updateMode "${config.updateMode}" is not implemented — use "manual".`);
+    process.exit(1);
+  }
   supabase = createClient(config.supabaseUrl, config.supabaseKey);
+  initUpdater({ supabase, log, isProcessing: () => isProcessing });
 
   cachedBwPrinterName = config.fallbackPrinter;
   cachedColorPrinterName = config.fallbackPrinter;
@@ -114,7 +127,30 @@ async function main() {
   // Load initial printer config
   await checkPrinterConfig();
 
+  await startupSelfCheckAndHeartbeat();
+
   await connectRealtime();
+}
+
+// Prove this build actually works before writing the heartbeat updater.bat waits
+// for. If any of these fail after a swap, no heartbeat is written and the bat
+// rolls back to the previous version.
+async function startupSelfCheckAndHeartbeat() {
+  try {
+    const lib = await PDFiumLibrary.init();          // 1. pdfium wasm loads
+    lib.destroy?.();
+    await sharp(Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
+      "base64")).png().toBuffer();                    // 2. sharp native binding works
+    const printers = await listWindowsPrinters();     // 3. >=1 printer
+    if (!printers.length) throw new Error("no printers enumerated");
+    await reportPostUpdateStatus();                   // 4. supabase reachable (this write proves it)
+    await writeHealthHeartbeat();
+    log(`Self-check passed — agent v${currentVersion()} healthy.`);
+  } catch (err) {
+    log(`SELF-CHECK FAILED (no heartbeat written): ${err instanceof Error ? err.message : String(err)}`);
+    // Do NOT write the heartbeat: if this start follows a swap, updater.bat will roll back.
+  }
 }
 
 main().catch((error) => {
@@ -159,6 +195,8 @@ async function connectRealtime() {
           reportPrintersIfNeeded();
           // Recovery: pick up any approved job missed while disconnected/crashed.
           pollApprovedJobs();
+          // Apply a queued update command promptly instead of waiting 30s.
+          checkForUpdateCommand().catch(() => {});
           startIntervals();
         } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
           log(`Realtime connection issue: ${status}`);
@@ -180,8 +218,12 @@ function startIntervals() {
     if (!isShuttingDown) reportPrintersIfNeeded();
   }, PRINTER_REPORT_INTERVAL);
 
+  // Piggyback the update poll on the printer-config cadence — no extra timer.
   setInterval(() => {
-    if (!isShuttingDown) checkPrinterConfig();
+    if (!isShuttingDown) {
+      checkPrinterConfig();
+      checkForUpdateCommand().catch(() => {});
+    }
   }, 30000);
 
   // Polling fallback: do NOT rely on realtime delivery. Every few seconds
@@ -875,6 +917,7 @@ async function loadConfig() {
     supabaseKey: String(supabaseKey),
     tempDir: String(parsed.tempDir || "./agent-temp"),
     maxRetries: Number(parsed.maxRetries) || 3,
-    fallbackPrinter: String(parsed.fallbackPrinter || "")
+    fallbackPrinter: String(parsed.fallbackPrinter || ""),
+    updateMode: String(parsed.updateMode || "manual")
   };
 }

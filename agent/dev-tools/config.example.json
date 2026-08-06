@@ -3,5 +3,6 @@
   "supabaseKey": "your-service-role-key",
   "tempDir": "./agent-temp",
   "maxRetries": 3,
-  "fallbackPrinter": ""
+  "fallbackPrinter": "",
+  "updateMode": "manual"
 }
