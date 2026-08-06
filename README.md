@@ -160,8 +160,11 @@ npm run cleanup    # Remove finished + expired jobs
 npm run convert    # Convert DOC/DOCX to PDF (needs LibreOffice)
 npm run agent      # Start Windows print agent
 
+npm run package:shop            # Bundle a ready-to-run agent zip for the shop PC
+npm run package:shop -- --publish  # ...and publish it as a self-update payload
+npm run agent:push-update       # Tell the shop PC to install the published update (CLI twin of the dashboard button)
+
 node scripts/create-owner.mjs <email> <password>  # Create/upsert a super_admin staff account
-node scripts/package-for-shop.mjs                 # Bundle a ready-to-run agent zip for the shop PC
 ```
 
 ## Setup
@@ -232,8 +235,56 @@ the config template).
 
 To hand a ready-to-run package to a non-technical client (no `git clone`, no
 config editing, `node_modules` pre-installed), run
-`node scripts/package-for-shop.mjs` — bundles everything into
+`npm run package:shop` — bundles everything into
 `dist-shop-package/selfprint-agent.zip`.
+
+### Shipping an agent update
+
+Once a shop PC is running the agent, new agent versions are pushed to it —
+nobody has to touch the shop PC again.
+
+One-time setup (per Supabase project):
+
+- Apply `supabase/migrations/20260806000000_agent_self_update.sql` (adds the
+  update columns on `agent_config` and the `agent_update_events` audit table).
+- Create a **private** Storage bucket named `agent-updates`. The publish step
+  does not create it for you.
+- Leave `"updateMode": "manual"` in `agent/config.json` — it is the only mode
+  implemented; anything else is refused at agent startup.
+
+To ship a version:
+
+1. Bump `agent/version.json` (dotted numeric, e.g. `1.0.0` → `1.0.1`). It must
+   be strictly greater than what is already published, and a version that is
+   already in the bucket cannot be republished.
+2. `npm run package:shop -- --publish` — builds the zip, uploads
+   `agent-<version>.zip`, then writes `latest.json` last so a half-finished
+   publish never advertises a payload. It picks `kind: "code"` (just `agent/`)
+   when no runtime dependency moved, `kind: "full"` (whole engine incl.
+   `node_modules`) when they did.
+3. Trigger the install: press **Install update** on the "Print agent" card in
+   `/admin` → Printer panel (super admins only), or run
+   `npm run agent:push-update` from the dev machine. Both write the same
+   `agent_config` row; the agent picks it up within ~5s of its next poll.
+4. Watch the card: `requested` → `downloading` → `swapping` → `success`. A job
+   that is mid-print defers the update to the next poll.
+
+When it goes wrong:
+
+- **`failed`** — nothing was swapped, the old version is still running (bad
+  sha256, missing/mismatched `latest.json`, the updater task would not launch,
+  or a swap that never completed after a power loss). The reason is on the card.
+- **`rolled_back`** — the new version was installed but never wrote a health
+  heartbeat within 90s, so the previous version was restored automatically and
+  restarted. The card turns red with the reason.
+
+Where to look, in order: the "Print agent" card (status + message + last event),
+`<shop-root>\update-staging\updater.log` (the swap script's own trace), and
+`engine\agent\agent.log` (the agent's log). Markers left in the shop root
+(`update-pending.txt`, `update-rollback.txt`, `agent-health.txt`) are the
+handshake between the agent and the updater and are cleared on the next start.
+If `updater.log` says `ROLLBACK FAILED`, the previous install is still sitting
+in `engine.bak` / `engine\agent.bak` and needs a manual rename.
 
 ## Features
 
