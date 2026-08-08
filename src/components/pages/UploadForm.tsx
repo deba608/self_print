@@ -1917,12 +1917,11 @@ export default function UploadForm() {
             </div>
           </details>
 
-          {/* Additional instructions box */}
-          <div className="custom-note-card">
-            <div className="custom-note-card-header">
-              <Settings2 size={15} aria-hidden="true" />
-              <span>Additional Instructions</span>
-              <span className="custom-note-char-count">{customNote.length}/250</span>
+          {/* Additional instructions — plain form-group style */}
+          <div className="form-group">
+            <div className="note-label-row">
+              <label htmlFor="custom-note-input">Additional Instructions</label>
+              <span className="range-hint">{customNote.length}/250</span>
             </div>
             <textarea
               id="custom-note-input"
@@ -1938,25 +1937,21 @@ export default function UploadForm() {
 
           {/* Contact card — always visible */}
           <div className="contact-card">
-            <div className="contact-card-top">
-              <span className="contact-card-label">Need help or customization?</span>
-              <strong className="contact-card-number">+91 87630 52472</strong>
-            </div>
-            <p className="contact-card-sub">Reach us directly — we&apos;ll sort it out before printing.</p>
-            <div className="contact-card-actions">
-              <a href="tel:+918763052472" className="contact-btn contact-btn-call">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.28h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.92a16 16 0 0 0 5.87 5.87l.86-.86a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 21.28 17z"/></svg>
-                Call
-              </a>
-              <a
-                href="https://wa.me/918763052472"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="contact-btn contact-btn-wp"
-              >
-                <svg width="16" height="16" viewBox="0 0 32 32" fill="currentColor" aria-hidden="true"><path d="M16.001 2.667C8.637 2.667 2.667 8.637 2.667 16c0 2.35.64 4.55 1.752 6.448L2.667 29.333l7.103-1.726A13.267 13.267 0 0 0 16.001 29.333c7.363 0 13.332-5.97 13.332-13.333S23.364 2.667 16.001 2.667zm0 2.4c6.036 0 10.933 4.897 10.933 10.933S22.037 26.933 16.001 26.933a10.9 10.9 0 0 1-5.573-1.525l-.399-.236-4.213 1.023 1.056-4.098-.261-.424A10.9 10.9 0 0 1 5.068 16c0-6.036 4.897-10.933 10.933-10.933zm-3.04 5.6c-.213 0-.56.08-.853.4-.293.32-1.12 1.093-1.12 2.667s1.147 3.093 1.307 3.307c.16.213 2.24 3.573 5.52 4.88 2.72 1.093 3.28.88 3.867.827.587-.053 1.893-.773 2.16-1.52.267-.747.267-1.387.187-1.52-.08-.133-.293-.213-.614-.373-.32-.16-1.893-.933-2.186-1.04-.293-.107-.507-.16-.72.16-.213.32-.827 1.04-.987 1.253-.16.213-.32.24-.64.08-.32-.16-1.347-.493-2.56-1.573-.947-.84-1.587-1.88-1.774-2.2-.187-.32-.02-.493.14-.653.147-.147.32-.373.48-.56.16-.187.213-.32.32-.533.107-.213.053-.4-.027-.56-.08-.16-.693-1.747-.96-2.387-.24-.587-.507-.52-.707-.52z"/></svg>
-                WhatsApp
-              </a>
+            <div className="contact-card-body">
+              <div className="contact-card-text">
+                <span className="contact-card-label">Need help or customization?</span>
+                <span className="contact-card-number">+91 87630 52472</span>
+              </div>
+              <div className="contact-card-actions">
+                <a href="tel:+918763052472" className="contact-btn contact-btn-call">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.28h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.92a16 16 0 0 0 5.87 5.87l.86-.86a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 21.28 17z"/></svg>
+                  Call
+                </a>
+                <a href="https://wa.me/918763052472" target="_blank" rel="noopener noreferrer" className="contact-btn contact-btn-wp">
+                  <svg width="16" height="16" viewBox="0 0 32 32" fill="currentColor" aria-hidden="true"><path d="M16.001 2.667C8.637 2.667 2.667 8.637 2.667 16c0 2.35.64 4.55 1.752 6.448L2.667 29.333l7.103-1.726A13.267 13.267 0 0 0 16.001 29.333c7.363 0 13.332-5.97 13.332-13.333S23.364 2.667 16.001 2.667zm0 2.4c6.036 0 10.933 4.897 10.933 10.933S22.037 26.933 16.001 26.933a10.9 10.9 0 0 1-5.573-1.525l-.399-.236-4.213 1.023 1.056-4.098-.261-.424A10.9 10.9 0 0 1 5.068 16c0-6.036 4.897-10.933 10.933-10.933zm-3.04 5.6c-.213 0-.56.08-.853.4-.293.32-1.12 1.093-1.12 2.667s1.147 3.093 1.307 3.307c.16.213 2.24 3.573 5.52 4.88 2.72 1.093 3.28.88 3.867.827.587-.053 1.893-.773 2.16-1.52.267-.747.267-1.387.187-1.52-.08-.133-.293-.213-.614-.373-.32-.16-1.893-.933-2.186-1.04-.293-.107-.507-.16-.72.16-.213.32-.827 1.04-.987 1.253-.16.213-.32.24-.64.08-.32-.16-1.347-.493-2.56-1.573-.947-.84-1.587-1.88-1.774-2.2-.187-.32-.02-.493.14-.653.147-.147.32-.373.48-.56.16-.187.213-.32.32-.533.107-.213.053-.4-.027-.56-.08-.16-.693-1.747-.96-2.387-.24-.587-.507-.52-.707-.52z"/></svg>
+                  WhatsApp
+                </a>
+              </div>
             </div>
           </div>
 
