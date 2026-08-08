@@ -40,7 +40,13 @@ export async function DELETE(
     return NextResponse.json({ ok: true });
   } catch (err: unknown) {
     console.error("[DELETE /api/admin/customers/[id]]", err);
-    const msg = err instanceof Error ? err.message : JSON.stringify(err);
+    let msg = "Delete failed";
+    if (err instanceof Error) {
+      msg = err.message;
+    } else if (err && typeof err === "object") {
+      const e = err as Record<string, unknown>;
+      msg = String(e.message ?? e.msg ?? e.details ?? e.error ?? JSON.stringify(err));
+    }
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
