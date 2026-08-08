@@ -312,6 +312,7 @@ export default function JobDetail({ id }: { id: string }) {
         >
           <FileCard files={files} />
           <SummaryCard job={job} files={files} />
+          <CustomNoteCard job={job} />
           <DeliveryCard job={job} />
           <ActionsCard job={job} acting={acting} setStatus={setStatus} setDeliveryStatus={setDeliveryStatus} reprint={reprint} />
         </section>
@@ -426,6 +427,16 @@ function SummaryCard({ job, files }: { job: Detail["job"]; files: Detail["files"
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+function CustomNoteCard({ job }: { job: Detail["job"] }) {
+  if (!job.customNote) return null;
+  return (
+    <div className="detail-card" style={{ borderLeft: "3px solid var(--primary-color)" }}>
+      <h3 className="card-title">Customer Instructions</h3>
+      <p style={{ margin: 0, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{job.customNote}</p>
     </div>
   );
 }
