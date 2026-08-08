@@ -1,7 +1,15 @@
 import type { Metadata, Viewport } from "next";
+import { JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import AppChrome from "@/components/AppChrome";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  weight: ["600"],
+  variable: "--font-code",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "Self_Print",
@@ -23,7 +31,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" className={jetbrainsMono.variable}>
       <body>
         <AppChrome>{children}</AppChrome>
         <ServiceWorkerRegister />
