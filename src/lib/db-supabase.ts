@@ -71,7 +71,8 @@ function mapJob(row: any, expiryMinutes: number = 1440): Job {
     deliveryPersonId: row.delivery_person_id ? String(row.delivery_person_id) : null,
     // Resolved separately by attachDeliveryPersonNames — a raw row never has
     // the joined staff name (delivery_person_id is a bare auth.users id).
-    deliveryPersonName: null
+    deliveryPersonName: null,
+    customNote: row.custom_note ? String(row.custom_note) : null,
   };
 }
 
@@ -380,6 +381,7 @@ export async function createJobWithFiles(jobData: any, filesData: any[]) {
     has_spiral_binding: jobData.has_spiral_binding ?? jobData.hasSpiralBinding ?? false,
     has_cover_file: jobData.has_cover_file ?? jobData.hasCoverFile ?? false,
     has_bond_paper: jobData.has_bond_paper ?? jobData.hasBondPaper ?? false,
+    custom_note: jobData.custom_note ?? jobData.customNote ?? null,
   };
 
   const { error: jobError } = await supabase

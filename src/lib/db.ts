@@ -263,7 +263,8 @@ async function ensureJobColumns(database: any) {
     ['customer_user_id', 'TEXT'],
     ['delivery_person_id', 'TEXT'],
     ['delivery_pincode', 'TEXT'],
-    ['delivery_area', 'TEXT']
+    ['delivery_area', 'TEXT'],
+    ['custom_note', 'TEXT']
   ];
   for (const [name, definition] of additions) {
     if (!columns.has(name)) {
@@ -412,7 +413,8 @@ function mapJob(row: Record<string, unknown>, expiryMinutes: number = 1440): Job
     // SQLite has no staff_profiles table (staff login requires Supabase), so
     // a self-assigned id here can never be resolved to a name.
     deliveryPersonId: row.delivery_person_id ? String(row.delivery_person_id) : null,
-    deliveryPersonName: null
+    deliveryPersonName: null,
+    customNote: row.custom_note ? String(row.custom_note) : null,
   };
 }
 
@@ -743,9 +745,9 @@ export async function createJobWithFiles(
         spiral_binding_qty, cover_file_qty, page_count, price_paise,
         needs_conversion, queue_position, delivery_method, customer_name, customer_phone,
         delivery_address, delivery_pincode, delivery_area, delivery_fee_paise, delivery_latitude, delivery_longitude,
-        delivery_accuracy_meters, delivery_location_captured_at, created_at, updated_at
+        delivery_accuracy_meters, delivery_location_captured_at, custom_note, created_at, updated_at
       )
-      VALUES (?, ?, 'pending_payment', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, 'pending_payment', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       jobId, j.token, j.customerUserId, j.printType, j.copies, j.pageRange, j.paperSize,
       j.layout, j.pagesPerSheet, j.margins, j.scale, j.duplex,
@@ -754,7 +756,7 @@ export async function createJobWithFiles(
       j.pageCount, j.pricePaise,
       j.needsConversion, j.queuePosition, j.deliveryMethod, j.customerName, j.customerPhone,
       j.deliveryAddress, j.deliveryPincode, j.deliveryArea, j.deliveryFeePaise, j.deliveryLatitude, j.deliveryLongitude,
-      j.deliveryAccuracyMeters, j.deliveryLocationCapturedAt, now, now
+      j.deliveryAccuracyMeters, j.deliveryLocationCapturedAt, j.customNote ?? j.custom_note ?? null, now, now
     );
 
     const insertFile = sqlite.prepare(`

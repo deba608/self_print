@@ -160,6 +160,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid print settings" }, { status: 400 });
     }
 
+    const customNote = String(form.get("customNote") ?? "").trim().slice(0, 250) || null;
+
     const deliveryMethod = String(form.get("deliveryMethod") ?? "pickup") as "pickup" | "delivery";
     if (deliveryMethod !== "pickup" && deliveryMethod !== "delivery") {
       return NextResponse.json({ error: "Invalid delivery method" }, { status: 400 });
@@ -310,6 +312,7 @@ export async function POST(request: NextRequest) {
       delivery_longitude: deliveryDetails.deliveryLongitude,
       delivery_accuracy_meters: deliveryDetails.deliveryAccuracyMeters,
       delivery_location_captured_at: deliveryDetails.deliveryLocationCapturedAt,
+      custom_note: customNote,
     };
 
     const fileData = {

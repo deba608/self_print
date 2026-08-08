@@ -91,6 +91,7 @@ export type Job = {
   // Supabase mode has a staff_profiles table to resolve it from.
   deliveryPersonId: string | null;
   deliveryPersonName: string | null;
+  customNote: string | null;
   file?: JobFile;
   fileCount?: number;
 };
