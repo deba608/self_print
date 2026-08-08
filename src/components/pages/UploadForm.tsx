@@ -1731,7 +1731,7 @@ export default function UploadForm() {
                 <button
                   key={num}
                   type="button"
-                  className={`qty-chip ${copies === num ? "active" : ""}`}
+                  className={`qty-chip ${copies === num ? "active" : ""} ${num === 50 ? "qty-chip-50 qty-chip-hide-mobile" : ""}`}
                   onClick={() => setCopies(num)}
                 >
                   {num} {num === 1 ? "copy" : "copies"}
@@ -1742,7 +1742,6 @@ export default function UploadForm() {
 
           {/* Add-on Finishing Services (Spiral Binding & Cover File) */}
           <div className="form-group">
-            <label className="select-label">Finishing & Binding Add-ons</label>
             <div className="addon-cards-group">
 
               {/* Spiral Binding Card */}

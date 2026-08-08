@@ -1795,6 +1795,13 @@ input, select, button {
   color: var(--accent);
 }
 
+@media (max-width: 640px) {
+  .qty-chip-50,
+  .qty-chip-hide-mobile {
+    display: none !important;
+  }
+}
+
 /* Add-on Cards (Spiral Binding, Cover File, Bond Paper) */
 .addon-cards-group {
   display: flex;
