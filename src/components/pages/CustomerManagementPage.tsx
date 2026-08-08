@@ -13,6 +13,7 @@ import {
   RefreshCw,
   Search,
   ShoppingBag,
+  Trash2,
   Truck,
   UserCheck,
   UsersRound,
@@ -29,6 +30,9 @@ export default function CustomerManagementPage() {
   const [query, setQuery] = useState("");
   const [kind, setKind] = useState<"all" | "registered" | "guest">("all");
   const [exported, setExported] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState<{ id: string; name: string } | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -78,6 +82,26 @@ export default function CustomerManagementPage() {
       ].some((value) => value?.toLowerCase().includes(normalizedQuery));
     });
   }, [customers, query, kind]);
+
+  const doDelete = useCallback(async () => {
+    if (!confirmDelete) return;
+    setDeleting(true);
+    setDeleteError("");
+    try {
+      const res = await fetch(`/api/admin/customers/${confirmDelete.id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error ?? "Delete failed");
+      setCustomers((prev) => prev.filter((c) => c.id !== confirmDelete.id));
+      setConfirmDelete(null);
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : "Delete failed");
+    } finally {
+      setDeleting(false);
+    }
+  }, [confirmDelete]);
 
   const exportToCsv = useCallback(() => {
     if (filteredCustomers.length === 0) return;
@@ -276,6 +300,14 @@ export default function CustomerManagementPage() {
                         <Link href={`/admin/orders?customer=${encodeURIComponent(customer.phone || customer.email || customer.displayName)}`}>
                           View orders
                         </Link>
+                        <button
+                          type="button"
+                          className="customer-delete-btn"
+                          title="Remove customer"
+                          onClick={() => setConfirmDelete({ id: customer.id, name: customer.displayName })}
+                        >
+                          <Trash2 size={14} />
+                        </button>
                       </footer>
                     </article>
                   ))}
@@ -285,6 +317,36 @@ export default function CustomerManagementPage() {
           </>
         )}
       </main>
+
+      {confirmDelete && (
+        <div className="customer-delete-overlay" role="dialog" aria-modal="true" aria-label="Confirm customer removal">
+          <div className="customer-delete-dialog">
+            <h3>Remove customer?</h3>
+            <p>
+              <strong>{confirmDelete.name}</strong> will be permanently deleted along with their account. Their past orders remain in the system.
+            </p>
+            {deleteError && <p className="customer-delete-err">{deleteError}</p>}
+            <div className="customer-delete-actions">
+              <button
+                type="button"
+                className="customer-delete-cancel"
+                onClick={() => { setConfirmDelete(null); setDeleteError(""); }}
+                disabled={deleting}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="customer-delete-confirm"
+                onClick={doDelete}
+                disabled={deleting}
+              >
+                {deleting ? "Removing…" : "Remove"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </AdminManagementNav>
   );
 }

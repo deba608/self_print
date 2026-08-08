@@ -514,6 +514,60 @@
 .customer-management-card footer a { display: inline-flex; align-items: center; gap: 5px; color: var(--accent-strong); font-size: 11px; font-weight: 800; text-decoration: none; }
 .customer-management-card footer span { color: var(--muted); font-size: 10.5px; }
 
+.customer-delete-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+  padding: 5px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+  flex-shrink: 0;
+}
+.customer-delete-btn:hover { color: #d93025; background: rgba(217,48,37,0.08); }
+
+/* Confirm dialog */
+.customer-delete-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.customer-delete-dialog {
+  background: var(--bg-card);
+  border-radius: 14px;
+  padding: 28px 24px 22px;
+  max-width: 380px;
+  width: 100%;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.18);
+}
+.customer-delete-dialog h3 { margin: 0 0 10px; font-size: 17px; }
+.customer-delete-dialog p { margin: 0 0 8px; font-size: 14px; color: var(--muted); line-height: 1.5; }
+.customer-delete-err { color: #d93025 !important; font-size: 13px !important; }
+.customer-delete-actions { display: flex; gap: 10px; margin-top: 20px; }
+.customer-delete-cancel {
+  flex: 1; padding: 10px; border: 1.5px solid var(--border-color);
+  border-radius: 8px; background: transparent; color: var(--text-primary);
+  font-size: 14px; font-weight: 600; cursor: pointer;
+}
+.customer-delete-cancel:hover { background: var(--bg); }
+.customer-delete-confirm {
+  flex: 1; padding: 10px; border: none;
+  border-radius: 8px; background: #d93025; color: #fff;
+  font-size: 14px; font-weight: 700; cursor: pointer;
+  transition: opacity 0.15s;
+}
+.customer-delete-confirm:hover { opacity: 0.88; }
+.customer-delete-confirm:disabled, .customer-delete-cancel:disabled { opacity: 0.6; cursor: not-allowed; }
+
 .job-delivery-map,
 .detail-map-link { display: inline-flex; align-items: center; gap: 5px; min-height: 32px; color: var(--accent-strong); font-size: 12.5px; font-weight: 800; text-decoration: none; }
 .job-delivery-map:hover,
