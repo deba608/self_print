@@ -2019,26 +2019,17 @@ input, select, button {
 .contact-btn:active {
   transform: scale(0.97);
 }
-.contact-btn-call {
+.contact-btn-call,
+.contact-btn-wp {
   border: 1px solid var(--line);
   background: var(--bg, #f4f6f8);
   color: var(--ink);
 }
-.contact-btn-call:hover {
+.contact-btn-call:hover,
+.contact-btn-wp:hover {
   border-color: var(--accent);
   background: var(--accent-light);
   color: var(--accent-strong);
-}
-.contact-btn-wp {
-  border: 1px solid rgba(18, 140, 126, 0.2);
-  background: linear-gradient(135deg, #128c7e 0%, #0d7a74 100%);
-  color: #ffffff;
-  box-shadow: 0 2px 6px rgba(13, 122, 116, 0.2);
-}
-.contact-btn-wp:hover {
-  background: linear-gradient(135deg, #0f766e 0%, #085f59 100%);
-  box-shadow: 0 4px 12px rgba(13, 122, 116, 0.3);
-  color: #ffffff;
 }
 @media (max-width: 480px) {
   .contact-card-body {
