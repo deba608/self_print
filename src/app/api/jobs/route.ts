@@ -331,7 +331,7 @@ export async function POST(request: NextRequest) {
     // collapses into a bare "Upload failed" with nothing to debug from. Log the
     // real cause server-side; the customer still sees the generic message.
     console.error("[/api/jobs] job creation failed:", error);
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Upload failed" }, { status: 400 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : JSON.stringify(error) }, { status: 400 });
   }
 }
 
