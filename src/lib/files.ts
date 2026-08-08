@@ -10,9 +10,19 @@ const allowed = new Map<string, { extensions: string[]; kind: FileKind }>([
   ["image/png", { extensions: [".png"], kind: "image" }]
 ]);
 
+// Some Android browsers report an empty MIME type for valid files.
+// Fall back to an extension-based guess so those uploads aren't rejected.
+const extToMime: Record<string, string> = {
+  ".pdf": "application/pdf",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".png": "image/png",
+};
+
 export function validateUpload(fileName: string, mimeType: string) {
   const ext = path.extname(fileName).toLowerCase();
-  const rule = allowed.get(mimeType);
+  const effectiveMime = mimeType || extToMime[ext] || "";
+  const rule = allowed.get(effectiveMime);
   if (!rule || !rule.extensions.includes(ext)) {
     throw new Error("Only PDF, JPG, and PNG files are allowed. Please convert Word documents to PDF before uploading.");
   }
