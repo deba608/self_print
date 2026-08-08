@@ -33,7 +33,11 @@ export function selectedPageCount(pageCount?: number | null, pageRange?: string 
 }
 
 export function calculateSpiralBindingPrice(selectedPages: number, pricing: PricingConfig) {
-  return selectedPages * pricing.spiralBindingPerPagePaise;
+  if (selectedPages <= 70) return pricing.spiralBindingSlab1Paise;
+  if (selectedPages <= 100) return pricing.spiralBindingSlab2Paise;
+  if (selectedPages <= 150) return pricing.spiralBindingSlab3Paise;
+  if (selectedPages <= 200) return pricing.spiralBindingSlab4Paise;
+  return pricing.spiralBindingSlab5Paise;
 }
 
 export function calculatePrice(input: {
