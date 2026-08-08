@@ -327,6 +327,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ jobId, token, pricePaise, deliveryFeePaise, addonFeePaise, needsConversion: Boolean(needsConversion), pageCount, queuePosition: queuePos });
   } catch (error) {
+    console.error("[DIAG /api/jobs]", error);
     return NextResponse.json({ error: error instanceof Error ? error.message : "Upload failed" }, { status: 400 });
   }
 }
