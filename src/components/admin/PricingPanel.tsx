@@ -24,6 +24,12 @@ const defaultPricing: NumericPricing = {
   duplexBwPerPagePaise: 100,
   spiralBindingPerPagePaise: 150,
   coverFilePaise: 1000,
+  bondPaperPerPagePaise: 100,
+  spiralBindingSlab1Paise: 2000,
+  spiralBindingSlab2Paise: 2500,
+  spiralBindingSlab3Paise: 3000,
+  spiralBindingSlab4Paise: 4000,
+  spiralBindingSlab5Paise: 5000,
   expiryMinutes: 1440,
   deliveryFeePaise: 0,
 };
@@ -72,6 +78,12 @@ export default function PricingPanel({
     spiralBindingPerPagePaise: formatPaiseInput((pricing || defaultPricing).spiralBindingPerPagePaise),
     coverFilePaise: formatPaiseInput((pricing || defaultPricing).coverFilePaise),
     deliveryFeePaise: formatPaiseInput((pricing || defaultPricing).deliveryFeePaise),
+    bondPaperPerPagePaise: formatPaiseInput((pricing || defaultPricing).bondPaperPerPagePaise),
+    spiralBindingSlab1Paise: formatPaiseInput((pricing || defaultPricing).spiralBindingSlab1Paise),
+    spiralBindingSlab2Paise: formatPaiseInput((pricing || defaultPricing).spiralBindingSlab2Paise),
+    spiralBindingSlab3Paise: formatPaiseInput((pricing || defaultPricing).spiralBindingSlab3Paise),
+    spiralBindingSlab4Paise: formatPaiseInput((pricing || defaultPricing).spiralBindingSlab4Paise),
+    spiralBindingSlab5Paise: formatPaiseInput((pricing || defaultPricing).spiralBindingSlab5Paise),
   });
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -88,6 +100,12 @@ export default function PricingPanel({
       spiralBindingPerPagePaise: formatPaiseInput(nextPricing.spiralBindingPerPagePaise),
       coverFilePaise: formatPaiseInput(nextPricing.coverFilePaise),
       deliveryFeePaise: formatPaiseInput(nextPricing.deliveryFeePaise),
+      bondPaperPerPagePaise: formatPaiseInput(nextPricing.bondPaperPerPagePaise),
+      spiralBindingSlab1Paise: formatPaiseInput(nextPricing.spiralBindingSlab1Paise),
+      spiralBindingSlab2Paise: formatPaiseInput(nextPricing.spiralBindingSlab2Paise),
+      spiralBindingSlab3Paise: formatPaiseInput(nextPricing.spiralBindingSlab3Paise),
+      spiralBindingSlab4Paise: formatPaiseInput(nextPricing.spiralBindingSlab4Paise),
+      spiralBindingSlab5Paise: formatPaiseInput(nextPricing.spiralBindingSlab5Paise),
     });
   }, [pricing]);
 
@@ -102,7 +120,7 @@ export default function PricingPanel({
     setError("");
   };
 
-  const updatePriceField = (field: "bwPerPagePaise" | "colorPerPagePaise" | "photoPrintPaise" | "duplexBwPerPagePaise" | "spiralBindingPerPagePaise" | "coverFilePaise" | "deliveryFeePaise", rawValue: string) => {
+  const updatePriceField = (field: "bwPerPagePaise" | "colorPerPagePaise" | "photoPrintPaise" | "duplexBwPerPagePaise" | "spiralBindingPerPagePaise" | "coverFilePaise" | "deliveryFeePaise" | "bondPaperPerPagePaise" | "spiralBindingSlab1Paise" | "spiralBindingSlab2Paise" | "spiralBindingSlab3Paise" | "spiralBindingSlab4Paise" | "spiralBindingSlab5Paise", rawValue: string) => {
     setPriceInputs(prev => ({ ...prev, [field]: rawValue }));
     if (rawValue === "") {
       setFormData(prev => ({ ...prev, [field]: "" }));
@@ -217,18 +235,18 @@ export default function PricingPanel({
                 <span className="pricing-hint">Added once per home-delivery order, on top of the print cost.</span>
               </div>
               <div className="pricing-field">
-                <label>Spiral Binding (per page, ₹)</label>
+                <label>Bond Paper (per page, ₹)</label>
                 <div className="price-input">
                   <span className="currency">₹</span>
                   <input
                     type="number"
                     step="0.01"
                     min="0"
-                    value={priceInputs.spiralBindingPerPagePaise}
-                    onChange={(e) => updatePriceField("spiralBindingPerPagePaise", e.target.value)}
+                    value={priceInputs.bondPaperPerPagePaise}
+                    onChange={(e) => updatePriceField("bondPaperPerPagePaise", e.target.value)}
                   />
                 </div>
-                <span className="pricing-hint">Charged per printed page when spiral binding is selected.</span>
+                <span className="pricing-hint">Charged per page when Bond Paper is selected.</span>
               </div>
               <div className="pricing-field">
                 <label>Cover File (flat, ₹)</label>
@@ -243,6 +261,71 @@ export default function PricingPanel({
                   />
                 </div>
                 <span className="pricing-hint">Added once per job when a cover file is selected.</span>
+              </div>
+              <div className="pricing-field">
+                <label>Spiral Binding 0-70 pages (flat, ₹)</label>
+                <div className="price-input">
+                  <span className="currency">₹</span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={priceInputs.spiralBindingSlab1Paise}
+                    onChange={(e) => updatePriceField("spiralBindingSlab1Paise", e.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="pricing-field">
+                <label>Spiral Binding 71-100 pages (flat, ₹)</label>
+                <div className="price-input">
+                  <span className="currency">₹</span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={priceInputs.spiralBindingSlab2Paise}
+                    onChange={(e) => updatePriceField("spiralBindingSlab2Paise", e.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="pricing-field">
+                <label>Spiral Binding 101-150 pages (flat, ₹)</label>
+                <div className="price-input">
+                  <span className="currency">₹</span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={priceInputs.spiralBindingSlab3Paise}
+                    onChange={(e) => updatePriceField("spiralBindingSlab3Paise", e.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="pricing-field">
+                <label>Spiral Binding 151-200 pages (flat, ₹)</label>
+                <div className="price-input">
+                  <span className="currency">₹</span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={priceInputs.spiralBindingSlab4Paise}
+                    onChange={(e) => updatePriceField("spiralBindingSlab4Paise", e.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="pricing-field">
+                <label>Spiral Binding >200 pages (flat, ₹)</label>
+                <div className="price-input">
+                  <span className="currency">₹</span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={priceInputs.spiralBindingSlab5Paise}
+                    onChange={(e) => updatePriceField("spiralBindingSlab5Paise", e.target.value)}
+                  />
+                </div>
               </div>
             </div>
           </section>
