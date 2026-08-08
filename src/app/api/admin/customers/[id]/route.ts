@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminResponse } from "@/lib/security";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function DELETE(
   _req: NextRequest,
@@ -13,21 +13,29 @@ export async function DELETE(
   if (!id) return NextResponse.json({ error: "Missing customer id" }, { status: 400 });
 
   try {
-    const supabase = await createClient();
+    const supabase = createAdminClient();
 
-    // Remove from customer_profiles first (FK cascade handles related data).
-    const { error: profileError } = await supabase
-      .from("customer_profiles")
-      .delete()
-      .eq("id", id);
+    if (id.startsWith("guest:")) {
+      // Guest delivery customers have no auth user or customer_profiles row.
+      // "Delete" = anonymize their jobs so PII is removed.
+      const phone = id.slice("guest:".length);
+      const { error } = await supabase
+        .from("jobs")
+        .update({ customer_name: null, customer_phone: null, delivery_address: null })
+        .eq("customer_phone", phone)
+        .is("customer_user_id", null);
+      if (error) throw error;
+    } else {
+      // Registered customer — delete profile row then auth account.
+      const { error: profileError } = await supabase
+        .from("customer_profiles")
+        .delete()
+        .eq("id", id);
+      if (profileError) throw profileError;
 
-    if (profileError) throw profileError;
-
-    // Also delete the auth user so they can't log in. Uses service-role via
-    // the server client — safe since this route is admin-only.
-    const { error: authError } = await supabase.auth.admin.deleteUser(id);
-    // Auth user may not exist for guest delivery customers — ignore that case.
-    if (authError && !authError.message?.includes("not found")) throw authError;
+      const { error: authError } = await supabase.auth.admin.deleteUser(id);
+      if (authError && !authError.message?.toLowerCase().includes("not found")) throw authError;
+    }
 
     return NextResponse.json({ ok: true });
   } catch (err: unknown) {
