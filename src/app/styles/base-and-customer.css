@@ -2034,7 +2034,22 @@ input, select, button {
 @media (max-width: 480px) {
   .contact-card-body {
     flex-direction: column;
-    align-items: flex-start;
+    align-items: stretch;
+    gap: 10px;
+  }
+  .contact-card-text {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    gap: 8px;
+  }
+  .contact-card-label {
+    font-size: 13px;
+  }
+  .contact-card-number {
+    font-size: 13.5px;
+    white-space: nowrap;
   }
   .contact-card-actions {
     width: 100%;
