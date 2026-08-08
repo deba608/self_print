@@ -40,13 +40,29 @@ export async function DELETE(
     return NextResponse.json({ ok: true });
   } catch (err: unknown) {
     console.error("[DELETE /api/admin/customers/[id]]", err);
-    let msg = "Delete failed";
-    if (err instanceof Error) {
-      msg = err.message;
-    } else if (err && typeof err === "object") {
-      const e = err as Record<string, unknown>;
-      msg = String(e.message ?? e.msg ?? e.details ?? e.error ?? JSON.stringify(err));
-    }
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return NextResponse.json({ error: `v2: ${describeError(err)}` }, { status: 500 });
   }
+}
+
+// Supabase/Postgrest errors carry `message` as a non-enumerable property, so a
+// plain JSON.stringify() collapses them to "{}". Walk own property names to
+// build something that always identifies the failure.
+function describeError(err: unknown): string {
+  if (typeof err === "string") return err;
+  if (!err || typeof err !== "object") return String(err);
+
+  const e = err as Record<string, unknown>;
+  const parts: string[] = [];
+  for (const key of ["message", "details", "hint", "code", "status", "name"]) {
+    const value = e[key];
+    if (value !== undefined && value !== null && value !== "") {
+      parts.push(`${key}=${String(value)}`);
+    }
+  }
+  if (parts.length > 0) return parts.join(" | ");
+
+  const own = Object.getOwnPropertyNames(err)
+    .map((key) => `${key}=${String(e[key])}`)
+    .join(" | ");
+  return own || Object.prototype.toString.call(err);
 }
