@@ -1797,10 +1797,11 @@ input, select, button {
 
 /* Enhanced Add-on Cards (Spiral Binding & Cover File) */
 .addon-cards-group {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 10px;
   margin-top: 12px;
+  align-items: start;
 }
 
 .addon-card {

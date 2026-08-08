@@ -1789,7 +1789,7 @@ export default function UploadForm() {
                   />
                   <div className="addon-card-content">
                     <div className="addon-card-top">
-                      <span className="addon-card-title">Cover File / Folder</span>
+                      <span className="addon-card-title">Cover File</span>
                       {pricing && (
                         <span className="addon-card-price">
                           +{formatRupees(pricing.coverFilePaise * coverFileQty)}
