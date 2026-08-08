@@ -42,6 +42,7 @@ type Detail = {
     deliveryStatus?: "pending" | "packed" | "picked_up" | "out_for_delivery" | "delivered" | null;
     deliveryPersonId?: string | null;
     deliveryPersonName?: string | null;
+    customNote?: string | null;
     deliveryLatitude?: number | null;
     deliveryLongitude?: number | null;
     deliveryAccuracyMeters?: number | null;

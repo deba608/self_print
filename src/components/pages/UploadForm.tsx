@@ -37,6 +37,8 @@ export default function UploadForm() {
   const [hasSpiralBinding, setHasSpiralBinding] = useState(false);
   const [hasCoverFile, setHasCoverFile] = useState(false);
   const [hasBondPaper, setHasBondPaper] = useState(false);
+  const [customNote, setCustomNote] = useState("");
+  const [wantContact, setWantContact] = useState(false);
   const [spiralBindingQty, setSpiralBindingQty] = useState(1);
   const [coverFileQty, setCoverFileQty] = useState(1);
   const [busy, setBusy] = useState(false);
@@ -912,6 +914,7 @@ export default function UploadForm() {
       bulkForm.set("hasBondPaper", String(hasBondPaper));
       bulkForm.set("spiralBindingQty", String(spiralBindingQty));
       bulkForm.set("coverFileQty", String(coverFileQty));
+      if (customNote.trim()) bulkForm.set("customNote", customNote.trim());
       appendDeliveryDetails(bulkForm);
 
       if (uploadResults.some((r) => r.fallback)) {
@@ -1007,6 +1010,7 @@ export default function UploadForm() {
     form.set("hasBondPaper", String(hasBondPaper));
     form.set("spiralBindingQty", String(spiralBindingQty));
     form.set("coverFileQty", String(coverFileQty));
+    if (customNote.trim()) form.set("customNote", customNote.trim());
     appendDeliveryDetails(form);
 
     const controller = new AbortController();
@@ -1092,6 +1096,8 @@ export default function UploadForm() {
     setHasSpiralBinding(false);
     setHasCoverFile(false);
     setHasBondPaper(false);
+    setCustomNote("");
+    setWantContact(false);
     setSpiralBindingQty(1);
     setCoverFileQty(1);
     setFilePageCount(null);
@@ -1912,6 +1918,60 @@ export default function UploadForm() {
               </div>
             </div>
           </details>
+
+          {/* Custom note + contact section */}
+          <div className="form-group">
+            <label htmlFor="custom-note-input">Additional instructions (optional)</label>
+            <textarea
+              id="custom-note-input"
+              className="custom-note-textarea"
+              placeholder="e.g. Print on one side only, staple top-left corner, specific colour preferences…"
+              maxLength={250}
+              rows={3}
+              value={customNote}
+              onChange={(e) => setCustomNote(e.target.value.slice(0, 250))}
+              aria-label="Additional instructions for the print shop"
+            />
+            <span className="range-hint">{customNote.length}/250</span>
+          </div>
+
+          <div className="form-group">
+            <div className={`addon-card ${wantContact ? "active" : ""}`} style={{ cursor: "default" }}>
+              <div className="addon-card-main">
+                <button
+                  type="button"
+                  role="checkbox"
+                  aria-checked={wantContact}
+                  className={`addon-check ${wantContact ? "on" : ""}`}
+                  aria-label="Toggle contact for customization"
+                  onClick={() => setWantContact(v => !v)}
+                >
+                  {wantContact && <Check size={14} strokeWidth={3} />}
+                </button>
+                <span className="addon-card-title">Need customization? Contact us</span>
+              </div>
+              {wantContact && (
+                <div className="contact-info-box">
+                  <p className="contact-info-line">
+                    Call or WhatsApp us at <strong>+91 87630 52472</strong> to discuss your requirements.
+                  </p>
+                  <div className="contact-info-actions">
+                    <a href="tel:+918763052472" className="contact-action-btn">
+                      <span>📞</span> Call
+                    </a>
+                    <a
+                      href="https://wa.me/918763052472"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="contact-action-btn contact-action-wp"
+                    >
+                      <span>💬</span> WhatsApp
+                    </a>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
 
           </div>{/* /fs-settings */}
 
