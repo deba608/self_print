@@ -1251,6 +1251,18 @@ export default function UploadForm() {
               <span>{error}</span>
             </div>
           )}
+
+          <div className="made-by-credit">
+            <span>Made with ♥ by </span>
+            <a
+              href="https://github.com/deba608"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="made-by-link"
+            >
+              &lt;Debashish /&gt;
+            </a>
+          </div>
         </div>
       )}
 
