@@ -1735,68 +1735,96 @@ export default function UploadForm() {
             <label className="select-label">Finishing & Binding Add-ons</label>
             <div className="addon-cards-group">
 
-              {/* Spiral Binding Card — compact with stepper */}
+              {/* Spiral Binding Card — one row: checkbox, qty, price */}
               <div className={`addon-card ${hasSpiralBinding ? "active" : ""}`}>
-                <label className="addon-card-main">
-                  <input
-                    type="checkbox"
-                    className="addon-card-checkbox"
-                    checked={hasSpiralBinding}
-                    onChange={(e) => {
-                      setHasSpiralBinding(e.target.checked);
-                      if (!e.target.checked) setSpiralBindingQty(1);
-                    }}
-                  />
-                  <div className="addon-card-info">
+                <div className="addon-card-main">
+                  <label className="addon-card-check-label">
+                    <input
+                      type="checkbox"
+                      className="addon-card-checkbox"
+                      checked={hasSpiralBinding}
+                      onChange={(e) => {
+                        setHasSpiralBinding(e.target.checked);
+                        if (!e.target.checked) setSpiralBindingQty(1);
+                      }}
+                    />
                     <span className="addon-card-title">Spiral Binding</span>
+                  </label>
+                  <div className="addon-card-right">
+                    {hasSpiralBinding && (
+                      <div className="addon-qty-ctrl">
+                        <button
+                          type="button"
+                          className="addon-qty-btn"
+                          onClick={() => {
+                            if (spiralBindingQty <= 1) {
+                              setHasSpiralBinding(false);
+                              setSpiralBindingQty(1);
+                            } else {
+                              setSpiralBindingQty(q => q - 1);
+                            }
+                          }}
+                          aria-label="Decrease"
+                        >
+                          −
+                        </button>
+                        <span className="addon-qty-val">{spiralBindingQty}</span>
+                        <button type="button" className="addon-qty-btn" onClick={() => setSpiralBindingQty(q => Math.min(99, q + 1))} aria-label="Increase">+</button>
+                      </div>
+                    )}
                     {pricing && (
                       <span className="addon-card-price">
                         +{formatRupees((isBulk ? bulkTotalPages : selectedPages) * pricing.spiralBindingPerPagePaise * spiralBindingQty)}
                       </span>
                     )}
                   </div>
-                </label>
-                {hasSpiralBinding && (
-                  <div className="addon-card-qty-row">
-                    <div className="addon-qty-ctrl">
-                      <button type="button" className="addon-qty-btn" onClick={() => setSpiralBindingQty(q => Math.max(1, q - 1))} aria-label="Decrease">−</button>
-                      <span className="addon-qty-val">{spiralBindingQty}</span>
-                      <button type="button" className="addon-qty-btn" onClick={() => setSpiralBindingQty(q => Math.min(99, q + 1))} aria-label="Increase">+</button>
-                    </div>
-                  </div>
-                )}
+                </div>
               </div>
 
-              {/* Cover File Card — compact with stepper */}
+              {/* Cover File Card — one row: checkbox, qty, price */}
               <div className={`addon-card ${hasCoverFile ? "active" : ""}`}>
-                <label className="addon-card-main">
-                  <input
-                    type="checkbox"
-                    className="addon-card-checkbox"
-                    checked={hasCoverFile}
-                    onChange={(e) => {
-                      setHasCoverFile(e.target.checked);
-                      if (!e.target.checked) setCoverFileQty(1);
-                    }}
-                  />
-                  <div className="addon-card-info">
+                <div className="addon-card-main">
+                  <label className="addon-card-check-label">
+                    <input
+                      type="checkbox"
+                      className="addon-card-checkbox"
+                      checked={hasCoverFile}
+                      onChange={(e) => {
+                        setHasCoverFile(e.target.checked);
+                        if (!e.target.checked) setCoverFileQty(1);
+                      }}
+                    />
                     <span className="addon-card-title">Cover File</span>
+                  </label>
+                  <div className="addon-card-right">
+                    {hasCoverFile && (
+                      <div className="addon-qty-ctrl">
+                        <button
+                          type="button"
+                          className="addon-qty-btn"
+                          onClick={() => {
+                            if (coverFileQty <= 1) {
+                              setHasCoverFile(false);
+                              setCoverFileQty(1);
+                            } else {
+                              setCoverFileQty(q => q - 1);
+                            }
+                          }}
+                          aria-label="Decrease"
+                        >
+                          −
+                        </button>
+                        <span className="addon-qty-val">{coverFileQty}</span>
+                        <button type="button" className="addon-qty-btn" onClick={() => setCoverFileQty(q => Math.min(99, q + 1))} aria-label="Increase">+</button>
+                      </div>
+                    )}
                     {pricing && (
                       <span className="addon-card-price">
                         +{formatRupees(pricing.coverFilePaise * coverFileQty)}
                       </span>
                     )}
                   </div>
-                </label>
-                {hasCoverFile && (
-                  <div className="addon-card-qty-row">
-                    <div className="addon-qty-ctrl">
-                      <button type="button" className="addon-qty-btn" onClick={() => setCoverFileQty(q => Math.max(1, q - 1))} aria-label="Decrease">−</button>
-                      <span className="addon-qty-val">{coverFileQty}</span>
-                      <button type="button" className="addon-qty-btn" onClick={() => setCoverFileQty(q => Math.min(99, q + 1))} aria-label="Increase">+</button>
-                    </div>
-                  </div>
-                )}
+                </div>
               </div>
 
             </div>

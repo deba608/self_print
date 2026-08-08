@@ -969,6 +969,12 @@ export async function getPricing(): Promise<PricingConfig> {
     duplexBwPerPagePaise: (row.duplex_bw_per_page_paise as number) ?? 100,
     spiralBindingPerPagePaise: (row.spiral_binding_per_page_paise as number) ?? 150,
     coverFilePaise: (row.cover_file_paise as number) ?? 1000,
+    bondPaperPerPagePaise: (row.bond_paper_per_page_paise as number) ?? 100,
+    spiralBindingSlab1Paise: (row.spiral_binding_slab1_paise as number) ?? 2000,
+    spiralBindingSlab2Paise: (row.spiral_binding_slab2_paise as number) ?? 2500,
+    spiralBindingSlab3Paise: (row.spiral_binding_slab3_paise as number) ?? 3000,
+    spiralBindingSlab4Paise: (row.spiral_binding_slab4_paise as number) ?? 4000,
+    spiralBindingSlab5Paise: (row.spiral_binding_slab5_paise as number) ?? 5000,
     expiryMinutes: (row.expiry_minutes as number) ?? 1440,
     deliveryFeePaise: (row.delivery_fee_paise as number) ?? 0,
     serviceArea: parseServiceAreaConfig(row.service_area_config as string)
@@ -992,6 +998,9 @@ export async function updatePricing(pricing: PricingConfig): Promise<void> {
       copy_multiplier = ?, a3_multiplier = ?, a4_multiplier = ?, a5_multiplier = ?,
       a6_multiplier = ?, b5_multiplier = ?, legal_multiplier = ?, photo_multiplier = ?,
       duplex_bw_per_page_paise = ?, spiral_binding_per_page_paise = ?, cover_file_paise = ?,
+      bond_paper_per_page_paise = ?, spiral_binding_slab1_paise = ?,
+      spiral_binding_slab2_paise = ?, spiral_binding_slab3_paise = ?,
+      spiral_binding_slab4_paise = ?, spiral_binding_slab5_paise = ?,
        expiry_minutes = ?, delivery_fee_paise = ?, service_area_config = ?, updated_at = ?
     WHERE id = 1
   `).run(
@@ -999,6 +1008,9 @@ export async function updatePricing(pricing: PricingConfig): Promise<void> {
      pricing.copyMultiplier, pricing.a3Multiplier, pricing.a4Multiplier, pricing.a5Multiplier,
      pricing.a6Multiplier, pricing.b5Multiplier, pricing.legalMultiplier, pricing.photoMultiplier,
      pricing.duplexBwPerPagePaise, pricing.spiralBindingPerPagePaise, pricing.coverFilePaise,
+     pricing.bondPaperPerPagePaise, pricing.spiralBindingSlab1Paise,
+     pricing.spiralBindingSlab2Paise, pricing.spiralBindingSlab3Paise,
+     pricing.spiralBindingSlab4Paise, pricing.spiralBindingSlab5Paise,
      pricing.expiryMinutes, pricing.deliveryFeePaise,
      serializeServiceAreaConfig(pricing.serviceArea), now
   );
