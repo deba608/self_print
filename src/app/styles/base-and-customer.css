@@ -2080,7 +2080,6 @@ input, select, button {
 .made-by-link {
   color: var(--muted);
   text-decoration: none;
-  font-family: monospace;
   font-weight: 600;
   transition: color 0.15s;
 }

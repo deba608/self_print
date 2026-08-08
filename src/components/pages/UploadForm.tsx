@@ -1260,7 +1260,7 @@ export default function UploadForm() {
               rel="noopener noreferrer"
               className="made-by-link"
             >
-              &lt;Debashish /&gt;
+              &lt;Debashish/&gt;
             </a>
           </div>
         </div>
