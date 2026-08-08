@@ -16,8 +16,7 @@ export type BillData = {
     pagesPerSheet: number;
     hasSpiralBinding?: boolean;
     hasCoverFile?: boolean;
-    spiralBindingPerPagePaise?: number;
-    spiralBindingPages?: number;
+    spiralBindingSlabPaise?: number;
     spiralBindingQty?: number;
     coverFilePaise?: number;
     coverFileQty?: number;
@@ -52,8 +51,8 @@ export default function BillReceipt({ bill }: { bill: BillData }) {
   ].filter(Boolean).join(" · ");
 
   const spiralTotalPaise =
-    bill.settings.spiralBindingPerPagePaise != null && bill.settings.spiralBindingPages != null
-      ? bill.settings.spiralBindingPerPagePaise * bill.settings.spiralBindingPages * (bill.settings.spiralBindingQty ?? 1)
+    bill.settings.spiralBindingSlabPaise != null
+      ? bill.settings.spiralBindingSlabPaise * (bill.settings.spiralBindingQty ?? 1)
       : 0;
 
   async function saveAsImage() {
@@ -103,11 +102,11 @@ export default function BillReceipt({ bill }: { bill: BillData }) {
         {bill.settings.copies > 1 && (
           <div className="bill-line"><span>Copies × {bill.settings.copies}</span></div>
         )}
-        {bill.settings.hasSpiralBinding && bill.settings.spiralBindingPerPagePaise != null && bill.settings.spiralBindingPages != null && (
+        {bill.settings.hasSpiralBinding && bill.settings.spiralBindingSlabPaise != null && (
           <div className="bill-line">
             <span>Spiral Binding{(bill.settings.spiralBindingQty ?? 1) > 1 ? ` ×${bill.settings.spiralBindingQty}` : ""}</span>
             <span className="bill-line-right">
-              {bill.settings.spiralBindingPages} pg × {rupees(bill.settings.spiralBindingPerPagePaise)}{(bill.settings.spiralBindingQty ?? 1) > 1 ? ` ×${bill.settings.spiralBindingQty}` : ""} = {rupees(spiralTotalPaise)}
+              {rupees(bill.settings.spiralBindingSlabPaise)}{(bill.settings.spiralBindingQty ?? 1) > 1 ? ` ×${bill.settings.spiralBindingQty}` : ""} = {rupees(spiralTotalPaise)}
             </span>
           </div>
         )}
@@ -146,8 +145,8 @@ async function renderBillPng(bill: BillData): Promise<Blob> {
   const lineH = 22;
 
   const spiralTotalPaise =
-    bill.settings.spiralBindingPerPagePaise != null && bill.settings.spiralBindingPages != null
-      ? bill.settings.spiralBindingPerPagePaise * bill.settings.spiralBindingPages
+    bill.settings.spiralBindingSlabPaise != null
+      ? bill.settings.spiralBindingSlabPaise * (bill.settings.spiralBindingQty ?? 1)
       : 0;
 
   // Height: head(64) + meta(26) + files + settings/breakdown + footer block.
@@ -241,11 +240,11 @@ async function renderBillPng(bill: BillData): Promise<Blob> {
     ctx.fillText(`Copies × ${bill.settings.copies}`, left, y);
     y += lineH;
   }
-   if (bill.settings.hasSpiralBinding && bill.settings.spiralBindingPerPagePaise != null && bill.settings.spiralBindingPages != null) {
+   if (bill.settings.hasSpiralBinding && bill.settings.spiralBindingSlabPaise != null) {
      ctx.textAlign = "left";
      ctx.fillText("Spiral Binding", left, y);
      ctx.textAlign = "right";
-     ctx.fillText(`${bill.settings.spiralBindingPages} pg × ${rupees(bill.settings.spiralBindingPerPagePaise)} = ${rupees(spiralTotalPaise)}`, right, y);
+     ctx.fillText(`${rupees(bill.settings.spiralBindingSlabPaise)}${(bill.settings.spiralBindingQty ?? 1) > 1 ? ` ×${bill.settings.spiralBindingQty}` : ""} = ${rupees(spiralTotalPaise)}`, right, y);
      y += lineH;
    }
   if (bill.settings.hasCoverFile && bill.settings.coverFilePaise != null) {

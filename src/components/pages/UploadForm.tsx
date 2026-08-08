@@ -1786,7 +1786,7 @@ export default function UploadForm() {
                     )}
                     {pricing && (
                       <span className="addon-card-price">
-                        +{formatRupees((isBulk ? bulkTotalPages : selectedPages) * pricing.spiralBindingPerPagePaise * spiralBindingQty)}
+                        +{formatRupees(calculateSpiralBindingPrice(isBulk ? bulkTotalPages : selectedPages, pricing) * spiralBindingQty)}
                       </span>
                     )}
                   </div>
@@ -2424,12 +2424,6 @@ export default function UploadForm() {
                   <div className="total-price-row">
                     <span>Bond Paper</span>
                     <span>₹{((isBulk ? bulkTotalPages : selectedPages) * pricing.bondPaperPerPagePaise / 100).toFixed(2)}</span>
-                  </div>
-                )}
-                {hasCoverFile && (
-                  <div className="total-price-row">
-                    <span>Cover File</span>
-                    <span>₹{(pricing.coverFilePaise / 100).toFixed(2)}</span>
                   </div>
                 )}
                 {deliveryMethod === "delivery" && (

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Check, CreditCard, Loader2, Printer, Search, Smartphone, Star, Store, Truck, UploadCloud, X } from "lucide-react";
 import BillReceipt, { type BillData } from "../BillReceipt";
 import { loadRazorpayCheckout, type Pricing } from "./shared";
+import { calculateSpiralBindingPrice } from "@/lib/pricing";
 
 export type JobResult = {
   token: string;
@@ -119,8 +120,7 @@ export default function ResultScreen({
     files: billFiles,
     settings: {
       printType, duplex, paperSize, copies, pagesPerSheet, hasSpiralBinding, hasCoverFile,
-      spiralBindingPerPagePaise: hasSpiralBinding && pricing ? pricing.spiralBindingPerPagePaise : undefined,
-      spiralBindingPages: hasSpiralBinding ? settings.spiralBindingPages : undefined,
+      spiralBindingSlabPaise: hasSpiralBinding && pricing ? calculateSpiralBindingPrice(settings.spiralBindingPages ?? 1, pricing) : undefined,
       spiralBindingQty: settings.spiralBindingQty,
       coverFilePaise: hasCoverFile && pricing ? pricing.coverFilePaise : undefined,
       coverFileQty: settings.coverFileQty,

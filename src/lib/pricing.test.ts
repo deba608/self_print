@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { calculatePrice } from "./pricing";
+import { calculatePrice, calculateSpiralBindingPrice } from "./pricing";
 import type { PricingConfig } from "./types";
 import { DEFAULT_SERVICE_AREA } from "./service-area";
 
@@ -18,6 +18,12 @@ const pricing: PricingConfig = {
   duplexBwPerPagePaise: 300,
   spiralBindingPerPagePaise: 150,
   coverFilePaise: 1000,
+  bondPaperPerPagePaise: 100,
+  spiralBindingSlab1Paise: 2000,
+  spiralBindingSlab2Paise: 2500,
+  spiralBindingSlab3Paise: 3000,
+  spiralBindingSlab4Paise: 4000,
+  spiralBindingSlab5Paise: 5000,
   expiryMinutes: 30,
   deliveryFeePaise: 0,
   serviceArea: DEFAULT_SERVICE_AREA,
@@ -81,5 +87,19 @@ describe("calculatePrice pagesPerSheet", () => {
       pagesPerSheet: 4,
     });
     expect(price).toBe(3 * pricing.bwPerPagePaise);
+  });
+});
+
+describe("calculateSpiralBindingPrice slabs", () => {
+  it("charges the correct slab for each page range", () => {
+    expect(calculateSpiralBindingPrice(1, pricing)).toBe(2000);   // 0-70
+    expect(calculateSpiralBindingPrice(70, pricing)).toBe(2000);  // 0-70
+    expect(calculateSpiralBindingPrice(71, pricing)).toBe(2500);  // 71-100
+    expect(calculateSpiralBindingPrice(100, pricing)).toBe(2500); // 71-100
+    expect(calculateSpiralBindingPrice(101, pricing)).toBe(3000); // 101-150
+    expect(calculateSpiralBindingPrice(150, pricing)).toBe(3000); // 101-150
+    expect(calculateSpiralBindingPrice(151, pricing)).toBe(4000); // 151-200
+    expect(calculateSpiralBindingPrice(200, pricing)).toBe(4000); // 151-200
+    expect(calculateSpiralBindingPrice(201, pricing)).toBe(5000); // >200
   });
 });
