@@ -1735,9 +1735,9 @@ export default function UploadForm() {
             <label className="select-label">Finishing & Binding Add-ons</label>
             <div className="addon-cards-group">
 
-              {/* Spiral Binding Card — compact with qty stepper */}
+              {/* Spiral Binding Card — compact with inline qty stepper */}
               <div className={`addon-card ${hasSpiralBinding ? "active" : ""}`}>
-                <label className="addon-card-toggle-row">
+                <div className="addon-card-toggle-row">
                   <input
                     type="checkbox"
                     className="addon-card-checkbox"
@@ -1757,21 +1757,19 @@ export default function UploadForm() {
                       )}
                     </div>
                   </div>
-                </label>
-                {hasSpiralBinding && (
-                  <div className="addon-qty-row">
-                    <div className="addon-qty-ctrl">
+                  {hasSpiralBinding && (
+                    <div className="addon-qty-ctrl addon-qty-inline">
                       <button type="button" className="addon-qty-btn" onClick={() => setSpiralBindingQty(q => Math.max(1, q - 1))} aria-label="Decrease">−</button>
                       <span className="addon-qty-val">{spiralBindingQty}</span>
                       <button type="button" className="addon-qty-btn" onClick={() => setSpiralBindingQty(q => Math.min(99, q + 1))} aria-label="Increase">+</button>
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
 
-              {/* Cover File Card — compact with qty stepper */}
+              {/* Cover File Card — compact with inline qty stepper */}
               <div className={`addon-card ${hasCoverFile ? "active" : ""}`}>
-                <label className="addon-card-toggle-row">
+                <div className="addon-card-toggle-row">
                   <input
                     type="checkbox"
                     className="addon-card-checkbox"
@@ -1791,16 +1789,14 @@ export default function UploadForm() {
                       )}
                     </div>
                   </div>
-                </label>
-                {hasCoverFile && (
-                  <div className="addon-qty-row">
-                    <div className="addon-qty-ctrl">
+                  {hasCoverFile && (
+                    <div className="addon-qty-ctrl addon-qty-inline">
                       <button type="button" className="addon-qty-btn" onClick={() => setCoverFileQty(q => Math.max(1, q - 1))} aria-label="Decrease">−</button>
                       <span className="addon-qty-val">{coverFileQty}</span>
                       <button type="button" className="addon-qty-btn" onClick={() => setCoverFileQty(q => Math.min(99, q + 1))} aria-label="Increase">+</button>
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
 
             </div>
