@@ -166,6 +166,11 @@ export default function UploadForm() {
       signal.addEventListener("abort", onAbort);
       xhr.open("PUT", url);
       xhr.setRequestHeader("Content-Type", file.type || "application/octet-stream");
+      const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
+      if (anonKey) {
+        xhr.setRequestHeader("apikey", anonKey);
+        xhr.setRequestHeader("Authorization", `Bearer ${anonKey}`);
+      }
       xhr.upload.onprogress = (e) => {
         if (e.lengthComputable) onProgress(e.loaded);
       };

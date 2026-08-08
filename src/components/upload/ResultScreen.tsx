@@ -33,7 +33,7 @@ export default function ResultScreen({
   pricing: Pricing | null;
   deliveryMethod: "pickup" | "delivery";
   billFiles: { name: string; pages: number }[];
-  settings: { printType: string; duplex: string; paperSize: string; copies: number; pagesPerSheet: number; hasSpiralBinding: boolean; hasCoverFile: boolean; spiralBindingPages?: number; spiralBindingQty?: number; coverFileQty?: number };
+  settings: { printType: string; duplex: string; paperSize: string; copies: number; pagesPerSheet: number; hasSpiralBinding: boolean; hasCoverFile: boolean; hasBondPaper?: boolean; spiralBindingPages?: number; spiralBindingQty?: number; coverFileQty?: number };
   customerPhone?: string;
   customerName?: string;
   onReset: () => void;

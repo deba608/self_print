@@ -18,7 +18,8 @@ export async function PUT(request: NextRequest) {
       "bwPerPagePaise", "colorPerPagePaise", "photoPrintPaise", "copyMultiplier",
       "a3Multiplier", "a4Multiplier", "a5Multiplier", "a6Multiplier", "b5Multiplier",
       "legalMultiplier", "photoMultiplier", "duplexBwPerPagePaise", "spiralBindingPerPagePaise",
-      "coverFilePaise", "expiryMinutes", "deliveryFeePaise"
+      "coverFilePaise", "bondPaperPerPagePaise", "spiralBindingSlab1Paise", "spiralBindingSlab2Paise",
+      "spiralBindingSlab3Paise", "spiralBindingSlab4Paise", "spiralBindingSlab5Paise", "expiryMinutes", "deliveryFeePaise"
     ];
     for (const key of required) {
       if (typeof body[key] !== "number" || body[key] < 0) {
@@ -49,8 +50,14 @@ export async function PUT(request: NextRequest) {
       legalMultiplier: body.legalMultiplier,
       photoMultiplier: body.photoMultiplier,
       duplexBwPerPagePaise: body.duplexBwPerPagePaise,
-       spiralBindingPerPagePaise: body.spiralBindingPerPagePaise,
+      spiralBindingPerPagePaise: body.spiralBindingPerPagePaise,
       coverFilePaise: body.coverFilePaise,
+      bondPaperPerPagePaise: body.bondPaperPerPagePaise,
+      spiralBindingSlab1Paise: body.spiralBindingSlab1Paise,
+      spiralBindingSlab2Paise: body.spiralBindingSlab2Paise,
+      spiralBindingSlab3Paise: body.spiralBindingSlab3Paise,
+      spiralBindingSlab4Paise: body.spiralBindingSlab4Paise,
+      spiralBindingSlab5Paise: body.spiralBindingSlab5Paise,
       expiryMinutes: body.expiryMinutes,
       deliveryFeePaise: body.deliveryFeePaise,
       serviceArea

@@ -24,11 +24,18 @@ export type Pricing = {
   duplexBwPerPagePaise: number;
   spiralBindingPerPagePaise: number;
   coverFilePaise: number;
+  bondPaperPerPagePaise: number;
+  spiralBindingSlab1Paise: number;
+  spiralBindingSlab2Paise: number;
+  spiralBindingSlab3Paise: number;
+  spiralBindingSlab4Paise: number;
+  spiralBindingSlab5Paise: number;
+  expiryMinutes: number;
   deliveryFeePaise: number;
   shopName?: string;
   shopReviewUrl?: string;
   razorpayKeyId?: string;
-  serviceArea?: ServiceAreaConfig;
+  serviceArea: ServiceAreaConfig;
 };
 
 // Loads the Razorpay Standard Checkout script once and resolves when ready.

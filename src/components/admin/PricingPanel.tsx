@@ -315,7 +315,7 @@ export default function PricingPanel({
                 </div>
               </div>
               <div className="pricing-field">
-                <label>Spiral Binding >200 pages (flat, ₹)</label>
+                <label>Spiral Binding &gt;200 pages (flat, ₹)</label>
                 <div className="price-input">
                   <span className="currency">₹</span>
                   <input
