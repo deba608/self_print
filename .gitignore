@@ -17,6 +17,7 @@ dist/
 data/*.sqlite*
 data-test-bulk.sqlite*
 data-test-cleanup-events.sqlite*
+data-test-schema-parity.sqlite*
 
 # Uploads (keep directories, ignore contents)
 uploads/originals/*
