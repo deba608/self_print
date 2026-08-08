@@ -238,17 +238,7 @@ export default function PricingPanel({
 
         <div className="pricing-sections">
           {/* Anchors every edit below to a concrete outcome. */}
-          <div className="pricing-preview" aria-live="polite">
-            <span className="pricing-preview-label">Sample 10-page A4 job</span>
-            <div className="pricing-preview-values">
-              <span className="pricing-preview-chip">
-                B&W <strong>{sample ? rupees(sample.bw) : "—"}</strong>
-              </span>
-              <span className="pricing-preview-chip">
-                Color <strong>{sample ? rupees(sample.color) : "—"}</strong>
-              </span>
-            </div>
-          </div>
+
 
           <section className="pricing-section">
             <h3>Base print prices</h3>
