@@ -1921,6 +1921,68 @@ input, select, button {
   line-height: 1.3;
 }
 
+/* Custom note textarea */
+.custom-note-textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1.5px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-input, var(--bg-card));
+  color: var(--text-primary);
+  font-size: 14px;
+  font-family: inherit;
+  resize: vertical;
+  line-height: 1.5;
+  transition: border-color 0.15s;
+}
+.custom-note-textarea:focus {
+  outline: none;
+  border-color: var(--primary-color);
+}
+
+/* Contact info box (shown when "Need customization?" is checked) */
+.contact-info-box {
+  padding: 10px 14px 12px;
+  border-top: 1px solid var(--border-color);
+  margin-top: 2px;
+}
+.contact-info-line {
+  font-size: 14px;
+  margin: 0 0 10px;
+  line-height: 1.5;
+}
+.contact-info-actions {
+  display: flex;
+  gap: 10px;
+}
+.contact-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: var(--radius-md);
+  border: 1.5px solid var(--border-color);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.contact-action-btn:hover {
+  border-color: var(--primary-color);
+  background: var(--accent-light);
+}
+.contact-action-wp {
+  border-color: #25d366;
+  color: #25d366;
+}
+.contact-action-wp:hover {
+  background: rgba(37, 211, 102, 0.08);
+  border-color: #1ebe59;
+}
+
 @media (max-width: 480px) {
   .addon-card-main {
     gap: 10px;
