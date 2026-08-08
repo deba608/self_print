@@ -1822,14 +1822,27 @@ input, select, button {
   width: 100%;
 }
 
-.addon-card-check-label {
+.addon-card-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 6px;
   flex: 1;
   min-width: 0;
-  cursor: pointer;
-  user-select: none;
+}
+
+.addon-card.active .addon-card-title {
+  color: var(--accent);
+}
+
+.addon-card-price {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .addon-card-right {
@@ -1857,6 +1870,33 @@ input, select, button {
   border-right-color: rgba(13, 122, 116, 0.2);
 }
 
+.addon-add-btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  border: 1.5px solid var(--accent);
+  background: #fff;
+  color: var(--accent);
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  padding: 0 0 2px 0;
+}
+
+.addon-add-btn:hover {
+  background: var(--accent-light);
+}
+
+.addon-add-btn:active {
+  transform: scale(0.92);
+}
+
 .addon-card:active {
   transform: scale(0.99);
 }
@@ -1866,78 +1906,11 @@ input, select, button {
   background: var(--accent-light);
 }
 
-.addon-card-checkbox {
-  width: 18px;
-  height: 18px;
-  accent-color: var(--accent);
-  cursor: pointer;
-  flex-shrink: 0;
-}
-
-.addon-card-info {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  flex: 1;
-  min-width: 0;
-}
-
-.addon-card-title {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--ink);
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.addon-card.active .addon-card-title {
-  color: var(--accent);
-}
-
-.addon-card-price {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--accent);
-  white-space: nowrap;
-}
-
 .addon-card-desc {
   font-size: 11px;
   color: var(--muted);
   margin-top: 2px;
   line-height: 1.3;
-}
-
-.addon-card-calc {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--accent);
-  margin-top: 4px;
-  background: rgba(13, 122, 116, 0.08);
-  padding: 3px 8px;
-  border-radius: 6px;
-  display: inline-block;
-}
-
-/* Qty row — slides in below the toggle row when checked */
-.addon-qty-row {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 8px 14px 12px 14px;
-  border-top: 1px solid rgba(13, 122, 116, 0.2);
-  background: rgba(13, 122, 116, 0.05);
-}
-
-.addon-qty-label {
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--ink-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  width: 26px;
-  flex-shrink: 0;
 }
 
 .addon-qty-ctrl {

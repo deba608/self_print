@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, useRef } from "react";
 import Link from "next/link";
 import { UploadCloud, FileText, Image, ArrowLeft, ArrowRight, Check, Eye, Loader2, File, Settings2, Printer, Copy, Store, X, Search, CreditCard, RefreshCw, Info, Truck, MapPin, Navigation, AlertCircle, ChevronDown } from "lucide-react";
-import { formatRupees, paperSizeLabels, allPaperSizes } from "@/lib/pricing";
+import { formatRupees, paperSizeLabels, allPaperSizes, calculateSpiralBindingPrice } from "@/lib/pricing";
 import { estimatePdfPages } from "@/lib/pdf-pages";
 import { checkDeliveryServiceable, isValidPincode } from "@/lib/service-area";
 
@@ -36,6 +36,7 @@ export default function UploadForm() {
   const [duplex, setDuplex] = useState("simplex");
   const [hasSpiralBinding, setHasSpiralBinding] = useState(false);
   const [hasCoverFile, setHasCoverFile] = useState(false);
+  const [hasBondPaper, setHasBondPaper] = useState(false);
   const [spiralBindingQty, setSpiralBindingQty] = useState(1);
   const [coverFileQty, setCoverFileQty] = useState(1);
   const [busy, setBusy] = useState(false);
@@ -312,7 +313,7 @@ export default function UploadForm() {
   type LastSettings = {
     printType: string; copies: number; paperSize: string; layout: string;
     scale: string; margins: string; pagesPerSheet: number; duplex: string;
-    hasSpiralBinding: boolean; hasCoverFile: boolean;
+    hasSpiralBinding: boolean; hasCoverFile: boolean; hasBondPaper: boolean;
   };
   const LAST_SETTINGS_KEY = "selfprint:lastSettings";
   const [lastSettings, setLastSettings] = useState<LastSettings | null>(null);
@@ -326,7 +327,7 @@ export default function UploadForm() {
   }, []);
 
   function saveLastSettings() {
-    const s: LastSettings = { printType, copies, paperSize, layout, scale, margins, pagesPerSheet, duplex, hasSpiralBinding, hasCoverFile };
+    const s: LastSettings = { printType, copies, paperSize, layout, scale, margins, pagesPerSheet, duplex, hasSpiralBinding, hasCoverFile, hasBondPaper };
     try { localStorage.setItem(LAST_SETTINGS_KEY, JSON.stringify(s)); } catch { /* private mode */ }
   }
 
@@ -342,6 +343,7 @@ export default function UploadForm() {
     setDuplex(lastSettings.duplex);
     setHasSpiralBinding(lastSettings.hasSpiralBinding ?? false);
     setHasCoverFile(lastSettings.hasCoverFile ?? false);
+    setHasBondPaper(lastSettings.hasBondPaper ?? false);
     setAppliedLastSettings(true);
   }
 
@@ -555,14 +557,14 @@ export default function UploadForm() {
     // estimate never drifts a paisa from the final charged amount.
     const printCost = Math.round(pageCostSum * copies * paperMultiplier * pricing.copyMultiplier) / 100;
     const deliveryFee = deliveryMethod === "delivery" ? pricing.deliveryFeePaise / 100 : 0;
-    const addonFee = (hasSpiralBinding ? (isBulk ? bulkTotalPages : selectedPages) * pricing.spiralBindingPerPagePaise / 100 * spiralBindingQty : 0) + (hasCoverFile ? pricing.coverFilePaise / 100 * coverFileQty : 0);
+    const addonFee = (hasSpiralBinding ? calculateSpiralBindingPrice(isBulk ? bulkTotalPages : selectedPages, pricing) / 100 * spiralBindingQty : 0) + (hasCoverFile ? pricing.coverFilePaise / 100 * coverFileQty : 0) + (hasBondPaper ? pricing.bondPaperPerPagePaise / 100 * (isBulk ? bulkTotalPages : selectedPages) : 0);
     return printCost + deliveryFee + addonFee;
-   }, [copies, selectedPages, paperSize, printType, pricing, duplex, isBulk, bulkTotalPages, deliveryMethod, pagesPerSheet, hasSpiralBinding, hasCoverFile, spiralBindingQty, coverFileQty]);
+   }, [copies, selectedPages, paperSize, printType, pricing, duplex, isBulk, bulkTotalPages, deliveryMethod, pagesPerSheet, hasSpiralBinding, hasCoverFile, hasBondPaper, spiralBindingQty, coverFileQty]);
 
    const addonFeeTotal = useMemo(() => {
      if (!pricing) return 0;
-     return (hasSpiralBinding ? (isBulk ? bulkTotalPages : selectedPages) * pricing.spiralBindingPerPagePaise / 100 * spiralBindingQty : 0) + (hasCoverFile ? pricing.coverFilePaise / 100 * coverFileQty : 0);
-   }, [pricing, hasSpiralBinding, hasCoverFile, selectedPages, isBulk, bulkTotalPages, spiralBindingQty, coverFileQty]);
+     return (hasSpiralBinding ? calculateSpiralBindingPrice(isBulk ? bulkTotalPages : selectedPages, pricing) / 100 * spiralBindingQty : 0) + (hasCoverFile ? pricing.coverFilePaise / 100 * coverFileQty : 0) + (hasBondPaper ? pricing.bondPaperPerPagePaise / 100 * (isBulk ? bulkTotalPages : selectedPages) : 0);
+   }, [pricing, hasSpiralBinding, hasCoverFile, hasBondPaper, selectedPages, isBulk, bulkTotalPages, spiralBindingQty, coverFileQty]);
 
   // Physical sheets of paper per copy: pages are grouped pagesPerSheet-per-side,
   // and duplex halves the sheet count (rounded up for a trailing odd side).
@@ -902,6 +904,7 @@ export default function UploadForm() {
       bulkForm.set("duplex", duplex);
       bulkForm.set("hasSpiralBinding", String(hasSpiralBinding));
       bulkForm.set("hasCoverFile", String(hasCoverFile));
+      bulkForm.set("hasBondPaper", String(hasBondPaper));
       bulkForm.set("spiralBindingQty", String(spiralBindingQty));
       bulkForm.set("coverFileQty", String(coverFileQty));
       appendDeliveryDetails(bulkForm);
@@ -996,6 +999,7 @@ export default function UploadForm() {
     form.set("duplex", duplex);
     form.set("hasSpiralBinding", String(hasSpiralBinding));
     form.set("hasCoverFile", String(hasCoverFile));
+    form.set("hasBondPaper", String(hasBondPaper));
     form.set("spiralBindingQty", String(spiralBindingQty));
     form.set("coverFileQty", String(coverFileQty));
     appendDeliveryDetails(form);
@@ -1082,6 +1086,7 @@ export default function UploadForm() {
     setDuplex("simplex");
     setHasSpiralBinding(false);
     setHasCoverFile(false);
+    setHasBondPaper(false);
     setSpiralBindingQty(1);
     setCoverFileQty(1);
     setFilePageCount(null);
@@ -1128,7 +1133,7 @@ export default function UploadForm() {
         pricing={pricing}
         deliveryMethod={deliveryMethod}
         billFiles={billFiles}
-        settings={{ printType, duplex, paperSize, copies, pagesPerSheet, hasSpiralBinding, hasCoverFile, spiralBindingPages: hasSpiralBinding ? (isBulk ? bulkTotalPages : selectedPages) : undefined, spiralBindingQty: hasSpiralBinding ? spiralBindingQty : undefined, coverFileQty: hasCoverFile ? coverFileQty : undefined }}
+        settings={{ printType, duplex, paperSize, copies, pagesPerSheet, hasSpiralBinding, hasCoverFile, hasBondPaper, spiralBindingPages: hasSpiralBinding ? (isBulk ? bulkTotalPages : selectedPages) : undefined, spiralBindingQty: hasSpiralBinding ? spiralBindingQty : undefined, coverFileQty: hasCoverFile ? coverFileQty : undefined }}
         customerPhone={deliveryMethod === "delivery" ? customerPhone : ""}
         customerName={deliveryMethod === "delivery" ? customerName : ""}
         onReset={resetForm}
@@ -1735,95 +1740,120 @@ export default function UploadForm() {
             <label className="select-label">Finishing & Binding Add-ons</label>
             <div className="addon-cards-group">
 
-              {/* Spiral Binding Card — one row: checkbox, qty, price */}
+              {/* Spiral Binding Card — one row: qty stepper, name, price */}
               <div className={`addon-card ${hasSpiralBinding ? "active" : ""}`}>
                 <div className="addon-card-main">
-                  <label className="addon-card-check-label">
-                    <input
-                      type="checkbox"
-                      className="addon-card-checkbox"
-                      checked={hasSpiralBinding}
-                      onChange={(e) => {
-                        setHasSpiralBinding(e.target.checked);
-                        if (!e.target.checked) setSpiralBindingQty(1);
-                      }}
-                    />
-                    <span className="addon-card-title">Spiral Binding</span>
-                  </label>
-                  <div className="addon-card-right">
-                    {hasSpiralBinding && (
-                      <div className="addon-qty-ctrl">
-                        <button
-                          type="button"
-                          className="addon-qty-btn"
-                          onClick={() => {
-                            if (spiralBindingQty <= 1) {
-                              setHasSpiralBinding(false);
-                              setSpiralBindingQty(1);
-                            } else {
-                              setSpiralBindingQty(q => q - 1);
-                            }
-                          }}
-                          aria-label="Decrease"
-                        >
-                          −
-                        </button>
-                        <span className="addon-qty-val">{spiralBindingQty}</span>
-                        <button type="button" className="addon-qty-btn" onClick={() => setSpiralBindingQty(q => Math.min(99, q + 1))} aria-label="Increase">+</button>
-                      </div>
-                    )}
-                    {pricing && (
-                      <span className="addon-card-price">
-                        +{formatRupees((isBulk ? bulkTotalPages : selectedPages) * pricing.spiralBindingPerPagePaise * spiralBindingQty)}
-                      </span>
-                    )}
-                  </div>
+                  {hasSpiralBinding ? (
+                    <div className="addon-qty-ctrl">
+                      <button
+                        type="button"
+                        className="addon-qty-btn"
+                        onClick={() => {
+                          if (spiralBindingQty <= 1) {
+                            setHasSpiralBinding(false);
+                            setSpiralBindingQty(1);
+                          } else {
+                            setSpiralBindingQty(q => q - 1);
+                          }
+                        }}
+                        aria-label="Decrease"
+                      >
+                        −
+                      </button>
+                      <span className="addon-qty-val">{spiralBindingQty}</span>
+                      <button type="button" className="addon-qty-btn" onClick={() => setSpiralBindingQty(q => Math.min(99, q + 1))} aria-label="Increase">+</button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      className="addon-add-btn"
+                      aria-label="Add Spiral Binding"
+                      onClick={() => setHasSpiralBinding(true)}
+                    >
+                      +
+                    </button>
+                  )}
+                  <span className="addon-card-title">Spiral Binding</span>
+                  {pricing && (
+                    <span className="addon-card-price">
+                      +{formatRupees((isBulk ? bulkTotalPages : selectedPages) * pricing.spiralBindingPerPagePaise * spiralBindingQty)}
+                    </span>
+                  )}
                 </div>
               </div>
 
-              {/* Cover File Card — one row: checkbox, qty, price */}
+              {/* Cover File Card — one row: qty stepper, name, price */}
               <div className={`addon-card ${hasCoverFile ? "active" : ""}`}>
                 <div className="addon-card-main">
-                  <label className="addon-card-check-label">
-                    <input
-                      type="checkbox"
-                      className="addon-card-checkbox"
-                      checked={hasCoverFile}
-                      onChange={(e) => {
-                        setHasCoverFile(e.target.checked);
-                        if (!e.target.checked) setCoverFileQty(1);
-                      }}
-                    />
-                    <span className="addon-card-title">Cover File</span>
-                  </label>
-                  <div className="addon-card-right">
-                    {hasCoverFile && (
-                      <div className="addon-qty-ctrl">
-                        <button
-                          type="button"
-                          className="addon-qty-btn"
-                          onClick={() => {
-                            if (coverFileQty <= 1) {
-                              setHasCoverFile(false);
-                              setCoverFileQty(1);
-                            } else {
-                              setCoverFileQty(q => q - 1);
-                            }
-                          }}
-                          aria-label="Decrease"
-                        >
-                          −
-                        </button>
-                        <span className="addon-qty-val">{coverFileQty}</span>
-                        <button type="button" className="addon-qty-btn" onClick={() => setCoverFileQty(q => Math.min(99, q + 1))} aria-label="Increase">+</button>
-                      </div>
-                    )}
-                    {pricing && (
-                      <span className="addon-card-price">
-                        +{formatRupees(pricing.coverFilePaise * coverFileQty)}
-                      </span>
-                    )}
-                  </div>
+                  {hasCoverFile ? (
+                    <div className="addon-qty-ctrl">
+                      <button
+                        type="button"
+                        className="addon-qty-btn"
+                        onClick={() => {
+                          if (coverFileQty <= 1) {
+                            setHasCoverFile(false);
+                            setCoverFileQty(1);
+                          } else {
+                            setCoverFileQty(q => q - 1);
+                          }
+                        }}
+                        aria-label="Decrease"
+                      >
+                        −
+                      </button>
+                      <span className="addon-qty-val">{coverFileQty}</span>
+                      <button type="button" className="addon-qty-btn" onClick={() => setCoverFileQty(q => Math.min(99, q + 1))} aria-label="Increase">+</button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      className="addon-add-btn"
+                      aria-label="Add Cover File"
+                      onClick={() => setHasCoverFile(true)}
+                    >
+                      +
+                    </button>
+                  )}
+                  <span className="addon-card-title">Cover File</span>
+                  {pricing && (
+                    <span className="addon-card-price">
+                      +{formatRupees(pricing.coverFilePaise * coverFileQty)}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Bond Paper Card — one row: toggle, name, price */}
+              <div className={`addon-card ${hasBondPaper ? "active" : ""}`}>
+                <div className="addon-card-main">
+                  {hasBondPaper ? (
+                    <div className="addon-qty-ctrl">
+                      <button
+                        type="button"
+                        className="addon-qty-btn active"
+                        onClick={() => setHasBondPaper(false)}
+                        aria-label="Remove Bond Paper"
+                      >
+                        <Check size={16} />
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      className="addon-add-btn"
+                      aria-label="Add Bond Paper"
+                      onClick={() => setHasBondPaper(true)}
+                    >
+                      +
+                    </button>
+                  )}
+                  <span className="addon-card-title">Bond Paper</span>
+                  {pricing && (
+                    <span className="addon-card-price">
+                      +{formatRupees((isBulk ? bulkTotalPages : selectedPages) * pricing.bondPaperPerPagePaise)}
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -2304,6 +2334,13 @@ export default function UploadForm() {
                   <span className="summary-value">Yes</span>
                 </div>
               )}
+              {hasBondPaper && (
+                <div className="summary-item">
+                  <span className="summary-label">Bond Paper</span>
+                  <span className="summary-value">Yes</span>
+                </div>
+              )}
+
             </div>
             {/* Physical output line — the one fact the settings rows can't show */}
             <div className="summary-paper-note">
@@ -2366,7 +2403,19 @@ export default function UploadForm() {
                 {hasSpiralBinding && (
                   <div className="total-price-row">
                     <span>Spiral Binding</span>
-                    <span>₹{(selectedPages * pricing.spiralBindingPerPagePaise / 100).toFixed(2)}</span>
+                    <span>₹{(calculateSpiralBindingPrice((isBulk ? bulkTotalPages : selectedPages), pricing) / 100 * spiralBindingQty).toFixed(2)}</span>
+                  </div>
+                )}
+                {hasCoverFile && (
+                  <div className="total-price-row">
+                    <span>Cover File</span>
+                    <span>₹{(pricing.coverFilePaise / 100 * coverFileQty).toFixed(2)}</span>
+                  </div>
+                )}
+                {hasBondPaper && (
+                  <div className="total-price-row">
+                    <span>Bond Paper</span>
+                    <span>₹{((isBulk ? bulkTotalPages : selectedPages) * pricing.bondPaperPerPagePaise / 100).toFixed(2)}</span>
                   </div>
                 )}
                 {hasCoverFile && (
