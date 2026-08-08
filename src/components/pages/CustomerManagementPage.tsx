@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  AlertTriangle,
   CalendarDays,
   Check,
   Download,
@@ -30,7 +31,7 @@ export default function CustomerManagementPage() {
   const [query, setQuery] = useState("");
   const [kind, setKind] = useState<"all" | "registered" | "guest">("all");
   const [exported, setExported] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState<{ id: string; name: string } | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<{ id: string; name: string; isGuest: boolean } | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
 
@@ -102,6 +103,20 @@ export default function CustomerManagementPage() {
       setDeleting(false);
     }
   }, [confirmDelete]);
+
+  const closeConfirm = useCallback(() => {
+    setConfirmDelete(null);
+    setDeleteError("");
+  }, []);
+
+  useEffect(() => {
+    if (!confirmDelete) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !deleting) closeConfirm();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [confirmDelete, deleting, closeConfirm]);
 
   const exportToCsv = useCallback(() => {
     if (filteredCustomers.length === 0) return;
@@ -304,7 +319,11 @@ export default function CustomerManagementPage() {
                           type="button"
                           className="customer-delete-btn"
                           title="Remove customer"
-                          onClick={() => setConfirmDelete({ id: customer.id, name: customer.displayName })}
+                          onClick={() => setConfirmDelete({
+                            id: customer.id,
+                            name: customer.displayName,
+                            isGuest: !customer.registeredAt,
+                          })}
                         >
                           <Trash2 size={14} />
                         </button>
@@ -319,18 +338,40 @@ export default function CustomerManagementPage() {
       </main>
 
       {confirmDelete && (
-        <div className="customer-delete-overlay" role="dialog" aria-modal="true" aria-label="Confirm customer removal">
+        <div
+          className="customer-delete-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Confirm customer removal"
+          onClick={(event) => { if (event.target === event.currentTarget && !deleting) closeConfirm(); }}
+        >
           <div className="customer-delete-dialog">
-            <h3>Remove customer?</h3>
+            <span className="customer-delete-icon" aria-hidden="true"><Trash2 size={20} /></span>
+            <h3>{confirmDelete.isGuest ? "Remove guest customer?" : "Remove customer?"}</h3>
             <p>
-              <strong>{confirmDelete.name}</strong> will be permanently deleted along with their account. Their past orders remain in the system.
+              {confirmDelete.isGuest ? (
+                <>
+                  <strong>{confirmDelete.name}</strong> is a guest with no account. Their name, phone
+                  and delivery address will be erased from past orders. The orders themselves remain.
+                </>
+              ) : (
+                <>
+                  <strong>{confirmDelete.name}</strong> will be permanently deleted along with their
+                  account and they will no longer be able to sign in. Their past orders remain in the system.
+                </>
+              )}
             </p>
-            {deleteError && <p className="customer-delete-err">{deleteError}</p>}
+            {deleteError && (
+              <p className="customer-delete-err" role="alert">
+                <AlertTriangle size={14} aria-hidden="true" />
+                <span>{deleteError}</span>
+              </p>
+            )}
             <div className="customer-delete-actions">
               <button
                 type="button"
                 className="customer-delete-cancel"
-                onClick={() => { setConfirmDelete(null); setDeleteError(""); }}
+                onClick={closeConfirm}
                 disabled={deleting}
               >
                 Cancel
