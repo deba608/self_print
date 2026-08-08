@@ -1898,7 +1898,7 @@ input, select, button {
 .addon-qty-row {
   display: flex;
   align-items: center;
-  gap: 10px;
+  justify-content: center;
   padding: 8px 14px 12px 14px;
   border-top: 1px solid rgba(13, 122, 116, 0.2);
   background: rgba(13, 122, 116, 0.05);

@@ -1760,16 +1760,10 @@ export default function UploadForm() {
                 </label>
                 {hasSpiralBinding && (
                   <div className="addon-qty-row">
-                    <span className="addon-qty-label">Qty</span>
                     <div className="addon-qty-ctrl">
                       <button type="button" className="addon-qty-btn" onClick={() => setSpiralBindingQty(q => Math.max(1, q - 1))} aria-label="Decrease">−</button>
                       <span className="addon-qty-val">{spiralBindingQty}</span>
                       <button type="button" className="addon-qty-btn" onClick={() => setSpiralBindingQty(q => Math.min(99, q + 1))} aria-label="Increase">+</button>
-                    </div>
-                    <div className="addon-qty-chips">
-                      {[1, 2, 3, 5].map(n => (
-                        <button key={n} type="button" className={`addon-qty-chip ${spiralBindingQty === n ? "active" : ""}`} onClick={() => setSpiralBindingQty(n)}>{n}</button>
-                      ))}
                     </div>
                   </div>
                 )}
@@ -1800,16 +1794,10 @@ export default function UploadForm() {
                 </label>
                 {hasCoverFile && (
                   <div className="addon-qty-row">
-                    <span className="addon-qty-label">Qty</span>
                     <div className="addon-qty-ctrl">
                       <button type="button" className="addon-qty-btn" onClick={() => setCoverFileQty(q => Math.max(1, q - 1))} aria-label="Decrease">−</button>
                       <span className="addon-qty-val">{coverFileQty}</span>
                       <button type="button" className="addon-qty-btn" onClick={() => setCoverFileQty(q => Math.min(99, q + 1))} aria-label="Increase">+</button>
-                    </div>
-                    <div className="addon-qty-chips">
-                      {[1, 2, 3, 5].map(n => (
-                        <button key={n} type="button" className={`addon-qty-chip ${coverFileQty === n ? "active" : ""}`} onClick={() => setCoverFileQty(n)}>{n}</button>
-                      ))}
                     </div>
                   </div>
                 )}
