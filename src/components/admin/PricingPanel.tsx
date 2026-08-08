@@ -340,7 +340,6 @@ export default function PricingPanel({
                   <div className="pricing-field mult-field" key={field}>
                     <label htmlFor={field}>{label}</label>
                     <div className="mult-input">
-                      <span className="mult-sign">×</span>
                       <input
                         id={field}
                         type="number"
@@ -349,6 +348,7 @@ export default function PricingPanel({
                         value={formData[field]}
                         onChange={(e) => updateField(field, e.target.value)}
                       />
+                      
                     </div>
                     <span className="mult-effect">
                       {effective !== null ? `${rupees(effective)}/pg` : "—"}
