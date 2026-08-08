@@ -57,6 +57,7 @@ export type Job = {
   duplex: PrintDuplex;
   hasSpiralBinding: boolean;
   hasCoverFile: boolean;
+  hasBondPaper: boolean;
   spiralBindingQty: number;
   coverFileQty: number;
   pageCount: number;
@@ -140,6 +141,12 @@ export type PricingConfig = {
   duplexBwPerPagePaise: number;
   spiralBindingPerPagePaise: number;
   coverFilePaise: number;
+  bondPaperPerPagePaise: number;
+  spiralBindingSlab1Paise: number;
+  spiralBindingSlab2Paise: number;
+  spiralBindingSlab3Paise: number;
+  spiralBindingSlab4Paise: number;
+  spiralBindingSlab5Paise: number;
   expiryMinutes: number;
   deliveryFeePaise: number;
   serviceArea: ServiceAreaConfig;

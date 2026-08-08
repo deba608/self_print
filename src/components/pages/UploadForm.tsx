@@ -1735,9 +1735,9 @@ export default function UploadForm() {
             <label className="select-label">Finishing & Binding Add-ons</label>
             <div className="addon-cards-group">
 
-              {/* Spiral Binding Card — compact with inline qty stepper */}
+              {/* Spiral Binding Card — compact with stepper */}
               <div className={`addon-card ${hasSpiralBinding ? "active" : ""}`}>
-                <div className="addon-card-toggle-row">
+                <label className="addon-card-main">
                   <input
                     type="checkbox"
                     className="addon-card-checkbox"
@@ -1747,29 +1747,29 @@ export default function UploadForm() {
                       if (!e.target.checked) setSpiralBindingQty(1);
                     }}
                   />
-                  <div className="addon-card-content">
-                    <div className="addon-card-top">
-                      <span className="addon-card-title">Spiral Binding</span>
-                      {pricing && (
-                        <span className="addon-card-price">
-                          +{formatRupees((isBulk ? bulkTotalPages : selectedPages) * pricing.spiralBindingPerPagePaise * spiralBindingQty)}
-                        </span>
-                      )}
-                    </div>
+                  <div className="addon-card-info">
+                    <span className="addon-card-title">Spiral Binding</span>
+                    {pricing && (
+                      <span className="addon-card-price">
+                        +{formatRupees((isBulk ? bulkTotalPages : selectedPages) * pricing.spiralBindingPerPagePaise * spiralBindingQty)}
+                      </span>
+                    )}
                   </div>
-                  {hasSpiralBinding && (
-                    <div className="addon-qty-ctrl addon-qty-inline">
+                </label>
+                {hasSpiralBinding && (
+                  <div className="addon-card-qty-row">
+                    <div className="addon-qty-ctrl">
                       <button type="button" className="addon-qty-btn" onClick={() => setSpiralBindingQty(q => Math.max(1, q - 1))} aria-label="Decrease">−</button>
                       <span className="addon-qty-val">{spiralBindingQty}</span>
                       <button type="button" className="addon-qty-btn" onClick={() => setSpiralBindingQty(q => Math.min(99, q + 1))} aria-label="Increase">+</button>
                     </div>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
 
-              {/* Cover File Card — compact with inline qty stepper */}
+              {/* Cover File Card — compact with stepper */}
               <div className={`addon-card ${hasCoverFile ? "active" : ""}`}>
-                <div className="addon-card-toggle-row">
+                <label className="addon-card-main">
                   <input
                     type="checkbox"
                     className="addon-card-checkbox"
@@ -1779,24 +1779,24 @@ export default function UploadForm() {
                       if (!e.target.checked) setCoverFileQty(1);
                     }}
                   />
-                  <div className="addon-card-content">
-                    <div className="addon-card-top">
-                      <span className="addon-card-title">Cover File</span>
-                      {pricing && (
-                        <span className="addon-card-price">
-                          +{formatRupees(pricing.coverFilePaise * coverFileQty)}
-                        </span>
-                      )}
-                    </div>
+                  <div className="addon-card-info">
+                    <span className="addon-card-title">Cover File</span>
+                    {pricing && (
+                      <span className="addon-card-price">
+                        +{formatRupees(pricing.coverFilePaise * coverFileQty)}
+                      </span>
+                    )}
                   </div>
-                  {hasCoverFile && (
-                    <div className="addon-qty-ctrl addon-qty-inline">
+                </label>
+                {hasCoverFile && (
+                  <div className="addon-card-qty-row">
+                    <div className="addon-qty-ctrl">
                       <button type="button" className="addon-qty-btn" onClick={() => setCoverFileQty(q => Math.max(1, q - 1))} aria-label="Decrease">−</button>
                       <span className="addon-qty-val">{coverFileQty}</span>
                       <button type="button" className="addon-qty-btn" onClick={() => setCoverFileQty(q => Math.min(99, q + 1))} aria-label="Increase">+</button>
                     </div>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
 
             </div>
@@ -2326,42 +2326,44 @@ export default function UploadForm() {
           )}
 
           {/* Total price */}
-          {!onePage && pricing ? (
-            <div className="total-price-breakdown">
-              {addonFeeTotal > 0 && (
-                <div className="total-price-row">
-                  <span>Printing</span>
-                  <span>₹{(estimate - addonFeeTotal - (deliveryMethod === "delivery" ? pricing.deliveryFeePaise / 100 : 0)).toFixed(2)}</span>
+          {!onePage && (
+            pricing ? (
+              <div className="total-price-breakdown">
+                {addonFeeTotal > 0 && (
+                  <div className="total-price-row">
+                    <span>Printing</span>
+                    <span>₹{(estimate - addonFeeTotal - (deliveryMethod === "delivery" ? pricing.deliveryFeePaise / 100 : 0)).toFixed(2)}</span>
+                  </div>
+                )}
+                {hasSpiralBinding && (
+                  <div className="total-price-row">
+                    <span>Spiral Binding</span>
+                    <span>₹{(selectedPages * pricing.spiralBindingPerPagePaise / 100).toFixed(2)}</span>
+                  </div>
+                )}
+                {hasCoverFile && (
+                  <div className="total-price-row">
+                    <span>Cover File</span>
+                    <span>₹{(pricing.coverFilePaise / 100).toFixed(2)}</span>
+                  </div>
+                )}
+                {deliveryMethod === "delivery" && (
+                  <div className="total-price-row">
+                    <span>Delivery</span>
+                    <span>{pricing.deliveryFeePaise > 0 ? `₹${(pricing.deliveryFeePaise / 100).toFixed(2)}` : "Free"}</span>
+                  </div>
+                )}
+                <div className="total-price">
+                  <span>Total</span>
+                  <strong>₹{estimate.toFixed(2)}</strong>
                 </div>
-              )}
-              {hasSpiralBinding && (
-                <div className="total-price-row">
-                  <span>Spiral Binding</span>
-                   <span>₹{(selectedPages * pricing.spiralBindingPerPagePaise / 100).toFixed(2)}</span>
-                </div>
-              )}
-              {hasCoverFile && (
-                <div className="total-price-row">
-                  <span>Cover File</span>
-                  <span>₹{(pricing.coverFilePaise / 100).toFixed(2)}</span>
-                </div>
-              )}
-              {deliveryMethod === "delivery" && (
-                <div className="total-price-row">
-                  <span>Delivery</span>
-                  <span>{pricing.deliveryFeePaise > 0 ? `₹${(pricing.deliveryFeePaise / 100).toFixed(2)}` : "Free"}</span>
-                </div>
-              )}
+              </div>
+            ) : (
               <div className="total-price">
                 <span>Total</span>
-                <strong>₹{estimate.toFixed(2)}</strong>
+                <strong>{pricing ? `₹${estimate.toFixed(2)}` : "…"}</strong>
               </div>
-            </div>
-          ) : (
-            <div className="total-price">
-              <span>Total</span>
-              <strong>{pricing ? `₹${estimate.toFixed(2)}` : "…"}</strong>
-            </div>
+            )
           )}
 
           {/* Submit errors must be visible HERE — Confirm lives on this step,

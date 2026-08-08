@@ -244,6 +244,7 @@ async function ensureJobColumns(database: any) {
     ['has_cover_file', 'INTEGER NOT NULL DEFAULT 0'],
     ['spiral_binding_qty', 'INTEGER NOT NULL DEFAULT 1'],
     ['cover_file_qty', 'INTEGER NOT NULL DEFAULT 1'],
+    ['has_bond_paper', 'INTEGER NOT NULL DEFAULT 0'],
     ['queue_position', 'INTEGER NOT NULL DEFAULT 0'],
     ['paid_via', 'TEXT'],
     ['issue_reported_at', 'TEXT'],
@@ -319,6 +320,12 @@ async function ensurePricingColumns(database: any) {
     ['duplex_bw_per_page_paise', 'INTEGER NOT NULL DEFAULT 100'],
     ['spiral_binding_per_page_paise', 'INTEGER NOT NULL DEFAULT 150'],
     ['cover_file_paise', 'INTEGER NOT NULL DEFAULT 1000'],
+    ['bond_paper_per_page_paise', 'INTEGER NOT NULL DEFAULT 100'],
+    ['spiral_binding_slab1_paise', 'INTEGER NOT NULL DEFAULT 2000'],
+    ['spiral_binding_slab2_paise', 'INTEGER NOT NULL DEFAULT 2500'],
+    ['spiral_binding_slab3_paise', 'INTEGER NOT NULL DEFAULT 3000'],
+    ['spiral_binding_slab4_paise', 'INTEGER NOT NULL DEFAULT 4000'],
+    ['spiral_binding_slab5_paise', 'INTEGER NOT NULL DEFAULT 5000'],
     ['delivery_fee_paise', 'INTEGER NOT NULL DEFAULT 0'],
     ['service_area_config', "TEXT NOT NULL DEFAULT ''"]
   ];
@@ -336,8 +343,11 @@ async function seedDefaults(database: any, agentToken: string, hashToken: (s: st
       id, bw_per_page_paise, color_per_page_paise, photo_print_paise, copy_multiplier,
       a3_multiplier, a4_multiplier, a5_multiplier, a6_multiplier, b5_multiplier,
        legal_multiplier, photo_multiplier, duplex_bw_per_page_paise, spiral_binding_per_page_paise,
-       cover_file_paise, expiry_minutes, delivery_fee_paise, updated_at
-    ) VALUES (1, 100, 1000, 3000, 1, 2.5, 1, 0.7, 0.5, 0.9, 1.25, 1, 100, 150, 1000, 1440, 0, ?)
+       cover_file_paise, bond_paper_per_page_paise,
+       spiral_binding_slab1_paise, spiral_binding_slab2_paise, spiral_binding_slab3_paise,
+       spiral_binding_slab4_paise, spiral_binding_slab5_paise,
+       expiry_minutes, delivery_fee_paise, updated_at
+    ) VALUES (1, 100, 1000, 3000, 1, 2.5, 1, 0.7, 0.5, 0.9, 1.25, 1, 100, 150, 1000, 100, 2000, 2500, 3000, 4000, 5000, 1440, 0, ?)
   `).run(now);
 
   database.prepare(`
@@ -371,6 +381,7 @@ function mapJob(row: Record<string, unknown>, expiryMinutes: number = 1440): Job
     duplex: (row.duplex ?? 'simplex') as Job['duplex'],
     hasSpiralBinding: Boolean(row.has_spiral_binding),
     hasCoverFile: Boolean(row.has_cover_file),
+    hasBondPaper: Boolean(row.has_bond_paper),
     spiralBindingQty: Number(row.spiral_binding_qty ?? 1),
     coverFileQty: Number(row.cover_file_qty ?? 1),
     pageCount: Number(row.page_count),
@@ -702,6 +713,7 @@ export async function createJobWithFiles(
     duplex: jobData.duplex ?? 'simplex',
     hasSpiralBinding: jobData.hasSpiralBinding ?? jobData.has_spiral_binding ?? false,
     hasCoverFile: jobData.hasCoverFile ?? jobData.has_cover_file ?? false,
+    hasBondPaper: jobData.hasBondPaper ?? jobData.has_bond_paper ?? false,
     spiralBindingQty: jobData.spiralBindingQty ?? jobData.spiral_binding_qty ?? 1,
     coverFileQty: jobData.coverFileQty ?? jobData.cover_file_qty ?? 1,
     pageCount: jobData.pageCount ?? jobData.page_count,
@@ -727,17 +739,17 @@ export async function createJobWithFiles(
     sqlite.prepare(`
       INSERT INTO jobs (
         id, token, status, customer_user_id, print_type, copies, page_range, paper_size,
-        layout, pages_per_sheet, margins, scale, duplex, has_spiral_binding, has_cover_file,
+        layout, pages_per_sheet, margins, scale, duplex, has_spiral_binding, has_cover_file, has_bond_paper,
         spiral_binding_qty, cover_file_qty, page_count, price_paise,
         needs_conversion, queue_position, delivery_method, customer_name, customer_phone,
         delivery_address, delivery_pincode, delivery_area, delivery_fee_paise, delivery_latitude, delivery_longitude,
         delivery_accuracy_meters, delivery_location_captured_at, created_at, updated_at
       )
-      VALUES (?, ?, 'pending_payment', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, 'pending_payment', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       jobId, j.token, j.customerUserId, j.printType, j.copies, j.pageRange, j.paperSize,
       j.layout, j.pagesPerSheet, j.margins, j.scale, j.duplex,
-      j.hasSpiralBinding ? 1 : 0, j.hasCoverFile ? 1 : 0,
+      j.hasSpiralBinding ? 1 : 0, j.hasCoverFile ? 1 : 0, j.hasBondPaper ? 1 : 0,
       j.spiralBindingQty, j.coverFileQty,
       j.pageCount, j.pricePaise,
       j.needsConversion, j.queuePosition, j.deliveryMethod, j.customerName, j.customerPhone,

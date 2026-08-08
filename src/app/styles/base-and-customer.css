@@ -1814,17 +1814,18 @@ input, select, button {
   overflow: hidden;
 }
 
-.addon-card-toggle-row {
+.addon-card-main {
   display: flex;
   align-items: flex-start;
   gap: 12px;
-  padding: 12px 14px;
+  padding: 12px;
   cursor: pointer;
   user-select: none;
+  width: 100%;
 }
 
-.addon-card-toggle-row:hover {
-  background: #fafafa;
+.addon-card-main:hover {
+  background: rgba(0, 0, 0, 0.015);
 }
 
 .addon-card:active {
@@ -1837,11 +1838,43 @@ input, select, button {
 }
 
 .addon-card-checkbox {
-  margin-top: 3px;
+  margin-top: 2px;
   width: 18px;
   height: 18px;
   accent-color: var(--accent);
   cursor: pointer;
+  flex-shrink: 0;
+}
+
+.addon-card-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1;
+  min-width: 0;
+}
+
+.addon-card-qty-row {
+  padding: 0 12px 12px 42px;
+  display: flex;
+}
+
+.addon-card-qty-row .addon-qty-ctrl {
+  border-radius: 6px;
+  border-color: var(--accent);
+}
+
+.addon-card-qty-row .addon-qty-btn {
+  width: 26px;
+  height: 26px;
+  font-size: 14px;
+}
+
+.addon-card-qty-row .addon-qty-val {
+  min-width: 26px;
+  line-height: 26px;
+  border-left-color: rgba(13, 122, 116, 0.2);
+  border-right-color: rgba(13, 122, 116, 0.2);
 }
 
 .addon-card-content {
