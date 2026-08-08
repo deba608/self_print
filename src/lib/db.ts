@@ -733,6 +733,7 @@ export async function createJobWithFiles(
     deliveryLongitude: jobData.deliveryLongitude ?? jobData.delivery_longitude ?? null,
     deliveryAccuracyMeters: jobData.deliveryAccuracyMeters ?? jobData.delivery_accuracy_meters ?? null,
     deliveryLocationCapturedAt: jobData.deliveryLocationCapturedAt ?? jobData.delivery_location_captured_at ?? null,
+    customNote: jobData.customNote ?? jobData.custom_note ?? null,
   };
 
   const firstKind = filesData[0]?.fileKind ?? filesData[0]?.file_kind;
@@ -756,7 +757,7 @@ export async function createJobWithFiles(
       j.pageCount, j.pricePaise,
       j.needsConversion, j.queuePosition, j.deliveryMethod, j.customerName, j.customerPhone,
       j.deliveryAddress, j.deliveryPincode, j.deliveryArea, j.deliveryFeePaise, j.deliveryLatitude, j.deliveryLongitude,
-      j.deliveryAccuracyMeters, j.deliveryLocationCapturedAt, j.customNote ?? j.custom_note ?? null, now, now
+      j.deliveryAccuracyMeters, j.deliveryLocationCapturedAt, j.customNote, now, now
     );
 
     const insertFile = sqlite.prepare(`
