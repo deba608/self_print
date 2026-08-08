@@ -200,6 +200,18 @@ async function initSchema(database: any) {
       job_files_removed INTEGER NOT NULL DEFAULT 0,
       stray_files_removed INTEGER NOT NULL DEFAULT 0
     );
+
+    CREATE TABLE IF NOT EXISTS otps (
+      id TEXT PRIMARY KEY,
+      phone TEXT NOT NULL,
+      otp_hash TEXT NOT NULL,
+      purpose TEXT NOT NULL DEFAULT 'login',
+      attempts INTEGER NOT NULL DEFAULT 0,
+      max_attempts INTEGER NOT NULL DEFAULT 3,
+      expires_at TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      verified_at TEXT
+    );
   `);
 
   await ensureJobColumns(database);
@@ -215,6 +227,7 @@ async function initSchema(database: any) {
   database.exec(`CREATE INDEX IF NOT EXISTS idx_job_files_job_id ON job_files(job_id)`);
   database.exec(`CREATE INDEX IF NOT EXISTS idx_print_events_job_id ON print_events(job_id)`);
   database.exec(`CREATE INDEX IF NOT EXISTS idx_agent_printers_seen ON agent_printers(seen_at)`);
+  database.exec(`CREATE INDEX IF NOT EXISTS idx_otps_phone ON otps(phone)`);
 }
 
 async function ensureJobColumns(database: any) {
@@ -227,6 +240,8 @@ async function ensureJobColumns(database: any) {
     ['margins', "TEXT NOT NULL DEFAULT 'default'"],
     ['scale', "TEXT NOT NULL DEFAULT 'default'"],
     ['duplex', "TEXT NOT NULL DEFAULT 'simplex'"],
+    ['has_spiral_binding', 'INTEGER NOT NULL DEFAULT 0'],
+    ['has_cover_file', 'INTEGER NOT NULL DEFAULT 0'],
     ['queue_position', 'INTEGER NOT NULL DEFAULT 0'],
     ['paid_via', 'TEXT'],
     ['issue_reported_at', 'TEXT'],
@@ -349,6 +364,8 @@ function mapJob(row: Record<string, unknown>, expiryMinutes: number = 1440): Job
     margins: (row.margins ?? 'default') as Job['margins'],
     scale: (row.scale ?? 'default') as Job['scale'],
     duplex: (row.duplex ?? 'simplex') as Job['duplex'],
+    hasSpiralBinding: Boolean(row.has_spiral_binding),
+    hasCoverFile: Boolean(row.has_cover_file),
     pageCount: Number(row.page_count),
     pricePaise: Number(row.price_paise),
     needsConversion: Number(row.needs_conversion) as 0 | 1,
@@ -676,6 +693,8 @@ export async function createJobWithFiles(
     margins: jobData.margins,
     scale: jobData.scale,
     duplex: jobData.duplex ?? 'simplex',
+    hasSpiralBinding: jobData.hasSpiralBinding ?? jobData.has_spiral_binding ?? false,
+    hasCoverFile: jobData.hasCoverFile ?? jobData.has_cover_file ?? false,
     pageCount: jobData.pageCount ?? jobData.page_count,
     pricePaise: jobData.pricePaise ?? jobData.price_paise,
     needsConversion: jobData.needsConversion ?? jobData.needs_conversion,
@@ -699,15 +718,17 @@ export async function createJobWithFiles(
     sqlite.prepare(`
       INSERT INTO jobs (
         id, token, status, customer_user_id, print_type, copies, page_range, paper_size,
-        layout, pages_per_sheet, margins, scale, duplex, page_count, price_paise,
+        layout, pages_per_sheet, margins, scale, duplex, has_spiral_binding, has_cover_file, page_count, price_paise,
         needs_conversion, queue_position, delivery_method, customer_name, customer_phone,
         delivery_address, delivery_pincode, delivery_area, delivery_fee_paise, delivery_latitude, delivery_longitude,
         delivery_accuracy_meters, delivery_location_captured_at, created_at, updated_at
       )
-      VALUES (?, ?, 'pending_payment', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, 'pending_payment', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       jobId, j.token, j.customerUserId, j.printType, j.copies, j.pageRange, j.paperSize,
-      j.layout, j.pagesPerSheet, j.margins, j.scale, j.duplex, j.pageCount, j.pricePaise,
+      j.layout, j.pagesPerSheet, j.margins, j.scale, j.duplex,
+      j.hasSpiralBinding ? 1 : 0, j.hasCoverFile ? 1 : 0,
+      j.pageCount, j.pricePaise,
       j.needsConversion, j.queuePosition, j.deliveryMethod, j.customerName, j.customerPhone,
       j.deliveryAddress, j.deliveryPincode, j.deliveryArea, j.deliveryFeePaise, j.deliveryLatitude, j.deliveryLongitude,
       j.deliveryAccuracyMeters, j.deliveryLocationCapturedAt, now, now
@@ -868,6 +889,8 @@ export async function updateJobSettings(id: string, settings: {
   scale: string;
   duplex: string;
   pricePaise: number;
+  hasSpiralBinding?: boolean;
+  hasCoverFile?: boolean;
   updatedAt: string;
 }): Promise<void> {
   if (isSupabase) {
@@ -880,11 +903,13 @@ export async function updateJobSettings(id: string, settings: {
   sqlite.prepare(`
     UPDATE jobs
     SET print_type = ?, copies = ?, page_range = ?, paper_size = ?, layout = ?,
-        pages_per_sheet = ?, margins = ?, scale = ?, duplex = ?, price_paise = ?, updated_at = ?
+        pages_per_sheet = ?, margins = ?, scale = ?, duplex = ?, price_paise = ?,
+        has_spiral_binding = ?, has_cover_file = ?, updated_at = ?
     WHERE id = ?
   `).run(
     settings.printType, settings.copies, settings.pageRange, settings.paperSize, settings.layout,
-    settings.pagesPerSheet, settings.margins, settings.scale, settings.duplex, settings.pricePaise, settings.updatedAt, id
+    settings.pagesPerSheet, settings.margins, settings.scale, settings.duplex, settings.pricePaise,
+    settings.hasSpiralBinding ? 1 : 0, settings.hasCoverFile ? 1 : 0, settings.updatedAt, id
   );
   
   sqlite.prepare("INSERT INTO print_events (id, job_id, event_type, message, created_at) VALUES (?, ?, 'settings', ?, ?)")
@@ -916,6 +941,8 @@ export async function getPricing(): Promise<PricingConfig> {
     legalMultiplier: (row.legal_multiplier as number) ?? 1.25,
     photoMultiplier: (row.photo_multiplier as number) ?? 1,
     duplexBwPerPagePaise: (row.duplex_bw_per_page_paise as number) ?? 100,
+    spiralBindingPaise: (row.spiral_binding_paise as number) ?? 2000,
+    coverFilePaise: (row.cover_file_paise as number) ?? 1000,
     expiryMinutes: (row.expiry_minutes as number) ?? 1440,
     deliveryFeePaise: (row.delivery_fee_paise as number) ?? 0,
     serviceArea: parseServiceAreaConfig(row.service_area_config as string)
@@ -1540,4 +1567,85 @@ export async function getAccountsSummary(date?: string): Promise<AccountsSummary
     colorJobs: d.colorJobs,
     photoJobs: d.photoJobs,
   };
+}
+
+export type OtpRecord = {
+  id: string;
+  phone: string;
+  otpHash: string;
+  purpose: string;
+  attempts: number;
+  maxAttempts: number;
+  expiresAt: string;
+  createdAt: string;
+  verifiedAt: string | null;
+};
+
+export async function saveOtp(otp: Omit<OtpRecord, 'attempts' | 'maxAttempts' | 'verifiedAt'>): Promise<void> {
+  if (isSupabase) {
+    const mod = await import('./db-supabase');
+    return mod.saveOtp(otp);
+  }
+  const sqlite = await getDbInstance();
+  sqlite.prepare(`
+    INSERT INTO otps (id, phone, otp_hash, purpose, attempts, max_attempts, expires_at, created_at)
+    VALUES (?, ?, ?, ?, 0, 3, ?, ?)
+  `).run(otp.id, otp.phone, otp.otpHash, otp.purpose, otp.expiresAt, otp.createdAt);
+}
+
+export async function getLatestOtp(phone: string, purpose: string): Promise<OtpRecord | null> {
+  if (isSupabase) {
+    const mod = await import('./db-supabase');
+    return mod.getLatestOtp(phone, purpose);
+  }
+  const sqlite = await getDbInstance();
+  const row = sqlite.prepare(`
+    SELECT * FROM otps
+    WHERE phone = ? AND purpose = ? AND verified_at IS NULL
+    ORDER BY created_at DESC LIMIT 1
+  `).get(phone, purpose) as Record<string, unknown> | undefined;
+
+  if (!row) return null;
+  return {
+    id: String(row.id),
+    phone: String(row.phone),
+    otpHash: String(row.otp_hash),
+    purpose: String(row.purpose),
+    attempts: Number(row.attempts),
+    maxAttempts: Number(row.max_attempts),
+    expiresAt: String(row.expires_at),
+    createdAt: String(row.created_at),
+    verifiedAt: row.verified_at ? String(row.verified_at) : null,
+  };
+}
+
+export async function incrementOtpAttempts(id: string): Promise<void> {
+  if (isSupabase) {
+    const mod = await import('./db-supabase');
+    return mod.incrementOtpAttempts(id);
+  }
+  const sqlite = await getDbInstance();
+  sqlite.prepare(`UPDATE otps SET attempts = attempts + 1 WHERE id = ?`).run(id);
+}
+
+export async function markOtpVerified(id: string): Promise<void> {
+  if (isSupabase) {
+    const mod = await import('./db-supabase');
+    return mod.markOtpVerified(id);
+  }
+  const sqlite = await getDbInstance();
+  sqlite.prepare(`UPDATE otps SET verified_at = ? WHERE id = ?`).run(new Date().toISOString(), id);
+}
+
+export async function countRecentOtps(phone: string, sinceIso: string): Promise<number> {
+  if (isSupabase) {
+    const mod = await import('./db-supabase');
+    return mod.countRecentOtps(phone, sinceIso);
+  }
+  const sqlite = await getDbInstance();
+  const row = sqlite.prepare(`
+    SELECT COUNT(*) as count FROM otps
+    WHERE phone = ? AND created_at >= ?
+  `).get(phone, sinceIso) as { count: number } | undefined;
+  return row?.count ?? 0;
 }

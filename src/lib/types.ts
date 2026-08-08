@@ -55,6 +55,8 @@ export type Job = {
   margins: PrintMargins;
   scale: PrintScale;
   duplex: PrintDuplex;
+  hasSpiralBinding: boolean;
+  hasCoverFile: boolean;
   pageCount: number;
   pricePaise: number;
   needsConversion: 0 | 1;
@@ -134,6 +136,8 @@ export type PricingConfig = {
   legalMultiplier: number;
   photoMultiplier: number;
   duplexBwPerPagePaise: number;
+  spiralBindingPaise: number;
+  coverFilePaise: number;
   expiryMinutes: number;
   deliveryFeePaise: number;
   serviceArea: ServiceAreaConfig;

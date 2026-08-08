@@ -57,6 +57,8 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   const margins = String(body.margins ?? existing.margins ?? "default") as PrintMargins;
   const scale = String(body.scale ?? existing.scale ?? "default") as PrintScale;
   const duplex = String(body.duplex ?? existing.duplex ?? "simplex") as PrintDuplex;
+  const hasSpiralBinding = body.hasSpiralBinding === true || body.has_spiral_binding === true;
+  const hasCoverFile = body.hasCoverFile === true || body.has_cover_file === true;
 
   if (
     !printTypes.includes(printType) ||
@@ -78,8 +80,10 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     return NextResponse.json({ error: "Double-sided printing requires a document with at least 2 pages." }, { status: 400 });
   }
   const pricing = await getPricing();
+  const printPricePaise = calculatePrice({ printType, copies, pageRange, paperSize, pageCount, pricing, duplex, pagesPerSheet });
+  const addonFeePaise = (hasSpiralBinding ? pricing.spiralBindingPaise : 0) + (hasCoverFile ? pricing.coverFilePaise : 0);
   const pricePaise =
-    calculatePrice({ printType, copies, pageRange, paperSize, pageCount, pricing, duplex, pagesPerSheet }) +
+    printPricePaise + addonFeePaise +
     (existing.deliveryMethod === "delivery" ? existing.deliveryFeePaise : 0);
   const now = new Date().toISOString();
 
@@ -94,6 +98,8 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     scale,
     duplex,
     pricePaise,
+    hasSpiralBinding,
+    hasCoverFile,
     updatedAt: now
   });
 

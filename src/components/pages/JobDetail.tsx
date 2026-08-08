@@ -26,6 +26,8 @@ type Detail = {
     margins: string;
     pagesPerSheet: number;
     duplex: string;
+    hasSpiralBinding: boolean;
+    hasCoverFile: boolean;
     pageCount: number;
     pricePaise: number;
     needsConversion: 0 | 1;
@@ -60,6 +62,8 @@ type PrintSettingsForm = {
   margins: string;
   pagesPerSheet: number;
   duplex: string;
+  hasSpiralBinding: boolean;
+  hasCoverFile: boolean;
 };
 
 const paperSizeOptions = ["A3", "A4", "A5", "A6", "B5", "Letter", "Legal", "Photo"];
@@ -720,6 +724,12 @@ function SettingsCard({
               <option value="short-edge">Double-sided (short edge)</option>
             </select>
           </SettingsField>
+          <SettingsField label="Spiral Binding">
+            <input type="checkbox" checked={settings.hasSpiralBinding} disabled={settingsLocked} onChange={(e) => setSettings({ ...settings, hasSpiralBinding: e.target.checked })} />
+          </SettingsField>
+          <SettingsField label="Cover File">
+            <input type="checkbox" checked={settings.hasCoverFile} disabled={settingsLocked} onChange={(e) => setSettings({ ...settings, hasCoverFile: e.target.checked })} />
+          </SettingsField>
         </div>
         <div className="settings-actions">
           <button type="submit" className="job-btn release settings-save-btn" disabled={savingSettings || settingsLocked}>
@@ -836,7 +846,9 @@ function settingsFromJob(job: Detail["job"]): PrintSettingsForm {
     scale: job.scale ?? "default",
     margins: job.margins ?? "default",
     pagesPerSheet: job.pagesPerSheet ?? 1,
-    duplex: job.duplex ?? "simplex"
+    duplex: job.duplex ?? "simplex",
+    hasSpiralBinding: job.hasSpiralBinding ?? false,
+    hasCoverFile: job.hasCoverFile ?? false,
   };
 }
 

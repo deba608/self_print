@@ -144,6 +144,8 @@ export async function POST(request: NextRequest) {
     const margins = String(form.get("margins") ?? "default") as PrintMargins;
     const scale = String(form.get("scale") ?? "default") as PrintScale;
     const duplex = String(form.get("duplex") ?? "simplex") as PrintDuplex;
+    const hasSpiralBinding = form.get("hasSpiralBinding") === "true";
+    const hasCoverFile = form.get("hasCoverFile") === "true";
     if (
       !printTypes.includes(printType) ||
       !paperSizes.includes(paperSize) ||
@@ -269,8 +271,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Double-sided printing requires a document with at least 2 pages." }, { status: 400 });
     }
     const printPricePaise = calculatePrice({ printType, copies, pageRange, paperSize, pageCount: Math.max(pageCount, 1), pricing, duplex, pagesPerSheet });
+    const addonFeePaise = (hasSpiralBinding ? pricing.spiralBindingPaise : 0) + (hasCoverFile ? pricing.coverFilePaise : 0);
     const deliveryFeePaise = deliveryMethod === "delivery" ? pricing.deliveryFeePaise : 0;
-    const pricePaise = printPricePaise + deliveryFeePaise;
+    const pricePaise = printPricePaise + addonFeePaise + deliveryFeePaise;
 
     const jobData = {
       token,
@@ -284,6 +287,8 @@ export async function POST(request: NextRequest) {
       margins,
       scale,
       duplex,
+      has_spiral_binding: hasSpiralBinding,
+      has_cover_file: hasCoverFile,
       page_count: pageCount,
       price_paise: pricePaise,
       needs_conversion: needsConversion,
@@ -314,7 +319,7 @@ export async function POST(request: NextRequest) {
 
     broadcast({ type: "new_job", jobId, token, queuePosition: queuePos });
 
-    return NextResponse.json({ jobId, token, pricePaise, deliveryFeePaise, needsConversion: Boolean(needsConversion), pageCount, queuePosition: queuePos });
+    return NextResponse.json({ jobId, token, pricePaise, deliveryFeePaise, addonFeePaise, needsConversion: Boolean(needsConversion), pageCount, queuePosition: queuePos });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Upload failed" }, { status: 400 });
   }
@@ -333,6 +338,8 @@ async function handleBulk(form: FormData, customerUserId: string | null): Promis
   const margins = String(form.get("margins") ?? "default") as PrintMargins;
   const scale = String(form.get("scale") ?? "default") as PrintScale;
   const duplex = String(form.get("duplex") ?? "simplex") as PrintDuplex;
+  const hasSpiralBinding = form.get("hasSpiralBinding") === "true";
+  const hasCoverFile = form.get("hasCoverFile") === "true";
   if (
     !printTypes.includes(printType) ||
     !paperSizes.includes(paperSize) ||
@@ -472,8 +479,9 @@ async function handleBulk(form: FormData, customerUserId: string | null): Promis
     return NextResponse.json({ error: "Double-sided printing requires at least 2 pages." }, { status: 400 });
   }
   const printPricePaise = calculatePrice({ printType, copies, pageRange: null, paperSize, pageCount: Math.max(pageCount, 1), pricing, duplex, pagesPerSheet });
+  const addonFeePaise = (hasSpiralBinding ? pricing.spiralBindingPaise : 0) + (hasCoverFile ? pricing.coverFilePaise : 0);
   const deliveryFeePaise = deliveryMethod === "delivery" ? pricing.deliveryFeePaise : 0;
-  const pricePaise = printPricePaise + deliveryFeePaise;
+  const pricePaise = printPricePaise + addonFeePaise + deliveryFeePaise;
   const [token, queuePos] = await Promise.all([randomToken(), nextQueuePosition()]);
 
   const jobData = {
@@ -488,6 +496,8 @@ async function handleBulk(form: FormData, customerUserId: string | null): Promis
     margins,
     scale,
     duplex,
+    has_spiral_binding: hasSpiralBinding,
+    has_cover_file: hasCoverFile,
     page_count: pageCount,
     price_paise: pricePaise,
     needs_conversion: 0,
@@ -508,7 +518,7 @@ async function handleBulk(form: FormData, customerUserId: string | null): Promis
   const { jobId } = await createJobWithFiles(jobData, filesData);
   broadcast({ type: "new_job", jobId, token, queuePosition: queuePos });
 
-  return NextResponse.json({ jobId, token, pricePaise, deliveryFeePaise, needsConversion: false, pageCount, queuePosition: queuePos });
+  return NextResponse.json({ jobId, token, pricePaise, deliveryFeePaise, addonFeePaise, needsConversion: false, pageCount, queuePosition: queuePos });
 }
 
 // Tokens are the counter-facing order code, so they stay 6 digits. Uniqueness

@@ -30,6 +30,30 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   }
 
   broadcast({ type: "job_update", jobId: id, deliveryStatus: next });
+
+  // Trigger SMS notification to customer on delivery status update
+  try {
+    const { getJobById } = await import("@/lib/db");
+    const { sendOutForDeliverySms, sendDeliveredSms } = await import("@/lib/sms-notifications");
+    const job = await getJobById(id);
+    if (job?.customerPhone) {
+      if (next === "out_for_delivery") {
+        await sendOutForDeliverySms({
+          phone: job.customerPhone,
+          token: job.token,
+          driverName: staff.displayName || "Delivery Executive",
+        });
+      } else if (next === "delivered") {
+        await sendDeliveredSms({
+          phone: job.customerPhone,
+          token: job.token,
+        });
+      }
+    }
+  } catch (err) {
+    console.warn("Failed to dispatch delivery status SMS:", err);
+  }
+
   return NextResponse.json({ ok: true });
 }
 

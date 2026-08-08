@@ -1872,7 +1872,8 @@ input, select, button {
 .bill-file-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bill-file-pages { color: var(--muted); flex-shrink: 0; }
 .bill-settings { font-size: 12px; color: var(--muted); font-weight: 600; margin-bottom: 6px; }
-.bill-line { font-size: 12px; color: var(--muted); font-weight: 600; margin-bottom: 4px; }
+.bill-line { font-size: 12px; color: var(--muted); font-weight: 600; margin-bottom: 4px; display: flex; justify-content: space-between; }
+.bill-line-right { color: var(--text); }
 .bill-total { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; font-size: 16px; font-weight: 800; }
 .bill-foot-line { font-size: 12px; color: var(--muted); font-weight: 600; margin-bottom: 4px; }
 .bill-thanks { font-size: 12px; color: var(--accent); font-weight: 700; margin-top: 6px; }
@@ -2409,6 +2410,31 @@ input, select, button {
   font-size: 10.5px;
   font-weight: 700;
   border-radius: 6px;
+}
+
+.addon-toggle-row {
+  margin-top: 10px;
+}
+.addon-toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+  user-select: none;
+}
+.addon-toggle-text { flex: 1; }
+.addon-toggle-price {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent);
+}
+.addon-checkbox {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+  cursor: pointer;
 }
 
 .delivery-contact-fields {

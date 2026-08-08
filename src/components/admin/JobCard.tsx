@@ -138,6 +138,13 @@ function JobCard({
           </div>
         )}
 
+        {(job.hasSpiralBinding || job.hasCoverFile) && (
+          <div className="job-addons-row">
+            {job.hasSpiralBinding && <span className="job-addon-chip">Spiral Bound</span>}
+            {job.hasCoverFile && <span className="job-addon-chip">Cover File</span>}
+          </div>
+        )}
+
         {/* Customer-reported issue from /track — surfaced until staff resolves it. */}
         {job.issueReportedAt && !job.issueResolvedAt && (
           <div className="job-issue-flag" role="alert">

@@ -9,6 +9,8 @@ import { loadRazorpayCheckout, type Pricing } from "./shared";
 export type JobResult = {
   token: string;
   pricePaise: number;
+  deliveryFeePaise?: number;
+  addonFeePaise?: number;
   needsConversion: boolean;
   queuePosition: number;
   pageCount?: number;
@@ -31,7 +33,7 @@ export default function ResultScreen({
   pricing: Pricing | null;
   deliveryMethod: "pickup" | "delivery";
   billFiles: { name: string; pages: number }[];
-  settings: { printType: string; duplex: string; paperSize: string; copies: number; pagesPerSheet: number };
+  settings: { printType: string; duplex: string; paperSize: string; copies: number; pagesPerSheet: number; hasSpiralBinding: boolean; hasCoverFile: boolean };
   customerPhone?: string;
   customerName?: string;
   onReset: () => void;
@@ -99,7 +101,7 @@ export default function ResultScreen({
     return () => { cancelled = true; clearInterval(interval); };
   }, [result.token, result.needsConversion, liveStatusStatus, liveDeliveryStatus, deliveryMethod]);
 
-  const { printType, duplex, paperSize, copies, pagesPerSheet } = settings;
+  const { printType, duplex, paperSize, copies, pagesPerSheet, hasSpiralBinding, hasCoverFile } = settings;
   const amountRupees = (result.pricePaise / 100).toFixed(2);
   const shopName = pricing?.shopName ?? "Print Shop";
   const reviewUrl = (pricing?.shopReviewUrl ?? "").trim();
@@ -115,10 +117,15 @@ export default function ResultScreen({
     token: result.token,
     queuePosition: result.queuePosition,
     files: billFiles,
-    settings: { printType, duplex, paperSize, copies, pagesPerSheet },
+    settings: {
+      printType, duplex, paperSize, copies, pagesPerSheet, hasSpiralBinding, hasCoverFile,
+      spiralBindingPaise: hasSpiralBinding && pricing ? pricing.spiralBindingPaise : undefined,
+      coverFilePaise: hasCoverFile && pricing ? pricing.coverFilePaise : undefined,
+    },
     totalPaise: result.pricePaise,
     perPagePaise: billPerPage,
     totalPages: result.pageCount || billFiles.reduce((s, f) => s + f.pages, 0),
+    deliveryFeePaise: result.deliveryFeePaise ?? 0,
     paidVia: paidInfo?.method ?? "counter",
     paidAt: paidInfo?.at ?? new Date().toISOString(),
   };

@@ -38,6 +38,8 @@ function mapJob(row: any, expiryMinutes: number = 1440): Job {
     margins: (row.margins ?? 'default') as Job['margins'],
     scale: (row.scale ?? 'default') as Job['scale'],
     duplex: (row.duplex ?? 'simplex') as Job['duplex'],
+    hasSpiralBinding: Boolean(row.has_spiral_binding),
+    hasCoverFile: Boolean(row.has_cover_file),
     pageCount: Number(row.page_count),
     pricePaise: Number(row.price_paise),
     needsConversion: Number(row.needs_conversion) as 0 | 1,
@@ -372,6 +374,8 @@ export async function createJobWithFiles(jobData: any, filesData: any[]) {
     delivery_longitude: jobData.delivery_longitude ?? jobData.deliveryLongitude ?? null,
     delivery_accuracy_meters: jobData.delivery_accuracy_meters ?? jobData.deliveryAccuracyMeters ?? null,
     delivery_location_captured_at: jobData.delivery_location_captured_at ?? jobData.deliveryLocationCapturedAt ?? null,
+    has_spiral_binding: jobData.has_spiral_binding ?? jobData.hasSpiralBinding ?? false,
+    has_cover_file: jobData.has_cover_file ?? jobData.hasCoverFile ?? false,
   };
 
   const { error: jobError } = await supabase
@@ -545,6 +549,8 @@ export async function updateJobSettings(id: string, settings: {
   scale: string;
   duplex: string;
   pricePaise: number;
+  hasSpiralBinding?: boolean;
+  hasCoverFile?: boolean;
   updatedAt: string;
 }) {
   const { error } = await supabase
@@ -560,6 +566,8 @@ export async function updateJobSettings(id: string, settings: {
       scale: settings.scale,
       duplex: settings.duplex,
       price_paise: settings.pricePaise,
+      has_spiral_binding: settings.hasSpiralBinding ?? false,
+      has_cover_file: settings.hasCoverFile ?? false,
       updated_at: settings.updatedAt
     })
     .eq('id', id);
@@ -574,7 +582,6 @@ export async function updateJobSettings(id: string, settings: {
       job_id: id,
       event_type: 'settings',
       message: `Admin updated print settings.`,
-      created_at: settings.updatedAt
     }]);
 }
 
@@ -591,6 +598,8 @@ const PRICING_DEFAULTS: PricingConfig = {
   legalMultiplier: 1.25,
   photoMultiplier: 1.0,
   duplexBwPerPagePaise: 100,
+  spiralBindingPaise: 2000,
+  coverFilePaise: 1000,
   expiryMinutes: 1440,
   deliveryFeePaise: 0,
   serviceArea: DEFAULT_SERVICE_AREA,
@@ -622,9 +631,11 @@ export async function getPricing(): Promise<PricingConfig> {
     legalMultiplier: data.legal_multiplier ?? PRICING_DEFAULTS.legalMultiplier,
     photoMultiplier: data.photo_multiplier ?? PRICING_DEFAULTS.photoMultiplier,
     duplexBwPerPagePaise: data.duplex_bw_per_page_paise ?? PRICING_DEFAULTS.duplexBwPerPagePaise,
+    spiralBindingPaise: data.spiral_binding_paise ?? PRICING_DEFAULTS.spiralBindingPaise,
+    coverFilePaise: data.cover_file_paise ?? PRICING_DEFAULTS.coverFilePaise,
     expiryMinutes: data.expiry_minutes ?? PRICING_DEFAULTS.expiryMinutes,
     deliveryFeePaise: data.delivery_fee_paise ?? PRICING_DEFAULTS.deliveryFeePaise,
-    serviceArea: parseServiceAreaConfig(data.service_area_config),
+    serviceArea: parseServiceAreaConfig(data.service_area_config)
   };
 }
 
@@ -645,6 +656,8 @@ export async function updatePricing(pricing: PricingConfig) {
       legal_multiplier: pricing.legalMultiplier,
       photo_multiplier: pricing.photoMultiplier,
       duplex_bw_per_page_paise: pricing.duplexBwPerPagePaise,
+      spiral_binding_paise: pricing.spiralBindingPaise,
+      cover_file_paise: pricing.coverFilePaise,
       expiry_minutes: pricing.expiryMinutes,
       delivery_fee_paise: pricing.deliveryFeePaise,
       service_area_config: serializeServiceAreaConfig(pricing.serviceArea),
@@ -1295,4 +1308,63 @@ export async function getAccountsSummary(date?: string): Promise<AccountsSummary
     colorJobs: d.colorJobs,
     photoJobs: d.photoJobs,
   };
+}
+
+export async function saveOtp(otp: { id: string; phone: string; otpHash: string; purpose: string; expiresAt: string; createdAt: string }): Promise<void> {
+  await supabase.from('otps').insert({
+    id: otp.id,
+    phone: otp.phone,
+    otp_hash: otp.otpHash,
+    purpose: otp.purpose,
+    attempts: 0,
+    max_attempts: 3,
+    expires_at: otp.expiresAt,
+    created_at: otp.createdAt,
+  });
+}
+
+export async function getLatestOtp(phone: string, purpose: string) {
+  const { data } = await supabase
+    .from('otps')
+    .select('*')
+    .eq('phone', phone)
+    .eq('purpose', purpose)
+    .is('verified_at', null)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (!data) return null;
+  return {
+    id: String(data.id),
+    phone: String(data.phone),
+    otpHash: String(data.otp_hash),
+    purpose: String(data.purpose),
+    attempts: Number(data.attempts),
+    maxAttempts: Number(data.max_attempts),
+    expiresAt: String(data.expires_at),
+    createdAt: String(data.created_at),
+    verifiedAt: data.verified_at ? String(data.verified_at) : null,
+  };
+}
+
+export async function incrementOtpAttempts(id: string): Promise<void> {
+  const { data } = await supabase.from('otps').select('attempts').eq('id', id).single();
+  if (data) {
+    await supabase.from('otps').update({ attempts: (data.attempts || 0) + 1 }).eq('id', id);
+  }
+}
+
+export async function markOtpVerified(id: string): Promise<void> {
+  await supabase.from('otps').update({ verified_at: new Date().toISOString() }).eq('id', id);
+}
+
+export async function countRecentOtps(phone: string, sinceIso: string): Promise<number> {
+  const { count } = await supabase
+    .from('otps')
+    .select('*', { count: 'exact', head: true })
+    .eq('phone', phone)
+    .gte('created_at', sinceIso);
+
+  return count ?? 0;
 }

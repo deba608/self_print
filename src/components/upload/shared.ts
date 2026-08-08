@@ -22,6 +22,8 @@ export type Pricing = {
   legalMultiplier: number;
   photoMultiplier: number;
   duplexBwPerPagePaise: number;
+  spiralBindingPaise: number;
+  coverFilePaise: number;
   deliveryFeePaise: number;
   shopName?: string;
   shopReviewUrl?: string;

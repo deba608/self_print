@@ -11,6 +11,7 @@ import {
   Loader2,
   Lock,
   MapPinned,
+  MessageSquare,
   Package,
   PackageCheck,
   Phone,
@@ -326,9 +327,30 @@ export default function OrderManagementPage() {
 
                         <div className="order-card-actions">
                           {job.customerPhone && (
-                            <a href={`tel:${job.customerPhone}`} className="order-action secondary">
-                              <Phone size={15} aria-hidden="true" /> Call
-                            </a>
+                            <>
+                              <a href={`tel:${job.customerPhone}`} className="order-action secondary">
+                                <Phone size={15} aria-hidden="true" /> Call
+                              </a>
+                              <button
+                                type="button"
+                                className="order-action secondary"
+                                onClick={async () => {
+                                  try {
+                                    const res = await fetch(`/api/admin/jobs/${job.id}/send-sms`, {
+                                      method: "POST",
+                                      headers: { "Content-Type": "application/json" },
+                                      body: JSON.stringify({ type: "custom" }),
+                                    });
+                                    if (res.ok) alert(`SMS update sent to ${job.customerPhone}`);
+                                    else alert("Failed to dispatch SMS.");
+                                  } catch {
+                                    alert("Error sending SMS update.");
+                                  }
+                                }}
+                              >
+                                <MessageSquare size={15} aria-hidden="true" /> SMS
+                              </button>
+                            </>
                           )}
                           {directions && (
                             <a href={directions} target="_blank" rel="noreferrer" className="order-action secondary">

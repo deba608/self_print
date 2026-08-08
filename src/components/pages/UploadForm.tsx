@@ -34,8 +34,18 @@ export default function UploadForm() {
   const [margins, setMargins] = useState("default");
   const [pagesPerSheet, setPagesPerSheet] = useState(1);
   const [duplex, setDuplex] = useState("simplex");
+  const [hasSpiralBinding, setHasSpiralBinding] = useState(false);
+  const [hasCoverFile, setHasCoverFile] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [result, setResult] = useState<{ token: string; pricePaise: number; needsConversion: boolean; queuePosition: number; pageCount?: number } | null>(null);
+  const [result, setResult] = useState<{
+    token: string;
+    pricePaise: number;
+    deliveryFeePaise?: number;
+    addonFeePaise?: number;
+    needsConversion: boolean;
+    queuePosition: number;
+    pageCount?: number;
+  } | null>(null);
   const [error, setError] = useState("");
   const [deliveryMethod, setDeliveryMethod] = useState<"pickup" | "delivery">("pickup");
   const [customerName, setCustomerName] = useState("");
@@ -286,6 +296,7 @@ export default function UploadForm() {
   type LastSettings = {
     printType: string; copies: number; paperSize: string; layout: string;
     scale: string; margins: string; pagesPerSheet: number; duplex: string;
+    hasSpiralBinding: boolean; hasCoverFile: boolean;
   };
   const LAST_SETTINGS_KEY = "selfprint:lastSettings";
   const [lastSettings, setLastSettings] = useState<LastSettings | null>(null);
@@ -299,7 +310,7 @@ export default function UploadForm() {
   }, []);
 
   function saveLastSettings() {
-    const s: LastSettings = { printType, copies, paperSize, layout, scale, margins, pagesPerSheet, duplex };
+    const s: LastSettings = { printType, copies, paperSize, layout, scale, margins, pagesPerSheet, duplex, hasSpiralBinding, hasCoverFile };
     try { localStorage.setItem(LAST_SETTINGS_KEY, JSON.stringify(s)); } catch { /* private mode */ }
   }
 
@@ -313,6 +324,8 @@ export default function UploadForm() {
     setMargins(lastSettings.margins);
     setPagesPerSheet(lastSettings.pagesPerSheet);
     setDuplex(lastSettings.duplex);
+    setHasSpiralBinding(lastSettings.hasSpiralBinding ?? false);
+    setHasCoverFile(lastSettings.hasCoverFile ?? false);
     setAppliedLastSettings(true);
   }
 
@@ -526,8 +539,14 @@ export default function UploadForm() {
     // estimate never drifts a paisa from the final charged amount.
     const printCost = Math.round(pageCostSum * copies * paperMultiplier * pricing.copyMultiplier) / 100;
     const deliveryFee = deliveryMethod === "delivery" ? pricing.deliveryFeePaise / 100 : 0;
-    return printCost + deliveryFee;
-  }, [copies, selectedPages, paperSize, printType, pricing, duplex, isBulk, bulkTotalPages, deliveryMethod, pagesPerSheet]);
+    const addonFee = (hasSpiralBinding ? pricing.spiralBindingPaise / 100 : 0) + (hasCoverFile ? pricing.coverFilePaise / 100 : 0);
+    return printCost + deliveryFee + addonFee;
+  }, [copies, selectedPages, paperSize, printType, pricing, duplex, isBulk, bulkTotalPages, deliveryMethod, pagesPerSheet, hasSpiralBinding, hasCoverFile]);
+
+  const addonFeeTotal = useMemo(() => {
+    if (!pricing) return 0;
+    return (hasSpiralBinding ? pricing.spiralBindingPaise / 100 : 0) + (hasCoverFile ? pricing.coverFilePaise / 100 : 0);
+  }, [pricing, hasSpiralBinding, hasCoverFile]);
 
   // Physical sheets of paper per copy: pages are grouped pagesPerSheet-per-side,
   // and duplex halves the sheet count (rounded up for a trailing odd side).
@@ -865,6 +884,8 @@ export default function UploadForm() {
       bulkForm.set("margins", margins);
       bulkForm.set("pagesPerSheet", String(pagesPerSheet));
       bulkForm.set("duplex", duplex);
+      bulkForm.set("hasSpiralBinding", String(hasSpiralBinding));
+      bulkForm.set("hasCoverFile", String(hasCoverFile));
       appendDeliveryDetails(bulkForm);
 
       if (uploadResults.some((r) => r.fallback)) {
@@ -955,6 +976,8 @@ export default function UploadForm() {
     form.set("margins", margins);
     form.set("pagesPerSheet", String(pagesPerSheet));
     form.set("duplex", duplex);
+    form.set("hasSpiralBinding", String(hasSpiralBinding));
+    form.set("hasCoverFile", String(hasCoverFile));
     appendDeliveryDetails(form);
 
     const controller = new AbortController();
@@ -1036,6 +1059,9 @@ export default function UploadForm() {
     setPaperSize("A4");
     setLayout("portrait");
     setScale("default");
+    setDuplex("simplex");
+    setHasSpiralBinding(false);
+    setHasCoverFile(false);
     setFilePageCount(null);
     setBulkFiles([]);
     setBulkPageCounts([]);
@@ -1080,7 +1106,7 @@ export default function UploadForm() {
         pricing={pricing}
         deliveryMethod={deliveryMethod}
         billFiles={billFiles}
-        settings={{ printType, duplex, paperSize, copies, pagesPerSheet }}
+        settings={{ printType, duplex, paperSize, copies, pagesPerSheet, hasSpiralBinding, hasCoverFile }}
         customerPhone={deliveryMethod === "delivery" ? customerPhone : ""}
         customerName={deliveryMethod === "delivery" ? customerName : ""}
         onReset={resetForm}
@@ -1593,17 +1619,43 @@ export default function UploadForm() {
               </div>
             </div>
             <div className="form-group">
-              <label htmlFor="paper-size">Paper</label>
+              <label htmlFor="paperSize" className="select-label">Paper</label>
               <select
-                id="paper-size"
+                id="paperSize"
                 value={paperSize}
                 onChange={(e) => setPaperSize(e.target.value)}
-                className="mobile-select"
+                className="select-field"
               >
-                {allPaperSizes.map((size) => (
-                  <option key={size} value={size}>{paperSizeLabels[size as keyof typeof paperSizeLabels]}</option>
+                {allPaperSizes.map((s) => (
+                  <option key={s} value={s}>{s} ({paperSizeLabels[s] || s})</option>
                 ))}
               </select>
+            </div>
+
+            <div className="addon-toggle-row">
+              <label className="addon-toggle-label">
+                <input
+                  type="checkbox"
+                  className="addon-checkbox"
+                  checked={hasSpiralBinding}
+                  onChange={(e) => setHasSpiralBinding(e.target.checked)}
+                />
+                <span className="addon-toggle-text">Spiral Binding</span>
+                {pricing && <span className="addon-toggle-price">+{formatRupees(pricing.spiralBindingPaise)}</span>}
+              </label>
+            </div>
+
+            <div className="addon-toggle-row">
+              <label className="addon-toggle-label">
+                <input
+                  type="checkbox"
+                  className="addon-checkbox"
+                  checked={hasCoverFile}
+                  onChange={(e) => setHasCoverFile(e.target.checked)}
+                />
+                <span className="addon-toggle-text">Cover File</span>
+                {pricing && <span className="addon-toggle-price">+{formatRupees(pricing.coverFilePaise)}</span>}
+              </label>
             </div>
           </div>
 
@@ -2069,6 +2121,18 @@ export default function UploadForm() {
                   <span className="summary-value">{pagesPerSheet}</span>
                 </div>
               )}
+              {hasSpiralBinding && (
+                <div className="summary-item">
+                  <span className="summary-label">Spiral Binding</span>
+                  <span className="summary-value">Yes</span>
+                </div>
+              )}
+              {hasCoverFile && (
+                <div className="summary-item">
+                  <span className="summary-label">Cover File</span>
+                  <span className="summary-value">Yes</span>
+                </div>
+              )}
             </div>
             {/* Physical output line — the one fact the settings rows can't show */}
             <div className="summary-paper-note">
@@ -2119,16 +2183,32 @@ export default function UploadForm() {
           )}
 
           {/* Total price */}
-          {!onePage && (deliveryMethod === "delivery" && pricing ? (
+          {!onePage && pricing ? (
             <div className="total-price-breakdown">
-              <div className="total-price-row">
-                <span>Printing</span>
-                <span>₹{(estimate - pricing.deliveryFeePaise / 100).toFixed(2)}</span>
-              </div>
-              <div className="total-price-row">
-                <span>Delivery</span>
-                <span>{pricing.deliveryFeePaise > 0 ? `₹${(pricing.deliveryFeePaise / 100).toFixed(2)}` : "Free"}</span>
-              </div>
+              {addonFeeTotal > 0 && (
+                <div className="total-price-row">
+                  <span>Printing</span>
+                  <span>₹{(estimate - addonFeeTotal - (deliveryMethod === "delivery" ? pricing.deliveryFeePaise / 100 : 0)).toFixed(2)}</span>
+                </div>
+              )}
+              {hasSpiralBinding && (
+                <div className="total-price-row">
+                  <span>Spiral Binding</span>
+                  <span>₹{(pricing.spiralBindingPaise / 100).toFixed(2)}</span>
+                </div>
+              )}
+              {hasCoverFile && (
+                <div className="total-price-row">
+                  <span>Cover File</span>
+                  <span>₹{(pricing.coverFilePaise / 100).toFixed(2)}</span>
+                </div>
+              )}
+              {deliveryMethod === "delivery" && (
+                <div className="total-price-row">
+                  <span>Delivery</span>
+                  <span>{pricing.deliveryFeePaise > 0 ? `₹${(pricing.deliveryFeePaise / 100).toFixed(2)}` : "Free"}</span>
+                </div>
+              )}
               <div className="total-price">
                 <span>Total</span>
                 <strong>₹{estimate.toFixed(2)}</strong>
@@ -2139,7 +2219,7 @@ export default function UploadForm() {
               <span>Total</span>
               <strong>{pricing ? `₹${estimate.toFixed(2)}` : "…"}</strong>
             </div>
-          ))}
+          )}
 
           {/* Submit errors must be visible HERE — Confirm lives on this step,
               and the settings-step error block is not rendered here. */}

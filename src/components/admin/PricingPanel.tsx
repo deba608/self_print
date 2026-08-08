@@ -22,6 +22,8 @@ const defaultPricing: NumericPricing = {
   legalMultiplier: 1.25,
   photoMultiplier: 1.5,
   duplexBwPerPagePaise: 100,
+  spiralBindingPaise: 3000,
+  coverFilePaise: 1000,
   expiryMinutes: 1440,
   deliveryFeePaise: 0,
 };
@@ -66,6 +68,8 @@ export default function PricingPanel({
     colorPerPagePaise: formatPaiseInput((pricing || defaultPricing).colorPerPagePaise),
     photoPrintPaise: formatPaiseInput((pricing || defaultPricing).photoPrintPaise),
     duplexBwPerPagePaise: formatPaiseInput((pricing || defaultPricing).duplexBwPerPagePaise),
+    spiralBindingPaise: formatPaiseInput((pricing || defaultPricing).spiralBindingPaise),
+    coverFilePaise: formatPaiseInput((pricing || defaultPricing).coverFilePaise),
     deliveryFeePaise: formatPaiseInput((pricing || defaultPricing).deliveryFeePaise),
   });
   const [saved, setSaved] = useState(false);
@@ -80,6 +84,8 @@ export default function PricingPanel({
       colorPerPagePaise: formatPaiseInput(nextPricing.colorPerPagePaise),
       photoPrintPaise: formatPaiseInput(nextPricing.photoPrintPaise),
       duplexBwPerPagePaise: formatPaiseInput(nextPricing.duplexBwPerPagePaise),
+      spiralBindingPaise: formatPaiseInput(nextPricing.spiralBindingPaise),
+      coverFilePaise: formatPaiseInput(nextPricing.coverFilePaise),
       deliveryFeePaise: formatPaiseInput(nextPricing.deliveryFeePaise),
     });
   }, [pricing]);
@@ -95,7 +101,7 @@ export default function PricingPanel({
     setError("");
   };
 
-  const updatePriceField = (field: "bwPerPagePaise" | "colorPerPagePaise" | "photoPrintPaise" | "duplexBwPerPagePaise" | "deliveryFeePaise", rawValue: string) => {
+  const updatePriceField = (field: "bwPerPagePaise" | "colorPerPagePaise" | "photoPrintPaise" | "duplexBwPerPagePaise" | "spiralBindingPaise" | "coverFilePaise" | "deliveryFeePaise", rawValue: string) => {
     setPriceInputs(prev => ({ ...prev, [field]: rawValue }));
     if (rawValue === "") {
       setFormData(prev => ({ ...prev, [field]: "" }));
@@ -208,6 +214,34 @@ export default function PricingPanel({
                   onChange={(e) => updatePriceField("deliveryFeePaise", e.target.value)}
                 />
                 <span className="pricing-hint">Added once per home-delivery order, on top of the print cost.</span>
+              </div>
+              <div className="pricing-field">
+                <label>Spiral Binding (flat, ₹)</label>
+                <div className="price-input">
+                  <span className="currency">₹</span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={priceInputs.spiralBindingPaise}
+                    onChange={(e) => updatePriceField("spiralBindingPaise", e.target.value)}
+                  />
+                </div>
+                <span className="pricing-hint">Added once per job when spiral binding is selected.</span>
+              </div>
+              <div className="pricing-field">
+                <label>Cover File (flat, ₹)</label>
+                <div className="price-input">
+                  <span className="currency">₹</span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={priceInputs.coverFilePaise}
+                    onChange={(e) => updatePriceField("coverFilePaise", e.target.value)}
+                  />
+                </div>
+                <span className="pricing-hint">Added once per job when a cover file is selected.</span>
               </div>
             </div>
           </section>

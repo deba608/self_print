@@ -14,10 +14,15 @@ export type BillData = {
     paperSize: string;
     copies: number;
     pagesPerSheet: number;
+    hasSpiralBinding?: boolean;
+    hasCoverFile?: boolean;
+    spiralBindingPaise?: number;
+    coverFilePaise?: number;
   };
   totalPaise: number;
   perPagePaise: number;
   totalPages: number;
+  deliveryFeePaise?: number;
   paidVia: "online" | "counter";
   paidAt: string; // ISO
 };
@@ -39,6 +44,8 @@ export default function BillReceipt({ bill }: { bill: BillData }) {
     bill.settings.duplex === "simplex" ? "Single-sided" : "Double-sided",
     bill.settings.paperSize,
     bill.settings.pagesPerSheet > 1 ? `${bill.settings.pagesPerSheet} pages/sheet` : null,
+    bill.settings.hasSpiralBinding ? "Spiral binding" : null,
+    bill.settings.hasCoverFile ? "Cover file" : null,
   ].filter(Boolean).join(" · ");
 
   async function saveAsImage() {
@@ -88,6 +95,15 @@ export default function BillReceipt({ bill }: { bill: BillData }) {
         {bill.settings.copies > 1 && (
           <div className="bill-line"><span>Copies × {bill.settings.copies}</span></div>
         )}
+        {bill.settings.hasSpiralBinding && bill.settings.spiralBindingPaise != null && (
+          <div className="bill-line"><span>Spiral Binding</span><span className="bill-line-right">{rupees(bill.settings.spiralBindingPaise)}</span></div>
+        )}
+        {bill.settings.hasCoverFile && bill.settings.coverFilePaise != null && (
+          <div className="bill-line"><span>Cover File</span><span className="bill-line-right">{rupees(bill.settings.coverFilePaise)}</span></div>
+        )}
+        {bill.deliveryFeePaise != null && bill.deliveryFeePaise > 0 && (
+          <div className="bill-line"><span>Delivery fee</span><span className="bill-line-right">{rupees(bill.deliveryFeePaise)}</span></div>
+        )}
         <div className="bill-total">
           <span>TOTAL</span>
           <strong>{rupees(bill.totalPaise)}</strong>
@@ -118,8 +134,9 @@ async function renderBillPng(bill: BillData): Promise<Blob> {
 
   // Height: head(64) + meta(26) + files + settings/breakdown + footer block.
   const filesH = bill.files.length * lineH + 8;
-  const breakdownH = (bill.settings.copies > 1 ? 3 : 2) * lineH + 34;
-  const H = 64 + 26 + 14 + filesH + 14 + breakdownH + 14 + 3 * lineH + 30 + pad;
+  const addonLines = (bill.settings.hasSpiralBinding ? 1 : 0) + (bill.settings.hasCoverFile ? 1 : 0) + (bill.deliveryFeePaise != null && bill.deliveryFeePaise > 0 ? 1 : 0);
+  const breakdownH = (bill.settings.copies > 1 ? 1 : 0) + addonLines + 2; // +1 copies line, addons, +2 pages line + total row (total doesn't take lineH, +34 accounts for it)
+  const H = 64 + 26 + 14 + filesH + 14 + breakdownH * lineH + 34 + 14 + 3 * lineH + 30 + pad;
 
   const canvas = document.createElement("canvas");
   canvas.width = W * scale;
@@ -189,6 +206,8 @@ async function renderBillPng(bill: BillData): Promise<Blob> {
     bill.settings.duplex === "simplex" ? "Single-sided" : "Double-sided",
     bill.settings.paperSize,
     bill.settings.pagesPerSheet > 1 ? `${bill.settings.pagesPerSheet} pages/sheet` : null,
+    bill.settings.hasSpiralBinding ? "Spiral binding" : null,
+    bill.settings.hasCoverFile ? "Cover file" : null,
   ].filter(Boolean).join(" · ");
   ctx.fillStyle = "#4b5563";
   ctx.font = "600 12px system-ui, sans-serif";
@@ -200,6 +219,27 @@ async function renderBillPng(bill: BillData): Promise<Blob> {
   y += lineH;
   if (bill.settings.copies > 1) {
     ctx.fillText(`Copies × ${bill.settings.copies}`, left, y);
+    y += lineH;
+  }
+  if (bill.settings.hasSpiralBinding && bill.settings.spiralBindingPaise != null) {
+    ctx.textAlign = "left";
+    ctx.fillText("Spiral Binding", left, y);
+    ctx.textAlign = "right";
+    ctx.fillText(rupees(bill.settings.spiralBindingPaise), right, y);
+    y += lineH;
+  }
+  if (bill.settings.hasCoverFile && bill.settings.coverFilePaise != null) {
+    ctx.textAlign = "left";
+    ctx.fillText("Cover File", left, y);
+    ctx.textAlign = "right";
+    ctx.fillText(rupees(bill.settings.coverFilePaise), right, y);
+    y += lineH;
+  }
+  if (bill.deliveryFeePaise != null && bill.deliveryFeePaise > 0) {
+    ctx.textAlign = "left";
+    ctx.fillText("Delivery fee", left, y);
+    ctx.textAlign = "right";
+    ctx.fillText(rupees(bill.deliveryFeePaise), right, y);
     y += lineH;
   }
 
