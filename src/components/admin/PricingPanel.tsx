@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Check, Clock, Loader2, X, Zap } from "lucide-react";
 import type { PricingConfig as Pricing } from "@/lib/types";
+import { calculatePrice } from "@/lib/pricing";
 
 type NumericPricing = Omit<Pricing, "serviceArea">;
 type PricingDraft = {
@@ -130,6 +131,36 @@ export default function PricingPanel({
     }
     setSaved(false);
     setError("");
+  };
+
+  // Live cost of a representative job, recomputed as fields are edited. Raw
+  // per-page paise say little on their own — this shows what the change
+  // actually does to a real order before it's saved.
+  const sample = useMemo(() => {
+    const draft = normalizePricingDraft(formData);
+    if (!draft) return null;
+    const config = { ...draft, serviceArea: pricing?.serviceArea } as Pricing;
+    try {
+      const bw = calculatePrice({
+        printType: "bw", copies: 1, pageRange: null, paperSize: "A4",
+        pageCount: 10, pricing: config, duplex: "simplex", pagesPerSheet: 1,
+      });
+      const color = calculatePrice({
+        printType: "color", copies: 1, pageRange: null, paperSize: "A4",
+        pageCount: 10, pricing: config, duplex: "simplex", pagesPerSheet: 1,
+      });
+      return { bw, color };
+    } catch {
+      return null;
+    }
+  }, [formData, pricing]);
+
+  // Effective per-page cost once a paper multiplier is applied, so "A3 × 2"
+  // reads as a price instead of an abstract factor.
+  const effectivePerPage = (multiplier: number | "") => {
+    const base = formData.bwPerPagePaise;
+    if (typeof base !== "number" || typeof multiplier !== "number") return null;
+    return Math.round(base * multiplier);
   };
 
   const handleSave = async () => {
