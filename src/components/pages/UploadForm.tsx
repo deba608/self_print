@@ -1745,120 +1745,123 @@ export default function UploadForm() {
             <label className="select-label">Finishing & Binding Add-ons</label>
             <div className="addon-cards-group">
 
-              {/* Spiral Binding Card — one row: qty stepper, name, price */}
+              {/* Spiral Binding Card */}
               <div className={`addon-card ${hasSpiralBinding ? "active" : ""}`}>
                 <div className="addon-card-main">
-                  {hasSpiralBinding ? (
-                    <div className="addon-qty-ctrl">
-                      <button
-                        type="button"
-                        className="addon-qty-btn"
-                        onClick={() => {
-                          if (spiralBindingQty <= 1) {
-                            setHasSpiralBinding(false);
-                            setSpiralBindingQty(1);
-                          } else {
-                            setSpiralBindingQty(q => q - 1);
-                          }
-                        }}
-                        aria-label="Decrease"
-                      >
-                        −
-                      </button>
-                      <span className="addon-qty-val">{spiralBindingQty}</span>
-                      <button type="button" className="addon-qty-btn" onClick={() => setSpiralBindingQty(q => Math.min(99, q + 1))} aria-label="Increase">+</button>
-                    </div>
-                  ) : (
-                    <button
-                      type="button"
-                      className="addon-add-btn"
-                      aria-label="Add Spiral Binding"
-                      onClick={() => setHasSpiralBinding(true)}
-                    >
-                      +
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    role="checkbox"
+                    aria-checked={hasSpiralBinding}
+                    className={`addon-check ${hasSpiralBinding ? "on" : ""}`}
+                    aria-label="Toggle Spiral Binding"
+                    onClick={() => {
+                      setHasSpiralBinding(v => !v);
+                      if (hasSpiralBinding) setSpiralBindingQty(1);
+                    }}
+                  >
+                    {hasSpiralBinding && <Check size={14} strokeWidth={3} />}
+                  </button>
                   <span className="addon-card-title">Spiral Binding</span>
-                  {pricing && (
-                    <span className="addon-card-price">
-                      +{formatRupees((isBulk ? bulkTotalPages : selectedPages) * pricing.spiralBindingPerPagePaise * spiralBindingQty)}
-                    </span>
-                  )}
+                  <div className="addon-card-right">
+                    {hasSpiralBinding && (
+                      <div className="addon-qty-ctrl">
+                        <button
+                          type="button"
+                          className="addon-qty-btn"
+                          onClick={() => {
+                            if (spiralBindingQty <= 1) {
+                              setHasSpiralBinding(false);
+                              setSpiralBindingQty(1);
+                            } else {
+                              setSpiralBindingQty(q => q - 1);
+                            }
+                          }}
+                          aria-label="Decrease"
+                        >
+                          −
+                        </button>
+                        <span className="addon-qty-val">{spiralBindingQty}</span>
+                        <button type="button" className="addon-qty-btn" onClick={() => setSpiralBindingQty(q => Math.min(99, q + 1))} aria-label="Increase">+</button>
+                      </div>
+                    )}
+                    {pricing && (
+                      <span className="addon-card-price">
+                        +{formatRupees((isBulk ? bulkTotalPages : selectedPages) * pricing.spiralBindingPerPagePaise * spiralBindingQty)}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
 
-              {/* Cover File Card — one row: qty stepper, name, price */}
+              {/* Cover File Card */}
               <div className={`addon-card ${hasCoverFile ? "active" : ""}`}>
                 <div className="addon-card-main">
-                  {hasCoverFile ? (
-                    <div className="addon-qty-ctrl">
-                      <button
-                        type="button"
-                        className="addon-qty-btn"
-                        onClick={() => {
-                          if (coverFileQty <= 1) {
-                            setHasCoverFile(false);
-                            setCoverFileQty(1);
-                          } else {
-                            setCoverFileQty(q => q - 1);
-                          }
-                        }}
-                        aria-label="Decrease"
-                      >
-                        −
-                      </button>
-                      <span className="addon-qty-val">{coverFileQty}</span>
-                      <button type="button" className="addon-qty-btn" onClick={() => setCoverFileQty(q => Math.min(99, q + 1))} aria-label="Increase">+</button>
-                    </div>
-                  ) : (
-                    <button
-                      type="button"
-                      className="addon-add-btn"
-                      aria-label="Add Cover File"
-                      onClick={() => setHasCoverFile(true)}
-                    >
-                      +
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    role="checkbox"
+                    aria-checked={hasCoverFile}
+                    className={`addon-check ${hasCoverFile ? "on" : ""}`}
+                    aria-label="Toggle Cover File"
+                    onClick={() => {
+                      setHasCoverFile(v => !v);
+                      if (hasCoverFile) setCoverFileQty(1);
+                    }}
+                  >
+                    {hasCoverFile && <Check size={14} strokeWidth={3} />}
+                  </button>
                   <span className="addon-card-title">Cover File</span>
-                  {pricing && (
-                    <span className="addon-card-price">
-                      +{formatRupees(pricing.coverFilePaise * coverFileQty)}
-                    </span>
-                  )}
+                  <div className="addon-card-right">
+                    {hasCoverFile && (
+                      <div className="addon-qty-ctrl">
+                        <button
+                          type="button"
+                          className="addon-qty-btn"
+                          onClick={() => {
+                            if (coverFileQty <= 1) {
+                              setHasCoverFile(false);
+                              setCoverFileQty(1);
+                            } else {
+                              setCoverFileQty(q => q - 1);
+                            }
+                          }}
+                          aria-label="Decrease"
+                        >
+                          −
+                        </button>
+                        <span className="addon-qty-val">{coverFileQty}</span>
+                        <button type="button" className="addon-qty-btn" onClick={() => setCoverFileQty(q => Math.min(99, q + 1))} aria-label="Increase">+</button>
+                      </div>
+                    )}
+                    {pricing && (
+                      <span className="addon-card-price">
+                        +{formatRupees(pricing.coverFilePaise * coverFileQty)}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
 
-              {/* Bond Paper Card — one row: toggle, name, price */}
+              {/* Bond Paper Card — checkbox toggle, no qty stepper */}
               <div className={`addon-card ${hasBondPaper ? "active" : ""}`}>
                 <div className="addon-card-main">
-                  {hasBondPaper ? (
-                    <div className="addon-qty-ctrl">
-                      <button
-                        type="button"
-                        className="addon-qty-btn active"
-                        onClick={() => setHasBondPaper(false)}
-                        aria-label="Remove Bond Paper"
-                      >
-                        <Check size={16} />
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      type="button"
-                      className="addon-add-btn"
-                      aria-label="Add Bond Paper"
-                      onClick={() => setHasBondPaper(true)}
-                    >
-                      +
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    role="checkbox"
+                    aria-checked={hasBondPaper}
+                    className={`addon-check ${hasBondPaper ? "on" : ""}`}
+                    aria-label="Toggle Bond Paper"
+                    onClick={() => setHasBondPaper(v => !v)}
+                  >
+                    {hasBondPaper && <Check size={14} strokeWidth={3} />}
+                  </button>
                   <span className="addon-card-title">Bond Paper</span>
-                  {pricing && (
-                    <span className="addon-card-price">
-                      +{formatRupees((isBulk ? bulkTotalPages : selectedPages) * pricing.bondPaperPerPagePaise)}
-                    </span>
-                  )}
+                  <div className="addon-card-right">
+                    {pricing && (
+                      <span className="addon-card-price">
+                        +{formatRupees((isBulk ? bulkTotalPages : selectedPages) * pricing.bondPaperPerPagePaise)}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
 

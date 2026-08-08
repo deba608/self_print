@@ -1795,13 +1795,12 @@ input, select, button {
   color: var(--accent);
 }
 
-/* Enhanced Add-on Cards (Spiral Binding & Cover File) */
+/* Add-on Cards (Spiral Binding, Cover File, Bond Paper) */
 .addon-cards-group {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: flex;
+  flex-direction: column;
   gap: 10px;
   margin-top: 12px;
-  align-items: start;
 }
 
 .addon-card {
@@ -1818,12 +1817,41 @@ input, select, button {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px;
+  padding: 12px 14px;
   width: 100%;
 }
 
+.addon-check {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 8px;
+  border: 2px solid var(--line);
+  background: #fff;
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  padding: 0;
+}
+
+.addon-check:hover {
+  border-color: var(--accent);
+}
+
+.addon-check:active {
+  transform: scale(0.92);
+}
+
+.addon-check.on {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
 .addon-card-title {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 700;
   color: var(--ink);
   display: flex;
@@ -1870,33 +1898,6 @@ input, select, button {
   border-right-color: rgba(13, 122, 116, 0.2);
 }
 
-.addon-add-btn {
-  flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 30px;
-  height: 30px;
-  border-radius: 999px;
-  border: 1.5px solid var(--accent);
-  background: #fff;
-  color: var(--accent);
-  font-size: 20px;
-  font-weight: 700;
-  line-height: 1;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  padding: 0 0 2px 0;
-}
-
-.addon-add-btn:hover {
-  background: var(--accent-light);
-}
-
-.addon-add-btn:active {
-  transform: scale(0.92);
-}
-
 .addon-card:active {
   transform: scale(0.99);
 }
@@ -1911,6 +1912,21 @@ input, select, button {
   color: var(--muted);
   margin-top: 2px;
   line-height: 1.3;
+}
+
+@media (max-width: 480px) {
+  .addon-card-main {
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .addon-card-title {
+    font-size: 13px;
+  }
+
+  .addon-card-price {
+    font-size: 12px;
+  }
 }
 
 .addon-qty-ctrl {
