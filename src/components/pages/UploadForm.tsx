@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, useRef } from "react";
 import Link from "next/link";
-import { UploadCloud, FileText, Image, ArrowLeft, ArrowRight, Check, Eye, Loader2, File, Settings2, Printer, Copy, Store, X, Search, CreditCard, RefreshCw, Info, Truck, MapPin, Navigation, AlertCircle } from "lucide-react";
+import { UploadCloud, FileText, Image, ArrowLeft, ArrowRight, Check, Eye, Loader2, File, Settings2, Printer, Copy, Store, X, Search, CreditCard, RefreshCw, Info, Truck, MapPin, Navigation, AlertCircle, ChevronDown } from "lucide-react";
 import { formatRupees, paperSizeLabels, allPaperSizes } from "@/lib/pricing";
 import { estimatePdfPages } from "@/lib/pdf-pages";
 import { checkDeliveryServiceable, isValidPincode } from "@/lib/service-area";
@@ -36,6 +36,8 @@ export default function UploadForm() {
   const [duplex, setDuplex] = useState("simplex");
   const [hasSpiralBinding, setHasSpiralBinding] = useState(false);
   const [hasCoverFile, setHasCoverFile] = useState(false);
+  const [spiralBindingQty, setSpiralBindingQty] = useState(1);
+  const [coverFileQty, setCoverFileQty] = useState(1);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<{
     token: string;
@@ -64,6 +66,20 @@ export default function UploadForm() {
   const [locationError, setLocationError] = useState("");
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
+  const [morePopoverOpen, setMorePopoverOpen] = useState(false);
+  const popoverRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
+        setMorePopoverOpen(false);
+      }
+    }
+    if (morePopoverOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [morePopoverOpen]);
   // Direction-aware step transition: forward navigation slides in from the
   // right, backward from the left. Keyed on `step` so the animation replays.
   const stepAnimRef = useRef("fade-in");
@@ -539,14 +555,14 @@ export default function UploadForm() {
     // estimate never drifts a paisa from the final charged amount.
     const printCost = Math.round(pageCostSum * copies * paperMultiplier * pricing.copyMultiplier) / 100;
     const deliveryFee = deliveryMethod === "delivery" ? pricing.deliveryFeePaise / 100 : 0;
-    const addonFee = (hasSpiralBinding ? pricing.spiralBindingPaise / 100 : 0) + (hasCoverFile ? pricing.coverFilePaise / 100 : 0);
+    const addonFee = (hasSpiralBinding ? (isBulk ? bulkTotalPages : selectedPages) * pricing.spiralBindingPerPagePaise / 100 * spiralBindingQty : 0) + (hasCoverFile ? pricing.coverFilePaise / 100 * coverFileQty : 0);
     return printCost + deliveryFee + addonFee;
-  }, [copies, selectedPages, paperSize, printType, pricing, duplex, isBulk, bulkTotalPages, deliveryMethod, pagesPerSheet, hasSpiralBinding, hasCoverFile]);
+   }, [copies, selectedPages, paperSize, printType, pricing, duplex, isBulk, bulkTotalPages, deliveryMethod, pagesPerSheet, hasSpiralBinding, hasCoverFile, spiralBindingQty, coverFileQty]);
 
-  const addonFeeTotal = useMemo(() => {
-    if (!pricing) return 0;
-    return (hasSpiralBinding ? pricing.spiralBindingPaise / 100 : 0) + (hasCoverFile ? pricing.coverFilePaise / 100 : 0);
-  }, [pricing, hasSpiralBinding, hasCoverFile]);
+   const addonFeeTotal = useMemo(() => {
+     if (!pricing) return 0;
+     return (hasSpiralBinding ? (isBulk ? bulkTotalPages : selectedPages) * pricing.spiralBindingPerPagePaise / 100 * spiralBindingQty : 0) + (hasCoverFile ? pricing.coverFilePaise / 100 * coverFileQty : 0);
+   }, [pricing, hasSpiralBinding, hasCoverFile, selectedPages, isBulk, bulkTotalPages, spiralBindingQty, coverFileQty]);
 
   // Physical sheets of paper per copy: pages are grouped pagesPerSheet-per-side,
   // and duplex halves the sheet count (rounded up for a trailing odd side).
@@ -886,6 +902,8 @@ export default function UploadForm() {
       bulkForm.set("duplex", duplex);
       bulkForm.set("hasSpiralBinding", String(hasSpiralBinding));
       bulkForm.set("hasCoverFile", String(hasCoverFile));
+      bulkForm.set("spiralBindingQty", String(spiralBindingQty));
+      bulkForm.set("coverFileQty", String(coverFileQty));
       appendDeliveryDetails(bulkForm);
 
       if (uploadResults.some((r) => r.fallback)) {
@@ -978,6 +996,8 @@ export default function UploadForm() {
     form.set("duplex", duplex);
     form.set("hasSpiralBinding", String(hasSpiralBinding));
     form.set("hasCoverFile", String(hasCoverFile));
+    form.set("spiralBindingQty", String(spiralBindingQty));
+    form.set("coverFileQty", String(coverFileQty));
     appendDeliveryDetails(form);
 
     const controller = new AbortController();
@@ -1062,6 +1082,8 @@ export default function UploadForm() {
     setDuplex("simplex");
     setHasSpiralBinding(false);
     setHasCoverFile(false);
+    setSpiralBindingQty(1);
+    setCoverFileQty(1);
     setFilePageCount(null);
     setBulkFiles([]);
     setBulkPageCounts([]);
@@ -1106,7 +1128,7 @@ export default function UploadForm() {
         pricing={pricing}
         deliveryMethod={deliveryMethod}
         billFiles={billFiles}
-        settings={{ printType, duplex, paperSize, copies, pagesPerSheet, hasSpiralBinding, hasCoverFile }}
+        settings={{ printType, duplex, paperSize, copies, pagesPerSheet, hasSpiralBinding, hasCoverFile, spiralBindingPages: hasSpiralBinding ? (isBulk ? bulkTotalPages : selectedPages) : undefined, spiralBindingQty: hasSpiralBinding ? spiralBindingQty : undefined, coverFileQty: hasCoverFile ? coverFileQty : undefined }}
         customerPhone={deliveryMethod === "delivery" ? customerPhone : ""}
         customerName={deliveryMethod === "delivery" ? customerName : ""}
         onReset={resetForm}
@@ -1587,75 +1609,212 @@ export default function UploadForm() {
             </div>
           )}
 
-          {/* Copies + Paper Size */}
-          <div className="form-row">
-            <div className="form-group">
-              <label htmlFor="copies-input">Copies</label>
-              <div className="number-input">
+          {/* Paper Size Section (Unified Control with Top Popular Sizes + Styled More Dropdown) */}
+          <div className="form-group">
+            <label id="paper-size-label" className="select-label">Paper Size</label>
+            <div className="paper-chip-grid" role="group" aria-labelledby="paper-size-label">
+              {[
+                { id: "A4", label: "A4", sub: "Standard" },
+                { id: "A3", label: "A3", sub: "Large" },
+                { id: "A5", label: "A5", sub: "Compact" },
+              ].map((chip) => (
                 <button
+                  key={chip.id}
                   type="button"
-                  className="num-btn"
-                  onClick={() => setCopies(Math.max(1, copies - 1))}
-                  aria-label="Decrease copies"
-                ><span>-</span></button>
-                <input
-                  id="copies-input"
-                  type="number"
-                  min="1" max="99" step="1"
-                  value={copies}
-                  onChange={(e) => {
-                    const val = Math.floor(Number(e.target.value));
-                    setCopies(isNaN(val) ? 1 : Math.min(99, Math.max(1, val)));
-                  }}
-                  aria-label="Number of copies"
-                  className="num-display"
-                />
+                  className={`paper-chip ${paperSize === chip.id ? "active" : ""}`}
+                  onClick={() => setPaperSize(chip.id)}
+                  aria-pressed={paperSize === chip.id}
+                >
+                  <span className="paper-chip-name">{chip.label}</span>
+                  <span className="paper-chip-sub">{chip.sub}</span>
+                </button>
+              ))}
+
+              {/* More... Chip with custom popover menu */}
+              {(() => {
+                const primaryIds = ["A4", "A3", "A5"];
+                const isMoreSelected = !primaryIds.includes(paperSize);
+                const secondarySizes = allPaperSizes.filter((s) => !primaryIds.includes(s));
+                return (
+                  <div className="paper-more-popover-wrapper" ref={popoverRef}>
+                    <button
+                      type="button"
+                      className={`paper-chip paper-chip-more ${isMoreSelected ? "active" : ""}`}
+                      onClick={() => setMorePopoverOpen(!morePopoverOpen)}
+                      aria-haspopup="listbox"
+                      aria-expanded={morePopoverOpen}
+                    >
+                      <span className="paper-chip-name paper-chip-title-row">
+                        {isMoreSelected ? paperSize : "More"}
+                        <ChevronDown size={13} className="paper-chip-arrow" aria-hidden="true" />
+                      </span>
+                      <span className="paper-chip-sub">
+                        {isMoreSelected ? (paperSizeLabels[paperSize as keyof typeof paperSizeLabels] || "Custom") : "Legal, Photo, etc."}
+                      </span>
+                    </button>
+
+                    {morePopoverOpen && (
+                      <div className="paper-more-popover" role="listbox">
+                        {secondarySizes.map((s) => {
+                          const label = paperSizeLabels[s] || s;
+                          const isSelected = paperSize === s;
+                          return (
+                            <button
+                              key={s}
+                              type="button"
+                              role="option"
+                              aria-selected={isSelected}
+                              className={`paper-popover-item ${isSelected ? "active" : ""}`}
+                              onClick={() => {
+                                setPaperSize(s);
+                                setMorePopoverOpen(false);
+                              }}
+                            >
+                              <div className="paper-popover-item-info">
+                                <span className="paper-popover-item-name">{s}</span>
+                                <span className="paper-popover-item-sub">{label}</span>
+                              </div>
+                              {isSelected && <Check size={14} className="paper-popover-check" />}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
+
+          {/* Quantity / Copies Section */}
+          <div className="form-group">
+            <label htmlFor="copies-input">Copies / Quantity</label>
+            <div className="number-input" style={{ height: "46px" }}>
+              <button
+                type="button"
+                className="num-btn"
+                onClick={() => setCopies(Math.max(1, copies - 1))}
+                aria-label="Decrease copies"
+              ><span>-</span></button>
+              <input
+                id="copies-input"
+                type="number"
+                min="1" max="99" step="1"
+                value={copies}
+                onChange={(e) => {
+                  const val = Math.floor(Number(e.target.value));
+                  setCopies(isNaN(val) ? 1 : Math.min(99, Math.max(1, val)));
+                }}
+                aria-label="Number of copies"
+                className="num-display"
+              />
+              <button
+                type="button"
+                className="num-btn"
+                onClick={() => setCopies(Math.min(99, copies + 1))}
+                aria-label="Increase copies"
+              ><span>+</span></button>
+            </div>
+            {/* Quick Quantity Presets */}
+            <div className="qty-preset-row">
+              {[1, 2, 5, 10, 20, 50].map((num) => (
                 <button
+                  key={num}
                   type="button"
-                  className="num-btn"
-                  onClick={() => setCopies(Math.min(99, copies + 1))}
-                  aria-label="Increase copies"
-                ><span>+</span></button>
+                  className={`qty-chip ${copies === num ? "active" : ""}`}
+                  onClick={() => setCopies(num)}
+                >
+                  {num} {num === 1 ? "copy" : "copies"}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Add-on Finishing Services (Spiral Binding & Cover File) */}
+          <div className="form-group">
+            <label className="select-label">Finishing & Binding Add-ons</label>
+            <div className="addon-cards-group">
+
+              {/* Spiral Binding Card — compact with qty stepper */}
+              <div className={`addon-card ${hasSpiralBinding ? "active" : ""}`}>
+                <label className="addon-card-toggle-row">
+                  <input
+                    type="checkbox"
+                    className="addon-card-checkbox"
+                    checked={hasSpiralBinding}
+                    onChange={(e) => {
+                      setHasSpiralBinding(e.target.checked);
+                      if (!e.target.checked) setSpiralBindingQty(1);
+                    }}
+                  />
+                  <div className="addon-card-content">
+                    <div className="addon-card-top">
+                      <span className="addon-card-title">Spiral Binding</span>
+                      {pricing && (
+                        <span className="addon-card-price">
+                          +{formatRupees((isBulk ? bulkTotalPages : selectedPages) * pricing.spiralBindingPerPagePaise * spiralBindingQty)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </label>
+                {hasSpiralBinding && (
+                  <div className="addon-qty-row">
+                    <span className="addon-qty-label">Qty</span>
+                    <div className="addon-qty-ctrl">
+                      <button type="button" className="addon-qty-btn" onClick={() => setSpiralBindingQty(q => Math.max(1, q - 1))} aria-label="Decrease">−</button>
+                      <span className="addon-qty-val">{spiralBindingQty}</span>
+                      <button type="button" className="addon-qty-btn" onClick={() => setSpiralBindingQty(q => Math.min(99, q + 1))} aria-label="Increase">+</button>
+                    </div>
+                    <div className="addon-qty-chips">
+                      {[1, 2, 3, 5].map(n => (
+                        <button key={n} type="button" className={`addon-qty-chip ${spiralBindingQty === n ? "active" : ""}`} onClick={() => setSpiralBindingQty(n)}>{n}</button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
-            </div>
-            <div className="form-group">
-              <label htmlFor="paperSize" className="select-label">Paper</label>
-              <select
-                id="paperSize"
-                value={paperSize}
-                onChange={(e) => setPaperSize(e.target.value)}
-                className="select-field"
-              >
-                {allPaperSizes.map((s) => (
-                  <option key={s} value={s}>{s} ({paperSizeLabels[s] || s})</option>
-                ))}
-              </select>
-            </div>
 
-            <div className="addon-toggle-row">
-              <label className="addon-toggle-label">
-                <input
-                  type="checkbox"
-                  className="addon-checkbox"
-                  checked={hasSpiralBinding}
-                  onChange={(e) => setHasSpiralBinding(e.target.checked)}
-                />
-                <span className="addon-toggle-text">Spiral Binding</span>
-                {pricing && <span className="addon-toggle-price">+{formatRupees(pricing.spiralBindingPaise)}</span>}
-              </label>
-            </div>
+              {/* Cover File Card — compact with qty stepper */}
+              <div className={`addon-card ${hasCoverFile ? "active" : ""}`}>
+                <label className="addon-card-toggle-row">
+                  <input
+                    type="checkbox"
+                    className="addon-card-checkbox"
+                    checked={hasCoverFile}
+                    onChange={(e) => {
+                      setHasCoverFile(e.target.checked);
+                      if (!e.target.checked) setCoverFileQty(1);
+                    }}
+                  />
+                  <div className="addon-card-content">
+                    <div className="addon-card-top">
+                      <span className="addon-card-title">Cover File / Folder</span>
+                      {pricing && (
+                        <span className="addon-card-price">
+                          +{formatRupees(pricing.coverFilePaise * coverFileQty)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </label>
+                {hasCoverFile && (
+                  <div className="addon-qty-row">
+                    <span className="addon-qty-label">Qty</span>
+                    <div className="addon-qty-ctrl">
+                      <button type="button" className="addon-qty-btn" onClick={() => setCoverFileQty(q => Math.max(1, q - 1))} aria-label="Decrease">−</button>
+                      <span className="addon-qty-val">{coverFileQty}</span>
+                      <button type="button" className="addon-qty-btn" onClick={() => setCoverFileQty(q => Math.min(99, q + 1))} aria-label="Increase">+</button>
+                    </div>
+                    <div className="addon-qty-chips">
+                      {[1, 2, 3, 5].map(n => (
+                        <button key={n} type="button" className={`addon-qty-chip ${coverFileQty === n ? "active" : ""}`} onClick={() => setCoverFileQty(n)}>{n}</button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
 
-            <div className="addon-toggle-row">
-              <label className="addon-toggle-label">
-                <input
-                  type="checkbox"
-                  className="addon-checkbox"
-                  checked={hasCoverFile}
-                  onChange={(e) => setHasCoverFile(e.target.checked)}
-                />
-                <span className="addon-toggle-text">Cover File</span>
-                {pricing && <span className="addon-toggle-price">+{formatRupees(pricing.coverFilePaise)}</span>}
-              </label>
             </div>
           </div>
 
@@ -2194,7 +2353,7 @@ export default function UploadForm() {
               {hasSpiralBinding && (
                 <div className="total-price-row">
                   <span>Spiral Binding</span>
-                  <span>₹{(pricing.spiralBindingPaise / 100).toFixed(2)}</span>
+                   <span>₹{(selectedPages * pricing.spiralBindingPerPagePaise / 100).toFixed(2)}</span>
                 </div>
               )}
               {hasCoverFile && (

@@ -9,6 +9,7 @@ param(
   [string]$Margins = "default",       # default | none | minimum
   [int]$PagesPerSheet = 1,
   [string]$Duplex = "simplex",        # simplex | long-edge | short-edge
+  [string]$SpiralBinding = "false",   # true | false — flag for the admin dashboard, no print-side effect
   [string]$Collate = "true",          # true | false — collate multi-copy output
   [int]$RenderDpi = 216               # DPI the agent rasterised PDF pages at
 )

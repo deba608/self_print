@@ -11,12 +11,12 @@ const paperMultipliers: Record<PaperSize, keyof Omit<PricingConfig, "bwPerPagePa
   Photo: "photoMultiplier"
 };
 
-export function selectedPageCount(pageCount: number, pageRange: string | null) {
-  if (!pageRange?.trim()) return Math.max(pageCount, 1);
+export function selectedPageCount(pageCount?: number | null, pageRange?: string | null) {
+  const total = Math.max(pageCount || 1, 1);
+  if (!pageRange?.trim()) return total;
   // "even"/"odd" select half the document — must match the client estimate,
   // otherwise the final charge differs from the price shown to the customer.
   const normalized = pageRange.trim().toLowerCase();
-  const total = Math.max(pageCount, 1);
   if (normalized === "even") return Math.max(Math.floor(total / 2), 1);
   if (normalized === "odd") return Math.ceil(total / 2);
   const pages = new Set<number>();
@@ -32,15 +32,19 @@ export function selectedPageCount(pageCount: number, pageRange: string | null) {
   return Math.max(pages.size, 1);
 }
 
+export function calculateSpiralBindingPrice(selectedPages: number, pricing: PricingConfig) {
+  return selectedPages * pricing.spiralBindingPerPagePaise;
+}
+
 export function calculatePrice(input: {
   printType: PrintType;
   copies: number;
-  pageRange: string | null;
+  pageRange?: string | null;
   paperSize: PaperSize;
-  pageCount: number;
+  duplex?: PrintDuplex | null;
+  pageCount?: number | null;
+  pagesPerSheet?: number | null;
   pricing: PricingConfig;
-  duplex?: PrintDuplex;
-  pagesPerSheet?: number;
 }) {
   const selectedPages = selectedPageCount(input.pageCount, input.pageRange);
   const copies = Math.max(1, input.copies);
@@ -51,7 +55,8 @@ export function calculatePrice(input: {
   // N-up printing (pagesPerSheet > 1) crams multiple document pages onto one
   // printed side, so the shop only consumes ceil(pages / pagesPerSheet)
   // physical sides — that's what must be billed, not the raw page count.
-  const sides = Math.ceil(selectedPages / Math.max(1, Math.floor(input.pagesPerSheet ?? 1)));
+  const pagesPerSheetVal = typeof input.pagesPerSheet === "number" && input.pagesPerSheet > 0 ? input.pagesPerSheet : 1;
+  const sides = Math.ceil(selectedPages / Math.max(1, Math.floor(pagesPerSheetVal)));
 
   const isDuplex = input.duplex && input.duplex !== "simplex";
   const baseSimplex = input.printType === "bw" ? input.pricing.bwPerPagePaise : input.pricing.colorPerPagePaise;

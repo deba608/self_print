@@ -16,7 +16,7 @@ const pricing: PricingConfig = {
   legalMultiplier: 1,
   photoMultiplier: 1,
   duplexBwPerPagePaise: 300,
-  spiralBindingPaise: 3000,
+  spiralBindingPerPagePaise: 150,
   coverFilePaise: 1000,
   expiryMinutes: 30,
   deliveryFeePaise: 0,

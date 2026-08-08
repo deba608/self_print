@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getJobByToken, getJobFilesByJob, getPricing } from "@/lib/db";
+import { calculateSpiralBindingPrice, selectedPageCount } from "@/lib/pricing";
 import { clientIp, isRateLimited } from "@/lib/ratelimit";
 
 // Public receipt data for the customer's status/track page. Only exposed once
@@ -53,7 +54,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         pagesPerSheet: job.pagesPerSheet,
         hasSpiralBinding: job.hasSpiralBinding,
         hasCoverFile: job.hasCoverFile,
-        spiralBindingPaise: job.hasSpiralBinding ? pricing.spiralBindingPaise : undefined,
+         spiralBindingPerPagePaise: job.hasSpiralBinding ? pricing.spiralBindingPerPagePaise : undefined,
+         spiralBindingPages: job.hasSpiralBinding ? selectedPageCount(job.pageCount, job.pageRange) : undefined,
         coverFilePaise: job.hasCoverFile ? pricing.coverFilePaise : undefined,
       },
       totalPaise: job.pricePaise,

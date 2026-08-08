@@ -1555,6 +1555,440 @@ input, select, button {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%23085f59' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
 }
 
+/* Paper Size Selector UI */
+.paper-chip-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.paper-chip {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 10px;
+  background: #fff;
+  border: 2px solid var(--line);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex: 1;
+  min-width: 60px;
+  text-align: center;
+  user-select: none;
+}
+
+.paper-chip:hover {
+  border-color: var(--line);
+  background: #fafafa;
+}
+
+.paper-chip:active {
+  transform: scale(0.97);
+}
+
+.paper-chip.active {
+  border-color: var(--accent);
+  background: var(--accent-light);
+}
+
+.paper-chip-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1.2;
+}
+
+.paper-chip.active .paper-chip-name {
+  color: var(--accent);
+}
+
+.paper-chip-sub {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--muted);
+  line-height: 1.1;
+  margin-top: 2px;
+  white-space: nowrap;
+}
+
+.paper-chip.active .paper-chip-sub {
+  color: var(--accent);
+}
+
+.paper-chip-more {
+  position: relative;
+  cursor: pointer;
+}
+
+.paper-chip-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+}
+
+.paper-chip-arrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.15s ease;
+  color: var(--muted);
+}
+
+.paper-chip.active .paper-chip-arrow {
+  color: var(--accent);
+}
+
+.paper-chip-more:hover .paper-chip-arrow {
+  transform: translateY(1px);
+}
+
+/* Custom Popover Dropdown for Paper Size More menu */
+.paper-more-popover-wrapper {
+  position: relative;
+  display: inline-flex;
+  flex: 1;
+}
+
+.paper-more-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 100;
+  min-width: 220px;
+  background: #ffffff;
+  border: 1.5px solid var(--line);
+  border-radius: 14px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.12), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  animation: popoverFadeIn 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes popoverFadeIn {
+  from { opacity: 0; transform: translateY(-4px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.paper-popover-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-radius: 9px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.12s ease;
+  width: 100%;
+}
+
+.paper-popover-item:hover {
+  background: #f4f6f8;
+}
+
+.paper-popover-item.active {
+  background: var(--accent-light);
+}
+
+.paper-popover-item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.paper-popover-item-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.paper-popover-item.active .paper-popover-item-name {
+  color: var(--accent);
+}
+
+.paper-popover-item-sub {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.paper-popover-item.active .paper-popover-item-sub {
+  color: var(--accent);
+  opacity: 0.85;
+}
+
+.paper-popover-check {
+  color: var(--accent);
+  margin-left: 8px;
+}
+
+.paper-more-select {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  font-size: 16px;
+}
+
+/* Fallback & compatibility for select-field */
+.select-field {
+  padding: 10px 14px;
+  border: 2px solid var(--line);
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+  background: #fff;
+  width: 100%;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.select-field:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* Quantity Preset Chips */
+.qty-preset-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+
+.qty-chip {
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.qty-chip:hover {
+  background: #f5f5f5;
+  border-color: var(--line);
+}
+
+.qty-chip:active {
+  transform: scale(0.96);
+}
+
+.qty-chip.active {
+  border-color: var(--accent);
+  background: var(--accent-light);
+  color: var(--accent);
+}
+
+/* Enhanced Add-on Cards (Spiral Binding & Cover File) */
+.addon-cards-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.addon-card {
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border: 2px solid var(--line);
+  border-radius: 12px;
+  transition: all 0.15s ease;
+  overflow: hidden;
+}
+
+.addon-card-toggle-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.addon-card-toggle-row:hover {
+  background: #fafafa;
+}
+
+.addon-card:active {
+  transform: scale(0.99);
+}
+
+.addon-card.active {
+  border-color: var(--accent);
+  background: var(--accent-light);
+}
+
+.addon-card-checkbox {
+  margin-top: 3px;
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.addon-card-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.addon-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.addon-card-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.addon-card.active .addon-card-title {
+  color: var(--accent);
+}
+
+.addon-card-price {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.addon-card-desc {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 2px;
+  line-height: 1.3;
+}
+
+.addon-card-calc {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent);
+  margin-top: 4px;
+  background: rgba(13, 122, 116, 0.08);
+  padding: 3px 8px;
+  border-radius: 6px;
+  display: inline-block;
+}
+
+/* Qty row — slides in below the toggle row when checked */
+.addon-qty-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px 12px 14px;
+  border-top: 1px solid rgba(13, 122, 116, 0.2);
+  background: rgba(13, 122, 116, 0.05);
+}
+
+.addon-qty-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ink-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  width: 26px;
+  flex-shrink: 0;
+}
+
+.addon-qty-ctrl {
+  display: flex;
+  align-items: center;
+  background: #fff;
+  border: 1.5px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.addon-qty-btn {
+  background: none;
+  border: none;
+  width: 30px;
+  height: 30px;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--accent);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.1s;
+  padding: 0;
+}
+
+.addon-qty-btn:hover {
+  background: var(--accent-light);
+}
+
+.addon-qty-btn:active {
+  background: rgba(13, 122, 116, 0.15);
+}
+
+.addon-qty-val {
+  min-width: 28px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink);
+  border-left: 1.5px solid var(--line);
+  border-right: 1.5px solid var(--line);
+  line-height: 30px;
+  padding: 0 4px;
+}
+
+.addon-qty-chips {
+  display: flex;
+  gap: 5px;
+  flex-wrap: nowrap;
+}
+
+.addon-qty-chip {
+  background: #fff;
+  border: 1.5px solid var(--line);
+  border-radius: 7px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink-secondary);
+  cursor: pointer;
+  transition: all 0.1s;
+}
+
+.addon-qty-chip:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-light);
+}
+
+.addon-qty-chip.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+
 /* Advanced Section with smooth animation - Enhanced */
 .advanced-section {
   border: 1px solid var(--line);

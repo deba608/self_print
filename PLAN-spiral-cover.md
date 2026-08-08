@@ -54,9 +54,9 @@ to the order total. Admin can change the prices from the Pricing panel.
 - src/app/api/pricing/route.ts — return new fields
 
 ### Customer UI
-- src/app/components/upload-form.tsx — checkboxes + price estimate
-- src/app/track/ResultScreen.tsx — show add-ons in bill
-- src/app/components/BillReceipt.tsx — show add-ons
+- src/components/pages/UploadForm.tsx — single unified paper size chip bar (A4, A3, A5, Legal, Photo + More dropdown) + spiral/cover toggles + price estimate
+- src/components/upload/ResultScreen.tsx — show add-ons in bill
+- src/components/BillReceipt.tsx — show add-ons
 
 ### Admin UI
 - src/app/admin/components/PricingPanel.tsx — inputs

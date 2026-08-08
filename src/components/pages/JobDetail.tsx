@@ -680,7 +680,7 @@ function SettingsCard({
             <input placeholder="All or 1-5" value={settings.pageRange} disabled={settingsLocked} onChange={(e) => setSettings({ ...settings, pageRange: e.target.value })} />
           </SettingsField>
           <SettingsField label="Paper Size">
-            <select value={settings.paperSize} disabled={settingsLocked} onChange={(e) => setSettings({ ...settings, paperSize: e.target.value })}>
+            <select className="mobile-select" value={settings.paperSize} disabled={settingsLocked} onChange={(e) => setSettings({ ...settings, paperSize: e.target.value })}>
               {paperSizeOptions.map((size) => (
                 <option key={size} value={size}>{paperSizeLabels[size as keyof typeof paperSizeLabels] || size}</option>
               ))}

@@ -22,7 +22,7 @@ const defaultPricing: NumericPricing = {
   legalMultiplier: 1.25,
   photoMultiplier: 1.5,
   duplexBwPerPagePaise: 100,
-  spiralBindingPaise: 3000,
+  spiralBindingPerPagePaise: 150,
   coverFilePaise: 1000,
   expiryMinutes: 1440,
   deliveryFeePaise: 0,
@@ -35,7 +35,8 @@ function toDraft(pricing: NumericPricing & Record<string, unknown>): PricingDraf
   const draft = {} as Record<string, number | "">;
   for (const key of Object.keys(defaultPricing) as Array<keyof NumericPricing>) {
     const value = pricing[key];
-    draft[key] = typeof value === "number" && Number.isFinite(value) ? value : defaultPricing[key];
+    const fallback = defaultPricing[key];
+    draft[key] = typeof value === "number" && Number.isFinite(value) ? value : typeof fallback === "number" ? fallback : "";
   }
   return draft as PricingDraft;
 }
@@ -68,7 +69,7 @@ export default function PricingPanel({
     colorPerPagePaise: formatPaiseInput((pricing || defaultPricing).colorPerPagePaise),
     photoPrintPaise: formatPaiseInput((pricing || defaultPricing).photoPrintPaise),
     duplexBwPerPagePaise: formatPaiseInput((pricing || defaultPricing).duplexBwPerPagePaise),
-    spiralBindingPaise: formatPaiseInput((pricing || defaultPricing).spiralBindingPaise),
+    spiralBindingPerPagePaise: formatPaiseInput((pricing || defaultPricing).spiralBindingPerPagePaise),
     coverFilePaise: formatPaiseInput((pricing || defaultPricing).coverFilePaise),
     deliveryFeePaise: formatPaiseInput((pricing || defaultPricing).deliveryFeePaise),
   });
@@ -84,7 +85,7 @@ export default function PricingPanel({
       colorPerPagePaise: formatPaiseInput(nextPricing.colorPerPagePaise),
       photoPrintPaise: formatPaiseInput(nextPricing.photoPrintPaise),
       duplexBwPerPagePaise: formatPaiseInput(nextPricing.duplexBwPerPagePaise),
-      spiralBindingPaise: formatPaiseInput(nextPricing.spiralBindingPaise),
+      spiralBindingPerPagePaise: formatPaiseInput(nextPricing.spiralBindingPerPagePaise),
       coverFilePaise: formatPaiseInput(nextPricing.coverFilePaise),
       deliveryFeePaise: formatPaiseInput(nextPricing.deliveryFeePaise),
     });
@@ -101,7 +102,7 @@ export default function PricingPanel({
     setError("");
   };
 
-  const updatePriceField = (field: "bwPerPagePaise" | "colorPerPagePaise" | "photoPrintPaise" | "duplexBwPerPagePaise" | "spiralBindingPaise" | "coverFilePaise" | "deliveryFeePaise", rawValue: string) => {
+  const updatePriceField = (field: "bwPerPagePaise" | "colorPerPagePaise" | "photoPrintPaise" | "duplexBwPerPagePaise" | "spiralBindingPerPagePaise" | "coverFilePaise" | "deliveryFeePaise", rawValue: string) => {
     setPriceInputs(prev => ({ ...prev, [field]: rawValue }));
     if (rawValue === "") {
       setFormData(prev => ({ ...prev, [field]: "" }));
@@ -216,18 +217,18 @@ export default function PricingPanel({
                 <span className="pricing-hint">Added once per home-delivery order, on top of the print cost.</span>
               </div>
               <div className="pricing-field">
-                <label>Spiral Binding (flat, ₹)</label>
+                <label>Spiral Binding (per page, ₹)</label>
                 <div className="price-input">
                   <span className="currency">₹</span>
                   <input
                     type="number"
                     step="0.01"
                     min="0"
-                    value={priceInputs.spiralBindingPaise}
-                    onChange={(e) => updatePriceField("spiralBindingPaise", e.target.value)}
+                    value={priceInputs.spiralBindingPerPagePaise}
+                    onChange={(e) => updatePriceField("spiralBindingPerPagePaise", e.target.value)}
                   />
                 </div>
-                <span className="pricing-hint">Added once per job when spiral binding is selected.</span>
+                <span className="pricing-hint">Charged per printed page when spiral binding is selected.</span>
               </div>
               <div className="pricing-field">
                 <label>Cover File (flat, ₹)</label>

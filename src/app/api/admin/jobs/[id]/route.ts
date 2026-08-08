@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getJobById, getJobEvents, getJobFilesByJob, updateJobSettings, deleteJob, getPricing } from "@/lib/db";
-import { calculatePrice, selectedPageCount } from "@/lib/pricing";
+import { calculatePrice, calculateSpiralBindingPrice, selectedPageCount } from "@/lib/pricing";
 import { requireAdminResponse } from "@/lib/security";
 import type { JobStatus, PaperSize, PrintDuplex, PrintLayout, PrintMargins, PrintScale, PrintType } from "@/lib/types";
 import { deleteFile } from "@/lib/storage";
@@ -59,6 +59,8 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   const duplex = String(body.duplex ?? existing.duplex ?? "simplex") as PrintDuplex;
   const hasSpiralBinding = body.hasSpiralBinding === true || body.has_spiral_binding === true;
   const hasCoverFile = body.hasCoverFile === true || body.has_cover_file === true;
+  const spiralBindingQty = Math.max(1, Math.min(99, Math.floor(Number(body.spiralBindingQty ?? existing.spiralBindingQty ?? 1)) || 1));
+  const coverFileQty = Math.max(1, Math.min(99, Math.floor(Number(body.coverFileQty ?? existing.coverFileQty ?? 1)) || 1));
 
   if (
     !printTypes.includes(printType) ||
@@ -81,7 +83,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   }
   const pricing = await getPricing();
   const printPricePaise = calculatePrice({ printType, copies, pageRange, paperSize, pageCount, pricing, duplex, pagesPerSheet });
-  const addonFeePaise = (hasSpiralBinding ? pricing.spiralBindingPaise : 0) + (hasCoverFile ? pricing.coverFilePaise : 0);
+   const addonFeePaise = (hasSpiralBinding ? calculateSpiralBindingPrice(selectedPageCount(pageCount, pageRange), pricing) * spiralBindingQty : 0) + (hasCoverFile ? pricing.coverFilePaise * coverFileQty : 0);
   const pricePaise =
     printPricePaise + addonFeePaise +
     (existing.deliveryMethod === "delivery" ? existing.deliveryFeePaise : 0);
@@ -100,6 +102,8 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     pricePaise,
     hasSpiralBinding,
     hasCoverFile,
+    spiralBindingQty,
+    coverFileQty,
     updatedAt: now
   });
 

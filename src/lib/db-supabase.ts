@@ -40,6 +40,8 @@ function mapJob(row: any, expiryMinutes: number = 1440): Job {
     duplex: (row.duplex ?? 'simplex') as Job['duplex'],
     hasSpiralBinding: Boolean(row.has_spiral_binding),
     hasCoverFile: Boolean(row.has_cover_file),
+    spiralBindingQty: Number(row.spiral_binding_qty ?? 1),
+    coverFileQty: Number(row.cover_file_qty ?? 1),
     pageCount: Number(row.page_count),
     pricePaise: Number(row.price_paise),
     needsConversion: Number(row.needs_conversion) as 0 | 1,
@@ -551,6 +553,8 @@ export async function updateJobSettings(id: string, settings: {
   pricePaise: number;
   hasSpiralBinding?: boolean;
   hasCoverFile?: boolean;
+  spiralBindingQty?: number;
+  coverFileQty?: number;
   updatedAt: string;
 }) {
   const { error } = await supabase
@@ -568,6 +572,8 @@ export async function updateJobSettings(id: string, settings: {
       price_paise: settings.pricePaise,
       has_spiral_binding: settings.hasSpiralBinding ?? false,
       has_cover_file: settings.hasCoverFile ?? false,
+      spiral_binding_qty: settings.spiralBindingQty ?? 1,
+      cover_file_qty: settings.coverFileQty ?? 1,
       updated_at: settings.updatedAt
     })
     .eq('id', id);
@@ -598,7 +604,7 @@ const PRICING_DEFAULTS: PricingConfig = {
   legalMultiplier: 1.25,
   photoMultiplier: 1.0,
   duplexBwPerPagePaise: 100,
-  spiralBindingPaise: 2000,
+  spiralBindingPerPagePaise: 150,
   coverFilePaise: 1000,
   expiryMinutes: 1440,
   deliveryFeePaise: 0,
@@ -631,7 +637,7 @@ export async function getPricing(): Promise<PricingConfig> {
     legalMultiplier: data.legal_multiplier ?? PRICING_DEFAULTS.legalMultiplier,
     photoMultiplier: data.photo_multiplier ?? PRICING_DEFAULTS.photoMultiplier,
     duplexBwPerPagePaise: data.duplex_bw_per_page_paise ?? PRICING_DEFAULTS.duplexBwPerPagePaise,
-    spiralBindingPaise: data.spiral_binding_paise ?? PRICING_DEFAULTS.spiralBindingPaise,
+    spiralBindingPerPagePaise: data.spiral_binding_per_page_paise ?? PRICING_DEFAULTS.spiralBindingPerPagePaise,
     coverFilePaise: data.cover_file_paise ?? PRICING_DEFAULTS.coverFilePaise,
     expiryMinutes: data.expiry_minutes ?? PRICING_DEFAULTS.expiryMinutes,
     deliveryFeePaise: data.delivery_fee_paise ?? PRICING_DEFAULTS.deliveryFeePaise,
@@ -656,7 +662,7 @@ export async function updatePricing(pricing: PricingConfig) {
       legal_multiplier: pricing.legalMultiplier,
       photo_multiplier: pricing.photoMultiplier,
       duplex_bw_per_page_paise: pricing.duplexBwPerPagePaise,
-      spiral_binding_paise: pricing.spiralBindingPaise,
+      spiral_binding_per_page_paise: pricing.spiralBindingPerPagePaise,
       cover_file_paise: pricing.coverFilePaise,
       expiry_minutes: pricing.expiryMinutes,
       delivery_fee_paise: pricing.deliveryFeePaise,

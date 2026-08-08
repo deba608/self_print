@@ -17,7 +17,7 @@ export async function PUT(request: NextRequest) {
     const required = [
       "bwPerPagePaise", "colorPerPagePaise", "photoPrintPaise", "copyMultiplier",
       "a3Multiplier", "a4Multiplier", "a5Multiplier", "a6Multiplier", "b5Multiplier",
-      "legalMultiplier", "photoMultiplier", "duplexBwPerPagePaise", "spiralBindingPaise",
+      "legalMultiplier", "photoMultiplier", "duplexBwPerPagePaise", "spiralBindingPerPagePaise",
       "coverFilePaise", "expiryMinutes", "deliveryFeePaise"
     ];
     for (const key of required) {
@@ -49,7 +49,7 @@ export async function PUT(request: NextRequest) {
       legalMultiplier: body.legalMultiplier,
       photoMultiplier: body.photoMultiplier,
       duplexBwPerPagePaise: body.duplexBwPerPagePaise,
-      spiralBindingPaise: body.spiralBindingPaise,
+       spiralBindingPerPagePaise: body.spiralBindingPerPagePaise,
       coverFilePaise: body.coverFilePaise,
       expiryMinutes: body.expiryMinutes,
       deliveryFeePaise: body.deliveryFeePaise,

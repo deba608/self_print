@@ -6,7 +6,7 @@ import { createJob, createJobWithFiles, getJobByToken, getPricing, nextQueuePosi
 import { estimatePageCount, measureStoredFile, saveUpload, validateUpload } from "@/lib/files";
 import { bucketPathFor, isValidStoredName, verifyStoredNameSig } from "@/lib/storage";
 import { clientIp, isRateLimited } from "@/lib/ratelimit";
-import { calculatePrice, selectedPageCount } from "@/lib/pricing";
+import { calculatePrice, calculateSpiralBindingPrice, selectedPageCount } from "@/lib/pricing";
 import { createClient } from "@/lib/supabase/server";
 import { checkDeliveryServiceable, isValidPincode } from "@/lib/service-area";
 import type { PaperSize, PrintDuplex, PrintLayout, PrintMargins, PrintScale, PrintType } from "@/lib/types";
@@ -146,6 +146,8 @@ export async function POST(request: NextRequest) {
     const duplex = String(form.get("duplex") ?? "simplex") as PrintDuplex;
     const hasSpiralBinding = form.get("hasSpiralBinding") === "true";
     const hasCoverFile = form.get("hasCoverFile") === "true";
+    const spiralBindingQty = Math.max(1, Math.min(99, Math.floor(Number(form.get("spiralBindingQty") ?? 1)) || 1));
+    const coverFileQty = Math.max(1, Math.min(99, Math.floor(Number(form.get("coverFileQty") ?? 1)) || 1));
     if (
       !printTypes.includes(printType) ||
       !paperSizes.includes(paperSize) ||
@@ -271,7 +273,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Double-sided printing requires a document with at least 2 pages." }, { status: 400 });
     }
     const printPricePaise = calculatePrice({ printType, copies, pageRange, paperSize, pageCount: Math.max(pageCount, 1), pricing, duplex, pagesPerSheet });
-    const addonFeePaise = (hasSpiralBinding ? pricing.spiralBindingPaise : 0) + (hasCoverFile ? pricing.coverFilePaise : 0);
+    const addonFeePaise = (hasSpiralBinding ? calculateSpiralBindingPrice(selectedPageCount(pageCount, pageRange), pricing) * spiralBindingQty : 0) + (hasCoverFile ? pricing.coverFilePaise * coverFileQty : 0);
     const deliveryFeePaise = deliveryMethod === "delivery" ? pricing.deliveryFeePaise : 0;
     const pricePaise = printPricePaise + addonFeePaise + deliveryFeePaise;
 
@@ -289,6 +291,8 @@ export async function POST(request: NextRequest) {
       duplex,
       has_spiral_binding: hasSpiralBinding,
       has_cover_file: hasCoverFile,
+      spiral_binding_qty: spiralBindingQty,
+      cover_file_qty: coverFileQty,
       page_count: pageCount,
       price_paise: pricePaise,
       needs_conversion: needsConversion,
@@ -340,6 +344,8 @@ async function handleBulk(form: FormData, customerUserId: string | null): Promis
   const duplex = String(form.get("duplex") ?? "simplex") as PrintDuplex;
   const hasSpiralBinding = form.get("hasSpiralBinding") === "true";
   const hasCoverFile = form.get("hasCoverFile") === "true";
+  const spiralBindingQty = Math.max(1, Math.min(99, Math.floor(Number(form.get("spiralBindingQty") ?? 1)) || 1));
+  const coverFileQty = Math.max(1, Math.min(99, Math.floor(Number(form.get("coverFileQty") ?? 1)) || 1));
   if (
     !printTypes.includes(printType) ||
     !paperSizes.includes(paperSize) ||
@@ -479,7 +485,7 @@ async function handleBulk(form: FormData, customerUserId: string | null): Promis
     return NextResponse.json({ error: "Double-sided printing requires at least 2 pages." }, { status: 400 });
   }
   const printPricePaise = calculatePrice({ printType, copies, pageRange: null, paperSize, pageCount: Math.max(pageCount, 1), pricing, duplex, pagesPerSheet });
-  const addonFeePaise = (hasSpiralBinding ? pricing.spiralBindingPaise : 0) + (hasCoverFile ? pricing.coverFilePaise : 0);
+  const addonFeePaise = (hasSpiralBinding ? calculateSpiralBindingPrice(pageCount, pricing) * spiralBindingQty : 0) + (hasCoverFile ? pricing.coverFilePaise * coverFileQty : 0);
   const deliveryFeePaise = deliveryMethod === "delivery" ? pricing.deliveryFeePaise : 0;
   const pricePaise = printPricePaise + addonFeePaise + deliveryFeePaise;
   const [token, queuePos] = await Promise.all([randomToken(), nextQueuePosition()]);
@@ -498,6 +504,8 @@ async function handleBulk(form: FormData, customerUserId: string | null): Promis
     duplex,
     has_spiral_binding: hasSpiralBinding,
     has_cover_file: hasCoverFile,
+    spiral_binding_qty: spiralBindingQty,
+    cover_file_qty: coverFileQty,
     page_count: pageCount,
     price_paise: pricePaise,
     needs_conversion: 0,

@@ -33,7 +33,7 @@ export default function ResultScreen({
   pricing: Pricing | null;
   deliveryMethod: "pickup" | "delivery";
   billFiles: { name: string; pages: number }[];
-  settings: { printType: string; duplex: string; paperSize: string; copies: number; pagesPerSheet: number; hasSpiralBinding: boolean; hasCoverFile: boolean };
+  settings: { printType: string; duplex: string; paperSize: string; copies: number; pagesPerSheet: number; hasSpiralBinding: boolean; hasCoverFile: boolean; spiralBindingPages?: number; spiralBindingQty?: number; coverFileQty?: number };
   customerPhone?: string;
   customerName?: string;
   onReset: () => void;
@@ -119,8 +119,11 @@ export default function ResultScreen({
     files: billFiles,
     settings: {
       printType, duplex, paperSize, copies, pagesPerSheet, hasSpiralBinding, hasCoverFile,
-      spiralBindingPaise: hasSpiralBinding && pricing ? pricing.spiralBindingPaise : undefined,
+      spiralBindingPerPagePaise: hasSpiralBinding && pricing ? pricing.spiralBindingPerPagePaise : undefined,
+      spiralBindingPages: hasSpiralBinding ? settings.spiralBindingPages : undefined,
+      spiralBindingQty: settings.spiralBindingQty,
       coverFilePaise: hasCoverFile && pricing ? pricing.coverFilePaise : undefined,
+      coverFileQty: settings.coverFileQty,
     },
     totalPaise: result.pricePaise,
     perPagePaise: billPerPage,

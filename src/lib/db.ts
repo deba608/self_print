@@ -242,6 +242,8 @@ async function ensureJobColumns(database: any) {
     ['duplex', "TEXT NOT NULL DEFAULT 'simplex'"],
     ['has_spiral_binding', 'INTEGER NOT NULL DEFAULT 0'],
     ['has_cover_file', 'INTEGER NOT NULL DEFAULT 0'],
+    ['spiral_binding_qty', 'INTEGER NOT NULL DEFAULT 1'],
+    ['cover_file_qty', 'INTEGER NOT NULL DEFAULT 1'],
     ['queue_position', 'INTEGER NOT NULL DEFAULT 0'],
     ['paid_via', 'TEXT'],
     ['issue_reported_at', 'TEXT'],
@@ -315,6 +317,8 @@ async function ensurePricingColumns(database: any) {
     ['a6_multiplier', 'REAL NOT NULL DEFAULT 0.5'],
     ['b5_multiplier', 'REAL NOT NULL DEFAULT 0.9'],
     ['duplex_bw_per_page_paise', 'INTEGER NOT NULL DEFAULT 100'],
+    ['spiral_binding_per_page_paise', 'INTEGER NOT NULL DEFAULT 150'],
+    ['cover_file_paise', 'INTEGER NOT NULL DEFAULT 1000'],
     ['delivery_fee_paise', 'INTEGER NOT NULL DEFAULT 0'],
     ['service_area_config', "TEXT NOT NULL DEFAULT ''"]
   ];
@@ -331,8 +335,9 @@ async function seedDefaults(database: any, agentToken: string, hashToken: (s: st
     INSERT OR IGNORE INTO pricing_config (
       id, bw_per_page_paise, color_per_page_paise, photo_print_paise, copy_multiplier,
       a3_multiplier, a4_multiplier, a5_multiplier, a6_multiplier, b5_multiplier,
-      legal_multiplier, photo_multiplier, duplex_bw_per_page_paise, expiry_minutes, delivery_fee_paise, updated_at
-    ) VALUES (1, 100, 1000, 3000, 1, 2.5, 1, 0.7, 0.5, 0.9, 1.25, 1, 100, 1440, 0, ?)
+       legal_multiplier, photo_multiplier, duplex_bw_per_page_paise, spiral_binding_per_page_paise,
+       cover_file_paise, expiry_minutes, delivery_fee_paise, updated_at
+    ) VALUES (1, 100, 1000, 3000, 1, 2.5, 1, 0.7, 0.5, 0.9, 1.25, 1, 100, 150, 1000, 1440, 0, ?)
   `).run(now);
 
   database.prepare(`
@@ -366,6 +371,8 @@ function mapJob(row: Record<string, unknown>, expiryMinutes: number = 1440): Job
     duplex: (row.duplex ?? 'simplex') as Job['duplex'],
     hasSpiralBinding: Boolean(row.has_spiral_binding),
     hasCoverFile: Boolean(row.has_cover_file),
+    spiralBindingQty: Number(row.spiral_binding_qty ?? 1),
+    coverFileQty: Number(row.cover_file_qty ?? 1),
     pageCount: Number(row.page_count),
     pricePaise: Number(row.price_paise),
     needsConversion: Number(row.needs_conversion) as 0 | 1,
@@ -695,6 +702,8 @@ export async function createJobWithFiles(
     duplex: jobData.duplex ?? 'simplex',
     hasSpiralBinding: jobData.hasSpiralBinding ?? jobData.has_spiral_binding ?? false,
     hasCoverFile: jobData.hasCoverFile ?? jobData.has_cover_file ?? false,
+    spiralBindingQty: jobData.spiralBindingQty ?? jobData.spiral_binding_qty ?? 1,
+    coverFileQty: jobData.coverFileQty ?? jobData.cover_file_qty ?? 1,
     pageCount: jobData.pageCount ?? jobData.page_count,
     pricePaise: jobData.pricePaise ?? jobData.price_paise,
     needsConversion: jobData.needsConversion ?? jobData.needs_conversion,
@@ -718,16 +727,18 @@ export async function createJobWithFiles(
     sqlite.prepare(`
       INSERT INTO jobs (
         id, token, status, customer_user_id, print_type, copies, page_range, paper_size,
-        layout, pages_per_sheet, margins, scale, duplex, has_spiral_binding, has_cover_file, page_count, price_paise,
+        layout, pages_per_sheet, margins, scale, duplex, has_spiral_binding, has_cover_file,
+        spiral_binding_qty, cover_file_qty, page_count, price_paise,
         needs_conversion, queue_position, delivery_method, customer_name, customer_phone,
         delivery_address, delivery_pincode, delivery_area, delivery_fee_paise, delivery_latitude, delivery_longitude,
         delivery_accuracy_meters, delivery_location_captured_at, created_at, updated_at
       )
-      VALUES (?, ?, 'pending_payment', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, 'pending_payment', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       jobId, j.token, j.customerUserId, j.printType, j.copies, j.pageRange, j.paperSize,
       j.layout, j.pagesPerSheet, j.margins, j.scale, j.duplex,
       j.hasSpiralBinding ? 1 : 0, j.hasCoverFile ? 1 : 0,
+      j.spiralBindingQty, j.coverFileQty,
       j.pageCount, j.pricePaise,
       j.needsConversion, j.queuePosition, j.deliveryMethod, j.customerName, j.customerPhone,
       j.deliveryAddress, j.deliveryPincode, j.deliveryArea, j.deliveryFeePaise, j.deliveryLatitude, j.deliveryLongitude,
@@ -891,6 +902,8 @@ export async function updateJobSettings(id: string, settings: {
   pricePaise: number;
   hasSpiralBinding?: boolean;
   hasCoverFile?: boolean;
+  spiralBindingQty?: number;
+  coverFileQty?: number;
   updatedAt: string;
 }): Promise<void> {
   if (isSupabase) {
@@ -904,12 +917,13 @@ export async function updateJobSettings(id: string, settings: {
     UPDATE jobs
     SET print_type = ?, copies = ?, page_range = ?, paper_size = ?, layout = ?,
         pages_per_sheet = ?, margins = ?, scale = ?, duplex = ?, price_paise = ?,
-        has_spiral_binding = ?, has_cover_file = ?, updated_at = ?
+        has_spiral_binding = ?, has_cover_file = ?, spiral_binding_qty = ?, cover_file_qty = ?, updated_at = ?
     WHERE id = ?
   `).run(
     settings.printType, settings.copies, settings.pageRange, settings.paperSize, settings.layout,
     settings.pagesPerSheet, settings.margins, settings.scale, settings.duplex, settings.pricePaise,
-    settings.hasSpiralBinding ? 1 : 0, settings.hasCoverFile ? 1 : 0, settings.updatedAt, id
+    settings.hasSpiralBinding ? 1 : 0, settings.hasCoverFile ? 1 : 0,
+    settings.spiralBindingQty ?? 1, settings.coverFileQty ?? 1, settings.updatedAt, id
   );
   
   sqlite.prepare("INSERT INTO print_events (id, job_id, event_type, message, created_at) VALUES (?, ?, 'settings', ?, ?)")
@@ -941,7 +955,7 @@ export async function getPricing(): Promise<PricingConfig> {
     legalMultiplier: (row.legal_multiplier as number) ?? 1.25,
     photoMultiplier: (row.photo_multiplier as number) ?? 1,
     duplexBwPerPagePaise: (row.duplex_bw_per_page_paise as number) ?? 100,
-    spiralBindingPaise: (row.spiral_binding_paise as number) ?? 2000,
+    spiralBindingPerPagePaise: (row.spiral_binding_per_page_paise as number) ?? 150,
     coverFilePaise: (row.cover_file_paise as number) ?? 1000,
     expiryMinutes: (row.expiry_minutes as number) ?? 1440,
     deliveryFeePaise: (row.delivery_fee_paise as number) ?? 0,
@@ -965,14 +979,16 @@ export async function updatePricing(pricing: PricingConfig): Promise<void> {
       bw_per_page_paise = ?, color_per_page_paise = ?, photo_print_paise = ?,
       copy_multiplier = ?, a3_multiplier = ?, a4_multiplier = ?, a5_multiplier = ?,
       a6_multiplier = ?, b5_multiplier = ?, legal_multiplier = ?, photo_multiplier = ?,
-      duplex_bw_per_page_paise = ?, expiry_minutes = ?, delivery_fee_paise = ?, service_area_config = ?, updated_at = ?
+      duplex_bw_per_page_paise = ?, spiral_binding_per_page_paise = ?, cover_file_paise = ?,
+       expiry_minutes = ?, delivery_fee_paise = ?, service_area_config = ?, updated_at = ?
     WHERE id = 1
   `).run(
-    pricing.bwPerPagePaise, pricing.colorPerPagePaise, pricing.photoPrintPaise,
-    pricing.copyMultiplier, pricing.a3Multiplier, pricing.a4Multiplier, pricing.a5Multiplier,
-    pricing.a6Multiplier, pricing.b5Multiplier, pricing.legalMultiplier, pricing.photoMultiplier,
-    pricing.duplexBwPerPagePaise, pricing.expiryMinutes, pricing.deliveryFeePaise,
-    serializeServiceAreaConfig(pricing.serviceArea), now
+     pricing.bwPerPagePaise, pricing.colorPerPagePaise, pricing.photoPrintPaise,
+     pricing.copyMultiplier, pricing.a3Multiplier, pricing.a4Multiplier, pricing.a5Multiplier,
+     pricing.a6Multiplier, pricing.b5Multiplier, pricing.legalMultiplier, pricing.photoMultiplier,
+     pricing.duplexBwPerPagePaise, pricing.spiralBindingPerPagePaise, pricing.coverFilePaise,
+     pricing.expiryMinutes, pricing.deliveryFeePaise,
+     serializeServiceAreaConfig(pricing.serviceArea), now
   );
 }
 

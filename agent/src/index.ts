@@ -36,6 +36,8 @@ type SupabaseJob = {
   scale: string;
   duplex: string;
   page_count: number;
+  has_spiral_binding: boolean;
+  has_cover_file: boolean;
   price_paise: number;
   needs_conversion: number;
   queue_position: number;
@@ -747,6 +749,7 @@ function printImagesGDI(images: string[], job: SupabaseJob, printer: string) {
           "-Margins", job.margins || "default",
           "-PagesPerSheet", String(job.pages_per_sheet || 1),
           "-Duplex", job.duplex || "simplex",
+          "-SpiralBinding", job.has_spiral_binding ? "true" : "false",
           "-Collate", "true",
           "-RenderDpi", String(renderDpiFor(job))
         ];
