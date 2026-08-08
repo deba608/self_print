@@ -89,7 +89,7 @@ export default function CustomerManagementPage() {
     setDeleting(true);
     setDeleteError("");
     try {
-      const res = await fetch(`/api/admin/customers/${confirmDelete.id}`, {
+      const res = await fetch(`/api/admin/customers/${encodeURIComponent(confirmDelete.id)}`, {
         method: "DELETE",
         credentials: "include",
       });
