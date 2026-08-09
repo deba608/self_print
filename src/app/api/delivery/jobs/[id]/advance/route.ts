@@ -31,27 +31,27 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   broadcast({ type: "job_update", jobId: id, deliveryStatus: next });
 
-  // Trigger SMS notification to customer on delivery status update
+  // Notify customer on delivery status change (WhatsApp primary, SMS fallback — failures never block)
   try {
     const { getJobById } = await import("@/lib/db");
     const { sendOutForDeliverySms, sendDeliveredSms } = await import("@/lib/sms-notifications");
+    const { sendOutForDeliveryWa, sendDeliveredWa } = await import("@/lib/whatsapp-notifications");
     const job = await getJobById(id);
     if (job?.customerPhone) {
+      const input = {
+        phone: job.customerPhone,
+        token: job.token,
+        driverName: staff.displayName || "Delivery Executive",
+        driverPhone: undefined,
+      };
       if (next === "out_for_delivery") {
-        await sendOutForDeliverySms({
-          phone: job.customerPhone,
-          token: job.token,
-          driverName: staff.displayName || "Delivery Executive",
-        });
+        await Promise.allSettled([sendOutForDeliveryWa(input), sendOutForDeliverySms(input)]);
       } else if (next === "delivered") {
-        await sendDeliveredSms({
-          phone: job.customerPhone,
-          token: job.token,
-        });
+        await Promise.allSettled([sendDeliveredWa(input), sendDeliveredSms(input)]);
       }
     }
   } catch (err) {
-    console.warn("Failed to dispatch delivery status SMS:", err);
+    console.warn("Failed to dispatch delivery status notification:", err);
   }
 
   return NextResponse.json({ ok: true });
