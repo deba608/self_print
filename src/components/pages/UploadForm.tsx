@@ -1253,7 +1253,7 @@ export default function UploadForm() {
           )}
 
           <div className="made-by-credit">
-            <span className="made-by-text">Crafted with <Heart className="made-by-heart" size={14} fill="currentColor" aria-hidden="true" /> by</span>
+            <span className="made-by-text">Crafted with <Heart className="made-by-heart" size={12} fill="currentColor" aria-hidden="true" /> by</span>
             <a
               href="https://github.com/deba608"
               target="_blank"
