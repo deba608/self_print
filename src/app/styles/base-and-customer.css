@@ -2082,16 +2082,28 @@ input, select, button {
 }
 
 .made-by-credit {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin-top: 14px;
+  padding: 10px 16px 36px 16px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  animation: creditFadeSlide 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+.made-by-content {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 4px;
-  margin-top: 10px;
-  padding-bottom: 4px;
   font-size: 12px;
-  color: var(--muted);
   line-height: 1.4;
-  animation: creditFadeSlide 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  z-index: 1;
 }
 .made-by-text {
   display: inline-flex;
@@ -2112,11 +2124,76 @@ input, select, button {
   font-size: 11.5px;
   font-weight: 600;
   letter-spacing: 0.02em;
-  transition: opacity 0.15s ease;
+  transition: opacity 0.15s ease, text-shadow 0.2s ease;
 }
 .made-by-link:hover {
-  opacity: 0.75;
+  opacity: 0.9;
+  text-shadow: 0 0 8px rgba(59, 130, 246, 0.5);
 }
+
+/* ── Binary background animation ── */
+@keyframes binaryFloat {
+  0% {
+    transform: translateY(0);
+    opacity: 0.7;
+  }
+  100% {
+    transform: translateY(28px);
+    opacity: 0;
+  }
+}
+
+.made-by-bg-binary {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: -5px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding-top: 2px;
+  height: 36px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  pointer-events: none;
+  user-select: none;
+  z-index: 0;
+}
+.made-by-bg-binary span {
+  font-family: var(--font-code), monospace;
+  font-size: 7.5px;
+  color: var(--primary-color);
+  opacity: 0;
+  animation: binaryFloat 4s infinite linear;
+}
+.made-by-bg-binary span:nth-child(1) { animation-delay: 0.1s; animation-duration: 3.8s; }
+.made-by-bg-binary span:nth-child(2) { animation-delay: 1.2s; animation-duration: 4.5s; }
+.made-by-bg-binary span:nth-child(3) { animation-delay: 0.5s; animation-duration: 4.1s; }
+.made-by-bg-binary span:nth-child(4) { animation-delay: 2.0s; animation-duration: 4.9s; }
+.made-by-bg-binary span:nth-child(5) { animation-delay: 0.9s; animation-duration: 3.6s; }
+.made-by-bg-binary span:nth-child(6) { animation-delay: 2.6s; animation-duration: 4.3s; }
+.made-by-bg-binary span:nth-child(7) { animation-delay: 0.3s; animation-duration: 4.0s; }
+.made-by-bg-binary span:nth-child(8) { animation-delay: 1.5s; animation-duration: 4.7s; }
+.made-by-bg-binary span:nth-child(9) { animation-delay: 0.7s; animation-duration: 3.9s; }
+.made-by-bg-binary span:nth-child(10) { animation-delay: 2.2s; animation-duration: 5.1s; }
+.made-by-bg-binary span:nth-child(11) { animation-delay: 1.1s; animation-duration: 3.5s; }
+.made-by-bg-binary span:nth-child(12) { animation-delay: 2.8s; animation-duration: 4.4s; }
+.made-by-bg-binary span:nth-child(13) { animation-delay: 0.4s; animation-duration: 4.2s; }
+.made-by-bg-binary span:nth-child(14) { animation-delay: 1.7s; animation-duration: 4.6s; }
+.made-by-bg-binary span:nth-child(15) { animation-delay: 0.9s; animation-duration: 3.7s; }
+.made-by-bg-binary span:nth-child(16) { animation-delay: 2.4s; animation-duration: 5.0s; }
+.made-by-bg-binary span:nth-child(17) { animation-delay: 1.3s; animation-duration: 4.3s; }
+.made-by-bg-binary span:nth-child(18) { animation-delay: 3.0s; animation-duration: 4.8s; }
+.made-by-bg-binary span:nth-child(19) { animation-delay: 0.6s; animation-duration: 3.9s; }
+.made-by-bg-binary span:nth-child(20) { animation-delay: 1.8s; animation-duration: 4.7s; }
+.made-by-bg-binary span:nth-child(21) { animation-delay: 1.0s; animation-duration: 4.1s; }
+.made-by-bg-binary span:nth-child(22) { animation-delay: 2.5s; animation-duration: 4.5s; }
+.made-by-bg-binary span:nth-child(23) { animation-delay: 0.2s; animation-duration: 3.7s; }
+.made-by-bg-binary span:nth-child(24) { animation-delay: 1.4s; animation-duration: 4.2s; }
+.made-by-bg-binary span:nth-child(25) { animation-delay: 0.8s; animation-duration: 4.0s; }
+.made-by-bg-binary span:nth-child(26) { animation-delay: 2.1s; animation-duration: 4.7s; }
+.made-by-bg-binary span:nth-child(27) { animation-delay: 1.6s; animation-duration: 4.3s; }
+.made-by-bg-binary span:nth-child(28) { animation-delay: 2.9s; animation-duration: 4.9s; }
 
 @media (max-width: 480px) {
   .addon-card-main {
