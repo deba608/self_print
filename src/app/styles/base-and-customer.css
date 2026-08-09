@@ -2135,7 +2135,7 @@ input, select, button {
 @keyframes binaryFloat {
   0% {
     transform: translateY(0);
-    opacity: 0.7;
+    opacity: 0.35;
   }
   100% {
     transform: translateY(28px);
