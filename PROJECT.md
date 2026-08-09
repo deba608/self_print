@@ -56,7 +56,7 @@ Admin dashboard live-updates via SSE (`sseClients`/`broadcastSse` in db.ts) + Su
 ## Database schema
 
 ### `jobs` (core)
-id, token (6-digit customer code), status (`pending_payment`/`paid`/`approved`/`printing`/`printed`/`failed`/`cancelled`), print_type (`bw`/`color`), copies, page_range, paper_size (A3/A4/A5/A6/B5/Letter/Legal/Photo), layout (portrait/landscape), pages_per_sheet (1-4 N-up), margins, scale, duplex (simplex/long-edge/short-edge), page_count, price_paise, needs_conversion, queue_position (daily-reset), created_at/updated_at, paid_at, paid_via (online/counter), printed_at, issue_reported_at/issue_note/issue_resolved_at, delivery_method (pickup/delivery), customer_name/phone/delivery_address, delivery_fee_paise, delivery_status (pending/out_for_delivery/delivered), delivery_latitude/longitude/accuracy/captured_at (GPS), customer_user_id (FK auth.users, null for guests), delivery_person_id (rider, Supabase only).
+id, token (6-digit customer code), status (`pending_payment`/`paid`/`approved`/`printing`/`printed`/`failed`/`cancelled`), print_type (`bw`/`color`), copies, page_range, paper_size (A3/A4/A5/A6/B5/Letter/Legal/Photo), layout (portrait/landscape), pages_per_sheet (1-4 N-up), margins, scale, duplex (simplex/long-edge/short-edge), page_count, price_paise, needs_conversion, queue_position (daily-reset), created_at/updated_at, paid_at, paid_via (online/counter), printed_at, issue_reported_at/issue_note/issue_resolved_at, delivery_method (pickup/delivery), customer_name/phone/delivery_address, delivery_fee_paise, delivery_status (pending/out_for_delivery/delivered), delivery_latitude/longitude/accuracy/captured_at (GPS), customer_user_id (FK auth.users, null for guests), delivery_person_id (rider, Supabase only), **custom_note** (TEXT, nullable — customer additional instructions, ≤250 chars, shown in admin job detail).
 
 Indexes: status, created_at, queue_position, (status, needs_conversion, updated_at) for agent polling, (delivery_method, delivery_status, created_at) for dispatch.
 
@@ -156,7 +156,7 @@ Pages (`src/app/admin/*`):
 - `/admin/jobs/[id]/print` — manual print view (streams file for browser print fallback)
 - `/admin/orders`, `/admin/customers`, `/admin/accounts` (daily analytics), `/admin/staff` (super_admin only), `/admin/security` (login audit)
 
-API (`src/app/api/admin/*`): jobs, jobs/[id], jobs/[id]/status, jobs/[id]/delivery-status, jobs/[id]/reprint, jobs/[id]/convert, jobs/[id]/resolve-issue, jobs/bulk-delete, pricing, printer/printers, summary, notifications, analytics/daily, customers, staff/staff/[id]/staff/create, login/logout/me/login-events.
+API (`src/app/api/admin/*`): jobs, jobs/[id], jobs/[id]/status, jobs/[id]/delivery-status, jobs/[id]/reprint, jobs/[id]/convert, jobs/[id]/resolve-issue, jobs/bulk-delete, pricing, printer/printers, summary, notifications, analytics/daily, customers, customers/[id] (DELETE — registered: removes `customer_profiles` + auth user via service-role; guest `guest:${phone}`: anonymizes matching jobs), staff/staff/[id]/staff/create, login/logout/me/login-events.
 
 ## Print agent flow (`agent/src/index.ts`)
 

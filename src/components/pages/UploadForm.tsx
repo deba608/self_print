@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, useRef } from "react";
 import Link from "next/link";
-import { UploadCloud, FileText, Image, ArrowLeft, ArrowRight, Check, Eye, Loader2, File, Settings2, Printer, Copy, Store, X, Search, CreditCard, RefreshCw, Info, Truck, MapPin, Navigation, AlertCircle, ChevronDown } from "lucide-react";
+import { UploadCloud, FileText, Image, ArrowLeft, ArrowRight, Check, Eye, Loader2, File, Settings2, Printer, Copy, Store, X, Search, CreditCard, RefreshCw, Info, Truck, MapPin, Navigation, AlertCircle, ChevronDown, Heart } from "lucide-react";
 import { formatRupees, paperSizeLabels, allPaperSizes, calculateSpiralBindingPrice } from "@/lib/pricing";
 import { estimatePdfPages } from "@/lib/pdf-pages";
 import { checkDeliveryServiceable, isValidPincode } from "@/lib/service-area";
@@ -1253,7 +1253,7 @@ export default function UploadForm() {
           )}
 
           <div className="made-by-credit">
-            <span className="made-by-text">Crafted with <span className="made-by-heart">♥</span> by </span>
+            <span className="made-by-text">Crafted with <Heart className="made-by-heart" size={14} fill="currentColor" aria-hidden="true" /> by</span>
             <a
               href="https://github.com/deba608"
               target="_blank"
