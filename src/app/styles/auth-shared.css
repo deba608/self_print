@@ -302,6 +302,107 @@
 .password-hint.met { color: var(--ok); }
 .password-hint.met svg { opacity: 1; }
 
+/* ── Mode tabs (Login: OTP / Password) ──────────────────────────────────── */
+.auth-mode-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  margin-bottom: 24px;
+  background: rgba(13, 122, 116, 0.06);
+  border-radius: 12px;
+  border: 1px solid rgba(13, 122, 116, 0.1);
+}
+
+.auth-mode-tab {
+  flex: 1;
+  padding: 9px 10px;
+  border-radius: 9px;
+  border: none;
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+  background: transparent;
+  color: var(--muted);
+  transition: all 0.2s var(--ease-out);
+  white-space: nowrap;
+}
+
+.auth-mode-tab.active {
+  background: var(--accent);
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(13, 122, 116, 0.3);
+}
+
+.auth-mode-tab:not(.active):hover {
+  background: rgba(13, 122, 116, 0.1);
+  color: var(--accent-strong);
+}
+
+/* ── OTP success notice ──────────────────────────────────────────────────── */
+.auth-otp-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 11px 14px;
+  background: var(--ok-light);
+  border: 1px solid rgba(21, 128, 61, 0.22);
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ok);
+  line-height: 1.45;
+}
+
+.auth-otp-notice svg { flex-shrink: 0; margin-top: 1px; }
+
+/* ── OTP verify + resend action group ────────────────────────────────────── */
+.auth-otp-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.auth-resend-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  height: 44px;
+  border: 1.5px solid var(--line);
+  border-radius: 12px;
+  background: transparent;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.18s var(--ease-out);
+}
+
+.auth-resend-btn:not(:disabled):hover {
+  border-color: var(--accent);
+  color: var(--accent-strong);
+  background: var(--accent-light);
+}
+
+.auth-resend-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ── Change-phone inline link ─────────────────────────────────────────────── */
+.auth-change-link {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent-strong);
+  cursor: pointer;
+  line-height: 1;
+}
+
+.auth-change-link:hover { text-decoration: underline; }
+
 @media (max-width: 480px) {
   /* Shrink decorative blur orbs — cheaper paint, no viewport-width push */
   .admin-login-shell::before,
@@ -317,6 +418,7 @@
   /* 16px stops iOS Safari focus zoom */
   .input-wrapper input { font-size: 16px; }
   .password-toggle { width: 44px; height: 44px; right: 2px; }
+  .auth-mode-tab { font-size: 12.5px; padding: 9px 6px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Lock, Mail, Phone, KeyRound, ArrowRight } from "lucide-react";
+import { Lock, Mail, Phone, KeyRound, CheckCircle2, Timer } from "lucide-react";
 import { AuthShell, AuthInput, AuthError, AuthSubmit, AuthDivider, GoogleAuthButton } from "@/components/ui/Auth";
 import { createClient } from "@/lib/supabase/client";
 
@@ -11,11 +11,9 @@ export default function UserLoginPage() {
   const router = useRouter();
   const [loginMode, setLoginMode] = useState<"otp" | "password">("otp");
 
-  // Email / Password mode state
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  // OTP mode state
   const [phone, setPhone] = useState("");
   const [otpCode, setOtpCode] = useState("");
   const [otpSent, setOtpSent] = useState(false);
@@ -44,7 +42,7 @@ export default function UserLoginPage() {
   const handleSendOtp = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!phone || phone.replace(/\D/g, "").length < 10) {
-      setError("Please enter a valid 10-digit mobile number");
+      setError("Enter a valid 10-digit mobile number");
       return;
     }
     setLoading(true);
@@ -67,8 +65,8 @@ export default function UserLoginPage() {
       setCooldown(60);
       setNotice(
         data.devCode
-          ? `[Dev Mode] Verification code: ${data.devCode}`
-          : "OTP sent! Please check your mobile messages."
+          ? `[Dev] Code: ${data.devCode}`
+          : "Code sent — check your SMS."
       );
     } catch {
       setError("Network error. Please try again.");
@@ -80,7 +78,7 @@ export default function UserLoginPage() {
   const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!otpCode || otpCode.length !== 6) {
-      setError("Please enter the 6-digit OTP code");
+      setError("Enter the 6-digit code");
       return;
     }
     setLoading(true);
@@ -107,7 +105,7 @@ export default function UserLoginPage() {
   const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) {
-      setError("Please enter email and password");
+      setError("Enter your email and password");
       return;
     }
     setLoading(true);
@@ -134,40 +132,32 @@ export default function UserLoginPage() {
     }
   };
 
+  const switchMode = (mode: "otp" | "password") => {
+    setLoginMode(mode);
+    setError("");
+    setNotice("");
+  };
+
   return (
-    <AuthShell title="Welcome Back" subtitle="Log in to track your print orders">
-      <div style={{ display: "flex", gap: "8px", marginBottom: "20px", borderBottom: "1px solid var(--border-color, #e5e7eb)", paddingBottom: "10px" }}>
+    <AuthShell title="Welcome back" subtitle="Log in to track your print orders">
+      <div className="auth-mode-tabs" role="tablist">
         <button
           type="button"
-          onClick={() => { setLoginMode("otp"); setError(""); setNotice(""); }}
-          style={{
-            flex: 1,
-            padding: "8px 12px",
-            borderRadius: "8px",
-            border: "none",
-            fontWeight: 600,
-            cursor: "pointer",
-            background: loginMode === "otp" ? "var(--primary-color, #2563eb)" : "transparent",
-            color: loginMode === "otp" ? "#ffffff" : "var(--text-secondary, #6b7280)",
-          }}
+          role="tab"
+          aria-selected={loginMode === "otp"}
+          className={`auth-mode-tab${loginMode === "otp" ? " active" : ""}`}
+          onClick={() => switchMode("otp")}
         >
           Mobile OTP
         </button>
         <button
           type="button"
-          onClick={() => { setLoginMode("password"); setError(""); setNotice(""); }}
-          style={{
-            flex: 1,
-            padding: "8px 12px",
-            borderRadius: "8px",
-            border: "none",
-            fontWeight: 600,
-            cursor: "pointer",
-            background: loginMode === "password" ? "var(--primary-color, #2563eb)" : "transparent",
-            color: loginMode === "password" ? "#ffffff" : "var(--text-secondary, #6b7280)",
-          }}
+          role="tab"
+          aria-selected={loginMode === "password"}
+          className={`auth-mode-tab${loginMode === "password" ? " active" : ""}`}
+          onClick={() => switchMode("password")}
         >
-          Email & Password
+          Email &amp; Password
         </button>
       </div>
 
@@ -175,7 +165,7 @@ export default function UserLoginPage() {
         <form className="login-form" onSubmit={otpSent ? handleVerifyOtp : handleSendOtp}>
           <AuthInput
             id="phone"
-            label="Mobile Number"
+            label="Mobile number"
             icon={Phone}
             type="tel"
             value={phone}
@@ -188,49 +178,52 @@ export default function UserLoginPage() {
           {otpSent && (
             <AuthInput
               id="otpCode"
-              label="6-Digit Verification Code"
+              label="Verification code"
               icon={KeyRound}
               type="text"
+              inputMode="numeric"
               value={otpCode}
               onChange={setOtpCode}
-              placeholder="Enter 6-digit code"
+              placeholder="6-digit code"
               disabled={loading}
               autoFocus
               labelAction={
                 <button
                   type="button"
-                  onClick={() => setOtpSent(false)}
-                  style={{ background: "none", border: "none", color: "var(--primary-color, #2563eb)", fontSize: "0.85rem", cursor: "pointer" }}
+                  className="auth-change-link"
+                  onClick={() => { setOtpSent(false); setNotice(""); setError(""); }}
                 >
-                  Change phone
+                  Change number
                 </button>
               }
             />
           )}
 
-          {notice && <p style={{ color: "#059669", fontSize: "0.875rem", margin: "4px 0 12px 0", fontWeight: 500 }}>{notice}</p>}
+          {notice && (
+            <div className="auth-otp-notice" role="status">
+              <CheckCircle2 size={15} aria-hidden="true" />
+              <span>{notice}</span>
+            </div>
+          )}
+
           <AuthError>{error}</AuthError>
 
           {!otpSent ? (
-            <AuthSubmit loading={loading} loadingLabel="Sending OTP..." label="Send OTP via SMS" />
+            <AuthSubmit loading={loading} loadingLabel="Sending…" label="Send OTP" />
           ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-              <AuthSubmit loading={loading} loadingLabel="Verifying..." label="Verify OTP & Log In" />
+            <div className="auth-otp-actions">
+              <AuthSubmit loading={loading} loadingLabel="Verifying…" label="Verify &amp; Log in" />
               <button
                 type="button"
+                className="auth-resend-btn"
                 disabled={cooldown > 0 || loading}
                 onClick={handleSendOtp}
-                style={{
-                  padding: "10px",
-                  borderRadius: "8px",
-                  border: "1px solid #d1d5db",
-                  background: "transparent",
-                  fontWeight: 500,
-                  cursor: cooldown > 0 ? "not-allowed" : "pointer",
-                  color: cooldown > 0 ? "#9ca3af" : "#374151",
-                }}
               >
-                {cooldown > 0 ? `Resend OTP in ${cooldown}s` : "Resend OTP SMS"}
+                {cooldown > 0 ? (
+                  <><Timer size={14} aria-hidden="true" /> Resend in {cooldown}s</>
+                ) : (
+                  "Resend OTP"
+                )}
               </button>
             </div>
           )}
@@ -238,7 +231,7 @@ export default function UserLoginPage() {
           <AuthDivider />
           <GoogleAuthButton onClick={handleGoogleLogin} disabled={loading} />
           <p className="login-footer">
-            Need an account? <Link href="/register">Sign up</Link>
+            No account? <Link href="/register">Sign up</Link>
           </p>
         </form>
       ) : (
@@ -250,7 +243,7 @@ export default function UserLoginPage() {
             type="email"
             value={email}
             onChange={setEmail}
-            placeholder="Enter email"
+            placeholder="you@email.com"
             autoComplete="username"
             disabled={loading}
             autoFocus
@@ -262,7 +255,7 @@ export default function UserLoginPage() {
             password
             value={password}
             onChange={setPassword}
-            placeholder="Enter password"
+            placeholder="Your password"
             autoComplete="current-password"
             disabled={loading}
             labelAction={
@@ -272,11 +265,11 @@ export default function UserLoginPage() {
             }
           />
           <AuthError>{error}</AuthError>
-          <AuthSubmit loading={loading} loadingLabel="Signing in..." label="Log in" />
+          <AuthSubmit loading={loading} loadingLabel="Signing in…" label="Log in" />
           <AuthDivider />
           <GoogleAuthButton onClick={handleGoogleLogin} disabled={loading} />
           <p className="login-footer">
-            Need an account? <Link href="/register">Sign up</Link>
+            No account? <Link href="/register">Sign up</Link>
           </p>
         </form>
       )}
