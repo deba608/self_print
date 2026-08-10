@@ -20,9 +20,5 @@ export default async function CompleteProfilePage() {
     redirect("/my-jobs");
   }
 
-  return (
-    <main className="customer-shell">
-      <CompleteProfileForm />
-    </main>
-  );
+  return <CompleteProfileForm />;
 }

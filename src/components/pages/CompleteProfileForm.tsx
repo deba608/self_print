@@ -40,23 +40,26 @@ export default function CompleteProfileForm() {
   };
 
   return (
-    <AuthShell title="One More Step" subtitle="Add your phone number so we can reach you about print orders">
+    <AuthShell title="One Last Step" subtitle="Enter your WhatsApp number to receive order updates and delivery tracking">
       <form className="login-form" onSubmit={handleSubmit}>
         <AuthInput
           id="phone"
-          label="Phone"
+          label="WhatsApp Number"
           icon={Phone}
           type="tel"
-          inputMode="tel"
+          inputMode="numeric"
           value={phone}
           onChange={setPhone}
-          placeholder="Enter phone number"
+          placeholder="10-digit mobile number"
           autoComplete="tel"
           disabled={loading}
           required
         />
         <AuthError>{error}</AuthError>
-        <AuthSubmit loading={loading} loadingLabel="Saving..." label="Continue" />
+        <AuthSubmit loading={loading} loadingLabel="Saving…" label="Continue" />
+        <p className="login-footer" style={{ textAlign: "center", marginTop: "-4px" }}>
+          Used only for order updates — never shared.
+        </p>
       </form>
     </AuthShell>
   );
