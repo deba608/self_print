@@ -14,6 +14,7 @@ export default function AppChrome({ children }: { children: React.ReactNode }) {
     pathname === "/login" ||
     pathname === "/register" ||
     pathname === "/forgot-password" ||
+    pathname === "/complete-profile" ||
     pathname.startsWith("/reset-password");
 
   if (isAdminRoute || isDeliveryRoute || isStaffInviteRoute || isAuthRoute) {
