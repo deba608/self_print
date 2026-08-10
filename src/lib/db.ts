@@ -264,7 +264,8 @@ async function ensureJobColumns(database: any) {
     ['delivery_person_id', 'TEXT'],
     ['delivery_pincode', 'TEXT'],
     ['delivery_area', 'TEXT'],
-    ['custom_note', 'TEXT']
+    ['custom_note', 'TEXT'],
+    ['archived_at', 'TEXT']
   ];
   for (const [name, definition] of additions) {
     if (!columns.has(name)) {
@@ -445,7 +446,7 @@ export async function getJobs(): Promise<Job[]> {
   }
   const sqlite = await getDbInstance();
   const pricing = await getPricing();
-  const rows = sqlite.prepare('SELECT * FROM jobs ORDER BY created_at DESC').all() as Record<string, unknown>[];
+  const rows = sqlite.prepare('SELECT * FROM jobs WHERE archived_at IS NULL ORDER BY created_at DESC').all() as Record<string, unknown>[];
   return rows.map(row => mapJob(row, pricing.expiryMinutes));
 }
 
@@ -506,7 +507,7 @@ export async function getJobsPage(limit: number, cursor?: string | null): Promis
     return mod.getJobsPage(limit, cursor);
   }
   const sqlite = await getDbInstance();
-  const total = (sqlite.prepare('SELECT COUNT(*) AS c FROM jobs').get() as { c: number }).c;
+  const total = (sqlite.prepare('SELECT COUNT(*) AS c FROM jobs WHERE archived_at IS NULL').get() as { c: number }).c;
 
   let stmt;
   let rows;
@@ -521,7 +522,7 @@ export async function getJobsPage(limit: number, cursor?: string | null): Promis
         (SELECT COUNT(*) FROM job_files jf WHERE jf.job_id = jobs.id) AS f_count
       FROM jobs
       LEFT JOIN job_files ON jobs.id = job_files.job_id
-      WHERE jobs.created_at < ?
+      WHERE jobs.archived_at IS NULL AND jobs.created_at < ?
       GROUP BY jobs.id
       ORDER BY jobs.created_at DESC LIMIT ?
     `);
@@ -537,6 +538,7 @@ export async function getJobsPage(limit: number, cursor?: string | null): Promis
         (SELECT COUNT(*) FROM job_files jf WHERE jf.job_id = jobs.id) AS f_count
       FROM jobs
       LEFT JOIN job_files ON jobs.id = job_files.job_id
+      WHERE jobs.archived_at IS NULL
       GROUP BY jobs.id
       ORDER BY jobs.created_at DESC LIMIT ?
     `);
@@ -1286,22 +1288,32 @@ export async function getJobSummary() {
   return { jobs: activeJobs, totalPaise };
 }
 
-export async function deleteJob(id: string): Promise<void> {
+export async function archiveJob(id: string): Promise<void> {
   if (isSupabase) {
     const mod = await import('./db-supabase');
-    return mod.deleteJob(id);
+    return mod.archiveJob(id);
   }
-  
   const sqlite = await getDbInstance();
-  sqlite.prepare('DELETE FROM jobs WHERE id = ?').run(id);
+  sqlite.prepare('UPDATE jobs SET archived_at = ? WHERE id = ?').run(new Date().toISOString(), id);
 }
 
+export async function bulkArchiveJobs(ids: string[]): Promise<void> {
+  if (isSupabase) {
+    const mod = await import('./db-supabase');
+    return mod.bulkArchiveJobs(ids);
+  }
+  const sqlite = await getDbInstance();
+  const now = new Date().toISOString();
+  const stmt = sqlite.prepare('UPDATE jobs SET archived_at = ? WHERE id = ?');
+  sqlite.transaction((rows: string[]) => { for (const id of rows) stmt.run(now, id); })(ids);
+}
+
+// Hard-delete for super-admin purge only — removes rows permanently.
 export async function bulkDeleteJobs(ids: string[]): Promise<void> {
   if (isSupabase) {
     const mod = await import('./db-supabase');
     return mod.bulkDeleteJobs(ids);
   }
-
   const sqlite = await getDbInstance();
   sqlite.prepare(`DELETE FROM jobs WHERE id IN (${ids.map(() => '?').join(',')})`).run(...ids);
 }

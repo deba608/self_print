@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { bulkDeleteJobs, getJobFilesForJobs, sseClients } from "@/lib/db";
+import { bulkArchiveJobs, getJobFilesForJobs, sseClients } from "@/lib/db";
 import { requireAdminResponse } from "@/lib/security";
 import { deleteFile } from "@/lib/storage";
 
@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
     Object.values(fileMap).map(f => f.storagePath ? deleteFile(f.storagePath) : Promise.resolve())
   );
 
-  await bulkDeleteJobs(ids);
+  await bulkArchiveJobs(ids);
 
   for (const id of ids) {
     broadcast({ type: "job_deleted", jobId: id });

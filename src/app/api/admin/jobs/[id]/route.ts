@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getJobById, getJobEvents, getJobFilesByJob, updateJobSettings, deleteJob, getPricing } from "@/lib/db";
+import { getJobById, getJobEvents, getJobFilesByJob, updateJobSettings, archiveJob, getPricing } from "@/lib/db";
 import { calculatePrice, calculateSpiralBindingPrice, selectedPageCount } from "@/lib/pricing";
 import { requireAdminResponse } from "@/lib/security";
 import type { JobStatus, PaperSize, PrintDuplex, PrintLayout, PrintMargins, PrintScale, PrintType } from "@/lib/types";
@@ -132,7 +132,7 @@ export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id:
     // Ignore file deletion errors
   }
 
-  await deleteJob(id);
+  await archiveJob(id);
 
   return NextResponse.json({ success: true });
 }

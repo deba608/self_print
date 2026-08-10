@@ -143,7 +143,7 @@ export async function getDb() {
 // Supabase-specific methods
 export async function getJobs() {
   const [{ data, error }, pricing] = await Promise.all([
-    supabase.from('jobs').select('*').order('created_at', { ascending: false }),
+    supabase.from('jobs').select('*').is('archived_at', null).order('created_at', { ascending: false }),
     getPricing()
   ]);
   if (error) throw error;
@@ -224,6 +224,7 @@ export async function getJobsPage(limit: number, cursor?: string | null): Promis
   let query = supabase
     .from('jobs')
     .select('*, job_files(*)', { count: 'estimated' })
+    .is('archived_at', null)
     .order('created_at', { ascending: false })
     .limit(limit);
 
@@ -928,12 +929,19 @@ export async function getJobSummary() {
   return { jobs: activeJobs, totalPaise };
 }
 
-export async function deleteJob(id: string) {
+export async function archiveJob(id: string) {
   const { error } = await supabase
     .from('jobs')
-    .delete()
+    .update({ archived_at: new Date().toISOString() })
     .eq('id', id);
-  
+  if (error) throw error;
+}
+
+export async function bulkArchiveJobs(ids: string[]) {
+  const { error } = await supabase
+    .from('jobs')
+    .update({ archived_at: new Date().toISOString() })
+    .in('id', ids);
   if (error) throw error;
 }
 
@@ -942,7 +950,6 @@ export async function bulkDeleteJobs(ids: string[]) {
     .from('jobs')
     .delete()
     .in('id', ids);
-
   if (error) throw error;
 }
 
