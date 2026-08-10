@@ -57,9 +57,6 @@ export default function CompleteProfileForm() {
         />
         <AuthError>{error}</AuthError>
         <AuthSubmit loading={loading} loadingLabel="Saving…" label="Continue" />
-        <p className="login-footer" style={{ textAlign: "center", marginTop: "-4px" }}>
-          Used only for order updates — never shared.
-        </p>
       </form>
     </AuthShell>
   );
