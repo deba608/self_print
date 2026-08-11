@@ -13,8 +13,7 @@ export default function LoginNudgePopup() {
     if (localStorage.getItem(STORAGE_KEY) === "1") return;
     createClient().auth.getUser().then(({ data }) => {
       if (!data.user) {
-        const t = setTimeout(() => setVisible(true), 2500);
-        return () => clearTimeout(t);
+        setVisible(true);
       }
     });
   }, []);

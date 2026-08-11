@@ -3674,13 +3674,10 @@ button.upi-pay-btn:disabled {
   -webkit-backdrop-filter: blur(4px);
   z-index: 9000;
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: center;
-  padding: 0 16px 24px;
+  padding: 16px;
   animation: fadeIn 0.25s ease both;
-}
-@media (min-width: 540px) {
-  .nudge-overlay { align-items: center; }
 }
 .nudge-popup {
   position: relative;
