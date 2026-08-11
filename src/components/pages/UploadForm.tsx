@@ -21,6 +21,7 @@ type PageRangeMode = "all" | "custom";
 export default function UploadForm() {
   const [step, setStep] = useState<Step>("upload");
   const [showNudge, setShowNudge] = useState(false);
+  const nudgePendingSubmit = useRef(false);
   const [pricing, setPricing] = useState<Pricing | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [printType, setPrintType] = useState("bw");
@@ -73,6 +74,21 @@ export default function UploadForm() {
   const [dragOver, setDragOver] = useState(false);
   const [morePopoverOpen, setMorePopoverOpen] = useState(false);
   const popoverRef = useRef<HTMLDivElement>(null);
+
+  // 2s timer nudge: show login popup for guests who haven't dismissed it
+  useEffect(() => {
+    const NUDGE_KEY = "sp_login_nudge_dismissed";
+    if (localStorage.getItem(NUDGE_KEY) === "1") return;
+    const t = setTimeout(() => {
+      createClient().auth.getUser().then(({ data }) => {
+        if (!data.user) {
+          nudgePendingSubmit.current = false;
+          setShowNudge(true);
+        }
+      });
+    }, 2000);
+    return () => clearTimeout(t);
+  }, []);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -981,6 +997,7 @@ export default function UploadForm() {
     if (localStorage.getItem(NUDGE_KEY) !== "1") {
       createClient().auth.getUser().then(({ data }) => {
         if (!data.user) {
+          nudgePendingSubmit.current = true;
           setShowNudge(true);
         } else {
           void doSubmit();
@@ -2571,7 +2588,13 @@ export default function UploadForm() {
 
       <LoginNudgePopup
         open={showNudge}
-        onClose={() => { setShowNudge(false); void doSubmit(); }}
+        onClose={() => {
+          setShowNudge(false);
+          if (nudgePendingSubmit.current) {
+            nudgePendingSubmit.current = false;
+            void doSubmit();
+          }
+        }}
       />
 
       <ConfirmDialog
