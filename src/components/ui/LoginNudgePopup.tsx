@@ -1,26 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
-const STORAGE_KEY = "sp_login_nudge_dismissed";
+interface Props {
+  open: boolean;
+  onClose: () => void;
+}
 
-export default function LoginNudgePopup() {
-  const [visible, setVisible] = useState(false);
-
-  useEffect(() => {
-    if (localStorage.getItem(STORAGE_KEY) === "1") return;
-    createClient().auth.getUser().then(({ data }) => {
-      if (!data.user) setVisible(true);
-    });
-  }, []);
-
-  const dismiss = () => {
-    localStorage.setItem(STORAGE_KEY, "1");
-    setVisible(false);
-  };
-
+export default function LoginNudgePopup({ open, onClose }: Props) {
   const handleGoogle = () => {
     createClient().auth.signInWithOAuth({
       provider: "google",
@@ -28,12 +16,12 @@ export default function LoginNudgePopup() {
     });
   };
 
-  if (!visible) return null;
+  if (!open) return null;
 
   return (
     <div className="nudge-overlay" role="dialog" aria-modal="true" aria-label="Sign in">
       <div className="nudge-popup">
-        <button className="nudge-close" onClick={dismiss} aria-label="Dismiss">
+        <button className="nudge-close" onClick={onClose} aria-label="Dismiss">
           <X size={16} />
         </button>
         <div className="nudge-icon" aria-hidden="true">
@@ -55,7 +43,7 @@ export default function LoginNudgePopup() {
           </svg>
           Continue with Google
         </button>
-        <button type="button" className="nudge-skip" onClick={dismiss}>
+        <button type="button" className="nudge-skip" onClick={onClose}>
           Continue as guest
         </button>
       </div>

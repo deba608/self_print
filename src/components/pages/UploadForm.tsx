@@ -12,12 +12,15 @@ import PdfCanvasPreview from "../upload/PdfCanvasPreview";
 import ResultScreen from "../upload/ResultScreen";
 import { estimateRange, formatMb, MAX_UPLOAD_BYTES, MAX_UPLOAD_MB, type Pricing } from "../upload/shared";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
+import LoginNudgePopup from "@/components/ui/LoginNudgePopup";
+import { createClient } from "@/lib/supabase/client";
 
 type Step = "upload" | "settings" | "preview" | "converting" | "done" | "docx-warning";
 type PageRangeMode = "all" | "custom";
 
 export default function UploadForm() {
   const [step, setStep] = useState<Step>("upload");
+  const [showNudge, setShowNudge] = useState(false);
   const [pricing, setPricing] = useState<Pricing | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [printType, setPrintType] = useState("bw");
@@ -974,7 +977,18 @@ export default function UploadForm() {
       setShowGpsWaitDialog(true);
       return;
     }
-    void doSubmit();
+    const NUDGE_KEY = "sp_login_nudge_dismissed";
+    if (localStorage.getItem(NUDGE_KEY) !== "1") {
+      createClient().auth.getUser().then(({ data }) => {
+        if (!data.user) {
+          setShowNudge(true);
+        } else {
+          void doSubmit();
+        }
+      });
+    } else {
+      void doSubmit();
+    }
   }
 
   async function doSubmit() {
@@ -2554,6 +2568,11 @@ export default function UploadForm() {
           Need help? Ask the shop staff for assistance.
         </p>
       )}
+
+      <LoginNudgePopup
+        open={showNudge}
+        onClose={() => { setShowNudge(false); void doSubmit(); }}
+      />
 
       <ConfirmDialog
         open={showGpsWaitDialog}
