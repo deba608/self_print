@@ -3665,6 +3665,118 @@ button.upi-pay-btn:disabled {
   margin: 0 auto;
 }
 
+/* Login nudge popup — shown on page load to guest users */
+.nudge-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 9000;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0 16px 24px;
+  animation: fadeIn 0.25s ease both;
+}
+@media (min-width: 540px) {
+  .nudge-overlay { align-items: center; }
+}
+.nudge-popup {
+  position: relative;
+  width: 100%;
+  max-width: 360px;
+  background: #fff;
+  border-radius: 24px;
+  padding: 28px 24px 24px;
+  box-shadow: 0 24px 48px -12px rgba(15, 23, 42, 0.22), 0 0 0 1px rgba(226,232,240,0.8);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  text-align: center;
+  animation: slideUp 0.3s cubic-bezier(0.16,1,0.3,1) both;
+}
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(24px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.nudge-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  border: none;
+  background: #f1f5f9;
+  color: var(--muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+}
+.nudge-close:hover { background: #e2e8f0; }
+.nudge-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 2px;
+}
+.nudge-title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: -0.02em;
+}
+.nudge-sub {
+  margin: 0;
+  font-size: 13.5px;
+  color: var(--muted);
+  line-height: 1.5;
+  font-weight: 500;
+}
+.nudge-google-btn {
+  margin-top: 6px;
+  width: 100%;
+  height: 44px;
+  border-radius: 12px;
+  border: 1.5px solid #e2e8f0;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.nudge-google-btn:hover {
+  border-color: var(--accent);
+  box-shadow: 0 2px 8px rgba(13,122,116,0.15);
+}
+.nudge-skip {
+  background: none;
+  border: none;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: color 0.15s;
+}
+.nudge-skip:hover { color: var(--ink); }
+
 /* Login nudge — shown to guest users after job submit */
 .login-nudge {
   position: relative;
