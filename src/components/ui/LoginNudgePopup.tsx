@@ -12,9 +12,7 @@ export default function LoginNudgePopup() {
   useEffect(() => {
     if (localStorage.getItem(STORAGE_KEY) === "1") return;
     createClient().auth.getUser().then(({ data }) => {
-      if (!data.user) {
-        setVisible(true);
-      }
+      if (!data.user) setVisible(true);
     });
   }, []);
 
