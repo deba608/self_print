@@ -75,20 +75,6 @@ export default function UploadForm() {
   const [morePopoverOpen, setMorePopoverOpen] = useState(false);
   const popoverRef = useRef<HTMLDivElement>(null);
 
-  // 2s timer nudge: show login popup for guests who haven't dismissed it
-  useEffect(() => {
-    const NUDGE_KEY = "sp_login_nudge_dismissed";
-    if (localStorage.getItem(NUDGE_KEY) === "1") return;
-    const t = setTimeout(() => {
-      createClient().auth.getUser().then(({ data }) => {
-        if (!data.user) {
-          nudgePendingSubmit.current = false;
-          setShowNudge(true);
-        }
-      });
-    }, 2000);
-    return () => clearTimeout(t);
-  }, []);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
