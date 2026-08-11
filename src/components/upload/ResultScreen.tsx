@@ -6,6 +6,7 @@ import { Check, CreditCard, Loader2, Printer, Search, Smartphone, Star, Store, T
 import BillReceipt, { type BillData } from "../BillReceipt";
 import { loadRazorpayCheckout, type Pricing } from "./shared";
 import { calculateSpiralBindingPrice } from "@/lib/pricing";
+import { createClient } from "@/lib/supabase/client";
 
 export type JobResult = {
   token: string;
@@ -39,6 +40,8 @@ export default function ResultScreen({
   customerName?: string;
   onReset: () => void;
 }) {
+  const [isGuest, setIsGuest] = useState(false);
+  const [nudgeDismissed, setNudgeDismissed] = useState(false);
   const [payState, setPayState] = useState<"idle" | "processing" | "paid">("idle");
   // Set once payment is confirmed (Razorpay success, or staff marking the job
   // paid — detected by polling). Switches the token screen to the receipt.
@@ -101,6 +104,25 @@ export default function ResultScreen({
     const interval = setInterval(poll, 5000);
     return () => { cancelled = true; clearInterval(interval); };
   }, [result.token, result.needsConversion, liveStatusStatus, liveDeliveryStatus, deliveryMethod]);
+
+  useEffect(() => {
+    createClient().auth.getUser().then(({ data }) => {
+      if (!data.user) setIsGuest(true);
+    });
+    setNudgeDismissed(localStorage.getItem("sp_login_nudge_dismissed") === "1");
+  }, []);
+
+  const dismissNudge = () => {
+    localStorage.setItem("sp_login_nudge_dismissed", "1");
+    setNudgeDismissed(true);
+  };
+
+  const handleGoogleLogin = () => {
+    createClient().auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: `${window.location.origin}/auth/callback` },
+    });
+  };
 
   const { printType, duplex, paperSize, copies, pagesPerSheet, hasSpiralBinding, hasCoverFile } = settings;
   const amountRupees = (result.pricePaise / 100).toFixed(2);
@@ -483,6 +505,25 @@ export default function ResultScreen({
           >
             <Star size={16} aria-hidden="true" /> Rate us on Google
           </a>
+        </div>
+      )}
+
+      {isGuest && !nudgeDismissed && (
+        <div className="login-nudge">
+          <button className="login-nudge-dismiss" onClick={dismissNudge} aria-label="Dismiss">
+            <X size={14} />
+          </button>
+          <p className="login-nudge-title">Save your order history</p>
+          <p className="login-nudge-sub">Sign in with Google to track all your orders anytime.</p>
+          <button type="button" className="login-nudge-btn" onClick={handleGoogleLogin}>
+            <svg width="16" height="16" viewBox="0 0 18 18" aria-hidden="true">
+              <path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.71v2.26h2.9c1.7-1.57 2.7-3.88 2.7-6.61z" />
+              <path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.9-2.26c-.8.54-1.84.86-3.06.86-2.36 0-4.36-1.6-5.08-3.75H.9v2.33A9 9 0 0 0 9 18z" />
+              <path fill="#FBBC05" d="M3.92 10.67A5.4 5.4 0 0 1 3.64 9c0-.58.1-1.15.28-1.67V5H.9a9 9 0 0 0 0 8l3.02-2.33z" />
+              <path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58A8.64 8.64 0 0 0 9 0 9 9 0 0 0 .9 5l3.02 2.33C4.64 5.18 6.64 3.58 9 3.58z" />
+            </svg>
+            Continue with Google
+          </button>
         </div>
       )}
 
