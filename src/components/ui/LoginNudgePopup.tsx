@@ -33,7 +33,7 @@ export default function LoginNudgePopup({ open, onClose }: Props) {
           </svg>
         </div>
         <h2 className="nudge-title">Sign in before you print</h2>
-        <p className="nudge-sub">Track orders & get updates — 5 seconds with Google.</p>
+        <p className="nudge-sub">Track orders & get updates</p>
         <button type="button" className="nudge-google-btn" onClick={handleGoogle}>
           <svg width="16" height="16" viewBox="0 0 18 18" aria-hidden="true">
             <path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.71v2.26h2.9c1.7-1.57 2.7-3.88 2.7-6.61z" />
