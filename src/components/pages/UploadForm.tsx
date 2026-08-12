@@ -44,6 +44,8 @@ export default function UploadForm() {
   const [customNote, setCustomNote] = useState("");
   const [spiralBindingQty, setSpiralBindingQty] = useState(1);
   const [coverFileQty, setCoverFileQty] = useState(1);
+  const [spiralInfoOpen, setSpiralInfoOpen] = useState(false);
+  const spiralInfoRef = useRef<HTMLSpanElement>(null);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<{
     token: string;
@@ -81,12 +83,15 @@ export default function UploadForm() {
       if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
         setMorePopoverOpen(false);
       }
+      if (spiralInfoRef.current && !spiralInfoRef.current.contains(e.target as Node)) {
+        setSpiralInfoOpen(false);
+      }
     }
-    if (morePopoverOpen) {
+    if (morePopoverOpen || spiralInfoOpen) {
       document.addEventListener("mousedown", handleClickOutside);
       return () => document.removeEventListener("mousedown", handleClickOutside);
     }
-  }, [morePopoverOpen]);
+  }, [morePopoverOpen, spiralInfoOpen]);
   // Direction-aware step transition: forward navigation slides in from the
   // right, backward from the left. Keyed on `step` so the animation replays.
   const stepAnimRef = useRef("fade-in");
@@ -1798,7 +1803,42 @@ export default function UploadForm() {
                   >
                     {hasSpiralBinding && <Check size={14} strokeWidth={3} />}
                   </button>
-                  <span className="addon-card-title">Spiral Binding</span>
+                  <span className="addon-card-title">
+                    Spiral Binding
+                    {pricing && (
+                      <span className="addon-info-wrap" ref={spiralInfoRef}>
+                        <button
+                          type="button"
+                          className="addon-info-btn"
+                          aria-label="Spiral binding pricing"
+                          aria-expanded={spiralInfoOpen}
+                          onClick={() => setSpiralInfoOpen(v => !v)}
+                        >
+                          <Info size={14} aria-hidden="true" />
+                        </button>
+                        {spiralInfoOpen && (
+                          <div className="addon-info-popover">
+                            <div className="addon-info-title">Spiral Binding Price</div>
+                            <div className="addon-info-rows">
+                              {([
+                                ["Up to 70 pages", pricing.spiralBindingSlab1Paise],
+                                ["71–100 pages", pricing.spiralBindingSlab2Paise],
+                                ["101–150 pages", pricing.spiralBindingSlab3Paise],
+                                ["151–200 pages", pricing.spiralBindingSlab4Paise],
+                                ["200+ pages", pricing.spiralBindingSlab5Paise],
+                              ] as const).map(([label, paise]) => (
+                                <div className="addon-info-row" key={label}>
+                                  <span>{label}</span>
+                                  <span>{formatRupees(paise * (spiralBindingQty > 1 ? spiralBindingQty : 1))}</span>
+                                </div>
+                              ))}
+                            </div>
+                            <p className="addon-info-note">Price shown per binding order, based on total page count.</p>
+                          </div>
+                        )}
+                      </span>
+                    )}
+                  </span>
                   <div className="addon-card-right">
                     {hasSpiralBinding && (
                       <div className="addon-qty-ctrl">

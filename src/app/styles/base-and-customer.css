@@ -1872,6 +1872,87 @@ input, select, button {
   color: var(--accent);
 }
 
+.addon-info-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.addon-info-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--accent-light);
+  color: var(--accent);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.addon-info-btn:hover {
+  background: var(--accent);
+  color: #fff;
+}
+
+.addon-info-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 120;
+  min-width: 220px;
+  background: #ffffff;
+  border: 1.5px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.12), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
+  padding: 12px;
+  animation: popoverFadeIn 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.addon-info-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink);
+  margin-bottom: 8px;
+}
+
+.addon-info-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.addon-info-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12px;
+}
+
+.addon-info-row span:first-child {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.addon-info-row span:last-child {
+  color: var(--ink);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.addon-info-note {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
 .addon-card-price {
   font-size: 13px;
   font-weight: 700;
