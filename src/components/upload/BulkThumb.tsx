@@ -14,6 +14,13 @@ export default function BulkThumb({ file, grayscale, width = 44 }: { file: File;
     let disposed = false;
     let pdf: { destroy: () => Promise<void> | void } | null = null;
 
+    // Wipe previous page's pixels immediately so the new file never shows the
+    // old thumbnail while pdf.js is still parsing it (a visible glitch for a
+    // second or two whenever a new file replaces an old one).
+    const canvas = canvasRef.current;
+    canvas?.getContext("2d")?.clearRect(0, 0, canvas.width, canvas.height);
+    setFailed(false);
+
     async function renderThumb() {
       try {
         const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");

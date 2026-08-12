@@ -826,6 +826,13 @@ export default function UploadForm() {
     setFile(selectedFile);
     setFilePageCount(null);
     if (selectedFile) {
+      // A replacement file must not show the previous file's object URL for
+      // even a frame — revoke it so the next preview is clean.
+      setPreviewUrl((old) => {
+        if (old) URL.revokeObjectURL(old);
+        return null;
+      });
+
       // Start background upload immediately
       uploadPromiseRef.current = startBackgroundUpload(selectedFile).catch((err) => {
         if (err.name === "AbortError") return { isDirectUpload: false, error: "Aborted" };
@@ -1403,7 +1410,7 @@ export default function UploadForm() {
                 ) : file && (
                   <div className="file-thumb-card active">
                     {file.type === "application/pdf" ? (
-                      <BulkThumb file={file} grayscale={printType === "bw"} width={82} />
+                      <BulkThumb key={`${file.name}-${file.size}-${file.lastModified}`} file={file} grayscale={printType === "bw"} width={82} />
                     ) : previewUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={previewUrl} alt="" className="file-thumb-img" />
@@ -2454,6 +2461,7 @@ export default function UploadForm() {
             )}
             {file && file.type === "application/pdf" && (
               <PdfCanvasPreview
+                key={`${file.name}-${file.size}-${file.lastModified}`}
                 file={file}
                 fallbackPageCount={filePageCount ?? 1}
                 sim={{ pagesPerSheet, layout, paperSize, margins, pages: selectedPageList }}
