@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { broadcastSse, getJobByToken, markJobPaid } from "@/lib/db";
+import { getJobByToken, markJobPaid } from "@/lib/db";
 import { isRazorpayConfigured, razorpay, verifyPaymentSignature } from "@/lib/razorpay";
 
 // Client-side confirmation: the browser posts the Checkout success payload right
@@ -75,7 +75,6 @@ export async function POST(request: NextRequest) {
   }
 
   const { paidAt } = await markJobPaid(job.id, "online");
-  broadcastSse({ type: "job_update", jobId: job.id, status: job.status, paidAt, token: job.token });
 
   return NextResponse.json({ ok: true, status: "paid" });
 }

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { bulkArchiveJobs, getJobFilesForJobs, sseClients } from "@/lib/db";
+import { bulkArchiveJobs, getJobFilesForJobs } from "@/lib/db";
 import { requireAdminResponse } from "@/lib/security";
 import { deleteFile } from "@/lib/storage";
 
@@ -22,20 +22,5 @@ export async function POST(request: NextRequest) {
 
   await bulkArchiveJobs(ids);
 
-  for (const id of ids) {
-    broadcast({ type: "job_deleted", jobId: id });
-  }
-
   return NextResponse.json({ ok: true, deleted: ids.length });
-}
-
-function broadcast(data: object) {
-  const payload = `data: ${JSON.stringify(data)}\n\n`;
-  for (const client of sseClients) {
-    try {
-      client.controller.enqueue(new TextEncoder().encode(payload));
-    } catch {
-      sseClients.delete(client);
-    }
-  }
 }

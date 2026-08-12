@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { broadcastSse, getJobById, markJobPaid } from "@/lib/db";
+import { getJobById, markJobPaid } from "@/lib/db";
 import { verifyWebhookSignature } from "@/lib/razorpay";
 
 // Backup confirmation: Razorpay calls this on payment.captured. Marks the job
@@ -32,8 +32,7 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ ok: true });
         }
         if (!job.paidAt) {
-          const { paidAt } = await markJobPaid(job.id, "online");
-          broadcastSse({ type: "job_update", jobId: job.id, status: job.status, paidAt, token: job.token });
+          await markJobPaid(job.id, "online");
         }
       } catch {
         // Unknown / already-removed job — ack anyway so Razorpay stops retrying.

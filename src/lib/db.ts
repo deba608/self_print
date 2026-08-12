@@ -1,24 +1,10 @@
-import type { CustomerManagementRow, Job, JobFile, PricingConfig, PrinterOption, RetentionConfig, SseClient } from './types';
+import type { CustomerManagementRow, Job, JobFile, PricingConfig, PrinterOption, RetentionConfig } from './types';
 import { FILE_RETENTION_DAYS, CART_ABANDON_MINUTES, STRAY_FILE_RETENTION_HOURS, LOGIN_EVENT_RETENTION_DAYS } from './config';
 import { chunk } from './util';
 import { parseServiceAreaConfig, serializeServiceAreaConfig } from './service-area';
 
 // Check if Supabase is configured
 const isSupabase = Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
-
-export const sseClients = new Set<SseClient>();
-
-/** Pushes a Server-Sent Event to every connected admin dashboard client. */
-export function broadcastSse(data: object): void {
-  const payload = `data: ${JSON.stringify(data)}\n\n`;
-  for (const client of sseClients) {
-    try {
-      client.controller.enqueue(new TextEncoder().encode(payload));
-    } catch {
-      sseClients.delete(client);
-    }
-  }
-}
 
 // In-memory pricing cache. Pricing rarely changes; cleared on updatePricing.
 let pricingCache: PricingConfig | null = null;

@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { MAX_UPLOAD_BYTES } from "@/lib/config";
 import { MAX_BULK_FILES, parseBulkFiles } from "@/lib/bulk";
-import { createJob, createJobWithFiles, getJobByToken, getPricing, nextQueuePosition, sseClients } from "@/lib/db";
+import { createJob, createJobWithFiles, getJobByToken, getPricing, nextQueuePosition } from "@/lib/db";
 import { estimatePageCount, measureStoredFile, saveUpload, validateUpload } from "@/lib/files";
 import { bucketPathFor, isValidStoredName, verifyStoredNameSig } from "@/lib/storage";
 import { clientIp, isRateLimited } from "@/lib/ratelimit";
@@ -326,8 +326,6 @@ export async function POST(request: NextRequest) {
 
     const { jobId } = await createJob(jobData, fileData);
 
-    broadcast({ type: "new_job", jobId, token, queuePosition: queuePos });
-
     return NextResponse.json({ jobId, token, pricePaise, deliveryFeePaise, addonFeePaise, needsConversion: Boolean(needsConversion), pageCount, queuePosition: queuePos });
   } catch (error) {
     // A Supabase/PostgREST rejection is a plain object, not an Error, so it
@@ -538,7 +536,6 @@ async function handleBulk(form: FormData, customerUserId: string | null): Promis
   };
 
   const { jobId } = await createJobWithFiles(jobData, filesData);
-  broadcast({ type: "new_job", jobId, token, queuePosition: queuePos });
 
   return NextResponse.json({ jobId, token, pricePaise, deliveryFeePaise, addonFeePaise, needsConversion: false, pageCount, queuePosition: queuePos });
 }
@@ -561,13 +558,4 @@ async function randomToken(): Promise<string> {
   throw new Error("Could not allocate a free order token");
 }
 
-function broadcast(data: object) {
-  const payload = `data: ${JSON.stringify(data)}\n\n`;
-  for (const client of sseClients) {
-    try {
-      client.controller.enqueue(new TextEncoder().encode(payload));
-    } catch {
-      sseClients.delete(client);
-    }
-  }
-}
+

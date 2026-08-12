@@ -84,9 +84,6 @@ export default function AdminDashboard() {
   const [dismissedFailStreak, setDismissedFailStreak] = useState(0);
   const [loadingMore, setLoadingMore] = useState(false);
   const { toasts, push: pushToast } = useToasts();
-  const esRef = useRef<EventSource | null>(null);
-  const sseRetryRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const sseBackoffRef = useRef(1000);
 
   // ── Sound + chime ───────────────────────────────────────────────
   const [soundOn, setSoundOn] = useState(true);
@@ -141,60 +138,6 @@ export default function AdminDashboard() {
     window.addEventListener("focus", clear);
     document.addEventListener("visibilitychange", clear);
     return () => { window.removeEventListener("focus", clear); document.removeEventListener("visibilitychange", clear); };
-  }, []);
-
-  // ── SSE real-time connection ─────────────────────────────────────
-  // Keeps jobs data fresh via SSE; falls back to SWR revalidation.
-  const knownIdsRef = useRef<Set<string>>(new Set());
-  useEffect(() => {
-    knownIdsRef.current = new Set(jobs.map((j) => j.id));
-  }, [jobs]);
-
-  async function connectSSE() {
-    if (esRef.current) esRef.current.close();
-    const es = new EventSource("/api/admin/notifications");
-    es.onopen = () => { sseBackoffRef.current = 1000; };
-    es.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        if (data.type === "job_update") {
-          mutateJobs((prev) => {
-            if (!prev) return prev;
-            return {
-              ...prev,
-              jobs: prev.jobs.map((j) =>
-                j.id === data.jobId
-                  ? { ...j, status: data.status, paidAt: data.paidAt ?? j.paidAt, deliveryStatus: data.deliveryStatus ?? j.deliveryStatus }
-                  : j
-              ),
-            };
-          }, { revalidate: false });
-        } else if (data.type === "new_job" || data.type === "issue_reported") {
-          playChime();
-          setUnseen((n) => n + 1);
-          mutateJobs();
-        }
-      } catch {
-        mutateJobs();
-      }
-    };
-    es.onerror = () => {
-      const delay = sseBackoffRef.current;
-      sseBackoffRef.current = Math.min(delay * 2, 30000);
-      // Clear any pending retry so error bursts can't stack reconnect timers.
-      if (sseRetryRef.current) clearTimeout(sseRetryRef.current);
-      sseRetryRef.current = setTimeout(connectSSE, delay);
-    };
-    esRef.current = es;
-  }
-
-  useEffect(() => {
-    connectSSE();
-    return () => {
-      if (sseRetryRef.current) clearTimeout(sseRetryRef.current);
-      if (esRef.current) esRef.current.close();
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ── Keyboard shortcuts ───────────────────────────────────────────
@@ -417,7 +360,7 @@ export default function AdminDashboard() {
   }, []);
 
   // Stable per-card handlers so memo(JobCard) can skip re-renders on
-  // dashboard-wide state churn (SSE ticks, unseen counter, toasts).
+  // dashboard-wide state churn (poll refreshes, unseen counter, toasts).
   const handleCardAction = useCallback((jobId: string, action: string) => {
     if (action === "cancelled" || action === "delivered") {
       setConfirmAction({ action, jobId });
@@ -438,7 +381,7 @@ export default function AdminDashboard() {
 
   // ── Derived data ────────────────────────────────────────────────
   // Stable array for ManageOrdersPanel — without useMemo the panel re-rendered
-  // on every dashboard render (SSE ticks) because .map created a fresh array.
+  // on every dashboard render (interval poll) because .map created a fresh array.
   const manageOrdersJobs = useMemo(() => jobs.map((j) => ({
     id: j.id, token: j.token, status: j.status,
     pricePaise: j.pricePaise, createdAt: j.createdAt, file: j.file

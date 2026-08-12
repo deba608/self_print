@@ -10,7 +10,7 @@ import { manualPrint } from "@/lib/manualPrint";
 import Badge, { type BadgeVariant } from "@/components/ui/Badge";
 import type { Job } from "@/lib/types";
 
-// Memoized (see export below): the dashboard re-renders on every SSE tick /
+// Memoized (see export below): the dashboard re-renders on every poll tick /
 // poll, and without memo every card re-rendered each time. Callbacks take the
 // job id so the parent can pass stable useCallback references.
 function JobCard({
@@ -69,7 +69,7 @@ function JobCard({
     if (!res.ok) onNotify("err", res.error ?? "Manual print failed");
   };
 
-  // Flash the card briefly whenever its status changes (SSE or action) so
+  // Flash the card briefly whenever its status changes (poll refresh or action) so
   // staff notice updates without watching every row.
   const [flash, setFlash] = useState(false);
   const prevStatusRef = useRef(job.status);

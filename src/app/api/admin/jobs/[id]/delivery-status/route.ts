@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getJobById, updateDeliveryStatus, sseClients } from "@/lib/db";
+import { getJobById, updateDeliveryStatus } from "@/lib/db";
 import { requireAdmin } from "@/lib/security";
 
 const allowed = ["packed", "picked_up", "out_for_delivery", "delivered"] as const;
@@ -47,7 +47,6 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   await updateDeliveryStatus(id, deliveryStatus, needsAssignment ? admin.id : undefined);
 
   const updated = await getJobById(id);
-  broadcast({ type: "job_update", jobId: id, status: updated.status, deliveryStatus: updated.deliveryStatus, paidAt: updated.paidAt, token: job.token });
 
   return NextResponse.json({ ok: true, job: updated });
 }
@@ -66,15 +65,4 @@ function invalidTransition(current: string | null, printStatus: string, next: st
     return "Delivery status can only move forward.";
   }
   return "";
-}
-
-function broadcast(data: object) {
-  const payload = `data: ${JSON.stringify(data)}\n\n`;
-  for (const client of sseClients) {
-    try {
-      client.controller.enqueue(new TextEncoder().encode(payload));
-    } catch {
-      sseClients.delete(client);
-    }
-  }
 }

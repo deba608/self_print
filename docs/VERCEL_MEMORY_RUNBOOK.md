@@ -1,5 +1,10 @@
 # Vercel Memory Runbook
 
+> **STATUS: FIX APPLIED — Aug 2026.** Steps 1–3 below were executed on this
+> codebase (the SSE route, `sseClients`, `broadcastSse`, `SseClient`, and every
+> broadcast loop are gone). The dashboards now poll. Keep reading this file only
+> for the context behind the change and to verify nothing regressed.
+
 ## What is Fluid Provisioned Memory
 
 Vercel charges by **GB·Hours**: function RAM × how long it ran. The Hobby plan
@@ -73,10 +78,14 @@ delete the entire loop and its import:
 - `src/app/api/delivery/jobs/[id]/advance/route.ts`
 - `src/app/api/jobs/[token]/report/route.ts`
 
+Also remove the `broadcastSse()` calls in `src/app/api/payments/verify/route.ts`
+and `src/app/api/payments/webhook/route.ts` (they broadcast to the same
+clients and break once `broadcastSse` is deleted in Step 3).
+
 ### Step 3 — Delete the SSE route and shared state
 
 - Delete `src/app/api/admin/notifications/route.ts`
-- Remove `sseClients` export from `src/lib/db.ts` and `src/lib/db-supabase.ts`
+- Remove `sseClients` and `broadcastSse` from `src/lib/db.ts` and `sseClients` from `src/lib/db-supabase.ts`
 - Remove the `SseClient` type definition
 
 ### Step 4 — Stream uploads instead of buffering (optional, minor)

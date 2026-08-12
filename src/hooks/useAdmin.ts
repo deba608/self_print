@@ -28,10 +28,9 @@ export function useJobs(opts?: SWRConfiguration<JobsResponse>) {
   return useSWR<JobsResponse>("/api/admin/jobs", fetcher, {
     revalidateOnFocus: false,
     dedupingInterval: 2000,
-    // Slow safety net: freshness normally comes from SSE, but if the
-    // EventSource dies during its up-to-30s reconnect backoff the queue would
-    // silently go stale without this.
-    refreshInterval: 60000,
+    // Poll this every 15s for live freshness — SSE was removed to cut Vercel
+    // GB-Hour usage (see docs/VERCEL_MEMORY_RUNBOOK.md).
+    refreshInterval: 15000,
     ...opts,
   });
 }

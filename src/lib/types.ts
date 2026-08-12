@@ -160,10 +160,6 @@ export type RetentionConfig = {
   loginEventRetentionDays: number;
 };
 
-export type SseClient = {
-  controller: ReadableStreamDefaultController;
-};
-
 export type PrinterOption = {
   name: string;
   driverName: string;

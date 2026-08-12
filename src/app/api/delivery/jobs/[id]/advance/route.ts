@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireStaff } from "@/lib/security";
 import { createClient } from "@/lib/supabase/server";
-import { sseClients } from "@/lib/db";
 
 const allowed = ["out_for_delivery", "delivered"] as const;
 
@@ -29,8 +28,6 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return NextResponse.json({ error: "This order can't move to that step." }, { status: 400 });
   }
 
-  broadcast({ type: "job_update", jobId: id, deliveryStatus: next });
-
   // Notify customer on delivery status change (WhatsApp primary, SMS fallback — failures never block)
   try {
     const { getJobById } = await import("@/lib/db");
@@ -55,15 +52,4 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   }
 
   return NextResponse.json({ ok: true });
-}
-
-function broadcast(data: object) {
-  const payload = `data: ${JSON.stringify(data)}\n\n`;
-  for (const client of sseClients) {
-    try {
-      client.controller.enqueue(new TextEncoder().encode(payload));
-    } catch {
-      sseClients.delete(client);
-    }
-  }
 }

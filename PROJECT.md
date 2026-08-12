@@ -51,7 +51,7 @@ Customer browser ──▶ Next.js app (src/app) ──▶ src/lib/db.ts (smart 
 
 `src/lib/db.ts` checks `isSupabase = Boolean(SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY)`; if false, runs SQLite inline, else lazily delegates to `src/lib/db-supabase.ts`. Whole app runs on pure local SQLite w/ zero Supabase config in dev.
 
-Admin dashboard live-updates via SSE (`sseClients`/`broadcastSse` in db.ts) + Supabase Realtime (used by print agent).
+Admin and delivery dashboards refresh via polling (admin 15s, delivery 10s) — SSE was removed to cut Vercel GB-Hour billing (see `docs/VERCEL_MEMORY_RUNBOOK.md`). Supabase Realtime is used by the print agent only.
 
 ## Database schema
 

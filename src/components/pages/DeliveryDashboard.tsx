@@ -42,46 +42,18 @@ export default function DeliveryDashboard({ staffName }: Props) {
 
   useEffect(() => {
     load();
-    // Reuse the staff SSE stream so claims by other riders refresh the pool
-    // live; keep 15s polling as a fallback if the stream drops.
-    let es: EventSource;
-    let backoff = 1000;
-    let retryId: ReturnType<typeof setTimeout>;
-    let debounceId: ReturnType<typeof setTimeout>;
-
-    // A burst of broadcasts (claim + advance) would fire overlapping refetches
-    // whose responses can land out of order — coalesce them.
-    function scheduleLoad() {
-      clearTimeout(debounceId);
-      debounceId = setTimeout(load, 300);
-    }
-
-    function connect() {
-      es = new EventSource("/api/admin/notifications");
-      es.onopen = () => { backoff = 1000; };
-      es.onmessage = scheduleLoad;
-      es.onerror = () => {
-        const delay = backoff;
-        backoff = Math.min(delay * 2, 30000);
-        clearTimeout(retryId);
-        retryId = setTimeout(connect, delay);
-      };
-    }
-
-    connect();
+    // Poll every 10s as the source of freshness — SSE was removed to cut
+    // Vercel GB-Hour usage (see docs/VERCEL_MEMORY_RUNBOOK.md).
     // Skip polling while the tab is hidden (riders' phones in a pocket);
     // refetch immediately when it becomes visible again.
     const poll = setInterval(() => {
       if (document.visibilityState !== "hidden") load();
-    }, 15000);
+    }, 10000);
     const onVisible = () => {
       if (document.visibilityState === "visible") load();
     };
     document.addEventListener("visibilitychange", onVisible);
     return () => {
-      clearTimeout(retryId);
-      clearTimeout(debounceId);
-      es.close();
       clearInterval(poll);
       document.removeEventListener("visibilitychange", onVisible);
     };

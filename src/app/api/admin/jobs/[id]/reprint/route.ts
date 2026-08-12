@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getJobById, queueReprint, sseClients } from "@/lib/db";
+import { getJobById, queueReprint } from "@/lib/db";
 import { requireAdminResponse } from "@/lib/security";
 
 export async function POST(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -18,21 +18,7 @@ export async function POST(_: NextRequest, { params }: { params: Promise<{ id: s
   if (job.status !== "printed" && job.status !== "failed") return NextResponse.json({ error: "Only printed or failed jobs can be queued for reprint" }, { status: 400 });
   
   await queueReprint(id);
-  
-  // Broadcast to admin dashboard
-  broadcast({ type: "job_update", jobId: id, status: "approved", token: job.token });
-  
+
   const updated = await getJobById(id);
   return NextResponse.json({ ok: true, job: updated });
-}
-
-function broadcast(data: object) {
-  const payload = `data: ${JSON.stringify(data)}\n\n`;
-  for (const client of sseClients) {
-    try {
-      client.controller.enqueue(new TextEncoder().encode(payload));
-    } catch {
-      sseClients.delete(client);
-    }
-  }
 }

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getJobByToken, reportJobIssue, sseClients } from "@/lib/db";
+import { getJobByToken, reportJobIssue } from "@/lib/db";
 import { clientIp, isRateLimited } from "@/lib/ratelimit";
 
 const MAX_NOTE_LEN = 500;
@@ -35,18 +35,5 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const note = message || "Customer reported an issue (no details given).";
   await reportJobIssue(token, note);
 
-  broadcast({ type: "issue_reported", jobId: job.id, token });
-
   return NextResponse.json({ ok: true });
-}
-
-function broadcast(data: object) {
-  const payload = `data: ${JSON.stringify(data)}\n\n`;
-  for (const client of sseClients) {
-    try {
-      client.controller.enqueue(new TextEncoder().encode(payload));
-    } catch {
-      sseClients.delete(client);
-    }
-  }
 }

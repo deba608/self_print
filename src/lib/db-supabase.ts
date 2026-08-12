@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import crypto from 'node:crypto';
-import type { CustomerManagementRow, Job, JobFile, PricingConfig, PrinterOption, RetentionConfig, SseClient } from './types';
+import type { CustomerManagementRow, Job, JobFile, PricingConfig, PrinterOption, RetentionConfig } from './types';
 // Type-only import: erased at compile time, so this does not create a runtime
 // cycle with db.ts (which only reaches this module via dynamic import()).
 import type { AgentUpdateState } from './db';
@@ -16,8 +16,6 @@ if (!supabaseUrl || !supabaseKey) {
 }
 
 const supabase = createClient(supabaseUrl, supabaseKey);
-
-export const sseClients = new Set<SseClient>();
 
 // Helper to convert Supabase row to Job type
 function mapJob(row: any, expiryMinutes: number = 1440): Job {

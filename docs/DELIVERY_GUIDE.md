@@ -105,11 +105,11 @@ Update sources at each step:
 | Approval | `approved` | Admin dashboard release action | nothing yet |
 | Printing | `printing` → `printed` | Windows print agent (automatic) | order appears in **Available** the moment it's `printed` + paid |
 | Packing | `delivery_status = packed` | Admin taps **Mark Packed** (optional) | card stepper shows Packed; order stays claimable |
-| Claim / pickup | `delivery_status = picked_up`, `delivery_person_id = rider` | Rider taps **Claim & pick up** (atomic RPC) | moves to **My deliveries**; vanishes from other riders' pool via SSE within seconds |
+| Claim / pickup | `delivery_status = picked_up`, `delivery_person_id = rider` | Rider taps **Claim & pick up** (atomic RPC) | moves to **My deliveries**; vanishes from other riders' pool within ~10s (polling) |
 | Dispatch | `delivery_status = out_for_delivery` | Rider taps **Start delivery** (owner-checked RPC) | stepper advances; customer sees "Out for delivery" |
 | Handover | `delivery_status = delivered` | Rider taps **Mark delivered** (owner-checked RPC) | disappears from dashboard; admin sees Delivered |
 
-Live updates: every claim/delivered action broadcasts over the shared SSE stream (`/api/admin/notifications`), so rider dashboards and the admin dashboard refresh in real time; a 15-second poll covers dropped connections. Each transition is also logged to `print_events` for the audit trail.
+Live updates: rider dashboards poll `/api/delivery/jobs` every 10 seconds and the admin dashboard polls every 15 seconds. SSE was removed to cut Vercel runtime cost (see `docs/VERCEL_MEMORY_RUNBOOK.md`); pool/queue changes can take up to ~10s to appear. Each transition is also logged to `print_events` for the audit trail.
 
 Customer side: the customer tracking page (`/track`) shows the same journey as a 7-step timeline for delivery orders — Uploaded → Approved → Printed → Packed → Picked up → Out for delivery → Delivered — driven by the same status fields, polling every 5 s until delivered.
 
