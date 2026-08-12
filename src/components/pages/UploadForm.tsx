@@ -1788,7 +1788,7 @@ export default function UploadForm() {
             <div className="addon-cards-group">
 
               {/* Spiral Binding Card */}
-              <div className={`addon-card ${hasSpiralBinding ? "active" : ""}`}>
+              <div className={`addon-card ${hasSpiralBinding ? "active" : ""} ${spiralInfoOpen ? "addon-info-open" : ""}`}>
                 <div className="addon-card-main">
                   <button
                     type="button"
