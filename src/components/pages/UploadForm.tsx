@@ -46,6 +46,10 @@ export default function UploadForm() {
   const [coverFileQty, setCoverFileQty] = useState(1);
   const [spiralInfoOpen, setSpiralInfoOpen] = useState(false);
   const spiralInfoRef = useRef<HTMLSpanElement>(null);
+  const [coverInfoOpen, setCoverInfoOpen] = useState(false);
+  const coverInfoRef = useRef<HTMLSpanElement>(null);
+  const [bondInfoOpen, setBondInfoOpen] = useState(false);
+  const bondInfoRef = useRef<HTMLSpanElement>(null);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<{
     token: string;
@@ -86,12 +90,18 @@ export default function UploadForm() {
       if (spiralInfoRef.current && !spiralInfoRef.current.contains(e.target as Node)) {
         setSpiralInfoOpen(false);
       }
+      if (coverInfoRef.current && !coverInfoRef.current.contains(e.target as Node)) {
+        setCoverInfoOpen(false);
+      }
+      if (bondInfoRef.current && !bondInfoRef.current.contains(e.target as Node)) {
+        setBondInfoOpen(false);
+      }
     }
-    if (morePopoverOpen || spiralInfoOpen) {
+    if (morePopoverOpen || spiralInfoOpen || coverInfoOpen || bondInfoOpen) {
       document.addEventListener("mousedown", handleClickOutside);
       return () => document.removeEventListener("mousedown", handleClickOutside);
     }
-  }, [morePopoverOpen, spiralInfoOpen]);
+  }, [morePopoverOpen, spiralInfoOpen, coverInfoOpen, bondInfoOpen]);
   // Direction-aware step transition: forward navigation slides in from the
   // right, backward from the left. Keyed on `step` so the animation replays.
   const stepAnimRef = useRef("fade-in");
@@ -1223,6 +1233,30 @@ export default function UploadForm() {
       {/* Step 1: Upload */}
       {step === "upload" && (
         <div className={`step-content ${stepAnim}`} key={step}>
+          {/* How it works — 4-step strip so a first-time visitor knows the
+              flow before touching the upload box in the middle. */}
+          <div className="how-it-works" aria-label="How it works">
+            <div className="how-step">
+              <span className="how-step-ic"><UploadCloud size={18} aria-hidden="true" /></span>
+              <span className="how-step-label">Upload file</span>
+            </div>
+            <span className="how-arrow" aria-hidden="true"><ArrowRight size={14} /></span>
+            <div className="how-step">
+              <span className="how-step-ic"><FileText size={18} aria-hidden="true" /></span>
+              <span className="how-step-label">Get token</span>
+            </div>
+            <span className="how-arrow" aria-hidden="true"><ArrowRight size={14} /></span>
+            <div className="how-step">
+              <span className="how-step-ic"><CreditCard size={18} aria-hidden="true" /></span>
+              <span className="how-step-label">Pay</span>
+            </div>
+            <span className="how-arrow" aria-hidden="true"><ArrowRight size={14} /></span>
+            <div className="how-step">
+              <span className="how-step-ic"><Printer size={18} aria-hidden="true" /></span>
+              <span className="how-step-label">Collect</span>
+            </div>
+          </div>
+
           <div
             className={`upload-zone ${file ? "has-file" : ""} ${dragOver ? "drag-over" : ""}`}
             onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "copy"; setDragOver(true); }}
@@ -1871,7 +1905,7 @@ export default function UploadForm() {
               </div>
 
               {/* Cover File Card */}
-              <div className={`addon-card ${hasCoverFile ? "active" : ""}`}>
+              <div className={`addon-card ${hasCoverFile ? "active" : ""} ${coverInfoOpen ? "addon-info-open" : ""}`}>
                 <div className="addon-card-main">
                   <button
                     type="button"
@@ -1886,7 +1920,40 @@ export default function UploadForm() {
                   >
                     {hasCoverFile && <Check size={14} strokeWidth={3} />}
                   </button>
-                  <span className="addon-card-title">Cover File</span>
+                  <span className="addon-card-title">
+                    Cover File
+                    {pricing && (
+                      <span className="addon-info-wrap" ref={coverInfoRef}>
+                        <button
+                          type="button"
+                          className="addon-info-btn"
+                          aria-label="Cover file pricing"
+                          aria-expanded={coverInfoOpen}
+                          onClick={() => setCoverInfoOpen(v => !v)}
+                        >
+                          <Info size={14} aria-hidden="true" />
+                        </button>
+                        {coverInfoOpen && (
+                          <div className="addon-info-popover">
+                            <div className="addon-info-title">Cover File Price</div>
+                            <div className="addon-info-rows">
+                              <div className="addon-info-row">
+                                <span>Per cover</span>
+                                <span>{formatRupees(pricing.coverFilePaise)}</span>
+                              </div>
+                              {coverFileQty > 1 && (
+                                <div className="addon-info-row">
+                                  <span>Your {coverFileQty} covers</span>
+                                  <span>{formatRupees(pricing.coverFilePaise * coverFileQty)}</span>
+                                </div>
+                              )}
+                            </div>
+                            <p className="addon-info-note">A printed cover page is added to the front of your document.</p>
+                          </div>
+                        )}
+                      </span>
+                    )}
+                  </span>
                   <div className="addon-card-right">
                     {hasCoverFile && (
                       <div className="addon-qty-ctrl">
@@ -1919,7 +1986,7 @@ export default function UploadForm() {
               </div>
 
               {/* Bond Paper Card — checkbox toggle, no qty stepper */}
-              <div className={`addon-card ${hasBondPaper ? "active" : ""}`}>
+              <div className={`addon-card ${hasBondPaper ? "active" : ""} ${bondInfoOpen ? "addon-info-open" : ""}`}>
                 <div className="addon-card-main">
                   <button
                     type="button"
@@ -1931,7 +1998,38 @@ export default function UploadForm() {
                   >
                     {hasBondPaper && <Check size={14} strokeWidth={3} />}
                   </button>
-                  <span className="addon-card-title">Bond Paper</span>
+                  <span className="addon-card-title">
+                    Bond Paper
+                    {pricing && (
+                      <span className="addon-info-wrap" ref={bondInfoRef}>
+                        <button
+                          type="button"
+                          className="addon-info-btn"
+                          aria-label="Bond paper pricing"
+                          aria-expanded={bondInfoOpen}
+                          onClick={() => setBondInfoOpen(v => !v)}
+                        >
+                          <Info size={14} aria-hidden="true" />
+                        </button>
+                        {bondInfoOpen && (
+                          <div className="addon-info-popover">
+                            <div className="addon-info-title">Bond Paper Price</div>
+                            <div className="addon-info-rows">
+                              <div className="addon-info-row">
+                                <span>Per page</span>
+                                <span>{formatRupees(pricing.bondPaperPerPagePaise)}</span>
+                              </div>
+                              <div className="addon-info-row">
+                                <span>Your {isBulk ? bulkTotalPages : selectedPages} pages</span>
+                                <span>{formatRupees((isBulk ? bulkTotalPages : selectedPages) * pricing.bondPaperPerPagePaise)}</span>
+                              </div>
+                            </div>
+                            <p className="addon-info-note">Your document is printed on heavier, premium paper.</p>
+                          </div>
+                        )}
+                      </span>
+                    )}
+                  </span>
                   <div className="addon-card-right">
                     {pricing && (
                       <span className="addon-card-price">
