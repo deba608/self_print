@@ -1233,30 +1233,6 @@ export default function UploadForm() {
       {/* Step 1: Upload */}
       {step === "upload" && (
         <div className={`step-content ${stepAnim}`} key={step}>
-          {/* How it works — 4-step strip so a first-time visitor knows the
-              flow before touching the upload box in the middle. */}
-          <div className="how-it-works" aria-label="How it works">
-            <div className="how-step">
-              <span className="how-step-ic"><UploadCloud size={18} aria-hidden="true" /></span>
-              <span className="how-step-label">Upload file</span>
-            </div>
-            <span className="how-arrow" aria-hidden="true"><ArrowRight size={14} /></span>
-            <div className="how-step">
-              <span className="how-step-ic"><FileText size={18} aria-hidden="true" /></span>
-              <span className="how-step-label">Get token</span>
-            </div>
-            <span className="how-arrow" aria-hidden="true"><ArrowRight size={14} /></span>
-            <div className="how-step">
-              <span className="how-step-ic"><CreditCard size={18} aria-hidden="true" /></span>
-              <span className="how-step-label">Pay</span>
-            </div>
-            <span className="how-arrow" aria-hidden="true"><ArrowRight size={14} /></span>
-            <div className="how-step">
-              <span className="how-step-ic"><Printer size={18} aria-hidden="true" /></span>
-              <span className="how-step-label">Collect</span>
-            </div>
-          </div>
-
           <div
             className={`upload-zone ${file ? "has-file" : ""} ${dragOver ? "drag-over" : ""}`}
             onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "copy"; setDragOver(true); }}
