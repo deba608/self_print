@@ -35,13 +35,8 @@ export default function AccountEditor({
   const [phoneError, setPhoneError] = useState("");
   const [phoneWarning, setPhoneWarning] = useState("");
   const [phoneChecking, setPhoneChecking] = useState(false);
-  const [phoneSaving, setPhoneSaving] = useState(false);
-  const [phoneSaved, setPhoneSaved] = useState(false);
-  const phoneSavedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
   useEffect(() => () => {
     if (savedTimerRef.current) clearTimeout(savedTimerRef.current);
-    if (phoneSavedTimerRef.current) clearTimeout(phoneSavedTimerRef.current);
   }, []);
 
   function pickAvatar() {
@@ -62,55 +57,6 @@ export default function AccountEditor({
     }
     setAvatarFile(file);
     setAvatarPreview(URL.createObjectURL(file));
-  }
-
-  async function handleSave(e: React.FormEvent) {
-    e.preventDefault();
-    setSaving(true);
-    setError("");
-    setSaved(false);
-
-    const supabase = createClient();
-    const trimmedName = displayName.trim();
-
-    try {
-      let nextAvatarUrl = avatarUrl;
-
-      if (avatarFile) {
-        const ext = avatarFile.name.split(".").pop()?.toLowerCase() || "jpg";
-        const path = `${userId}/avatar.${ext}`;
-        const { error: uploadError } = await supabase.storage
-          .from(AVATAR_BUCKET)
-          .upload(path, avatarFile, { upsert: true, contentType: avatarFile.type });
-        if (uploadError) throw new Error(uploadError.message);
-        const publicUrl = supabase.storage.from(AVATAR_BUCKET).getPublicUrl(path).data.publicUrl;
-        nextAvatarUrl = `${publicUrl}?v=${Date.now()}`;
-      }
-
-      // Keep both sources in sync: Auth metadata drives the navbar (read
-      // client-side from the session), customer_profiles drives admin's
-      // customer list — same split the register route already keeps in sync.
-      const { error: authError } = await supabase.auth.updateUser({
-        data: { display_name: trimmedName || null, avatar_url: nextAvatarUrl },
-      });
-      if (authError) throw new Error(authError.message);
-
-      const { error: profileError } = await supabase
-        .from("customer_profiles")
-        .update({ display_name: trimmedName || null, avatar_url: nextAvatarUrl })
-        .eq("id", userId);
-      if (profileError) throw new Error(profileError.message);
-
-      setAvatarUrl(nextAvatarUrl);
-      setAvatarFile(null);
-      setSaved(true);
-      if (savedTimerRef.current) clearTimeout(savedTimerRef.current);
-      savedTimerRef.current = setTimeout(() => setSaved(false), 3000);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to save changes.");
-    } finally {
-      setSaving(false);
-    }
   }
 
   // --- Phone helpers ---
@@ -155,44 +101,77 @@ export default function AccountEditor({
     }
   }
 
-  async function handlePhoneSave(e: React.FormEvent) {
+  async function handleSave(e: React.FormEvent) {
     e.preventDefault();
-    const trimmed = phone.trim();
-    const fmt = validatePhoneFormat(trimmed);
-    if (fmt) {
-      setPhoneError(fmt);
-      return;
-    }
+    setSaving(true);
+    setError("");
     setPhoneError("");
-    setPhoneSaving(true);
-    setPhoneWarning("");
-    setPhoneSaved(false);
-    try {
-      const res = await fetch("/api/user/profile", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: trimmed }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        if (res.status === 409) {
-          setPhoneWarning(data.error ?? "This number is already registered.");
-        } else {
-          setPhoneError(data.error ?? "Unable to save phone number.");
-        }
+    setSaved(false);
+
+    const supabase = createClient();
+    const trimmedName = displayName.trim();
+    const trimmedPhone = phone.trim();
+
+    if (trimmedPhone !== initialPhone) {
+      const fmt = validatePhoneFormat(trimmedPhone);
+      if (fmt) {
+        setPhoneError(fmt);
+        setSaving(false);
         return;
       }
-      setPhoneSaved(true);
-      if (phoneSavedTimerRef.current) clearTimeout(phoneSavedTimerRef.current);
-      phoneSavedTimerRef.current = setTimeout(() => setPhoneSaved(false), 3000);
-    } catch {
-      setPhoneError("Network error. Please try again.");
+    }
+
+    try {
+      let nextAvatarUrl = avatarUrl;
+
+      if (avatarFile) {
+        const ext = avatarFile.name.split(".").pop()?.toLowerCase() || "jpg";
+        const path = `${userId}/avatar.${ext}`;
+        const { error: uploadError } = await supabase.storage
+          .from(AVATAR_BUCKET)
+          .upload(path, avatarFile, { upsert: true, contentType: avatarFile.type });
+        if (uploadError) throw new Error(uploadError.message);
+        const publicUrl = supabase.storage.from(AVATAR_BUCKET).getPublicUrl(path).data.publicUrl;
+        nextAvatarUrl = `${publicUrl}?v=${Date.now()}`;
+      }
+
+      // Keep both sources in sync: Auth metadata drives the navbar (read
+      // client-side from the session), customer_profiles drives admin's
+      // customer list — same split the register route already keeps in sync.
+      const { error: authError } = await supabase.auth.updateUser({
+        data: { display_name: trimmedName || null, avatar_url: nextAvatarUrl },
+      });
+      if (authError) throw new Error(authError.message);
+
+      const { error: profileError } = await supabase
+        .from("customer_profiles")
+        .update({ display_name: trimmedName || null, avatar_url: nextAvatarUrl })
+        .eq("id", userId);
+      if (profileError) throw new Error(profileError.message);
+
+      if (trimmedPhone !== initialPhone) {
+        const res = await fetch("/api/user/profile", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ phone: trimmedPhone }),
+        });
+        if (!res.ok) {
+          const data = await res.json();
+          throw new Error(data.error ?? "Unable to save phone number.");
+        }
+      }
+
+      setAvatarUrl(nextAvatarUrl);
+      setAvatarFile(null);
+      setSaved(true);
+      if (savedTimerRef.current) clearTimeout(savedTimerRef.current);
+      savedTimerRef.current = setTimeout(() => setSaved(false), 3000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to save changes.");
     } finally {
-      setPhoneSaving(false);
+      setSaving(false);
     }
   }
-
-  const phoneUnchanged = phone.trim() === initialPhone;
 
   return (
     <section className="account-editor" aria-labelledby="account-title">
@@ -263,34 +242,6 @@ export default function AccountEditor({
           </div>
         </div>
 
-        {error && (
-          <div className="login-error" role="alert">
-            <AlertCircle size={16} aria-hidden="true" />
-            <span>{error}</span>
-          </div>
-        )}
-
-        {saved && (
-          <div className="login-notice" role="status">
-            <CheckCircle2 size={16} aria-hidden="true" />
-            <span>Profile updated.</span>
-          </div>
-        )}
-
-        <button type="submit" className="login-btn" disabled={saving}>
-          {saving ? (
-            <>
-              <Loader2 size={18} className="spin" />
-              Saving...
-            </>
-          ) : (
-            <span>Save changes</span>
-          )}
-        </button>
-      </form>
-
-      {/* ── Mobile number — separate save ─────────── */}
-      <form className="account-form" onSubmit={handlePhoneSave} style={{ marginTop: "8px" }}>
         <div className="input-group">
           <label htmlFor="account-phone">Mobile number</label>
           <div className="input-wrapper" style={{ position: "relative" }}>
@@ -309,7 +260,7 @@ export default function AccountEditor({
               onBlur={handlePhoneBlur}
               placeholder="+91 98765 43210"
               autoComplete="tel"
-              disabled={phoneSaving}
+              disabled={saving}
               aria-describedby={
                 phoneError ? "phone-error" : phoneWarning ? "phone-warning" : undefined
               }
@@ -345,26 +296,28 @@ export default function AccountEditor({
           </div>
         )}
 
-        {phoneSaved && (
-          <div className="login-notice" role="status">
-            <CheckCircle2 size={16} aria-hidden="true" />
-            <span>Mobile number updated.</span>
+        {error && (
+          <div className="login-error" role="alert">
+            <AlertCircle size={16} aria-hidden="true" />
+            <span>{error}</span>
           </div>
         )}
 
-        <button
-          type="submit"
-          className="login-btn"
-          disabled={phoneSaving || phoneUnchanged || !!phoneWarning}
-          style={{ opacity: phoneUnchanged ? 0.5 : 1 }}
-        >
-          {phoneSaving ? (
+        {saved && (
+          <div className="login-notice" role="status">
+            <CheckCircle2 size={16} aria-hidden="true" />
+            <span>Profile updated.</span>
+          </div>
+        )}
+
+        <button type="submit" className="login-btn" disabled={saving || !!phoneWarning}>
+          {saving ? (
             <>
               <Loader2 size={18} className="spin" />
               Saving...
             </>
           ) : (
-            <span>Update mobile</span>
+            <span>Save changes</span>
           )}
         </button>
       </form>
