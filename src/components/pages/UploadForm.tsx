@@ -154,6 +154,14 @@ export default function UploadForm() {
   // True while background bulk uploads are still in flight — Confirm shows an
   // uploading state instead of failing (or waiting silently) when tapped early.
   const [bulkUploading, setBulkUploading] = useState(false);
+  // Mirror of bulkUploading for the single-file flow — lets the progress bar
+  // render "Preparing upload…" even before the first byte of a file moves,
+  // which the old `uploadPct > 0` gate never showed.
+  const [singleUploading, setSingleUploading] = useState(false);
+  // Stable ids whose upload promise has settled (success or fallback) — drives
+  // the per-file ✓ in the bulk lists so every file visibly finishes instead of
+  // one bar standing in for the whole batch.
+  const [bulkUploadDoneIds, setBulkUploadDoneIds] = useState<Set<string>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
   // Separate picker for "Add more" so opening it never clobbers the main
   // input's selection state.
@@ -239,6 +247,7 @@ export default function UploadForm() {
 
     uploadedBytesRef.current = new Map();
     setUploadPct(0);
+    setBulkUploadDoneIds(new Set());
     const totalBytes = selected.reduce((s, f) => s + f.size, 0);
 
     const map = new Map<string, Promise<{ storedName?: string; uploadSig?: string; error?: string; fallback?: boolean }>>();
@@ -258,18 +267,26 @@ export default function UploadForm() {
     });
 
     selected.forEach((file, i) => {
-      map.set(ids[i], signPromise
+      const id = ids[i];
+      const upload = signPromise
         .then(async (uploads) => {
           if (uploads === "fallback") return { fallback: true };
           const u = uploads[i];
-          await xhrPutFile(u.signedUrl, file, (loaded) => reportProgress(ids[i], loaded, totalBytes), controller.signal);
+          await xhrPutFile(u.signedUrl, file, (loaded) => reportProgress(id, loaded, totalBytes), controller.signal);
           return { storedName: u.storedName, uploadSig: u.uploadSig };
         })
         .catch((err) => {
           if (err?.name === "AbortError") return { error: "Aborted" };
           return { error: err instanceof Error ? `Upload failed for ${file.name}: ${err.message}` : "Upload failed" };
-        })
-      );
+        });
+      map.set(id, upload);
+      // Flag the file as done the instant its upload settles (success or
+      // fallback) so its row shows a ✓ without waiting on a progress event.
+      void upload.then((r) => {
+        if (r && !("error" in r)) {
+          setBulkUploadDoneIds((prev) => { const next = new Set(prev); next.add(id); return next; });
+        }
+      });
     });
 
     return map;
@@ -685,8 +702,17 @@ export default function UploadForm() {
     });
     const uploadsMap = startBulkUploads(selected, ids);
     bulkUploadsRef.current = uploadsMap;
+    // Guard against an aborted batch settling late: startBulkUploads replaces
+    // the abort controller for every new selection, so only the batch that
+    // still owns the current controller gets to flip bulkUploading off —
+    // otherwise a stale allSettled hides the bar while the new batch uploads.
+    const uploadsController = bulkUploadAbortControllerRef.current;
     setBulkUploading(true);
-    Promise.allSettled([...uploadsMap.values()]).then(() => setBulkUploading(false));
+    Promise.allSettled([...uploadsMap.values()]).then(() => {
+      if (bulkUploadAbortControllerRef.current === uploadsController) {
+        setBulkUploading(false);
+      }
+    });
     setStep("settings");
   }
 
@@ -804,11 +830,24 @@ export default function UploadForm() {
         return null;
       });
 
-      // Start background upload immediately
-      uploadPromiseRef.current = startBackgroundUpload(selectedFile).catch((err) => {
-        if (err.name === "AbortError") return { isDirectUpload: false, error: "Aborted" };
-        return { isDirectUpload: false, error: err.message };
-      });
+      // Start background upload immediately. singleUploading gives the
+      // progress bar something to render ("Preparing upload…") before the
+      // first byte moves; controller identity stops a late-settling aborted
+      // upload from clearing the flag of a newer one.
+      const bgUpload = startBackgroundUpload(selectedFile);
+      const bgController = uploadAbortControllerRef.current;
+      setSingleUploading(true);
+      uploadPromiseRef.current = bgUpload.then(
+        (r) => {
+          if (uploadAbortControllerRef.current === bgController) setSingleUploading(false);
+          return r;
+        },
+        (err) => {
+          if (uploadAbortControllerRef.current === bgController) setSingleUploading(false);
+          if (err.name === "AbortError") return { isDirectUpload: false, error: "Aborted" };
+          return { isDirectUpload: false, error: err.message };
+        }
+      );
 
       if (selectedFile.type === "application/pdf") {
         const url = URL.createObjectURL(selectedFile);
@@ -1114,6 +1153,9 @@ export default function UploadForm() {
     setBulkIds([]);
     setBulkMode(false);
     setBulkUploading(false);
+    setSingleUploading(false);
+    setUploadPct(0);
+    setBulkUploadDoneIds(new Set());
     setResult(null);
     setError("");
     setDeliveryMethod("pickup");
@@ -1138,6 +1180,38 @@ export default function UploadForm() {
     }
     uploadPromiseRef.current = null;
     if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  // Per-file upload status chip for the bulk lists: a ✓ once that file's
+  // upload settles, a live % while its bytes are moving, or a spinner during
+  // the preparing phase. Reads the byte-progress ref (a Map, not state) — the
+  // uploadPct state updates that drive the transfers re-render these rows, so
+  // values stay fresh without extra state churn per progress event.
+  function bulkUploadStatus(id: string, file: File) {
+    if (!bulkUploading) return null;
+    const loaded = uploadedBytesRef.current.get(id) ?? 0;
+    if (bulkUploadDoneIds.has(id)) {
+      return (
+        <span className="bulk-upload-chip done" aria-label="Uploaded" title="Uploaded">
+          <Check size={12} strokeWidth={3} aria-hidden="true" />
+        </span>
+      );
+    }
+    const pct = loaded > 0 ? Math.min(100, Math.round((loaded / Math.max(1, file.size)) * 100)) : 0;
+    return (
+      <span
+        className="bulk-upload-chip"
+        role="progressbar"
+        aria-valuenow={pct}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-label={pct > 0 ? `Uploading ${pct}%` : "Preparing upload"}
+        title={pct > 0 ? `Uploading ${pct}` : "Preparing upload"}
+      >
+        <Loader2 size={12} className="spin" aria-hidden="true" />
+        {pct > 0 && <span>{pct}%</span>}
+      </span>
+    );
   }
 
   if (result) {
@@ -1368,6 +1442,7 @@ export default function UploadForm() {
                       <BulkThumb file={f} grayscale={printType === "bw"} width={82} />
                       <span className="file-thumb-name" title={f.name}>{f.name}</span>
                       <span className="file-thumb-pages">{bulkPageCounts[i] ?? 1} pg</span>
+                      {bulkUploadStatus(bulkIds[i], f)}
                       <button
                         type="button"
                         className="file-thumb-remove"
@@ -1402,6 +1477,7 @@ export default function UploadForm() {
                           uploadAbortControllerRef.current = null;
                         }
                         uploadPromiseRef.current = null;
+                        setSingleUploading(false);
                         setFile(null);
                         setFilePageCount(null);
                         if (previewUrl) {
@@ -1480,6 +1556,7 @@ export default function UploadForm() {
                   uploadAbortControllerRef.current = null;
                 }
                 uploadPromiseRef.current = null;
+                setSingleUploading(false);
                 setFile(null);
                 setFilePageCount(null);
                 if (previewUrl) {
@@ -1534,13 +1611,29 @@ export default function UploadForm() {
             </>
           )}
 
-          {/* Live upload progress — large files take a while on mobile data */}
-          {(isBulk ? bulkUploading : uploadPct > 0 && uploadPct < 100) && (
-            <div className="upload-progress" role="progressbar" aria-valuenow={uploadPct} aria-valuemin={0} aria-valuemax={100} aria-label="Upload progress">
+          {/* Live upload progress — large files take a while on mobile data. The
+              preparing phase (indeterminate sweep) covers the sign request and
+              connection setup before the first byte moves, so the bar never
+              sits frozen at 0% for the seconds an upload appears stuck. */}
+          {(isBulk ? bulkUploading : singleUploading) && uploadPct < 100 && (
+            <div
+              className={`upload-progress ${uploadPct === 0 ? "preparing" : "uploading"}`}
+              role="progressbar"
+              aria-valuenow={uploadPct}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuetext={uploadPct === 0 ? "Preparing upload" : `Uploading ${uploadPct} percent`}
+              aria-label="Upload progress"
+            >
               <div className="upload-progress-track">
-                <div className="upload-progress-fill" style={{ width: `${uploadPct}%` }} />
+                <div
+                  className="upload-progress-fill"
+                  style={uploadPct === 0 ? undefined : { width: `${uploadPct}%` }}
+                />
               </div>
-              <span className="upload-progress-label">Uploading… {uploadPct}%</span>
+              <span className="upload-progress-label">
+                {uploadPct === 0 ? "Preparing upload…" : `Uploading… ${uploadPct}%`}
+              </span>
             </div>
           )}
 
@@ -2298,7 +2391,9 @@ export default function UploadForm() {
                   ? <><Loader2 size={20} className="spin" aria-hidden="true" /> Uploading… {uploadPct}%</>
                   : <><Loader2 size={20} className="spin" aria-hidden="true" /> Processing...</>
               ) : isBulk && bulkUploading ? (
-                <><Loader2 size={20} className="spin" aria-hidden="true" /> Uploading files...</>
+                uploadPct > 0
+                  ? <><Loader2 size={20} className="spin" aria-hidden="true" /> Uploading… {uploadPct}%</>
+                  : <><Loader2 size={20} className="spin" aria-hidden="true" /> Preparing upload…</>
               ) : (
                 deliveryMethod === "delivery"
                   ? <><CreditCard size={20} aria-hidden="true" /> Continue to Payment</>
@@ -2377,6 +2472,7 @@ export default function UploadForm() {
                       <BulkThumb file={f} grayscale={printType === "bw"} />
                       <span className="bulk-file-name">{f.name}</span>
                       <span className="bulk-file-pages">{bulkPageCounts[i] ?? 1} pg</span>
+                      {bulkUploadStatus(bulkIds[i], f)}
                       <button type="button" className="bulk-file-remove" aria-label={`Remove ${f.name}`}
                         onClick={(e) => {
                           e.stopPropagation();
@@ -2615,7 +2711,9 @@ export default function UploadForm() {
                   ? <><Loader2 size={20} className="spin" aria-hidden="true" /> Uploading… {uploadPct}%</>
                   : <><Loader2 size={20} className="spin" aria-hidden="true" /> Processing...</>
               ) : isBulk && bulkUploading ? (
-                <><Loader2 size={20} className="spin" aria-hidden="true" /> Uploading files...</>
+                uploadPct > 0
+                  ? <><Loader2 size={20} className="spin" aria-hidden="true" /> Uploading… {uploadPct}%</>
+                  : <><Loader2 size={20} className="spin" aria-hidden="true" /> Preparing upload…</>
               ) : (
                 deliveryMethod === "delivery"
                   ? <><CreditCard size={20} aria-hidden="true" /> Continue to Payment</>

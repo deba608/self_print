@@ -1042,6 +1042,48 @@ input, select, button {
   flex-shrink: 0;
 }
 
+/* Preparing phase — before the first byte moves (sign request + connection
+   setup) the fill sweeps indeterminately so an upload never looks frozen at
+   0% for the seconds it appears stuck. */
+.upload-progress.preparing .upload-progress-fill {
+  width: 38%;
+  animation: indeterminate-slide 1.2s ease-in-out infinite;
+  transition: none;
+}
+
+.upload-progress.preparing .upload-progress-fill::after {
+  display: none;
+}
+
+@keyframes indeterminate-slide {
+  0%   { transform: translateX(-120%); }
+  100% { transform: translateX(400%); }
+}
+
+/* Per-file upload chip in the bulk lists — spinner while the file transfers,
+   a ✓ when its upload settles, a live % once bytes are actually moving. */
+.bulk-upload-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-width: 20px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--line);
+  color: var(--ink-secondary);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.bulk-upload-chip.done {
+  background: rgba(34, 197, 94, 0.16);
+  color: #22c55e;
+}
+
 /* "Add more PDFs" button under the file summary — grows a single PDF into a batch */
 .add-more-btn {
   display: flex;
