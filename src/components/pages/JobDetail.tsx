@@ -103,6 +103,9 @@ export default function JobDetail({ id }: { id: string }) {
     // Live-refresh job + events so the progress tracker updates on its own while
     // the agent works. Stop polling once the job reaches a terminal state.
     const poll = setInterval(() => {
+      // Don't waste Vercel invocations if the admin isn't looking at the tab
+      if (document.visibilityState !== "visible") return;
+
       setDetail((current) => {
         if (current) {
           const deliveryComplete = current.job.deliveryMethod !== "delivery"
@@ -114,7 +117,7 @@ export default function JobDetail({ id }: { id: string }) {
         load(false);
         return current;
       });
-    }, 3000);
+    }, 5000);
     return () => {
       clearInterval(poll);
     };

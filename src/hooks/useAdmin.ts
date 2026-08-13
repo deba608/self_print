@@ -28,9 +28,9 @@ export function useJobs(opts?: SWRConfiguration<JobsResponse>) {
   return useSWR<JobsResponse>("/api/admin/jobs", fetcher, {
     revalidateOnFocus: false,
     dedupingInterval: 2000,
-    // Poll this every 15s for live freshness — SSE was removed to cut Vercel
+    // Poll this every 30s for live freshness — SSE was removed to cut Vercel
     // GB-Hour usage (see docs/VERCEL_MEMORY_RUNBOOK.md).
-    refreshInterval: 15000,
+    refreshInterval: 30000,
     ...opts,
   });
 }
@@ -42,7 +42,7 @@ export type SummaryResponse = { jobs: number; totalPaise: number };
 export function useSummary(opts?: SWRConfiguration<SummaryResponse>) {
   return useSWR<SummaryResponse>("/api/admin/summary", fetcher, {
     revalidateOnFocus: false,
-    refreshInterval: 30000,
+    refreshInterval: 60000,
     ...opts,
   });
 }
