@@ -142,7 +142,7 @@ export default function AccountEditor({
       const res = await fetch("/api/user/profile", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: trimmed }),
+        body: JSON.stringify({ phone: trimmed, checkOnly: true }),
       });
       if (res.status === 409) {
         const data = await res.json();

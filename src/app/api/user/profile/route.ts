@@ -35,6 +35,7 @@ export async function PATCH(request: NextRequest) {
 
     const body = await request.json().catch(() => null);
     const phone = typeof body?.phone === "string" ? body.phone.trim() : "";
+    const checkOnly = body?.checkOnly === true;
 
     if (!phone) {
       return NextResponse.json({ error: "Phone number is required" }, { status: 400 });
@@ -61,6 +62,11 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
+    // checkOnly=true is used by the blur-time duplicate check; don't persist
+    if (checkOnly) {
+      return NextResponse.json({ ok: true, available: true });
+    }
+
     const { error } = await supabase
       .from("customer_profiles")
       .update({ phone })
@@ -75,4 +81,5 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: "Unexpected error" }, { status: 500 });
   }
 }
+
 
