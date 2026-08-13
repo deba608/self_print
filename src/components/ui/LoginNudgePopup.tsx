@@ -10,10 +10,14 @@ interface Props {
 
 export default function LoginNudgePopup({ open, onClose }: Props) {
   const handleGoogle = () => {
-    createClient().auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
-    });
+    try {
+      createClient().auth.signInWithOAuth({
+        provider: "google",
+        options: { redirectTo: `${window.location.origin}/auth/callback` },
+      });
+    } catch (err) {
+      console.error("Auth sign in error:", err);
+    }
   };
 
   if (!open) return null;

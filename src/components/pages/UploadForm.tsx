@@ -21,7 +21,26 @@ type PageRangeMode = "all" | "custom";
 export default function UploadForm() {
   const [step, setStep] = useState<Step>("upload");
   const [showNudge, setShowNudge] = useState(false);
-  const nudgePendingSubmit = useRef(false);
+  const [currentUser, setCurrentUser] = useState<import("@supabase/supabase-js").User | null | undefined>(undefined);
+  const [guestAllowed, setGuestAllowed] = useState(false);
+  const pendingFileOpenRef = useRef(false);
+  const pendingDropFilesRef = useRef<File[] | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    try {
+      const supabase = createClient();
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+        if (mounted) setCurrentUser(session?.user ?? null);
+      });
+      return () => {
+        mounted = false;
+        subscription.unsubscribe();
+      };
+    } catch {
+      if (mounted) setCurrentUser(null);
+    }
+  }, []);
   const [pricing, setPricing] = useState<Pricing | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [printType, setPrintType] = useState("bw");
@@ -1011,19 +1030,7 @@ export default function UploadForm() {
       setShowGpsWaitDialog(true);
       return;
     }
-    const NUDGE_KEY = "sp_login_nudge_dismissed";
-    if (localStorage.getItem(NUDGE_KEY) !== "1") {
-      createClient().auth.getUser().then(({ data }) => {
-        if (!data.user) {
-          nudgePendingSubmit.current = true;
-          setShowNudge(true);
-        } else {
-          void doSubmit();
-        }
-      });
-    } else {
-      void doSubmit();
-    }
+    void doSubmit();
   }
 
   async function doSubmit() {
@@ -1297,6 +1304,11 @@ export default function UploadForm() {
               setDragOver(false);
               const dropped = e.dataTransfer?.files;
               if (dropped?.length) {
+                if (!currentUser && !guestAllowed) {
+                  pendingDropFilesRef.current = Array.from(dropped);
+                  setShowNudge(true);
+                  return;
+                }
                 handleFileChange({ target: { files: dropped } } as unknown as React.ChangeEvent<HTMLInputElement>);
               }
             }}
@@ -1309,7 +1321,17 @@ export default function UploadForm() {
               accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,application/pdf,image/jpeg,image/png"
               onChange={handleFileChange}
             />
-            <label htmlFor="file-input" className="upload-label">
+            <label
+              htmlFor="file-input"
+              className="upload-label"
+              onClick={(e) => {
+                if (!currentUser && !guestAllowed) {
+                  e.preventDefault();
+                  pendingFileOpenRef.current = true;
+                  setShowNudge(true);
+                }
+              }}
+            >
               <UploadCloud size={56} className="upload-icon" aria-hidden="true" />
               <strong>Tap or drag & drop files here</strong>
               <span className="muted">PDF, JPG, PNG up to 50MB · or drag 2-10 PDFs at once</span>
@@ -2738,9 +2760,18 @@ export default function UploadForm() {
         open={showNudge}
         onClose={() => {
           setShowNudge(false);
-          if (nudgePendingSubmit.current) {
-            nudgePendingSubmit.current = false;
-            void doSubmit();
+          setGuestAllowed(true);
+          if (pendingFileOpenRef.current) {
+            pendingFileOpenRef.current = false;
+            setTimeout(() => {
+              fileInputRef.current?.click();
+            }, 50);
+          } else if (pendingDropFilesRef.current) {
+            const files = pendingDropFilesRef.current;
+            pendingDropFilesRef.current = null;
+            const dt = new DataTransfer();
+            for (const f of files) dt.items.add(f);
+            void handleFileChange({ target: { files: dt.files } } as unknown as React.ChangeEvent<HTMLInputElement>);
           }
         }}
       />
