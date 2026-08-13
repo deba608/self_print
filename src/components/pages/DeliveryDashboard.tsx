@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import type { DeliveryOrderView } from "@/lib/delivery";
 import DeliveryOrderCard from "@/components/delivery/DeliveryOrderCard";
+import { createClient } from "@/lib/supabase/client";
 
 type Props = { staffName: string };
 
@@ -42,18 +43,39 @@ export default function DeliveryDashboard({ staffName }: Props) {
 
   useEffect(() => {
     load();
-    // Poll every 10s as the source of freshness — SSE was removed to cut
-    // Vercel GB-Hour usage (see docs/VERCEL_MEMORY_RUNBOOK.md).
-    // Skip polling while the tab is hidden (riders' phones in a pocket);
-    // refetch immediately when it becomes visible again.
+    let supabaseChannel: ReturnType<ReturnType<typeof createClient>["channel"]> | null = null;
+    try {
+      const supabase = createClient();
+      supabaseChannel = supabase
+        .channel("delivery-jobs-realtime")
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "jobs" },
+          () => {
+            if (document.visibilityState !== "hidden") void load();
+          }
+        )
+        .subscribe();
+    } catch {
+      // Local dev / no Supabase env vars — fallback polling handles it
+    }
+
+    // Relaxed 30s poll serves as reconnect/offline fallback when Realtime is active.
+    // Skips background polling while the tab is hidden.
     const poll = setInterval(() => {
-      if (document.visibilityState !== "hidden") load();
-    }, 10000);
+      if (document.visibilityState !== "hidden") void load();
+    }, 30000);
     const onVisible = () => {
-      if (document.visibilityState === "visible") load();
+      if (document.visibilityState === "visible") void load();
     };
     document.addEventListener("visibilitychange", onVisible);
     return () => {
+      if (supabaseChannel) {
+        try {
+          const supabase = createClient();
+          void supabase.removeChannel(supabaseChannel);
+        } catch {}
+      }
       clearInterval(poll);
       document.removeEventListener("visibilitychange", onVisible);
     };

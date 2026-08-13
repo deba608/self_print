@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { BadgeCheck, Check, Hand, Loader2, Package, Printer, Search, Smartphone, Store, Truck, X, PackageCheck, UploadCloud, Download, MessageCircleWarning } from "lucide-react";
 import BillReceipt, { type BillData } from "../BillReceipt";
 import { loadRazorpayCheckout, type Pricing } from "../upload/shared";
+import { createClient } from "@/lib/supabase/client";
 
 type TrackData = {
   status: string;
@@ -259,6 +260,31 @@ export default function TrackOrder({ initialToken }: { initialToken?: string }) 
     : false;
   useEffect(() => {
     if (!activeToken || jobSettled) return;
+
+    let supabaseChannel: ReturnType<ReturnType<typeof createClient>["channel"]> | null = null;
+    try {
+      const supabase = createClient();
+      supabaseChannel = supabase
+        .channel(`track-order-${activeToken}`)
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "jobs", filter: `token=eq.${activeToken}` },
+          async () => {
+            try {
+              const res = await fetch(`/api/jobs/${activeToken}/status`, { cache: "no-store" });
+              if (res.ok) {
+                const body = await res.json();
+                setJob((prev) => (JSON.stringify(prev) === JSON.stringify(body) ? prev : body));
+                setLastUpdatedAt(Date.now());
+              }
+            } catch {}
+          }
+        )
+        .subscribe();
+    } catch {
+      // Local dev mode fallback
+    }
+
     const iv = setInterval(async () => {
       if (document.visibilityState === "hidden") return;
       try {
@@ -269,8 +295,16 @@ export default function TrackOrder({ initialToken }: { initialToken?: string }) 
           setLastUpdatedAt(Date.now());
         }
       } catch { /* transient — next tick retries */ }
-    }, 5000);
-    return () => clearInterval(iv);
+    }, 15000);
+    return () => {
+      if (supabaseChannel) {
+        try {
+          const supabase = createClient();
+          void supabase.removeChannel(supabaseChannel);
+        } catch {}
+      }
+      clearInterval(iv);
+    };
   }, [activeToken, jobSettled]);
 
   function setDigit(i: number, value: string) {

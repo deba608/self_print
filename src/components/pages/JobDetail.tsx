@@ -11,6 +11,7 @@ import {
 import { paperSizeLabels } from "@/lib/pricing";
 import { manualPrint } from "@/lib/manualPrint";
 import AdminManagementNav from "@/components/AdminManagementNav";
+import { createClient } from "@/lib/supabase/client";
 
 type Detail = {
   job: {
@@ -100,10 +101,26 @@ export default function JobDetail({ id }: { id: string }) {
 
   useEffect(() => {
     load();
-    // Live-refresh job + events so the progress tracker updates on its own while
-    // the agent works. Stop polling once the job reaches a terminal state.
+
+    let supabaseChannel: ReturnType<ReturnType<typeof createClient>["channel"]> | null = null;
+    try {
+      const supabase = createClient();
+      supabaseChannel = supabase
+        .channel(`job-detail-${id}`)
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "jobs", filter: `id=eq.${id}` },
+          () => {
+            if (document.visibilityState === "visible") void load(false);
+          }
+        )
+        .subscribe();
+    } catch {
+      // Local dev mode fallback
+    }
+
+    // Live-refresh job + events fallback every 20s when tab is visible
     const poll = setInterval(() => {
-      // Don't waste Vercel invocations if the admin isn't looking at the tab
       if (document.visibilityState !== "visible") return;
 
       setDetail((current) => {
@@ -117,8 +134,14 @@ export default function JobDetail({ id }: { id: string }) {
         load(false);
         return current;
       });
-    }, 5000);
+    }, 20000);
     return () => {
+      if (supabaseChannel) {
+        try {
+          const supabase = createClient();
+          void supabase.removeChannel(supabaseChannel);
+        } catch {}
+      }
       clearInterval(poll);
     };
   }, [id]);

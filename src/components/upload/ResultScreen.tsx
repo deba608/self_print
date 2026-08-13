@@ -101,8 +101,34 @@ export default function ResultScreen({
       }
     }
     poll();
-    const interval = setInterval(poll, 5000);
-    return () => { cancelled = true; clearInterval(interval); };
+    let supabaseChannel: ReturnType<ReturnType<typeof createClient>["channel"]> | null = null;
+    try {
+      const supabase = createClient();
+      supabaseChannel = supabase
+        .channel(`result-order-${result.token}`)
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "jobs", filter: `token=eq.${result.token}` },
+          () => {
+            void poll();
+          }
+        )
+        .subscribe();
+    } catch {
+      // Local dev mode fallback
+    }
+
+    const interval = setInterval(poll, 15000);
+    return () => {
+      cancelled = true;
+      if (supabaseChannel) {
+        try {
+          const supabase = createClient();
+          void supabase.removeChannel(supabaseChannel);
+        } catch {}
+      }
+      clearInterval(interval);
+    };
   }, [result.token, result.needsConversion, liveStatusStatus, liveDeliveryStatus, deliveryMethod]);
 
   useEffect(() => {

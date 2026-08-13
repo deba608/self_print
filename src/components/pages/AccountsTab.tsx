@@ -123,10 +123,19 @@ export default function AccountsTab() {
 
   useEffect(() => { load(range); }, [range, load]);
 
-  // Auto-refresh every 30 seconds
+  // Auto-refresh every 60 seconds only when tab is visible
   useEffect(() => {
-    const id = setInterval(() => load(range, true), 30000);
-    return () => clearInterval(id);
+    const id = setInterval(() => {
+      if (document.visibilityState === "visible") void load(range, true);
+    }, 60000);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void load(range, true);
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, [range, load]);
 
   if (loading) {

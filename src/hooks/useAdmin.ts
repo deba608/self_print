@@ -26,11 +26,11 @@ export type JobsResponse = {
 
 export function useJobs(opts?: SWRConfiguration<JobsResponse>) {
   return useSWR<JobsResponse>("/api/admin/jobs", fetcher, {
-    revalidateOnFocus: false,
-    dedupingInterval: 2000,
-    // Poll this every 30s for live freshness — SSE was removed to cut Vercel
-    // GB-Hour usage (see docs/VERCEL_MEMORY_RUNBOOK.md).
-    refreshInterval: 30000,
+    revalidateOnFocus: true,
+    dedupingInterval: 5000,
+    // Realtime Supabase subscription handles instant push;
+    // this relaxed 60s poll serves only as an offline/reconnect fallback.
+    refreshInterval: 60000,
     ...opts,
   });
 }
@@ -41,8 +41,9 @@ export type SummaryResponse = { jobs: number; totalPaise: number };
 
 export function useSummary(opts?: SWRConfiguration<SummaryResponse>) {
   return useSWR<SummaryResponse>("/api/admin/summary", fetcher, {
-    revalidateOnFocus: false,
-    refreshInterval: 60000,
+    revalidateOnFocus: true,
+    dedupingInterval: 5000,
+    refreshInterval: 0,
     ...opts,
   });
 }
@@ -73,7 +74,7 @@ export type PrintersResponse = { printers: PrinterOption[] };
 
 export function usePrinters(opts?: SWRConfiguration<PrintersResponse>) {
   return useSWR<PrintersResponse>("/api/admin/printers", fetcher, {
-    refreshInterval: 10000,
+    refreshInterval: 0,
     revalidateOnFocus: false,
     ...opts,
   });

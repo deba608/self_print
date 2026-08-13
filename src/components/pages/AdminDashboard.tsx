@@ -18,6 +18,7 @@ import EmptyState from "@/components/admin/EmptyState";
 import PricingPanel from "@/components/admin/PricingPanel";
 import PrinterPanel from "@/components/admin/PrinterPanel";
 import ManageOrdersPanel from "@/components/admin/ManageOrdersPanel";
+import { createClient } from "@/lib/supabase/client";
 
 export default function AdminDashboard() {
   const router = useRouter();
@@ -29,6 +30,31 @@ export default function AdminDashboard() {
   const { data: summary, mutate: mutateSummary } = useSummary();
   const { data: pricing, mutate: mutatePricing } = usePricing();
   const { data: printerConfig, mutate: mutatePrinter } = usePrinter();
+
+  // ── Supabase Realtime (WebSockets) ──────────────────────────────
+  // Connects directly to Supabase — bypasses Vercel functions completely for live pushes!
+  useEffect(() => {
+    try {
+      const supabase = createClient();
+      const channel = supabase
+        .channel("admin-jobs-realtime")
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "jobs" },
+          () => {
+            void mutateJobs();
+            void mutateSummary();
+          }
+        )
+        .subscribe();
+
+      return () => {
+        void supabase.removeChannel(channel);
+      };
+    } catch {
+      // Local dev / no Supabase env vars — fallback polling in useJobs handles it
+    }
+  }, [mutateJobs, mutateSummary]);
 
   const jobs: Job[] = jobsData?.jobs ?? [];
   const total = jobsData?.total ?? 0;
@@ -42,8 +68,8 @@ export default function AdminDashboard() {
   const [showSettings, setShowSettings] = useState(false);
   const [printerPanelMode, setPrinterPanelMode] = useState<"bw" | "color" | null>(null);
   // Printers list is only shown inside PrinterPanel — poll it only while the
-  // panel is open instead of every 10s for the dashboard's whole lifetime.
-  const { data: printersData } = usePrinters({ refreshInterval: printerPanelMode ? 10000 : 0 });
+  // panel is open instead of continuous polling for the dashboard's whole lifetime.
+  const { data: printersData } = usePrinters({ refreshInterval: printerPanelMode ? 15000 : 0 });
   const printers = printersData?.printers ?? [];
   const [showManageOrders, setShowManageOrders] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
