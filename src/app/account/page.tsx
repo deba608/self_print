@@ -22,7 +22,7 @@ export default async function AccountPage() {
 
   const { data: profile } = await supabase
     .from("customer_profiles")
-    .select("display_name, avatar_url")
+    .select("display_name, avatar_url, phone")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -33,6 +33,7 @@ export default async function AccountPage() {
         email={user.email ?? ""}
         initialDisplayName={profile?.display_name ?? ""}
         initialAvatarUrl={profile?.avatar_url ?? null}
+        initialPhone={profile?.phone ?? ""}
       />
     </main>
   );

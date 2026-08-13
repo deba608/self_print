@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Camera, Loader2, CheckCircle2, AlertCircle, User as UserIcon, Mail } from "lucide-react";
+import { Camera, Loader2, CheckCircle2, AlertCircle, User as UserIcon, Mail, Phone } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 const AVATAR_BUCKET = "avatars";
@@ -12,11 +12,13 @@ export default function AccountEditor({
   email,
   initialDisplayName,
   initialAvatarUrl,
+  initialPhone,
 }: {
   userId: string;
   email: string;
   initialDisplayName: string;
   initialAvatarUrl: string | null;
+  initialPhone: string;
 }) {
   const [displayName, setDisplayName] = useState(initialDisplayName);
   const [avatarUrl, setAvatarUrl] = useState(initialAvatarUrl);
@@ -28,8 +30,18 @@ export default function AccountEditor({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Mobile / phone state
+  const [phone, setPhone] = useState(initialPhone);
+  const [phoneError, setPhoneError] = useState("");
+  const [phoneWarning, setPhoneWarning] = useState("");
+  const [phoneChecking, setPhoneChecking] = useState(false);
+  const [phoneSaving, setPhoneSaving] = useState(false);
+  const [phoneSaved, setPhoneSaved] = useState(false);
+  const phoneSavedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useEffect(() => () => {
     if (savedTimerRef.current) clearTimeout(savedTimerRef.current);
+    if (phoneSavedTimerRef.current) clearTimeout(phoneSavedTimerRef.current);
   }, []);
 
   function pickAvatar() {
@@ -101,11 +113,92 @@ export default function AccountEditor({
     }
   }
 
+  // --- Phone helpers ---
+
+  function validatePhoneFormat(value: string): string {
+    if (!value.trim()) return "Phone number is required";
+    if (!/^[+\d][\d\s\-().]{6,19}$/.test(value.trim())) return "Enter a valid phone number";
+    return "";
+  }
+
+  /** Check for duplicates on blur — only if the number actually changed. */
+  async function handlePhoneBlur() {
+    const trimmed = phone.trim();
+    if (trimmed === initialPhone) {
+      setPhoneWarning("");
+      setPhoneError("");
+      return;
+    }
+    const fmt = validatePhoneFormat(trimmed);
+    if (fmt) {
+      setPhoneError(fmt);
+      setPhoneWarning("");
+      return;
+    }
+    setPhoneError("");
+    setPhoneChecking(true);
+    setPhoneWarning("");
+    try {
+      const res = await fetch("/api/user/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: trimmed }),
+      });
+      if (res.status === 409) {
+        const data = await res.json();
+        setPhoneWarning(data.error ?? "This number is already registered.");
+      }
+    } catch {
+      // network error — silently ignore; server will catch it on save
+    } finally {
+      setPhoneChecking(false);
+    }
+  }
+
+  async function handlePhoneSave(e: React.FormEvent) {
+    e.preventDefault();
+    const trimmed = phone.trim();
+    const fmt = validatePhoneFormat(trimmed);
+    if (fmt) {
+      setPhoneError(fmt);
+      return;
+    }
+    setPhoneError("");
+    setPhoneSaving(true);
+    setPhoneWarning("");
+    setPhoneSaved(false);
+    try {
+      const res = await fetch("/api/user/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: trimmed }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        if (res.status === 409) {
+          setPhoneWarning(data.error ?? "This number is already registered.");
+        } else {
+          setPhoneError(data.error ?? "Unable to save phone number.");
+        }
+        return;
+      }
+      setPhoneSaved(true);
+      if (phoneSavedTimerRef.current) clearTimeout(phoneSavedTimerRef.current);
+      phoneSavedTimerRef.current = setTimeout(() => setPhoneSaved(false), 3000);
+    } catch {
+      setPhoneError("Network error. Please try again.");
+    } finally {
+      setPhoneSaving(false);
+    }
+  }
+
+  const phoneUnchanged = phone.trim() === initialPhone;
+
   return (
     <section className="account-editor" aria-labelledby="account-title">
       <div className="intro">
         <h1 id="account-title">My Account</h1>
-        <p className="muted">Update your name and photo.</p>
+        <p className="muted">Update your name, photo and mobile number.</p>
       </div>
 
       <form className="account-form" onSubmit={handleSave}>
@@ -192,6 +285,86 @@ export default function AccountEditor({
             </>
           ) : (
             <span>Save changes</span>
+          )}
+        </button>
+      </form>
+
+      {/* ── Mobile number — separate save ─────────── */}
+      <form className="account-form" onSubmit={handlePhoneSave} style={{ marginTop: "8px" }}>
+        <div className="input-group">
+          <label htmlFor="account-phone">Mobile number</label>
+          <div className="input-wrapper" style={{ position: "relative" }}>
+            <span className="input-icon">
+              <Phone size={18} strokeWidth={2} />
+            </span>
+            <input
+              id="account-phone"
+              type="tel"
+              value={phone}
+              onChange={(e) => {
+                setPhone(e.target.value);
+                setPhoneError("");
+                setPhoneWarning("");
+              }}
+              onBlur={handlePhoneBlur}
+              placeholder="+91 98765 43210"
+              autoComplete="tel"
+              disabled={phoneSaving}
+              aria-describedby={
+                phoneError ? "phone-error" : phoneWarning ? "phone-warning" : undefined
+              }
+            />
+            {phoneChecking && (
+              <span style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)" }}>
+                <Loader2 size={15} className="spin" />
+              </span>
+            )}
+          </div>
+        </div>
+
+        {phoneError && (
+          <div className="login-error" role="alert" id="phone-error">
+            <AlertCircle size={16} aria-hidden="true" />
+            <span>{phoneError}</span>
+          </div>
+        )}
+
+        {phoneWarning && (
+          <div
+            className="login-error"
+            role="alert"
+            id="phone-warning"
+            style={{
+              background: "#fffbeb",
+              borderColor: "#d97706",
+              color: "#92400e",
+            }}
+          >
+            <AlertCircle size={16} aria-hidden="true" />
+            <span>{phoneWarning}</span>
+          </div>
+        )}
+
+        {phoneSaved && (
+          <div className="login-notice" role="status">
+            <CheckCircle2 size={16} aria-hidden="true" />
+            <span>Mobile number updated.</span>
+          </div>
+        )}
+
+        <button
+          type="submit"
+          className="login-btn"
+          disabled={phoneSaving || phoneUnchanged || !!phoneWarning}
+          style={{ opacity: phoneUnchanged ? 0.5 : 1 }}
+        >
+          {phoneSaving ? (
+            <>
+              <Loader2 size={18} className="spin" />
+              Saving...
+            </>
+          ) : (
+            <span>Update mobile</span>
           )}
         </button>
       </form>
