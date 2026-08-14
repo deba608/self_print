@@ -1325,20 +1325,20 @@ export default function UploadForm() {
               multiple
               accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,application/pdf,image/jpeg,image/png"
               onChange={handleFileChange}
-            />
-            <label
-              htmlFor={(currentUser != null || guestAllowed) ? "file-input" : undefined}
-              className="upload-label"
               onClick={(e) => {
-                // Show login nudge unless user is confirmed logged-in or already chose guest.
-                // currentUser===undefined means auth is still loading — treat as unauthenticated.
+                // The input is position:absolute covering the full zone, so it's always
+                // the real click target. Gate it here: block the file dialog and show
+                // the login nudge if the user is not authenticated and not a guest.
                 if (!currentUser && !guestAllowed) {
                   e.preventDefault();
-                  e.stopPropagation();
                   pendingFileOpenRef.current = true;
                   setShowNudge(true);
                 }
               }}
+            />
+            <label
+              htmlFor="file-input"
+              className="upload-label"
             >
               <UploadCloud size={56} className="upload-icon" aria-hidden="true" />
               <strong>Tap or drag & drop files here</strong>
