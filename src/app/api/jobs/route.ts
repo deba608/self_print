@@ -46,9 +46,13 @@ const JOBS_MAX_PER_WINDOW = 10; // 10 job creations per minute per IP
 
 function parseDeliveryDetails(form: FormData, deliveryMethod: "pickup" | "delivery") {
   if (deliveryMethod === "pickup") {
+    // For pickup jobs, capture the guest name/phone from the popup (if provided)
+    // so admin can see who ordered even without a delivery address.
+    const guestName = String(form.get("guestName") ?? "").trim().slice(0, 80) || null;
+    const guestPhone = String(form.get("guestPhone") ?? "").replace(/\D/g, "").slice(0, 10) || null;
     return {
-      customerName: null,
-      customerPhone: null,
+      customerName: guestName,
+      customerPhone: guestPhone && guestPhone.length === 10 ? guestPhone : null,
       deliveryAddress: null,
       deliveryLatitude: null,
       deliveryLongitude: null,

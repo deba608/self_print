@@ -3862,10 +3862,11 @@ button.upi-pay-btn:disabled {
   from { opacity: 0; transform: translateY(24px) scale(0.97); }
   to   { opacity: 1; transform: translateY(0) scale(1); }
 }
-.nudge-close {
+/* Back button (guest form step) — mirrors close but on the left */
+.nudge-back {
   position: absolute;
   top: 12px;
-  right: 12px;
+  left: 12px;
   width: 30px;
   height: 30px;
   border-radius: 8px;
@@ -3878,7 +3879,8 @@ button.upi-pay-btn:disabled {
   justify-content: center;
   transition: background 0.15s;
 }
-.nudge-close:hover { background: #e2e8f0; }
+.nudge-back:hover { background: #e2e8f0; }
+
 .nudge-icon {
   width: 52px;
   height: 52px;
@@ -3925,18 +3927,131 @@ button.upi-pay-btn:disabled {
   border-color: var(--accent);
   box-shadow: 0 2px 8px rgba(13,122,116,0.15);
 }
-.nudge-skip {
-  background: none;
-  border: none;
+.nudge-google-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* "or" divider */
+.nudge-divider {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+.nudge-divider::before,
+.nudge-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: #e2e8f0;
+}
+
+/* "Continue as Guest" choice button */
+.nudge-guest-btn {
+  width: 100%;
+  height: 44px;
+  border-radius: 12px;
+  border: 1.5px solid #e2e8f0;
+  background: #f8fafc;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.nudge-guest-btn:hover {
+  border-color: var(--accent);
+  background: var(--accent-light, #f0faf9);
+}
+
+/* Guest name + phone form */
+.nudge-guest-form {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 4px;
+}
+.nudge-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  text-align: left;
+}
+.nudge-field label {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.nudge-field input {
+  height: 42px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 0 12px;
+  font-size: 14px;
+  color: var(--ink);
+  background: #fff;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.nudge-field input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(13, 122, 116, 0.12);
+}
+.nudge-field-error {
+  font-size: 11.5px;
+  color: var(--danger, #ef4444);
+  font-weight: 500;
+}
+
+/* Phone row: +91 prefix + input */
+.nudge-phone-row {
+  display: flex;
+  align-items: center;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  overflow: hidden;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.nudge-phone-row:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(13, 122, 116, 0.12);
+}
+.nudge-phone-prefix {
+  padding: 0 10px;
   font-size: 13px;
   font-weight: 600;
   color: var(--muted);
-  cursor: pointer;
-  padding: 4px 8px;
-  border-radius: 6px;
-  transition: color 0.15s;
+  background: #f8fafc;
+  border-right: 1.5px solid #e2e8f0;
+  height: 42px;
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
 }
-.nudge-skip:hover { color: var(--ink); }
+.nudge-phone-row input {
+  height: 42px;
+  border: none;
+  border-radius: 0;
+  flex: 1;
+  min-width: 0;
+  padding: 0 12px;
+  font-size: 14px;
+  color: var(--ink);
+  background: #fff;
+  outline: none;
+  box-shadow: none;
+}
+
+/* Submit / Continue button override */
+.nudge-submit-btn {
+  margin-top: 4px;
+  font-size: 15px;
+}
 
 /* Login nudge — shown to guest users after job submit */
 .login-nudge {

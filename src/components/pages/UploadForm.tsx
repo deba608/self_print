@@ -23,6 +23,10 @@ export default function UploadForm() {
   const [showNudge, setShowNudge] = useState(false);
   const [currentUser, setCurrentUser] = useState<import("@supabase/supabase-js").User | null | undefined>(undefined);
   const [guestAllowed, setGuestAllowed] = useState(false);
+  // Guest profile collected from the LoginNudgePopup (name + phone).
+  // Pre-loaded from localStorage so returning guests don't re-enter details.
+  const [guestName, setGuestName] = useState("");
+  const [guestPhone, setGuestPhone] = useState("");
   const pendingFileOpenRef = useRef(false);
   const pendingDropFilesRef = useRef<File[] | null>(null);
 
@@ -44,6 +48,20 @@ export default function UploadForm() {
       // Supabase not configured (SQLite-only dev) — treat as no auth.
       if (mounted) setCurrentUser(null);
     }
+  }, []);
+
+  // Restore guest profile from a previous session (localStorage).
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("selfprint:guestProfile");
+      if (raw) {
+        const p = JSON.parse(raw);
+        if (p?.name) setGuestName(p.name);
+        if (p?.phone) setGuestPhone(p.phone);
+        // Returning guest — allow uploads without re-showing the popup.
+        setGuestAllowed(true);
+      }
+    } catch { /* private mode or corrupt data — ignore */ }
   }, []);
   const [pricing, setPricing] = useState<Pricing | null>(null);
   const [file, setFile] = useState<File | null>(null);
@@ -974,6 +992,9 @@ export default function UploadForm() {
       bulkForm.set("spiralBindingQty", String(spiralBindingQty));
       bulkForm.set("coverFileQty", String(coverFileQty));
       if (customNote.trim()) bulkForm.set("customNote", customNote.trim());
+      // Always include guest name/phone so the admin knows who ordered — even for pickup.
+      if (guestName) bulkForm.set("guestName", guestName);
+      if (guestPhone) bulkForm.set("guestPhone", guestPhone);
       appendDeliveryDetails(bulkForm);
 
       if (uploadResults.some((r) => r.fallback)) {
@@ -1070,6 +1091,9 @@ export default function UploadForm() {
     form.set("spiralBindingQty", String(spiralBindingQty));
     form.set("coverFileQty", String(coverFileQty));
     if (customNote.trim()) form.set("customNote", customNote.trim());
+    // Always include guest name/phone so the admin knows who ordered — even for pickup.
+    if (guestName) form.set("guestName", guestName);
+    if (guestPhone) form.set("guestPhone", guestPhone);
     appendDeliveryDetails(form);
 
     const controller = new AbortController();
@@ -2766,9 +2790,14 @@ export default function UploadForm() {
 
       <LoginNudgePopup
         open={showNudge}
-        onClose={() => {
+        onGuestContinue={(name, phone) => {
+          setGuestName(name);
+          setGuestPhone(phone);
           setShowNudge(false);
           setGuestAllowed(true);
+          // Pre-fill delivery fields with the guest's details.
+          if (name) setCustomerName(name);
+          if (phone) setCustomerPhone(phone);
           if (pendingFileOpenRef.current) {
             pendingFileOpenRef.current = false;
             setTimeout(() => {
