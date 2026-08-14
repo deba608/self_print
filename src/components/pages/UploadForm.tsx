@@ -1327,7 +1327,7 @@ export default function UploadForm() {
               onChange={handleFileChange}
             />
             <label
-              htmlFor={currentUser != null && guestAllowed === false ? "file-input" : guestAllowed ? "file-input" : undefined}
+              htmlFor={(currentUser != null || guestAllowed) ? "file-input" : undefined}
               className="upload-label"
               onClick={(e) => {
                 // Show login nudge unless user is confirmed logged-in or already chose guest.
