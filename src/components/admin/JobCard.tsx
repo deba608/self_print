@@ -138,10 +138,11 @@ function JobCard({
           </div>
         )}
 
-        {(job.hasSpiralBinding || job.hasCoverFile) && (
+        {(job.hasSpiralBinding || job.hasCoverFile || job.hasBondPaper) && (
           <div className="job-addons-row">
             {job.hasSpiralBinding && <span className="job-addon-chip">Spiral Bound</span>}
             {job.hasCoverFile && <span className="job-addon-chip">Cover File</span>}
+            {job.hasBondPaper && <span className="job-addon-chip">Bond Paper</span>}
           </div>
         )}
 

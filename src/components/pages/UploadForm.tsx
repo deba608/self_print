@@ -30,6 +30,11 @@ export default function UploadForm() {
     let mounted = true;
     try {
       const supabase = createClient();
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (mounted) setCurrentUser(session?.user ?? null);
+      }).catch(() => {
+        if (mounted) setCurrentUser(null);
+      });
       const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
         if (mounted) setCurrentUser(session?.user ?? null);
       });
@@ -1322,11 +1327,12 @@ export default function UploadForm() {
               onChange={handleFileChange}
             />
             <label
-              htmlFor="file-input"
+              htmlFor={currentUser || guestAllowed ? "file-input" : undefined}
               className="upload-label"
               onClick={(e) => {
                 if (!currentUser && !guestAllowed) {
                   e.preventDefault();
+                  e.stopPropagation();
                   pendingFileOpenRef.current = true;
                   setShowNudge(true);
                 }
