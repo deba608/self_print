@@ -26,15 +26,13 @@ export default function UploadForm() {
   const pendingFileOpenRef = useRef(false);
   const pendingDropFilesRef = useRef<File[] | null>(null);
 
+  // Auth state: undefined = still loading, null = confirmed guest, User = logged in.
+  // onAuthStateChange fires immediately with INITIAL_SESSION (reads cookies/localStorage)
+  // so currentUser resolves to null or a User within the first render cycle.
   useEffect(() => {
     let mounted = true;
     try {
       const supabase = createClient();
-      supabase.auth.getSession().then(({ data: { session } }) => {
-        if (mounted) setCurrentUser(session?.user ?? null);
-      }).catch(() => {
-        if (mounted) setCurrentUser(null);
-      });
       const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
         if (mounted) setCurrentUser(session?.user ?? null);
       });
@@ -43,6 +41,7 @@ export default function UploadForm() {
         subscription.unsubscribe();
       };
     } catch {
+      // Supabase not configured (SQLite-only dev) — treat as no auth.
       if (mounted) setCurrentUser(null);
     }
   }, []);
@@ -1309,6 +1308,7 @@ export default function UploadForm() {
               setDragOver(false);
               const dropped = e.dataTransfer?.files;
               if (dropped?.length) {
+                // Show login nudge unless confirmed logged-in or already chose guest.
                 if (!currentUser && !guestAllowed) {
                   pendingDropFilesRef.current = Array.from(dropped);
                   setShowNudge(true);
@@ -1327,9 +1327,11 @@ export default function UploadForm() {
               onChange={handleFileChange}
             />
             <label
-              htmlFor={currentUser || guestAllowed ? "file-input" : undefined}
+              htmlFor={currentUser != null && guestAllowed === false ? "file-input" : guestAllowed ? "file-input" : undefined}
               className="upload-label"
               onClick={(e) => {
+                // Show login nudge unless user is confirmed logged-in or already chose guest.
+                // currentUser===undefined means auth is still loading — treat as unauthenticated.
                 if (!currentUser && !guestAllowed) {
                   e.preventDefault();
                   e.stopPropagation();
