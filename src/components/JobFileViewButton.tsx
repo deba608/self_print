@@ -15,6 +15,8 @@ import {
   RotateCcw,
   ChevronLeft,
   ChevronRight,
+  Maximize2,
+  Minimize2,
 } from "lucide-react";
 
 export type ViewableFile = {
@@ -173,7 +175,7 @@ function FileViewer({
   const [error, setError] = useState(false);
   const [retryKey, setRetryKey] = useState(0);
 
-  // Active page state
+  const [fitMode, setFitMode] = useState<"width" | "page">("width");
   const [activePage, setActivePage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
@@ -235,6 +237,24 @@ function FileViewer({
             </div>
           )}
 
+          {isPdf && pdfFile && (
+            <button
+              type="button"
+              className={`pdfjs-fit-toggle-btn ${fitMode === "page" ? "is-fit-page" : "is-fit-width"}`}
+              onClick={() => setFitMode((m) => (m === "width" ? "page" : "width"))}
+              title={fitMode === "width" ? "Switch to Fit Page" : "Switch to Fit Width"}
+              aria-label={fitMode === "width" ? "Switch to Fit Page" : "Switch to Fit Width"}
+            >
+              <span className="pdfjs-fit-icon-wrap" aria-hidden="true">
+                <Maximize2 className="pdfjs-fit-icon fit-width-icon" size={15} />
+                <Minimize2 className="pdfjs-fit-icon fit-page-icon" size={15} />
+              </span>
+              <span className="pdfjs-fit-label file-viewer-btn-text">
+                {fitMode === "width" ? "Fit Width" : "Fit Page"}
+              </span>
+            </button>
+          )}
+
           <a
             href={src}
             download={fileName}
@@ -294,6 +314,7 @@ function FileViewer({
           ) : (
             <PdfScrollViewer
               file={pdfFile}
+              fitMode={fitMode}
               onActivePageChange={setActivePage}
               onTotalPagesChange={setTotalPages}
             />
@@ -319,10 +340,12 @@ function FileViewer({
 // Continuous vertical scroll viewer for PDF with dynamic page tracking
 function PdfScrollViewer({
   file,
+  fitMode,
   onActivePageChange,
   onTotalPagesChange,
 }: {
   file: File;
+  fitMode: "width" | "page";
   onActivePageChange: (p: number) => void;
   onTotalPagesChange: (t: number) => void;
 }) {
@@ -376,6 +399,7 @@ function PdfScrollViewer({
     onActivePageChange(1);
 
     const parentW = stage.clientWidth || 600;
+    const parentH = stage.clientHeight || 700;
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
 
     // Phase 1: build sized placeholder cards for every page (metadata only,
@@ -390,8 +414,13 @@ function PdfScrollViewer({
         const page = await doc.getPage(i);
         const unscaled = page.getViewport({ scale: 1 });
 
-        // Fit width: cap to a comfortable reading width.
+        // page.getViewport already applies the page's intrinsic rotation
         let width = Math.max(Math.min(parentW - 32, 860), 220);
+        if (fitMode === "page") {
+          const maxH = Math.max(parentH - 48, 160);
+          const aspect = unscaled.width / unscaled.height;
+          width = Math.max(Math.min(parentW - 48, maxH * aspect), 220);
+        }
 
         const scale = (width / unscaled.width) * dpr;
         const vp = page.getViewport({ scale });
@@ -577,7 +606,7 @@ function PdfScrollViewer({
       abort.tasks.forEach((t) => t.cancel());
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loadingDoc, docError]);
+  }, [loadingDoc, docError, fitMode]);
 
 
 
