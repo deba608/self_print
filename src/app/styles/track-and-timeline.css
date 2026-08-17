@@ -140,8 +140,12 @@
 .recent-order-chip {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
   padding: 8px 14px;
+  max-width: 100%;
+  text-align: center;
+  overflow-wrap: anywhere;
   background: var(--accent-light);
   border: 1px solid #b8ded7;
   border-radius: 999px;

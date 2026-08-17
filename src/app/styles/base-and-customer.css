@@ -1617,7 +1617,13 @@ input, select, button {
   cursor: pointer;
   transition: all 0.15s ease;
   flex: 1;
-  min-width: 60px;
+  /* `overflow: hidden` swaps the flex automatic minimum from content-based
+     to 0, so the chip can shrink below its text's intrinsic width on narrow
+     phones instead of forcing the row (and the page) into horizontal
+     overflow. The long "Legal, Photo, etc." hint below then truncates via
+     text-overflow rather than poking past the card edge. */
+  min-width: 0;
+  overflow: hidden;
   text-align: center;
   user-select: none;
 }
@@ -1654,6 +1660,9 @@ input, select, button {
   line-height: 1.1;
   margin-top: 2px;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 .paper-chip.active .paper-chip-sub {
@@ -1693,6 +1702,7 @@ input, select, button {
   position: relative;
   display: inline-flex;
   flex: 1;
+  min-width: 0;
 }
 
 .paper-more-popover {
@@ -1701,6 +1711,7 @@ input, select, button {
   right: 0;
   z-index: 100;
   min-width: 220px;
+  max-width: calc(100vw - 32px);
   background: #ffffff;
   border: 1.5px solid var(--line);
   border-radius: 14px;
@@ -1962,7 +1973,7 @@ input, select, button {
   left: -4px;
   z-index: 130;
   min-width: 230px;
-  max-width: 260px;
+  max-width: min(260px, calc(100vw - 24px));
   background: #ffffff;
   border: 1.5px solid var(--line);
   border-radius: 14px;
