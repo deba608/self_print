@@ -844,10 +844,84 @@
   color: #ffffff;
   font-size: 12px;
   font-weight: 600;
-  padding: 6px 14px;
+  padding: 6px 10px;
   border-radius: 999px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
   pointer-events: none;
+}
+
+.unified-pdf-float-status .unified-pdf-nav-btn {
+  pointer-events: auto;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  cursor: pointer;
+  transition: background var(--duration-fast), transform var(--duration-fast);
+}
+
+.unified-pdf-float-status .unified-pdf-nav-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.24);
+}
+
+.unified-pdf-float-status .unified-pdf-nav-btn:active:not(:disabled) {
+  transform: scale(0.92);
+}
+
+.unified-pdf-float-status .unified-pdf-nav-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.unified-pdf-page-jump {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.unified-pdf-page-input {
+  width: 34px;
+  height: 26px;
+  text-align: center;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #0f172a;
+  background: #ffffff;
+  padding: 0;
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.unified-pdf-page-input::-webkit-inner-spin-button,
+.unified-pdf-page-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.unified-pdf-page-input:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.unified-pdf-page-sep {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.unified-pdf-page-total {
+  color: #ffffff;
+}
+
+.unified-pdf-rendering {
+  color: rgba(255, 255, 255, 0.7);
 }
 
 .file-viewer-loading-state,

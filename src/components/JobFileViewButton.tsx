@@ -235,25 +235,6 @@ function FileViewer({
             </div>
           )}
 
-          {/* 2-in-1 Animated Fit Toggle */}
-          {false && isPdf && pdfFile && (
-            <button
-              type="button"
-              className={`pdfjs-fit-toggle-btn ${fitMode === "page" ? "is-fit-page" : "is-fit-width"}`}
-              onClick={() => setFitMode((m) => (m === "width" ? "page" : "width"))}
-              title={fitMode === "width" ? "Switch to Fit Page" : "Switch to Fit Width"}
-              aria-label={fitMode === "width" ? "Switch to Fit Page" : "Switch to Fit Width"}
-            >
-              <span className="pdfjs-fit-icon-wrap" aria-hidden="true">
-                <Maximize2 className="pdfjs-fit-icon fit-width-icon" size={15} />
-                <Minimize2 className="pdfjs-fit-icon fit-page-icon" size={15} />
-              </span>
-              <span className="pdfjs-fit-label file-viewer-btn-text">
-                {fitMode === "width" ? "Fit Width" : "Fit Page"}
-              </span>
-            </button>
-          )}
-
           <a
             href={src}
             download={fileName}
@@ -313,7 +294,6 @@ function FileViewer({
           ) : (
             <PdfScrollViewer
               file={pdfFile}
-              fitMode={fitMode}
               onActivePageChange={setActivePage}
               onTotalPagesChange={setTotalPages}
             />
@@ -339,19 +319,17 @@ function FileViewer({
 // Continuous vertical scroll viewer for PDF with dynamic page tracking
 function PdfScrollViewer({
   file,
-  fitMode,
   onActivePageChange,
   onTotalPagesChange,
 }: {
   file: File;
-  fitMode: "width" | "page";
   onActivePageChange: (p: number) => void;
   onTotalPagesChange: (t: number) => void;
 }) {
   const scrollStageRef = useRef<HTMLDivElement | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
 
-  // Keep the loaded doc in a ref so fitMode changes can re-render without re-loading
+  // Keep the loaded doc in a ref so re-renders don't re-load the file
   const pdfDocRef = useRef<PdfJsDoc | null>(null);
   const renderAbortRef = useRef<{ cancelled: boolean; tasks: Set<{ cancel: () => void }> }>({
     cancelled: false,
@@ -363,6 +341,22 @@ function PdfScrollViewer({
   const [numPages, setNumPages] = useState(1);
   const [renderedCount, setRenderedCount] = useState(0);
   const [activePageInternal, setActivePageInternal] = useState(1);
+  const [jumpDraft, setJumpDraft] = useState("");
+
+  // -- Scroll so a given page is at the top of the scroll stage --
+  const goToPage = (target: number) => {
+    const clamped = Math.max(1, Math.min(target, numPages));
+    const card = scrollContainerRef.current?.querySelector<HTMLElement>(
+      `.unified-pdf-page-card[data-page-num="${clamped}"]`
+    );
+    card?.scrollIntoView({ block: "start", behavior: "smooth" });
+  };
+
+  const commitJump = () => {
+    const n = parseInt(jumpDraft, 10);
+    if (Number.isFinite(n) && n >= 1) goToPage(n);
+    setJumpDraft("");
+  };
 
   // -- Lay out placeholders for every page, then render only pages near the
   // viewport as the user scrolls (instead of blocking on every page up front).
@@ -382,7 +376,6 @@ function PdfScrollViewer({
     onActivePageChange(1);
 
     const parentW = stage.clientWidth || 600;
-    const parentH = stage.clientHeight || 700;
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
 
     // Phase 1: build sized placeholder cards for every page (metadata only,
@@ -397,15 +390,8 @@ function PdfScrollViewer({
         const page = await doc.getPage(i);
         const unscaled = page.getViewport({ scale: 1 });
 
-        // Fit width: cap to a comfortable reading width. Fit page: derive width
-        // from the page's own aspect ratio so it fits the available height,
-        // rather than guessing with a fixed multiplier.
+        // Fit width: cap to a comfortable reading width.
         let width = Math.max(Math.min(parentW - 32, 860), 220);
-        if (fitMode === "page") {
-          const maxH = Math.max(parentH - 48, 160);
-          const aspect = unscaled.width / unscaled.height;
-          width = Math.max(Math.min(parentW - 48, maxH * aspect), 220);
-        }
 
         const scale = (width / unscaled.width) * dpr;
         const vp = page.getViewport({ scale });
@@ -568,9 +554,8 @@ function PdfScrollViewer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [file]);
 
-  // -- Render pages once the scroll container is mounted (after doc load) and
-  // re-render on fitMode change WITHOUT reloading the file. Runs as an effect
-  // so the container/stage refs are guaranteed to be committed to the DOM. --
+  // -- Render pages once the scroll container is mounted (after doc load). Runs
+// as an effect so the container/stage refs are guaranteed to be committed. --
   useEffect(() => {
     if (loadingDoc || docError) return;
     const doc = pdfDocRef.current;
@@ -592,7 +577,7 @@ function PdfScrollViewer({
       abort.tasks.forEach((t) => t.cancel());
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loadingDoc, docError, fitMode]);
+  }, [loadingDoc, docError]);
 
 
 
@@ -619,14 +604,49 @@ function PdfScrollViewer({
       <div className="unified-pdf-scroll-stage" ref={scrollStageRef}>
         <div ref={scrollContainerRef} className="unified-pdf-scroll-list" />
 
-        {/* Floating page count status pill */}
+        {/* Floating page navigation pill: realtime counter + prev/next + jump */}
         <div className="unified-pdf-float-status">
+          <button
+            type="button"
+            className="unified-pdf-nav-btn"
+            onClick={() => goToPage(activePageInternal - 1)}
+            disabled={activePageInternal <= 1}
+            aria-label="Previous page"
+            title="Previous page"
+          >
+            <ChevronLeft size={16} aria-hidden="true" />
+          </button>
+
           <FileText size={14} aria-hidden="true" />
-          <span>
-            {renderedCount < numPages
-              ? `${activePageInternal} / ${numPages} · rendering…`
-              : `${activePageInternal} / ${numPages} pages`}
-          </span>
+
+          <div className="unified-pdf-page-jump">
+            <input
+              type="text"
+              inputMode="numeric"
+              className="unified-pdf-page-input"
+              value={jumpDraft !== "" ? jumpDraft : activePageInternal}
+              onChange={(e) => setJumpDraft(e.target.value.replace(/[^\d]/g, ""))}
+              onBlur={commitJump}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") commitJump();
+              }}
+              aria-label="Current page"
+            />
+            <span className="unified-pdf-page-sep">/</span>
+            <span className="unified-pdf-page-total">{numPages}</span>
+            {renderedCount < numPages && <span className="unified-pdf-rendering">…</span>}
+          </div>
+
+          <button
+            type="button"
+            className="unified-pdf-nav-btn"
+            onClick={() => goToPage(activePageInternal + 1)}
+            disabled={activePageInternal >= numPages}
+            aria-label="Next page"
+            title="Next page"
+          >
+            <ChevronRight size={16} aria-hidden="true" />
+          </button>
         </div>
       </div>
     </div>
