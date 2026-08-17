@@ -13,8 +13,8 @@ import {
   Download,
   AlertCircle,
   RotateCcw,
-  Maximize2,
-  Minimize2,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 
 export type ViewableFile = {
@@ -173,8 +173,7 @@ function FileViewer({
   const [error, setError] = useState(false);
   const [retryKey, setRetryKey] = useState(0);
 
-  // Shared fit mode & active page state
-  const [fitMode, setFitMode] = useState<"width" | "page">("width");
+  // Active page state
   const [activePage, setActivePage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
@@ -237,7 +236,7 @@ function FileViewer({
           )}
 
           {/* 2-in-1 Animated Fit Toggle */}
-          {isPdf && pdfFile && (
+          {false && isPdf && pdfFile && (
             <button
               type="button"
               className={`pdfjs-fit-toggle-btn ${fitMode === "page" ? "is-fit-page" : "is-fit-width"}`}

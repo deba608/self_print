@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
-import { FileText, Loader2, Maximize2, Minimize2 } from "lucide-react";
+import { FileText, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 import { loadPdfDocument, type PdfJsDoc } from "@/lib/pdf-client";
 
 // Paper dimensions in mm, portrait width × height. Landscape swaps them.
@@ -52,7 +52,7 @@ export default function PdfCanvasPreview({
   const [error, setError] = useState("");
   const [activeSheet, setActiveSheet] = useState(1);
   const [totalSheets, setTotalSheets] = useState(1);
-  const [fitMode, setFitMode] = useState<"width" | "page">("width");
+  const [jumpDraft, setJumpDraft] = useState("");
 
   // -- Measure available width from the outer wrapper --
   const [containerW, setContainerW] = useState(0);
@@ -163,17 +163,6 @@ export default function PdfCanvasPreview({
 
       let sheetW = cW - 24; // 12px padding each side inside scroll
       let sheetH = (sheetW * mmH) / mmW;
-
-      if (fitMode === "page") {
-        // Fit entire sheet in one screenful. cH is measured from the
-        // canvas-wrap element, which already excludes the toolbar (a sibling),
-        // so only a small breathing-room padding needs subtracting here.
-        const maxH = cH - 16;
-        if (sheetH > maxH) {
-          sheetH = maxH;
-          sheetW = (sheetH * mmW) / mmH;
-        }
-      }
 
       sheetW = Math.max(sheetW, 120);
       sheetH = Math.max(sheetH, 160);
@@ -324,7 +313,7 @@ export default function PdfCanvasPreview({
       setLoading(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pdfReady, fitMode, pps, sim?.layout, sim?.paperSize, sim?.margins, sheetCount, pageList, containerW, containerH]);
+  }, [pdfReady, pps, sim?.layout, sim?.paperSize, sim?.margins, sheetCount, pageList, containerW, containerH]);
 
   // -- Trigger render when ready and deps change --
   useEffect(() => {
@@ -376,6 +365,22 @@ export default function PdfCanvasPreview({
     };
   }, []);
 
+  // -- Scroll the scrollable stage so a given sheet is at the top of the view --
+  const goToSheet = useCallback((target: number) => {
+    const clamped = Math.max(1, Math.min(target, totalSheets));
+    const card = canvasListRef.current?.querySelector<HTMLElement>(
+      `.pdfjs-scroll-sheet-card[data-sheet-idx="${clamped}"]`
+    );
+    card?.scrollIntoView({ block: "start", behavior: "smooth" });
+  }, [totalSheets]);
+
+  // Commit a typed page/sheet number from the jump input.
+  const commitJump = () => {
+    const n = parseInt(jumpDraft, 10);
+    if (Number.isFinite(n) && n >= 1) goToSheet(n);
+    setJumpDraft("");
+  };
+
   if (error) {
     return (
       <div className="pdf-preview-fallback">
@@ -391,35 +396,49 @@ export default function PdfCanvasPreview({
 
   return (
     <div className="pdfjs-preview">
-      {/* Toolbar: page counter + 2-in-1 fit toggle */}
+      {/* Toolbar: prev/next + realtime page jump */}
       <div className="pdfjs-toolbar">
-        {/* 1 / N page numbering */}
-        <div className="pdfjs-page-counter-badge" aria-label="Page counter">
-          <FileText size={13} className="pdfjs-page-counter-icon" aria-hidden="true" />
-          <span className="pdfjs-page-counter-text">{pps > 1 ? "Sheet" : "Page"}</span>
-          <span className="pdfjs-page-counter-numbers">
-            <strong className="pdfjs-page-counter-active">{activeSheet}</strong>
-            <span className="pdfjs-page-counter-sep">/</span>
-            <span className="pdfjs-page-counter-total">{totalSheets}</span>
-          </span>
-        </div>
+        <div className="pdfjs-pagination">
+          <button
+            type="button"
+            className="pdfjs-nav-btn"
+            onClick={() => goToSheet(activeSheet - 1)}
+            disabled={activeSheet <= 1}
+            aria-label="Previous page"
+            title="Previous page"
+          >
+            <ChevronLeft size={18} aria-hidden="true" />
+          </button>
 
-        {/* Animated 2-in-1 fit toggle */}
-        <button
-          type="button"
-          className={`pdfjs-fit-toggle-btn ${fitMode === "page" ? "is-fit-page" : "is-fit-width"}`}
-          onClick={() => setFitMode((m) => (m === "width" ? "page" : "width"))}
-          title={fitMode === "width" ? "Switch to Fit Page" : "Switch to Fit Width"}
-          aria-label={fitMode === "width" ? "Switch to Fit Page" : "Switch to Fit Width"}
-        >
-          <span className="pdfjs-fit-icon-wrap" aria-hidden="true">
-            <Maximize2 className="pdfjs-fit-icon fit-width-icon" size={14} />
-            <Minimize2 className="pdfjs-fit-icon fit-page-icon" size={14} />
-          </span>
-          <span className="pdfjs-fit-label">
-            {fitMode === "width" ? "Fit Width" : "Fit Page"}
-          </span>
-        </button>
+          <div className="pdfjs-page-jump">
+            <span className="pdfjs-page-label">{pps > 1 ? "Sheet" : "Page"}</span>
+            <input
+              type="text"
+              inputMode="numeric"
+              className="pdfjs-page-input"
+              value={jumpDraft !== "" ? jumpDraft : activeSheet}
+              onChange={(e) => setJumpDraft(e.target.value.replace(/[^\d]/g, ""))}
+              onBlur={commitJump}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") commitJump();
+              }}
+              aria-label={`Current ${pps > 1 ? "sheet" : "page"}`}
+            />
+            <span className="pdfjs-page-of">/</span>
+            <span className="pdfjs-page-total">{totalSheets}</span>
+          </div>
+
+          <button
+            type="button"
+            className="pdfjs-nav-btn"
+            onClick={() => goToSheet(activeSheet + 1)}
+            disabled={activeSheet >= totalSheets}
+            aria-label="Next page"
+            title="Next page"
+          >
+            <ChevronRight size={18} aria-hidden="true" />
+          </button>
+        </div>
       </div>
 
       {/* Canvas area */}
