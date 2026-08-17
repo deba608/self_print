@@ -78,7 +78,7 @@ export default function AdminDashboard() {
   const [selectedJobs, setSelectedJobs] = useState<string[]>([]);
   const [batchReleaseLoading, setBatchReleaseLoading] = useState(false);
   const [batchDeleteLoading, setBatchDeleteLoading] = useState(false);
-  const [filterStatus, setFilterStatusState] = useState(() => searchParams.get("status") ?? "all");
+  const [filterStatus, setFilterStatusState] = useState(() => searchParams.get("status") ?? "pending_payment");
   const [deliveryFilter, setDeliveryFilterState] = useState<"all" | "pickup" | "delivery">(
     () => (searchParams.get("fulfillment") as "all" | "pickup" | "delivery" | null) ?? "all"
   );
