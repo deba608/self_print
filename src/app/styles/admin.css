@@ -3513,6 +3513,76 @@
   cursor: not-allowed;
 }
 
+.seg {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  padding: 4px;
+  border-radius: var(--radius-sm);
+  background: #f0f2f4;
+}
+
+.seg-btn {
+  height: 34px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background 0.15s var(--ease-out), color 0.15s var(--ease-out), box-shadow 0.15s var(--ease-out);
+}
+
+.seg-btn.active {
+  background: #fff;
+  color: var(--ink);
+  box-shadow: 0 1px 3px rgba(23, 32, 42, 0.12);
+}
+
+.seg-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.switch {
+  position: relative;
+  width: 44px;
+  height: 26px;
+  border: 2px solid var(--line);
+  border-radius: 999px;
+  background: #e8eaed;
+  cursor: pointer;
+  transition: background 0.15s var(--ease-out), border-color 0.15s var(--ease-out);
+}
+
+.switch::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(23, 32, 42, 0.25);
+  transition: transform 0.15s var(--ease-out);
+}
+
+.switch.on {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.switch.on::after {
+  transform: translateX(18px);
+}
+
+.switch:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
 .settings-actions {
   display: flex;
   align-items: center;
