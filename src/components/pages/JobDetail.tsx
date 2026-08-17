@@ -706,10 +706,10 @@ function SettingsCard({
       <form className="settings-form" onSubmit={saveSettings}>
         <div className="settings-grid">
           <SettingsField label="Print Type">
-            <select value={settings.printType} disabled={settingsLocked} onChange={(e) => setSettings({ ...settings, printType: e.target.value })}>
-              <option value="bw">Black & White</option>
-              <option value="color">Color</option>
-            </select>
+            <div className="seg" role="group" aria-label="Print Type">
+              <button type="button" className={`seg-btn ${settings.printType === "bw" ? "active" : ""}`} onClick={() => setSettings({ ...settings, printType: "bw" })} disabled={settingsLocked} aria-pressed={settings.printType === "bw"}>B&W</button>
+              <button type="button" className={`seg-btn ${settings.printType === "color" ? "active" : ""}`} onClick={() => setSettings({ ...settings, printType: "color" })} disabled={settingsLocked} aria-pressed={settings.printType === "color"}>Color</button>
+            </div>
           </SettingsField>
           <SettingsField label="Copies">
             <input type="number" min="1" max="99" value={settings.copies} disabled={settingsLocked} onChange={(e) => setSettings({ ...settings, copies: Number(e.target.value) })} />
@@ -725,10 +725,10 @@ function SettingsCard({
             </select>
           </SettingsField>
           <SettingsField label="Layout">
-            <select value={settings.layout} disabled={settingsLocked} onChange={(e) => setSettings({ ...settings, layout: e.target.value })}>
-              <option value="portrait">Portrait</option>
-              <option value="landscape">Landscape</option>
-            </select>
+            <div className="seg" role="group" aria-label="Layout">
+              <button type="button" className={`seg-btn ${settings.layout === "portrait" ? "active" : ""}`} onClick={() => setSettings({ ...settings, layout: "portrait" })} disabled={settingsLocked} aria-pressed={settings.layout === "portrait"}>Portrait</button>
+              <button type="button" className={`seg-btn ${settings.layout === "landscape" ? "active" : ""}`} onClick={() => setSettings({ ...settings, layout: "landscape" })} disabled={settingsLocked} aria-pressed={settings.layout === "landscape"}>Landscape</button>
+            </div>
           </SettingsField>
           <SettingsField label="Scale">
             <select value={settings.scale} disabled={settingsLocked} onChange={(e) => setSettings({ ...settings, scale: e.target.value })}>
@@ -763,10 +763,10 @@ function SettingsCard({
             </select>
           </SettingsField>
           <SettingsField label="Spiral Binding">
-            <input type="checkbox" checked={settings.hasSpiralBinding} disabled={settingsLocked} onChange={(e) => setSettings({ ...settings, hasSpiralBinding: e.target.checked })} />
+            <button type="button" role="switch" aria-checked={settings.hasSpiralBinding} className={`switch ${settings.hasSpiralBinding ? "on" : ""}`} onClick={() => setSettings({ ...settings, hasSpiralBinding: !settings.hasSpiralBinding })} disabled={settingsLocked} aria-label="Spiral Binding" />
           </SettingsField>
           <SettingsField label="Cover File">
-            <input type="checkbox" checked={settings.hasCoverFile} disabled={settingsLocked} onChange={(e) => setSettings({ ...settings, hasCoverFile: e.target.checked })} />
+            <button type="button" role="switch" aria-checked={settings.hasCoverFile} className={`switch ${settings.hasCoverFile ? "on" : ""}`} onClick={() => setSettings({ ...settings, hasCoverFile: !settings.hasCoverFile })} disabled={settingsLocked} aria-label="Cover File" />
           </SettingsField>
         </div>
         <div className="settings-actions">
