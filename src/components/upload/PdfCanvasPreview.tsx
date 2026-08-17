@@ -41,9 +41,9 @@ export default function PdfCanvasPreview({
   const canvasListRef = useRef<HTMLDivElement>(null);  // imperative canvas list
 
   const pdfRef = useRef<PdfJsDoc | null>(null);
-  const renderAbortRef = useRef<{ cancelled: boolean; task: { cancel: () => void } | null }>({
+  const renderAbortRef = useRef<{ cancelled: boolean; tasks: Set<{ cancel: () => void }> }>({
     cancelled: false,
-    task: null,
+    tasks: new Set(),
   });
 
   const [pageCount, setPageCount] = useState(fallbackPageCount);
@@ -132,10 +132,10 @@ export default function PdfCanvasPreview({
     const list = canvasListRef.current;
     if (!pdf || !list) return;
 
-    // Abort any in-progress render (both the flag and the underlying pdf.js task)
+    // Abort any in-progress render (both the flag and the underlying pdf.js tasks)
     renderAbortRef.current.cancelled = true;
-    renderAbortRef.current.task?.cancel();
-    const abort: { cancelled: boolean; task: { cancel: () => void } | null } = { cancelled: false, task: null };
+    renderAbortRef.current.tasks.forEach((t) => t.cancel());
+    const abort: { cancelled: boolean; tasks: Set<{ cancel: () => void }> } = { cancelled: false, tasks: new Set() };
     renderAbortRef.current = abort;
 
     list.innerHTML = "";
@@ -189,25 +189,23 @@ export default function PdfCanvasPreview({
       const cellW = areaW / cols;
       const cellH = areaH / rows;
 
+      // Phase 1: lay out every sheet's placeholder card synchronously — sheet
+      // dimensions come from the chosen paper size, not the PDF content, so
+      // this needs no pdf.js calls and the scroll stage gets correct height
+      // instantly instead of growing as pages render in.
+      const canvasBySheet = new Map<number, HTMLCanvasElement>();
       for (let s = 1; s <= sheetCount; s++) {
-        if (abort.cancelled) return;
-
-        // Card wrapper
         const card = document.createElement("div");
-        card.className = "pdfjs-scroll-sheet-card";
+        card.className = "pdfjs-scroll-sheet-card is-pending";
         card.setAttribute("data-sheet-idx", String(s));
         card.style.width = `${Math.floor(sheetW)}px`;
 
-        // Badge
         const badge = document.createElement("div");
         badge.className = "pdfjs-scroll-sheet-badge";
         badge.textContent = pps > 1 ? `Sheet ${s} / ${sheetCount}` : `Page ${s} / ${sheetCount}`;
         card.appendChild(badge);
 
-        // Canvas
         const canvas = document.createElement("canvas");
-        canvas.width = Math.floor(sheetW * dpr);
-        canvas.height = Math.floor(sheetH * dpr);
         canvas.style.width = `${Math.floor(sheetW)}px`;
         canvas.style.height = `${Math.floor(sheetH)}px`;
         canvas.style.maxWidth = "100%";
@@ -215,67 +213,115 @@ export default function PdfCanvasPreview({
         card.appendChild(canvas);
 
         list.appendChild(card);
+        canvasBySheet.set(s, canvas);
+      }
+      setLoading(false);
+      if (abort.cancelled) return;
 
+      // Phase 2: render each sheet's composited canvas on demand as it nears
+      // the viewport, with a small concurrency cap so pdf.js can overlap work
+      // instead of blocking the whole document on one page at a time.
+      const rendered = new Set<number>();
+      const queued = new Set<number>();
+      const queue: number[] = [];
+      let active = 0;
+      const MAX_CONCURRENT = 2;
+
+      const renderOneSheet = async (s: number) => {
+        if (abort.cancelled || rendered.has(s)) return;
+        const canvas = canvasBySheet.get(s);
+        if (!canvas) return;
+        canvas.width = Math.floor(sheetW * dpr);
+        canvas.height = Math.floor(sheetH * dpr);
         const ctx = canvas.getContext("2d");
-        if (!ctx) continue;
+        if (!ctx) return;
 
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         ctx.fillStyle = "#ffffff";
         ctx.fillRect(0, 0, sheetW, sheetH);
 
-        // Draw pages in this sheet
-        const firstIdx = (s - 1) * pps;
-        for (let n = 0; n < pps; n++) {
-          const pageNum = pageList[firstIdx + n];
-          if (!pageNum || abort.cancelled) break;
+        try {
+          const firstIdx = (s - 1) * pps;
+          for (let n = 0; n < pps; n++) {
+            const pageNum = pageList[firstIdx + n];
+            if (!pageNum || abort.cancelled) break;
 
-          const page = await pdf.getPage(pageNum);
+            const page = await pdf.getPage(pageNum);
+            if (abort.cancelled) return;
+
+            const vp1 = page.getViewport({ scale: 1 });
+            const fitScale = Math.min(cellW / vp1.width, cellH / vp1.height);
+            const scale = Math.max(0.05, fitScale) * dpr;
+            const vp = page.getViewport({ scale });
+
+            // Render to offscreen canvas, then blit
+            const offscreen = document.createElement("canvas");
+            offscreen.width = Math.max(1, Math.floor(vp.width));
+            offscreen.height = Math.max(1, Math.floor(vp.height));
+            const offCtx = offscreen.getContext("2d");
+            if (!offCtx) continue;
+
+            const task = page.render({ canvasContext: offCtx, viewport: vp });
+            abort.tasks.add(task);
+            await task.promise;
+            abort.tasks.delete(task);
+            if (abort.cancelled) return;
+
+            const drawW = vp.width / dpr;
+            const drawH = vp.height / dpr;
+            const col = n % cols;
+            const row = Math.floor(n / cols);
+            const x = marginPx + col * cellW + (cellW - drawW) / 2;
+            const y = marginPx + row * cellH + (cellH - drawH) / 2;
+
+            ctx.drawImage(offscreen, x, y, drawW, drawH);
+
+            if (pps > 1) {
+              ctx.strokeStyle = "rgba(0,0,0,0.1)";
+              ctx.lineWidth = 0.5;
+              ctx.strokeRect(x, y, drawW, drawH);
+            }
+          }
           if (abort.cancelled) return;
-
-          const vp1 = page.getViewport({ scale: 1 });
-          const fitScale = Math.min(cellW / vp1.width, cellH / vp1.height);
-          const scale = Math.max(0.05, fitScale) * dpr;
-          const vp = page.getViewport({ scale });
-
-          // Render to offscreen canvas, then blit
-          const offscreen = document.createElement("canvas");
-          offscreen.width = Math.max(1, Math.floor(vp.width));
-          offscreen.height = Math.max(1, Math.floor(vp.height));
-          const offCtx = offscreen.getContext("2d");
-          if (!offCtx) continue;
-
-          const task = page.render({ canvasContext: offCtx, viewport: vp });
-          abort.task = task;
-          await task.promise;
-          abort.task = null;
-          if (abort.cancelled) return;
-
-          const drawW = vp.width / dpr;
-          const drawH = vp.height / dpr;
-          const col = n % cols;
-          const row = Math.floor(n / cols);
-          const x = marginPx + col * cellW + (cellW - drawW) / 2;
-          const y = marginPx + row * cellH + (cellH - drawH) / 2;
-
-          ctx.drawImage(offscreen, x, y, drawW, drawH);
-
-          if (pps > 1) {
-            ctx.strokeStyle = "rgba(0,0,0,0.1)";
-            ctx.lineWidth = 0.5;
-            ctx.strokeRect(x, y, drawW, drawH);
+          rendered.add(s);
+          canvas.closest(".pdfjs-scroll-sheet-card")?.classList.remove("is-pending");
+          canvas.closest(".pdfjs-scroll-sheet-card")?.classList.add("is-rendered");
+        } catch (err: any) {
+          if (!abort.cancelled && err?.name !== "RenderingCancelledException") {
+            // Leave this single sheet blank rather than failing the whole preview.
           }
         }
-      }
+      };
+
+      const pump = () => {
+        while (active < MAX_CONCURRENT && queue.length && !abort.cancelled) {
+          const s = queue.shift()!;
+          queued.delete(s);
+          active++;
+          renderOneSheet(s).finally(() => {
+            active--;
+            pump();
+          });
+        }
+      };
+
+      const schedule = (s: number, priority = false) => {
+        if (rendered.has(s) || queued.has(s) || abort.cancelled) return;
+        queued.add(s);
+        if (priority) queue.unshift(s);
+        else queue.push(s);
+        pump();
+      };
+
+      schedule(1, true);
+      if (sheetCount > 1) schedule(2, true);
+
+      setupObserver(schedule);
     } catch (err: any) {
       if (!abort.cancelled && err?.name !== "RenderingCancelledException") {
         setError("Unable to render preview.");
       }
-    } finally {
-      if (!abort.cancelled) {
-        setLoading(false);
-        // Set up intersection observer now that all cards are in DOM
-        setupObserver();
-      }
+      setLoading(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pdfReady, fitMode, pps, sim?.layout, sim?.paperSize, sim?.margins, sheetCount, pageList, containerW, containerH]);
@@ -286,8 +332,9 @@ export default function PdfCanvasPreview({
     renderSheets();
   }, [pdfReady, renderSheets]);
 
-  // -- IntersectionObserver: attach AFTER cards are in DOM (called from renderSheets) --
-  const setupObserver = useCallback(() => {
+  // -- IntersectionObserver: attach AFTER placeholders are in DOM (called from
+  // renderSheets). Drives both lazy-render scheduling and active-sheet tracking. --
+  const setupObserver = useCallback((schedule: (s: number, priority?: boolean) => void) => {
     const list = canvasListRef.current;
     const scroller = scrollRef.current;
     if (!list || !scroller) return;
@@ -300,15 +347,15 @@ export default function PdfCanvasPreview({
         // Pick the entry with the highest intersection ratio
         let best: { idx: number; ratio: number } = { idx: 1, ratio: -1 };
         for (const entry of entries) {
-          if (entry.intersectionRatio > best.ratio) {
-            const idx = parseInt(entry.target.getAttribute("data-sheet-idx") || "1", 10);
-            best = { idx, ratio: entry.intersectionRatio };
-          }
+          const idx = parseInt(entry.target.getAttribute("data-sheet-idx") || "1", 10);
+          if (entry.isIntersecting) schedule(idx, true);
+          if (entry.intersectionRatio > best.ratio) best = { idx, ratio: entry.intersectionRatio };
         }
         if (best.ratio > 0) setActiveSheet(best.idx);
       },
       {
         root: scroller,     // ← must be the scrollable container
+        rootMargin: "800px 0px", // pre-render sheets just before they scroll into view
         threshold: [0, 0.25, 0.5, 0.75, 1.0],
       }
     );
@@ -325,7 +372,7 @@ export default function PdfCanvasPreview({
     return () => {
       (canvasListRef.current as any)?.__observerCleanup?.();
       renderAbortRef.current.cancelled = true;
-      renderAbortRef.current.task?.cancel();
+      renderAbortRef.current.tasks.forEach((t) => t.cancel());
     };
   }, []);
 

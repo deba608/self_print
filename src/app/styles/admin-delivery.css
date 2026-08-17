@@ -803,6 +803,31 @@
   max-width: 100%;
   height: auto;
   background: #ffffff;
+  opacity: 0;
+  transition: opacity 0.18s ease-out;
+}
+
+.unified-pdf-page-card.is-pending .unified-pdf-canvas {
+  opacity: 1;
+  background: linear-gradient(100deg, #f1f5f9 30%, #f8fafc 50%, #f1f5f9 70%);
+  background-size: 200% 100%;
+  animation: unified-pdf-shimmer 1.4s ease-in-out infinite;
+}
+
+.unified-pdf-page-card.is-rendered .unified-pdf-canvas {
+  opacity: 1;
+  animation: none;
+}
+
+@keyframes unified-pdf-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .unified-pdf-page-card.is-pending .unified-pdf-canvas {
+    animation: none;
+  }
 }
 
 /* Floating scroll status pill */

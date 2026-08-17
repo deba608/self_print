@@ -3200,6 +3200,31 @@ input, select, button {
   border-radius: 6px;
   box-shadow: 0 8px 22px rgba(23, 32, 42, 0.14);
   margin: 0 auto;
+  opacity: 0;
+  transition: opacity 0.18s ease-out;
+}
+
+.pdfjs-scroll-sheet-card.is-pending .pdfjs-canvas {
+  opacity: 1;
+  background: linear-gradient(100deg, #f1f5f9 30%, #f8fafc 50%, #f1f5f9 70%);
+  background-size: 200% 100%;
+  animation: pdfjs-canvas-shimmer 1.4s ease-in-out infinite;
+}
+
+.pdfjs-scroll-sheet-card.is-rendered .pdfjs-canvas {
+  opacity: 1;
+  animation: none;
+}
+
+@keyframes pdfjs-canvas-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pdfjs-scroll-sheet-card.is-pending .pdfjs-canvas {
+    animation: none;
+  }
 }
 
 .pdfjs-loading {

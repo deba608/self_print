@@ -354,9 +354,9 @@ function PdfScrollViewer({
 
   // Keep the loaded doc in a ref so fitMode changes can re-render without re-loading
   const pdfDocRef = useRef<PdfJsDoc | null>(null);
-  const renderAbortRef = useRef<{ cancelled: boolean; task: { cancel: () => void } | null }>({
+  const renderAbortRef = useRef<{ cancelled: boolean; tasks: Set<{ cancel: () => void }> }>({
     cancelled: false,
-    task: null,
+    tasks: new Set(),
   });
 
   const [loadingDoc, setLoadingDoc] = useState(true);
@@ -365,10 +365,13 @@ function PdfScrollViewer({
   const [renderedCount, setRenderedCount] = useState(0);
   const [activePageInternal, setActivePageInternal] = useState(1);
 
-  // -- Render all pages imperatively (called after doc load and on fitMode change) --
+  // -- Lay out placeholders for every page, then render only pages near the
+  // viewport as the user scrolls (instead of blocking on every page up front).
+  // Cuts first-paint time on long documents from "wait for all N pages" to
+  // "wait for the ~2 pages currently visible". --
   const renderPages = async (
     doc: PdfJsDoc,
-    abort: { cancelled: boolean; task: { cancel: () => void } | null }
+    abort: { cancelled: boolean; tasks: Set<{ cancel: () => void }> }
   ) => {
     const container = scrollContainerRef.current;
     const stage = scrollStageRef.current;
@@ -382,6 +385,12 @@ function PdfScrollViewer({
     const parentW = stage.clientWidth || 600;
     const parentH = stage.clientHeight || 700;
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+    // Phase 1: build sized placeholder cards for every page (metadata only,
+    // no rasterizing) so the scroll stage has correct height/layout instantly
+    // and nothing jumps around as pages render in.
+    const canvasByPage = new Map<number, HTMLCanvasElement>();
+    const vpByPage = new Map<number, any>();
 
     try {
       for (let i = 1; i <= doc.numPages; i++) {
@@ -401,9 +410,10 @@ function PdfScrollViewer({
 
         const scale = (width / unscaled.width) * dpr;
         const vp = page.getViewport({ scale });
+        vpByPage.set(i, vp);
 
         const card = document.createElement("div");
-        card.className = "unified-pdf-page-card";
+        card.className = "unified-pdf-page-card is-pending";
         card.setAttribute("data-page-num", String(i));
 
         const badge = document.createElement("div");
@@ -412,59 +422,103 @@ function PdfScrollViewer({
         card.appendChild(badge);
 
         const canvas = document.createElement("canvas");
-        canvas.width = Math.floor(vp.width);
-        canvas.height = Math.floor(vp.height);
         canvas.style.width = `${width}px`;
         canvas.style.maxWidth = "100%";
         canvas.style.height = `${Math.floor(vp.height / dpr)}px`;
         canvas.className = "unified-pdf-canvas";
         card.appendChild(canvas);
         container.appendChild(card);
-
-        const ctx = canvas.getContext("2d");
-        if (!ctx) continue;
-        const task = page.render({ canvasContext: ctx, viewport: vp } as any);
-        abort.task = task;
-        await task.promise;
-        abort.task = null;
-        if (abort.cancelled) return;
-
-        setRenderedCount(i);
+        canvasByPage.set(i, canvas);
       }
     } catch (err: any) {
-      if (!abort.cancelled && err?.name !== "RenderingCancelledException") {
-        setDocError(true);
-      }
+      if (!abort.cancelled) setDocError(true);
       return;
     }
+    if (abort.cancelled) return;
 
-    // After all cards are in DOM, set up IntersectionObserver
-    if (!abort.cancelled) {
-      const cards = container.querySelectorAll(".unified-pdf-page-card");
-      // Disconnect previous observer if any
-      (container as any).__observer?.disconnect();
-      const observer = new IntersectionObserver(
-        (entries) => {
-          let best: { num: number; ratio: number } = { num: 1, ratio: -1 };
-          for (const entry of entries) {
-            if (entry.intersectionRatio > best.ratio) {
-              const n = parseInt(entry.target.getAttribute("data-page-num") || "1", 10);
-              best = { num: n, ratio: entry.intersectionRatio };
-            }
-          }
-          if (best.ratio > 0) {
-            setActivePageInternal(best.num);
-            onActivePageChange(best.num);
-          }
-        },
-        {
-          root: scrollStageRef.current, // ← the actual scrollable element
-          threshold: [0, 0.25, 0.5, 0.75, 1.0],
+    // Phase 2: render pages on demand, closest-to-viewport first, with a
+    // small render concurrency so pdf.js can overlap page decode/paint work.
+    const rendered = new Set<number>();
+    const queued = new Set<number>();
+    const queue: number[] = [];
+    let active = 0;
+    const MAX_CONCURRENT = 2;
+
+    const renderOne = async (pageNum: number) => {
+      if (abort.cancelled || rendered.has(pageNum)) return;
+      const canvas = canvasByPage.get(pageNum);
+      const vp = vpByPage.get(pageNum);
+      if (!canvas || !vp) return;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      try {
+        const page = await doc.getPage(pageNum);
+        if (abort.cancelled) return;
+        canvas.width = Math.floor(vp.width);
+        canvas.height = Math.floor(vp.height);
+        const task = page.render({ canvasContext: ctx, viewport: vp } as any);
+        abort.tasks.add(task);
+        await task.promise;
+        abort.tasks.delete(task);
+        if (abort.cancelled) return;
+        rendered.add(pageNum);
+        canvas.closest(".unified-pdf-page-card")?.classList.remove("is-pending");
+        canvas.closest(".unified-pdf-page-card")?.classList.add("is-rendered");
+        setRenderedCount(rendered.size);
+      } catch (err: any) {
+        if (!abort.cancelled && err?.name !== "RenderingCancelledException") {
+          // Leave this single page blank rather than failing the whole viewer.
         }
-      );
-      cards.forEach((c) => observer.observe(c));
-      (container as any).__observer = observer;
-    }
+      }
+    };
+
+    const pump = () => {
+      while (active < MAX_CONCURRENT && queue.length && !abort.cancelled) {
+        const n = queue.shift()!;
+        queued.delete(n);
+        active++;
+        renderOne(n).finally(() => {
+          active--;
+          pump();
+        });
+      }
+    };
+
+    const schedule = (pageNum: number, priority = false) => {
+      if (rendered.has(pageNum) || queued.has(pageNum) || abort.cancelled) return;
+      queued.add(pageNum);
+      if (priority) queue.unshift(pageNum);
+      else queue.push(pageNum);
+      pump();
+    };
+
+    // Render the first couple of pages immediately (what's visible on open).
+    schedule(1, true);
+    if (doc.numPages > 1) schedule(2, true);
+
+    const cards = container.querySelectorAll(".unified-pdf-page-card");
+    (container as any).__observer?.disconnect();
+    const observer = new IntersectionObserver(
+      (entries) => {
+        let best: { num: number; ratio: number } = { num: activePageInternal, ratio: -1 };
+        for (const entry of entries) {
+          const n = parseInt(entry.target.getAttribute("data-page-num") || "1", 10);
+          if (entry.isIntersecting) schedule(n, true);
+          if (entry.intersectionRatio > best.ratio) best = { num: n, ratio: entry.intersectionRatio };
+        }
+        if (best.ratio > 0) {
+          setActivePageInternal(best.num);
+          onActivePageChange(best.num);
+        }
+      },
+      {
+        root: scrollStageRef.current, // ← the actual scrollable element
+        rootMargin: "800px 0px", // pre-render pages just before they scroll into view
+        threshold: [0, 0.25, 0.5, 0.75, 1.0],
+      }
+    );
+    cards.forEach((c) => observer.observe(c));
+    (container as any).__observer = observer;
   };
 
   // -- Load PDF doc (only when file changes) --
@@ -494,9 +548,12 @@ function PdfScrollViewer({
         setLoadingDoc(false);
 
         // Start rendering
-        const abort: { cancelled: boolean; task: { cancel: () => void } | null } = { cancelled: false, task: null };
+        const abort: { cancelled: boolean; tasks: Set<{ cancel: () => void }> } = {
+          cancelled: false,
+          tasks: new Set(),
+        };
         renderAbortRef.current.cancelled = true;
-        renderAbortRef.current.task?.cancel();
+        renderAbortRef.current.tasks.forEach((t) => t.cancel());
         renderAbortRef.current = abort;
         await renderPages(doc, abort);
       } catch {
@@ -510,7 +567,7 @@ function PdfScrollViewer({
     return () => {
       cancelled = true;
       renderAbortRef.current.cancelled = true;
-      renderAbortRef.current.task?.cancel();
+      renderAbortRef.current.tasks.forEach((t) => t.cancel());
       const doc = pdfDocRef.current;
       pdfDocRef.current = null;
       void doc?.destroy?.();
@@ -523,9 +580,12 @@ function PdfScrollViewer({
     const doc = pdfDocRef.current;
     if (!doc) return; // doc not loaded yet, first load will handle it
 
-    const abort: { cancelled: boolean; task: { cancel: () => void } | null } = { cancelled: false, task: null };
+    const abort: { cancelled: boolean; tasks: Set<{ cancel: () => void }> } = {
+      cancelled: false,
+      tasks: new Set(),
+    };
     renderAbortRef.current.cancelled = true;
-    renderAbortRef.current.task?.cancel();
+    renderAbortRef.current.tasks.forEach((t) => t.cancel());
     renderAbortRef.current = abort;
     renderPages(doc, abort).catch(() => {
       if (!abort.cancelled) setDocError(true);
@@ -533,7 +593,7 @@ function PdfScrollViewer({
 
     return () => {
       abort.cancelled = true;
-      abort.task?.cancel();
+      abort.tasks.forEach((t) => t.cancel());
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fitMode]);
@@ -567,8 +627,8 @@ function PdfScrollViewer({
         <div className="unified-pdf-float-status">
           <FileText size={14} aria-hidden="true" />
           <span>
-            {renderedCount > 0 && renderedCount < numPages
-              ? `Loading page ${renderedCount} / ${numPages}…`
+            {renderedCount < numPages
+              ? `${activePageInternal} / ${numPages} · rendering…`
               : `${activePageInternal} / ${numPages} pages`}
           </span>
         </div>
