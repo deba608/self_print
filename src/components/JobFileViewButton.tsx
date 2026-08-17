@@ -292,7 +292,6 @@ function FileViewer({
           ) : (
             <PdfScrollViewer
               file={pdfFile}
-              fitMode={fitMode}
               onActivePageChange={setActivePage}
               onTotalPagesChange={setTotalPages}
             />
