@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { FileText, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 import { loadPdfDocument, type PdfJsDoc } from "@/lib/pdf-client";
+import { shouldAutoRotate } from "@/lib/print-layout";
 
 // Paper dimensions in mm, portrait width × height. Landscape swaps them.
 const PAPER_MM: Record<string, [number, number]> = {
@@ -209,8 +210,7 @@ export default function PdfCanvasPreview({
       const cellW = areaW / cols;
       const cellH = areaH / rows;
 
-      // Gate matching print-image.ps1's auto-rotate guard, so preview and print agree.
-      const autoRotate = pps === 1 && (sim?.scale ?? "default") !== "noscale";
+      const scaleMode = sim?.scale ?? "default";
 
       // Phase 1: lay out every sheet's placeholder card synchronously — sheet
       // dimensions come from the chosen paper size, not the PDF content, so
@@ -280,20 +280,20 @@ export default function PdfCanvasPreview({
             let vp1 = page.getViewport({ scale: 1 });
             let pageRotation = (page.rotate || 0) % 360;
 
-            // Auto-rotate: mirror print-image.ps1 exactly. The agent rotates a
-            // page 90° only when it is the sole page on the sheet AND scaling is
-            // allowed ($Scale -ne "noscale" -and $sheetFiles.Count -eq 1).
-            // Rotating here for N-up or noscale would show pages sideways in the
-            // preview that the printer renders upright — the "some pages come out
-            // rotated" bug. The agent also rotates unconditionally on orientation
-            // mismatch, with no "only if it fits better" test, so neither do we.
-            if (autoRotate) {
-              const isCellLandscape = cellW > cellH;
-              const isPageLandscape = vp1.width > vp1.height;
-              if (isPageLandscape !== isCellLandscape) {
-                pageRotation = (pageRotation + 90) % 360;
-                vp1 = page.getViewport({ scale: 1, rotation: pageRotation });
-              }
+            // Auto-rotate on the same terms as the print agent (see
+            // shouldAutoRotate) so the preview matches what actually comes out.
+            if (
+              shouldAutoRotate({
+                pagesPerSheet: pps,
+                scaleMode,
+                pageW: vp1.width,
+                pageH: vp1.height,
+                cellW,
+                cellH,
+              })
+            ) {
+              pageRotation = (pageRotation + 90) % 360;
+              vp1 = page.getViewport({ scale: 1, rotation: pageRotation });
             }
 
             const fitScale = Math.min(cellW / vp1.width, cellH / vp1.height);
