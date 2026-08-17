@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { loadPdfDocument, type PdfJsDoc } from "@/lib/pdf-client";
 import {
   Eye,
   FileText,
@@ -352,8 +353,11 @@ function PdfScrollViewer({
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
 
   // Keep the loaded doc in a ref so fitMode changes can re-render without re-loading
-  const pdfDocRef = useRef<any>(null);
-  const renderAbortRef = useRef<{ cancelled: boolean }>({ cancelled: false });
+  const pdfDocRef = useRef<PdfJsDoc | null>(null);
+  const renderAbortRef = useRef<{ cancelled: boolean; task: { cancel: () => void } | null }>({
+    cancelled: false,
+    task: null,
+  });
 
   const [loadingDoc, setLoadingDoc] = useState(true);
   const [docError, setDocError] = useState(false);
@@ -362,7 +366,10 @@ function PdfScrollViewer({
   const [activePageInternal, setActivePageInternal] = useState(1);
 
   // -- Render all pages imperatively (called after doc load and on fitMode change) --
-  const renderPages = async (doc: any, abort: { cancelled: boolean }) => {
+  const renderPages = async (
+    doc: PdfJsDoc,
+    abort: { cancelled: boolean; task: { cancel: () => void } | null }
+  ) => {
     const container = scrollContainerRef.current;
     const stage = scrollStageRef.current;
     if (!container || !stage) return;
@@ -374,48 +381,61 @@ function PdfScrollViewer({
 
     const parentW = stage.clientWidth || 600;
     const parentH = stage.clientHeight || 700;
-
-    let width = Math.max(Math.min(parentW - 32, 860), 220);
-    if (fitMode === "page") {
-      // Fit in one screen: calculate width from height
-      const maxH = parentH - 64;
-      width = Math.max(Math.min(parentW - 48, maxH * 0.72), 220);
-    }
-
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
 
-    for (let i = 1; i <= doc.numPages; i++) {
-      if (abort.cancelled) return;
-      const page = await doc.getPage(i);
-      const unscaled = page.getViewport({ scale: 1 });
-      const scale = (width / unscaled.width) * dpr;
-      const vp = page.getViewport({ scale });
+    try {
+      for (let i = 1; i <= doc.numPages; i++) {
+        if (abort.cancelled) return;
+        const page = await doc.getPage(i);
+        const unscaled = page.getViewport({ scale: 1 });
 
-      const card = document.createElement("div");
-      card.className = "unified-pdf-page-card";
-      card.setAttribute("data-page-num", String(i));
+        // Fit width: cap to a comfortable reading width. Fit page: derive width
+        // from the page's own aspect ratio so it fits the available height,
+        // rather than guessing with a fixed multiplier.
+        let width = Math.max(Math.min(parentW - 32, 860), 220);
+        if (fitMode === "page") {
+          const maxH = Math.max(parentH - 48, 160);
+          const aspect = unscaled.width / unscaled.height;
+          width = Math.max(Math.min(parentW - 48, maxH * aspect), 220);
+        }
 
-      const badge = document.createElement("div");
-      badge.className = "unified-pdf-page-badge";
-      badge.textContent = `Page ${i} / ${doc.numPages}`;
-      card.appendChild(badge);
+        const scale = (width / unscaled.width) * dpr;
+        const vp = page.getViewport({ scale });
 
-      const canvas = document.createElement("canvas");
-      canvas.width = Math.floor(vp.width);
-      canvas.height = Math.floor(vp.height);
-      canvas.style.width = `${width}px`;
-      canvas.style.maxWidth = "100%";
-      canvas.style.height = `${Math.floor(vp.height / dpr)}px`;
-      canvas.className = "unified-pdf-canvas";
-      card.appendChild(canvas);
-      container.appendChild(card);
+        const card = document.createElement("div");
+        card.className = "unified-pdf-page-card";
+        card.setAttribute("data-page-num", String(i));
 
-      const ctx = canvas.getContext("2d");
-      if (!ctx) continue;
-      await page.render({ canvasContext: ctx, viewport: vp } as any).promise;
-      if (abort.cancelled) return;
+        const badge = document.createElement("div");
+        badge.className = "unified-pdf-page-badge";
+        badge.textContent = `Page ${i} / ${doc.numPages}`;
+        card.appendChild(badge);
 
-      setRenderedCount(i);
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.floor(vp.width);
+        canvas.height = Math.floor(vp.height);
+        canvas.style.width = `${width}px`;
+        canvas.style.maxWidth = "100%";
+        canvas.style.height = `${Math.floor(vp.height / dpr)}px`;
+        canvas.className = "unified-pdf-canvas";
+        card.appendChild(canvas);
+        container.appendChild(card);
+
+        const ctx = canvas.getContext("2d");
+        if (!ctx) continue;
+        const task = page.render({ canvasContext: ctx, viewport: vp } as any);
+        abort.task = task;
+        await task.promise;
+        abort.task = null;
+        if (abort.cancelled) return;
+
+        setRenderedCount(i);
+      }
+    } catch (err: any) {
+      if (!abort.cancelled && err?.name !== "RenderingCancelledException") {
+        setDocError(true);
+      }
+      return;
     }
 
     // After all cards are in DOM, set up IntersectionObserver
@@ -459,25 +479,24 @@ function PdfScrollViewer({
         await pdfDocRef.current?.destroy?.();
         pdfDocRef.current = null;
 
-        const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
-        pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
-        const data = await file.arrayBuffer();
-        const doc = await pdfjs.getDocument({
-          data: new Uint8Array(data),
-          disableFontFace: true,
-          isEvalSupported: false,
-          useWorkerFetch: false,
-        } as unknown as Parameters<typeof pdfjs.getDocument>[0]).promise;
+        const doc = await loadPdfDocument(file);
 
         if (cancelled) { await doc.destroy(); return; }
+        if (!doc.numPages || doc.numPages < 1) {
+          await doc.destroy();
+          setDocError(true);
+          setLoadingDoc(false);
+          return;
+        }
         pdfDocRef.current = doc;
         setNumPages(doc.numPages);
         onTotalPagesChange(doc.numPages);
         setLoadingDoc(false);
 
         // Start rendering
-        const abort = { cancelled: false };
+        const abort: { cancelled: boolean; task: { cancel: () => void } | null } = { cancelled: false, task: null };
         renderAbortRef.current.cancelled = true;
+        renderAbortRef.current.task?.cancel();
         renderAbortRef.current = abort;
         await renderPages(doc, abort);
       } catch {
@@ -491,6 +510,10 @@ function PdfScrollViewer({
     return () => {
       cancelled = true;
       renderAbortRef.current.cancelled = true;
+      renderAbortRef.current.task?.cancel();
+      const doc = pdfDocRef.current;
+      pdfDocRef.current = null;
+      void doc?.destroy?.();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [file]);
@@ -500,12 +523,18 @@ function PdfScrollViewer({
     const doc = pdfDocRef.current;
     if (!doc) return; // doc not loaded yet, first load will handle it
 
-    const abort = { cancelled: false };
+    const abort: { cancelled: boolean; task: { cancel: () => void } | null } = { cancelled: false, task: null };
     renderAbortRef.current.cancelled = true;
+    renderAbortRef.current.task?.cancel();
     renderAbortRef.current = abort;
-    renderPages(doc, abort);
+    renderPages(doc, abort).catch(() => {
+      if (!abort.cancelled) setDocError(true);
+    });
 
-    return () => { abort.cancelled = true; };
+    return () => {
+      abort.cancelled = true;
+      abort.task?.cancel();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fitMode]);
 

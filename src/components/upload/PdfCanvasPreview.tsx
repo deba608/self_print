@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { FileText, Loader2, Maximize2, Minimize2 } from "lucide-react";
+import { loadPdfDocument, type PdfJsDoc } from "@/lib/pdf-client";
 
 // Paper dimensions in mm, portrait width × height. Landscape swaps them.
 const PAPER_MM: Record<string, [number, number]> = {
@@ -26,12 +27,6 @@ export type PreviewSim = {
   pages?: number[] | null;
 };
 
-type PdfDoc = {
-  destroy: () => Promise<void> | void;
-  numPages: number;
-  getPage: (page: number) => Promise<any>;
-};
-
 export default function PdfCanvasPreview({
   file,
   fallbackPageCount,
@@ -45,8 +40,11 @@ export default function PdfCanvasPreview({
   const scrollRef = useRef<HTMLDivElement>(null);      // the scrollable stage
   const canvasListRef = useRef<HTMLDivElement>(null);  // imperative canvas list
 
-  const pdfRef = useRef<PdfDoc | null>(null);
-  const renderAbortRef = useRef<{ cancelled: boolean }>({ cancelled: false });
+  const pdfRef = useRef<PdfJsDoc | null>(null);
+  const renderAbortRef = useRef<{ cancelled: boolean; task: { cancel: () => void } | null }>({
+    cancelled: false,
+    task: null,
+  });
 
   const [pageCount, setPageCount] = useState(fallbackPageCount);
   const [pdfReady, setPdfReady] = useState(false);
@@ -92,17 +90,14 @@ export default function PdfCanvasPreview({
         pdfRef.current = null;
         await prev?.destroy?.();
 
-        const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
-        pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
-        const data = await file.arrayBuffer();
-        const doc = await pdfjs.getDocument({
-          data: new Uint8Array(data),
-          disableFontFace: true,
-          isEvalSupported: false,
-          useWorkerFetch: false,
-        } as unknown as Parameters<typeof pdfjs.getDocument>[0]).promise;
+        const doc = await loadPdfDocument(file);
 
         if (cancelled) { await doc.destroy(); return; }
+        if (!doc.numPages || doc.numPages < 1) {
+          await doc.destroy();
+          setError("This PDF has no pages to preview.");
+          return;
+        }
         pdfRef.current = doc;
         setPageCount(doc.numPages);
         setPdfReady(true);
@@ -115,6 +110,9 @@ export default function PdfCanvasPreview({
 
     return () => {
       cancelled = true;
+      const doc = pdfRef.current;
+      pdfRef.current = null;
+      void doc?.destroy?.();
     };
   }, [file]);
 
@@ -134,9 +132,10 @@ export default function PdfCanvasPreview({
     const list = canvasListRef.current;
     if (!pdf || !list) return;
 
-    // Abort any in-progress render
+    // Abort any in-progress render (both the flag and the underlying pdf.js task)
     renderAbortRef.current.cancelled = true;
-    const abort = { cancelled: false };
+    renderAbortRef.current.task?.cancel();
+    const abort: { cancelled: boolean; task: { cancel: () => void } | null } = { cancelled: false, task: null };
     renderAbortRef.current = abort;
 
     list.innerHTML = "";
@@ -166,8 +165,10 @@ export default function PdfCanvasPreview({
       let sheetH = (sheetW * mmH) / mmW;
 
       if (fitMode === "page") {
-        // Fit entire sheet in one screenful
-        const maxH = cH - 80; // subtract toolbar
+        // Fit entire sheet in one screenful. cH is measured from the
+        // canvas-wrap element, which already excludes the toolbar (a sibling),
+        // so only a small breathing-room padding needs subtracting here.
+        const maxH = cH - 16;
         if (sheetH > maxH) {
           sheetH = maxH;
           sheetW = (sheetH * mmW) / mmH;
@@ -243,7 +244,10 @@ export default function PdfCanvasPreview({
           const offCtx = offscreen.getContext("2d");
           if (!offCtx) continue;
 
-          await page.render({ canvasContext: offCtx, viewport: vp }).promise;
+          const task = page.render({ canvasContext: offCtx, viewport: vp });
+          abort.task = task;
+          await task.promise;
+          abort.task = null;
           if (abort.cancelled) return;
 
           const drawW = vp.width / dpr;
@@ -321,6 +325,7 @@ export default function PdfCanvasPreview({
     return () => {
       (canvasListRef.current as any)?.__observerCleanup?.();
       renderAbortRef.current.cancelled = true;
+      renderAbortRef.current.task?.cancel();
     };
   }, []);
 

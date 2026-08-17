@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { FileText } from "lucide-react";
+import { loadPdfDocument } from "@/lib/pdf-client";
 
 // Tiny first-page thumbnail for a bulk-selected PDF. Renders once per file at a
 // fixed small width; falls back to the generic file icon if pdf.js can't render
@@ -23,16 +24,9 @@ export default function BulkThumb({ file, grayscale, width = 44 }: { file: File;
 
     async function renderThumb() {
       try {
-        const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
-        pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
-        const data = await file.arrayBuffer();
-        const loaded = await pdfjs.getDocument({
-          data: new Uint8Array(data),
-          disableFontFace: true,
-          isEvalSupported: false,
-          useWorkerFetch: false,
-        } as unknown as Parameters<typeof pdfjs.getDocument>[0]).promise;
+        const loaded = await loadPdfDocument(file);
         if (disposed) { await loaded.destroy(); return; }
+        if (!loaded.numPages || loaded.numPages < 1) { await loaded.destroy(); throw new Error("empty pdf"); }
         pdf = loaded;
         const page = await loaded.getPage(1);
         const canvas = canvasRef.current;
