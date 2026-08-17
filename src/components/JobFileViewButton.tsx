@@ -460,13 +460,21 @@ function PdfScrollViewer({
       const canvas = canvasByPage.get(pageNum);
       const vp = vpByPage.get(pageNum);
       if (!canvas || !vp) return;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return;
       try {
         const page = await doc.getPage(pageNum);
         if (abort.cancelled) return;
+        // Set backing-store dimensions before getting context so the context
+        // is initialized at the correct resolution (avoids 300×150 default).
         canvas.width = Math.floor(vp.width);
         canvas.height = Math.floor(vp.height);
+        // Re-apply CSS display dimensions — some browsers reset inline styles
+        // when canvas.width is assigned.
+        const cardW = Math.floor(vp.width / dpr);
+        const cardH = Math.floor(vp.height / dpr);
+        canvas.style.width = `${cardW}px`;
+        canvas.style.height = `${cardH}px`;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
         const task = page.render({ canvasContext: ctx, viewport: vp } as any);
         abort.tasks.add(task);
         await task.promise;
