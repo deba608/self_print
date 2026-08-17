@@ -24,6 +24,9 @@ export type PreviewSim = {
   layout: string;
   paperSize: string;
   margins: string;
+  // Print scale mode ("default" | "fit" | "shrink" | "noscale"). The agent
+  // skips auto-rotate for "noscale", so the preview must know it to match.
+  scale?: string;
   pages?: number[] | null;
 };
 
@@ -206,6 +209,9 @@ export default function PdfCanvasPreview({
       const cellW = areaW / cols;
       const cellH = areaH / rows;
 
+      // Gate matching print-image.ps1's auto-rotate guard, so preview and print agree.
+      const autoRotate = pps === 1 && (sim?.scale ?? "default") !== "noscale";
+
       // Phase 1: lay out every sheet's placeholder card synchronously — sheet
       // dimensions come from the chosen paper size, not the PDF content, so
       // this needs no pdf.js calls and the scroll stage gets correct height
@@ -250,6 +256,11 @@ export default function PdfCanvasPreview({
         if (!canvas) return;
         canvas.width = Math.floor(sheetW * dpr);
         canvas.height = Math.floor(sheetH * dpr);
+        // Assigning canvas.width resets the bitmap; re-assert the CSS display
+        // size so the sheet keeps its laid-out dimensions instead of collapsing
+        // to the backing-store size.
+        canvas.style.width = `${Math.floor(sheetW)}px`;
+        canvas.style.height = `${Math.floor(sheetH)}px`;
         const ctx = canvas.getContext("2d");
         if (!ctx) return;
 
@@ -269,18 +280,19 @@ export default function PdfCanvasPreview({
             let vp1 = page.getViewport({ scale: 1 });
             let pageRotation = (page.rotate || 0) % 360;
 
-            // Auto-rotate: if the page orientation does not match the target cell's orientation,
-            // rotate by 90° so it fills the cell rather than shrinking to a small strip
-            // (mirrors the print agent's Auto-Rotate behavior in print-image.ps1).
-            const isCellLandscape = cellW > cellH;
-            const isPageLandscape = vp1.width > vp1.height;
-            if (isPageLandscape !== isCellLandscape) {
-              const rotatedVp1 = page.getViewport({ scale: 1, rotation: (pageRotation + 90) % 360 });
-              const fitOriginal = Math.min(cellW / vp1.width, cellH / vp1.height);
-              const fitRotated = Math.min(cellW / rotatedVp1.width, cellH / rotatedVp1.height);
-              if (fitRotated > fitOriginal) {
+            // Auto-rotate: mirror print-image.ps1 exactly. The agent rotates a
+            // page 90° only when it is the sole page on the sheet AND scaling is
+            // allowed ($Scale -ne "noscale" -and $sheetFiles.Count -eq 1).
+            // Rotating here for N-up or noscale would show pages sideways in the
+            // preview that the printer renders upright — the "some pages come out
+            // rotated" bug. The agent also rotates unconditionally on orientation
+            // mismatch, with no "only if it fits better" test, so neither do we.
+            if (autoRotate) {
+              const isCellLandscape = cellW > cellH;
+              const isPageLandscape = vp1.width > vp1.height;
+              if (isPageLandscape !== isCellLandscape) {
                 pageRotation = (pageRotation + 90) % 360;
-                vp1 = rotatedVp1;
+                vp1 = page.getViewport({ scale: 1, rotation: pageRotation });
               }
             }
 
@@ -358,7 +370,7 @@ export default function PdfCanvasPreview({
       setLoading(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pdfReady, pps, sim?.layout, sim?.paperSize, sim?.margins, sheetCount, pageList, containerW, containerH]);
+  }, [pdfReady, pps, sim?.layout, sim?.paperSize, sim?.margins, sim?.scale, sheetCount, pageList, containerW, containerH]);
 
   // -- Trigger render when ready and deps change --
   useEffect(() => {

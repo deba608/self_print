@@ -403,18 +403,42 @@ function PdfScrollViewer({
     // no rasterizing) so the scroll stage has correct height/layout instantly
     // and nothing jumps around as pages render in.
     const canvasByPage = new Map<number, HTMLCanvasElement>();
-    const vpByPage = new Map<number, any>();
+    const rotByPage = new Map<number, number>();
+    let docScale = dpr;
 
     try {
+      // Pass 1: page metadata only (no rasterizing). Every page shares ONE
+      // document-wide scale, chosen so the widest page fits the container.
+      // Scaling each page to full width independently made a landscape or A3
+      // page render its content at a different zoom than its A4 neighbours —
+      // the "some pages are a different size" bug. With a single scale, narrow
+      // pages simply sit narrower, exactly as a desktop PDF reader shows them.
+      const rotations: number[] = [];
+      let maxW = 0;
       for (let i = 1; i <= doc.numPages; i++) {
         if (abort.cancelled) return;
         const page = await doc.getPage(i);
-        const effectiveRotation = ((page.rotate || 0) + userRotation) % 360;
-        const unscaled = page.getViewport({ scale: 1, rotation: effectiveRotation });
+        // getViewport's `rotation` REPLACES page.rotate rather than adding to
+        // it, so fold the intrinsic rotation in ourselves. Normalise into
+        // [0,360) — a negative /Rotate would otherwise throw in pdf.js.
+        const rotation = (((page.rotate || 0) + userRotation) % 360 + 360) % 360;
+        const unscaled = page.getViewport({ scale: 1, rotation });
+        rotations.push(rotation);
+        if (unscaled.width > maxW) maxW = unscaled.width;
+      }
+      if (!maxW || abort.cancelled) {
+        if (!abort.cancelled) setDocError(true);
+        return;
+      }
+      docScale = (targetW / maxW) * dpr;
 
-        const scale = (targetW / unscaled.width) * dpr;
-        const vp = page.getViewport({ scale, rotation: effectiveRotation });
-        vpByPage.set(i, vp);
+      // Pass 2: build correctly sized placeholder cards so the scroll stage has
+      // its final height immediately and nothing reflows as pages render in.
+      for (let i = 1; i <= doc.numPages; i++) {
+        const page = await doc.getPage(i);
+        const rotation = rotations[i - 1];
+        rotByPage.set(i, rotation);
+        const vp = page.getViewport({ scale: docScale, rotation });
 
         const cardW = Math.floor(vp.width / dpr);
         const cardH = Math.floor(vp.height / dpr);
@@ -458,11 +482,14 @@ function PdfScrollViewer({
     const renderOne = async (pageNum: number) => {
       if (abort.cancelled || rendered.has(pageNum)) return;
       const canvas = canvasByPage.get(pageNum);
-      const vp = vpByPage.get(pageNum);
-      if (!canvas || !vp) return;
+      const rotation = rotByPage.get(pageNum);
+      if (!canvas || rotation === undefined) return;
       try {
         const page = await doc.getPage(pageNum);
         if (abort.cancelled) return;
+        // Rebuild the viewport from the same doc-wide scale used to size the
+        // placeholder, so the rendered bitmap matches the card exactly.
+        const vp = page.getViewport({ scale: docScale, rotation });
         // Set backing-store dimensions before getting context so the context
         // is initialized at the correct resolution (avoids 300×150 default).
         canvas.width = Math.floor(vp.width);

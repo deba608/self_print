@@ -2546,7 +2546,7 @@ export default function UploadForm() {
                     key={bulkIds[bulkPreviewIndex] ?? bulkPreviewIndex}
                     file={bulkFiles[bulkPreviewIndex]}
                     fallbackPageCount={bulkPageCounts[bulkPreviewIndex] ?? 1}
-                    sim={{ pagesPerSheet, layout, paperSize, margins }}
+                    sim={{ pagesPerSheet, layout, paperSize, margins, scale }}
                   />
                 )}
               </>
@@ -2556,7 +2556,7 @@ export default function UploadForm() {
                 key={`${file.name}-${file.size}-${file.lastModified}`}
                 file={file}
                 fallbackPageCount={filePageCount ?? 1}
-                sim={{ pagesPerSheet, layout, paperSize, margins, pages: selectedPageList }}
+                sim={{ pagesPerSheet, layout, paperSize, margins, scale, pages: selectedPageList }}
               />
             )}
             {file && file.type.startsWith("image/") && previewUrl && (
