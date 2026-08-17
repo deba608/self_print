@@ -227,38 +227,65 @@ async function JobsList({ filter, limit }: { filter: Filter; limit: number }) {
               job.pages_per_sheet > 1 ? `${job.pages_per_sheet}-up` : null;
 
             return (
-              <Link
+              <div
                 key={job.id}
-                href={`/track?token=${job.token}`}
                 className={`job-card jobs-list-card ${job.status}`}
               >
                 <div className="jobs-card-main">
                   <div className="jobs-card-header">
-                    <strong className="token-value">#{job.token}</strong>
-                    <span className="muted jobs-card-date">
-                      {formatDate(String(job.created_at))}
-                    </span>
-                    <ChevronRight className="jobs-card-arrow" size={18} aria-hidden="true" />
+                    <div className="jobs-token-group">
+                      <Link
+                        href={`/track?token=${job.token}`}
+                        className="token-value-link"
+                        title="Track this job"
+                      >
+                        <strong className="token-value">#{job.token}</strong>
+                      </Link>
+                      <span className="muted jobs-card-date">
+                        {formatDate(String(job.created_at))}
+                      </span>
+                    </div>
+                    <div className="jobs-header-meta">
+                      <span className="result-meta-value jobs-price">
+                        {formatRupees(Number(job.price_paise))}
+                      </span>
+                    </div>
                   </div>
 
-                  {/* File Name Display */}
-                  <div className="jobs-card-file">
-                    <FileText size={16} className="jobs-file-icon" aria-hidden="true" />
-                    <span className="jobs-filename" title={fileName ?? "Document"}>
-                      {fileName ?? "Document"}
-                    </span>
-                    {files.length > 1 && (
-                      <span className="jobs-file-count">+{files.length - 1} more</span>
-                    )}
-                    {!isPurged && files.length > 0 && (
-                      <JobFileViewButton
-                        files={files.map((f) => ({
-                          id: f.id,
-                          name: f.original_name,
-                          mimeType: f.mime_type,
-                        }))}
-                      />
-                    )}
+                  {/* File Name & Retention Display */}
+                  <div className="jobs-card-file-box">
+                    <div className="jobs-card-file-info">
+                      <div className="jobs-file-type-icon">
+                        <FileText size={17} aria-hidden="true" />
+                      </div>
+                      <div className="jobs-filename-wrap">
+                        <span className="jobs-filename" title={fileName ?? "Document"}>
+                          {fileName ?? "Document"}
+                        </span>
+                        {files.length > 1 && (
+                          <span className="jobs-file-count">+{files.length - 1} more files</span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* 3-Day File Retention Indicator */}
+                    <div className="jobs-retention-wrap">
+                      {isPurged ? (
+                        <span
+                          className="jobs-retention-tag purged"
+                          title="File content purged after 3 days for privacy; filename and receipt remain saved"
+                        >
+                          <FileMinus size={12} aria-hidden="true" /> File purged · 3-day retention
+                        </span>
+                      ) : (
+                        <span
+                          className="jobs-retention-tag active"
+                          title="File stored and available (3-day retention window)"
+                        >
+                          <FileCheck size={12} aria-hidden="true" /> File available
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   {/* Detailed Print Specifications */}
@@ -274,25 +301,6 @@ async function JobsList({ filter, limit }: { filter: Filter; limit: number }) {
                     )}
                     {job.page_range && (
                       <span className="jobs-spec-chip">Pages: {job.page_range}</span>
-                    )}
-                  </div>
-
-                  {/* 3-Day File Retention Indicator */}
-                  <div style={{ marginTop: "4px" }}>
-                    {isPurged ? (
-                      <span
-                        className="jobs-retention-tag purged"
-                        title="File content purged after 3 days for privacy; filename and receipt remain saved"
-                      >
-                        <FileMinus size={12} aria-hidden="true" /> File purged · Name retained
-                      </span>
-                    ) : (
-                      <span
-                        className="jobs-retention-tag active"
-                        title="File stored and available (3-day retention window)"
-                      >
-                        <FileCheck size={12} aria-hidden="true" /> File available · 3-day retention
-                      </span>
                     )}
                   </div>
                 </div>
@@ -317,11 +325,31 @@ async function JobsList({ filter, limit }: { filter: Filter; limit: number }) {
                         </Badge>
                       ))}
                   </div>
-                  <span className="result-meta-value jobs-price">
-                    {formatRupees(Number(job.price_paise))}
-                  </span>
+
+                  <div className="jobs-card-actions">
+                    <JobFileViewButton
+                      files={files.map((f) => ({
+                        id: f.id,
+                        name: f.original_name,
+                        mimeType: f.mime_type,
+                      }))}
+                      disabled={isPurged || files.length === 0}
+                      disabledReason={
+                        isPurged ? "File retention period (3 days) expired" : "No files attached"
+                      }
+                      variant="primary"
+                    />
+                    <Link
+                      href={`/track?token=${job.token}`}
+                      className="jobs-action-btn jobs-track-btn"
+                      title="View live order progress and receipt"
+                    >
+                      <span>Track</span>
+                      <ChevronRight size={15} aria-hidden="true" />
+                    </Link>
+                  </div>
                 </div>
-              </Link>
+              </div>
             );
           })}
         </div>

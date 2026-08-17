@@ -212,79 +212,197 @@
 .jobs-list-card.failed         { border-left-width: 5px; }
 .jobs-list-card.cancelled      { border-left-width: 5px; }
 
-
-.jobs-card-file {
+.jobs-token-group {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 8px;
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--fg);
+  align-items: baseline;
+  gap: 10px;
   min-width: 0;
 }
 
-.jobs-file-icon {
+.token-value-link {
+  color: var(--ink);
+  text-decoration: none;
+  transition: color var(--duration-fast);
+}
+.token-value-link:hover .token-value {
   color: var(--accent);
+}
+
+.jobs-header-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.jobs-card-file-box {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 10px 12px;
+  background: rgba(15, 23, 42, 0.025);
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  border-radius: 10px;
+}
+
+.jobs-card-file-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.jobs-file-type-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: var(--accent-light);
+  color: var(--accent-strong);
+  border-radius: 7px;
   flex-shrink: 0;
 }
 
+.jobs-filename-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  flex: 1;
+}
+
 .jobs-filename {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .jobs-file-count {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--muted);
-  background: var(--line);
-  padding: 2px 6px;
-  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent-strong);
+  background: var(--accent-light);
+  padding: 2px 7px;
+  border-radius: 999px;
   flex-shrink: 0;
 }
 
-.jobs-file-view-btn {
+.jobs-retention-wrap {
   display: flex;
   align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--accent);
-  background: none;
-  border: 1px solid var(--line);
-  padding: 2px 8px;
-  border-radius: 4px;
-  flex-shrink: 0;
-  cursor: pointer;
-  margin-left: auto;
 }
-.jobs-file-view-btn:hover {
-  background: var(--line);
+
+.jobs-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.jobs-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 7px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all var(--duration-fast) var(--ease-out);
+  white-space: nowrap;
+}
+
+.jobs-file-view-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-out);
+  background: var(--accent-bg, #f0f9f8);
+  color: var(--accent, #0d7a74);
+  border: 1px solid rgba(13, 122, 116, 0.25);
+  box-shadow: 0 1px 2px rgba(13, 122, 116, 0.06);
+}
+
+.jobs-file-view-btn:hover:not(:disabled) {
+  background: var(--accent-light, #e4f4f1);
+  border-color: var(--accent, #0d7a74);
+  transform: translateY(-1px);
+}
+
+.jobs-file-view-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.jobs-file-view-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: rgba(100, 116, 139, 0.06);
+  border-color: rgba(100, 116, 139, 0.15);
+  color: var(--muted);
+}
+
+.jobs-track-btn {
+  background: #ffffff;
+  color: var(--ink);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-sm);
+}
+
+.jobs-track-btn:hover {
+  background: var(--bg);
+  border-color: var(--accent);
+  color: var(--accent);
+  transform: translateY(-1px);
 }
 
 /* In-page file preview overlay (My Jobs → View) */
 .file-viewer-overlay {
   position: fixed;
   inset: 0;
-  z-index: 100;
-  background: rgba(15, 23, 42, 0.65);
+  z-index: 1000;
+  background: rgba(15, 23, 42, 0.72);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 16px;
+  animation: viewerOverlayFade 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes viewerOverlayFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .file-viewer-panel {
-  background: var(--bg, #fff);
-  border-radius: 12px;
-  width: min(900px, 100%);
-  height: min(85vh, 100%);
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  width: min(980px, 100%);
+  height: min(90vh, 880px);
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 25px 65px -10px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.1);
+  animation: viewerPanelSlide 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes viewerPanelSlide {
+  from { opacity: 0; transform: scale(0.98) translateY(8px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
 }
 
 .file-viewer-head {
@@ -292,52 +410,53 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 10px 14px;
+  padding: 12px 18px;
+  background: #ffffff;
   border-bottom: 1px solid var(--line);
   flex-shrink: 0;
 }
 
-.file-viewer-name {
-  font-size: 14px;
-  font-weight: 700;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.file-viewer-tabs {
-  display: flex;
-  gap: 6px;
-  padding: 8px 12px 0;
-  overflow-x: auto;
-  flex-shrink: 0;
-}
-
-.file-viewer-tab {
+.file-viewer-title-group {
   display: flex;
   align-items: center;
-  gap: 5px;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--muted);
-  background: none;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  padding: 4px 10px;
-  cursor: pointer;
-  white-space: nowrap;
-  flex-shrink: 0;
-  max-width: 180px;
-}
-.file-viewer-tab.is-active {
-  color: var(--accent);
-  border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
 }
 
-.file-viewer-tab-name {
+.file-viewer-type-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  background: var(--accent-light);
+  color: var(--accent-strong);
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(13, 122, 116, 0.2);
+  flex-shrink: 0;
+}
+
+.file-viewer-name {
+  font-size: 14.5px;
+  font-weight: 700;
+  color: var(--ink);
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-viewer-file-count-badge {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  padding: 2px 7px;
+  border-radius: 6px;
+  flex-shrink: 0;
 }
 
 .file-viewer-head-actions {
@@ -347,100 +466,422 @@
   flex-shrink: 0;
 }
 
-.file-viewer-mode-btn {
+.file-viewer-mode-switch {
   display: flex;
+  align-items: center;
+  background: #f1f5f9;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 3px;
+  gap: 2px;
+}
+
+.file-viewer-mode-option {
+  display: inline-flex;
   align-items: center;
   gap: 5px;
   font-size: 12px;
   font-weight: 600;
-  color: var(--fg);
-  background: none;
-  border: 1px solid var(--line);
-  padding: 4px 10px;
-  border-radius: 6px;
+  color: var(--muted);
+  background: transparent;
+  border: none;
+  border-radius: 999px;
+  padding: 4px 11px;
   cursor: pointer;
+  transition: all var(--duration-fast);
 }
-.file-viewer-mode-btn:hover {
-  background: var(--line);
+
+.file-viewer-mode-option.is-active {
+  background: #ffffff;
+  color: var(--accent-strong);
+  font-weight: 700;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.file-viewer-mode-option:not(.is-active):hover {
+  color: var(--ink);
+}
+
+.file-viewer-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink);
+  background: #f8fafc;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 6px 12px;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all var(--duration-fast);
+}
+
+.file-viewer-action-btn:hover {
+  background: #ffffff;
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 .file-viewer-close {
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: var(--muted);
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  padding: 4px;
-  border-radius: 6px;
-  flex-shrink: 0;
-}
-.file-viewer-close:hover {
-  background: var(--line);
-  color: var(--fg);
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all var(--duration-fast);
 }
 
+.file-viewer-close:hover {
+  background: #f1f5f9;
+  border-color: var(--line);
+  color: var(--ink);
+}
+
+.file-viewer-tabs {
+  display: flex;
+  gap: 6px;
+  padding: 8px 16px;
+  background: #f8fafc;
+  border-bottom: 1px solid var(--line);
+  overflow-x: auto;
+  flex-shrink: 0;
+}
+
+.file-viewer-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 5px 11px;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  max-width: 220px;
+  transition: all var(--duration-fast);
+}
+
+.file-viewer-tab:hover {
+  border-color: var(--accent);
+  color: var(--ink);
+}
+
+.file-viewer-tab.is-active {
+  color: var(--accent-strong);
+  border-color: var(--accent);
+  background: var(--accent-light);
+  font-weight: 700;
+}
+
+.file-viewer-tab-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-viewer-tab-idx {
+  font-size: 10px;
+  color: var(--muted);
+}
+
+/* Seamless single-layer canvas stage */
 .file-viewer-body {
   flex: 1;
   min-height: 0;
-  background: #525659;
+  background: #e2e8f0;
   display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+}
+
+.file-viewer-img-stage {
   align-items: center;
   justify-content: center;
   overflow: auto;
-}
-
-.file-viewer-frame {
-  width: 100%;
-  height: 100%;
-  border: none;
+  padding: 24px;
 }
 
 .file-viewer-img {
   max-width: 100%;
   max-height: 100%;
   object-fit: contain;
+  border-radius: 8px;
+  box-shadow: 0 8px 30px rgba(15, 23, 42, 0.2);
 }
 
-.file-viewer-scroll {
-  display: block;
-  overflow-y: auto;
-  padding: 8px;
+.file-viewer-pdf-stage {
+  padding: 0;
+  position: relative;
 }
 
-.file-viewer-scroll .pdfjs-preview {
+/* Unified PDF Container */
+.unified-pdf-container {
   width: 100%;
-}
-
-.file-viewer-pages {
+  height: 100%;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 10px;
+  position: relative;
+  overflow: hidden;
 }
 
-.file-viewer-page {
-  background: #fff;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
-  border-radius: 2px;
-  max-width: 100%;
-}
-
-.file-viewer-loading {
+.unified-pdf-page-stage {
+  flex: 1;
+  min-height: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  color: #e2e8f0;
-  font-size: 14px;
-  padding: 24px 0;
+  overflow: auto;
+  padding: 24px 16px 80px;
+  position: relative;
 }
 
-.file-viewer-fallback {
+.unified-pdf-single-canvas {
+  display: block;
+  background: #ffffff;
+  border-radius: 4px;
+  box-shadow: 0 10px 32px -4px rgba(15, 23, 42, 0.22), 0 0 0 1px rgba(0, 0, 0, 0.06);
+  margin: auto;
+  transition: width 0.15s ease, height 0.15s ease;
+}
+
+/* Floating Navigation Bar for Page View */
+.unified-pdf-float-bar {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(212, 219, 228, 0.85);
+  border-radius: 999px;
+  padding: 5px 10px;
+  box-shadow: 0 8px 24px -4px rgba(15, 23, 42, 0.22);
+}
+
+.unified-pdf-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  background: transparent;
+  border: none;
+  color: var(--ink);
+  cursor: pointer;
+  transition: all var(--duration-fast);
+}
+
+.unified-pdf-nav-btn:hover:not(:disabled) {
+  background: #f1f5f9;
+  color: var(--accent);
+}
+
+.unified-pdf-nav-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.unified-pdf-page-jump {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  padding: 0 4px;
+}
+
+.unified-pdf-page-input {
+  width: 38px;
+  height: 30px;
+  text-align: center;
+  border: 1.5px solid var(--line);
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+  background: #ffffff;
+  padding: 0;
+  appearance: textfield;
+  -moz-appearance: textfield;
+  transition: all var(--duration-fast);
+}
+
+.unified-pdf-page-input::-webkit-inner-spin-button,
+.unified-pdf-page-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.unified-pdf-page-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-light);
+}
+
+.unified-pdf-divider {
+  width: 1px;
+  height: 20px;
+  background: var(--line);
+  margin: 0 2px;
+}
+
+.unified-pdf-fit-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all var(--duration-fast);
+}
+
+.unified-pdf-fit-btn:hover {
+  background: #f1f5f9;
+  color: var(--accent);
+}
+
+.unified-pdf-fit-btn.is-active {
+  background: var(--accent-light);
+  color: var(--accent-strong);
+}
+
+/* Continuous Scroll Stage */
+.unified-pdf-scroll-stage {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 24px 16px 80px;
+  position: relative;
+}
+
+.unified-pdf-scroll-list {
+  display: flex;
   flex-direction: column;
-  gap: 14px;
-  color: #e2e8f0;
+  align-items: center;
+  gap: 20px;
+  width: 100%;
+  max-width: 860px;
+  margin: 0 auto;
+}
+
+.unified-pdf-page-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: #ffffff;
+  border-radius: 4px;
+  box-shadow: 0 8px 28px -4px rgba(15, 23, 42, 0.2), 0 0 0 1px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+  width: 100%;
+  max-width: 820px;
+}
+
+.unified-pdf-page-badge {
+  width: 100%;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  background: #f8fafc;
+  border-bottom: 1px solid var(--line);
+  padding: 5px 12px;
+  text-align: left;
+}
+
+.unified-pdf-canvas {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  background: #ffffff;
+}
+
+/* Floating scroll status pill */
+.unified-pdf-float-status {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(15, 23, 42, 0.85);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: 999px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  pointer-events: none;
+}
+
+.file-viewer-loading-state,
+.file-viewer-error-state,
+.file-viewer-fallback {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: var(--muted);
   font-size: 14px;
+  padding: 48px 24px;
+  text-align: center;
+  margin: auto;
+}
+
+.file-viewer-loader-icon {
+  color: var(--accent);
+}
+
+.file-viewer-error-icon {
+  color: var(--danger, #ef4444);
+}
+
+.file-viewer-error-title,
+.file-viewer-fallback-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--ink);
+  margin: 0;
+}
+
+.file-viewer-error-desc,
+.file-viewer-fallback-desc {
+  font-size: 13px;
+  color: var(--muted);
+  max-width: 340px;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.file-viewer-error-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
 }
 
 .jobs-card-specs-tags {
@@ -469,7 +910,6 @@
   font-weight: 600;
   padding: 3px 9px;
   border-radius: 6px;
-  margin-top: 4px;
 }
 
 .jobs-retention-tag.active {
@@ -484,7 +924,18 @@
   border: 1px solid rgba(100, 116, 139, 0.2);
 }
 
-@media (max-width: 480px) {
+@media (max-width: 640px) {
+  .file-viewer-overlay {
+    padding: 0;
+  }
+  .file-viewer-panel {
+    width: 100%;
+    height: 100%;
+    border-radius: 0;
+  }
+  .file-viewer-btn-text {
+    display: none;
+  }
   .jobs-page { gap: var(--space-4); }
   .jobs-page .jobs-filter-chips { gap: var(--space-2); }
   .jobs-page .jobs-filter-chip { flex: 1; padding: 0 var(--space-2); }
@@ -494,9 +945,26 @@
     padding: var(--space-4);
   }
   .jobs-page .jobs-card-footer {
-    width: auto;
-    justify-content: space-between;
-    margin-top: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    padding-top: 12px;
+  }
+  .jobs-page .jobs-card-badges {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  .jobs-page .jobs-card-actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .jobs-page .jobs-file-view-btn,
+  .jobs-page .jobs-track-btn {
+    width: 100%;
+    justify-content: center;
   }
 }
 
