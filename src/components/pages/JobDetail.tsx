@@ -12,6 +12,7 @@ import {
 import { paperSizeLabels } from "@/lib/pricing";
 import { manualPrint } from "@/lib/manualPrint";
 import AdminManagementNav from "@/components/AdminManagementNav";
+import JobFileViewButton from "@/components/JobFileViewButton";
 import { createClient } from "@/lib/supabase/client";
 
 type Detail = {
@@ -646,10 +647,17 @@ function PreviewCard({ files, job }: { files: Detail["files"]; job: Detail["job"
 
   return (
     <div className="detail-card">
-      <h3 className="card-title">
-        {file.fileKind === "pdf" ? <FileText size={16} /> : <Image size={16} />}
-        Preview
-      </h3>
+      <div className="preview-card-head" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+        <h3 className="card-title" style={{ margin: 0 }}>
+          {file.fileKind === "pdf" ? <FileText size={16} /> : <Image size={16} />}
+          Preview
+        </h3>
+        <JobFileViewButton
+          files={files.map((f) => ({ id: f.id, name: f.originalName, mimeType: f.mimeType }))}
+          label="Open Fullscreen Viewer"
+          variant="primary"
+        />
+      </div>
       {/* Mirror what the job actually prints as, not just the raw file */}
       <div className="print-sim-chips">
         <span className={`sim-chip ${isBw ? "sim-chip-bw" : "sim-chip-color"}`}>{isBw ? "Prints B&W" : "Prints color"}</span>

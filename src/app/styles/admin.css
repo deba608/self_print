@@ -3107,6 +3107,34 @@
   box-shadow: 0 8px 24px rgba(23, 32, 42, 0.05);
 }
 
+.job-detail-header[data-status="failed"],
+.job-detail-header[data-status="cancelled"] {
+  border-left-color: var(--danger);
+}
+
+.job-detail-header[data-status="printed"] {
+  border-left-color: var(--ok);
+}
+
+.job-detail-header[data-status="approved"],
+.job-detail-header[data-status="printing"] {
+  border-left-color: var(--accent);
+}
+
+.job-detail-sub {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #eef0f3;
+  color: var(--muted);
+  font-size: 12.5px;
+  font-weight: 600;
+  flex-wrap: wrap;
+}
+
 .job-detail-left,
 .job-detail-right {
   display: flex;
@@ -3228,6 +3256,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 7px;
   min-height: 40px;
   padding: 9px 14px;
   border: 1.5px solid var(--line);
@@ -3291,7 +3320,14 @@
 }
 
 .card-title svg {
+  width: 26px;
+  height: 26px;
+  padding: 5px;
+  border-radius: 7px;
+  background: var(--accent-bg);
+  box-sizing: border-box;
   color: var(--accent);
+  flex-shrink: 0;
 }
 
 .file-info-row {
@@ -3611,16 +3647,34 @@
 
 .event-item {
   display: grid;
-  grid-template-columns: 70px 110px minmax(0, 1fr);
+  grid-template-columns: 150px 130px minmax(0, 1fr);
   gap: 10px;
   align-items: start;
-  padding: 10px 0;
+  padding: 12px 0;
   border-bottom: 1px solid #f0f2f4;
   font-size: 13px;
 }
 
 .event-item:last-child {
   border-bottom: 0;
+}
+
+.event-type {
+  width: fit-content;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: var(--accent-bg);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.2px;
+  text-transform: uppercase;
+}
+
+.event-msg {
+  color: var(--ink);
+  font-weight: 500;
+  word-break: break-word;
 }
 
 /* Print progress tracker (always visible on job detail) */
