@@ -545,17 +545,11 @@ function PdfScrollViewer({
         pdfDocRef.current = doc;
         setNumPages(doc.numPages);
         onTotalPagesChange(doc.numPages);
+        // Rendering starts from the effect below once the scroll container has
+        // actually mounted — calling renderPages here would run before React
+        // swaps the loading spinner for the container, see null refs, and
+        // silently leave the viewer blank.
         setLoadingDoc(false);
-
-        // Start rendering
-        const abort: { cancelled: boolean; tasks: Set<{ cancel: () => void }> } = {
-          cancelled: false,
-          tasks: new Set(),
-        };
-        renderAbortRef.current.cancelled = true;
-        renderAbortRef.current.tasks.forEach((t) => t.cancel());
-        renderAbortRef.current = abort;
-        await renderPages(doc, abort);
       } catch {
         if (!cancelled) {
           setDocError(true);
