@@ -569,10 +569,13 @@ function PdfScrollViewer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [file]);
 
-  // -- Re-render on fitMode change WITHOUT reloading the file --
+  // -- Render pages once the scroll container is mounted (after doc load) and
+  // re-render on fitMode change WITHOUT reloading the file. Runs as an effect
+  // so the container/stage refs are guaranteed to be committed to the DOM. --
   useEffect(() => {
+    if (loadingDoc || docError) return;
     const doc = pdfDocRef.current;
-    if (!doc) return; // doc not loaded yet, first load will handle it
+    if (!doc) return;
 
     const abort: { cancelled: boolean; tasks: Set<{ cancel: () => void }> } = {
       cancelled: false,
@@ -590,7 +593,7 @@ function PdfScrollViewer({
       abort.tasks.forEach((t) => t.cancel());
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fitMode]);
+  }, [loadingDoc, docError, fitMode]);
 
 
 
