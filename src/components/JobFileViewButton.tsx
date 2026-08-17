@@ -413,7 +413,7 @@ function PdfScrollViewer({
       // page render its content at a different zoom than its A4 neighbours —
       // the "some pages are a different size" bug. With a single scale, narrow
       // pages simply sit narrower, exactly as a desktop PDF reader shows them.
-      const rotations: number[] = [];
+      const metas: { rotation: number; w: number; h: number }[] = [];
       let maxW = 0;
       for (let i = 1; i <= doc.numPages; i++) {
         if (abort.cancelled) return;
@@ -423,7 +423,7 @@ function PdfScrollViewer({
         // [0,360) — a negative /Rotate would otherwise throw in pdf.js.
         const rotation = (((page.rotate || 0) + userRotation) % 360 + 360) % 360;
         const unscaled = page.getViewport({ scale: 1, rotation });
-        rotations.push(rotation);
+        metas.push({ rotation, w: unscaled.width, h: unscaled.height });
         if (unscaled.width > maxW) maxW = unscaled.width;
       }
       if (!maxW || abort.cancelled) {
@@ -434,14 +434,14 @@ function PdfScrollViewer({
 
       // Pass 2: build correctly sized placeholder cards so the scroll stage has
       // its final height immediately and nothing reflows as pages render in.
+      // Scaling is linear, so card sizes follow from the pass-1 dimensions and
+      // this pass needs no further pdf.js calls.
       for (let i = 1; i <= doc.numPages; i++) {
-        const page = await doc.getPage(i);
-        const rotation = rotations[i - 1];
+        const { rotation, w, h } = metas[i - 1];
         rotByPage.set(i, rotation);
-        const vp = page.getViewport({ scale: docScale, rotation });
 
-        const cardW = Math.floor(vp.width / dpr);
-        const cardH = Math.floor(vp.height / dpr);
+        const cardW = Math.floor((w * targetW) / maxW);
+        const cardH = Math.floor((h * targetW) / maxW);
 
         const card = document.createElement("div");
         card.className = "unified-pdf-page-card is-pending";
@@ -455,8 +455,12 @@ function PdfScrollViewer({
         card.appendChild(badge);
 
         const canvas = document.createElement("canvas");
-        canvas.width = Math.floor(vp.width);
-        canvas.height = Math.floor(vp.height);
+        // Deliberately left at the tiny default backing size — renderOne sizes
+        // the bitmap when the page actually scrolls into view. Allocating the
+        // full-resolution bitmap here cost ~16MB per page and held it for every
+        // page at once, which defeated the point of rendering lazily. The CSS
+        // dimensions below are what drive layout, so the placeholder still
+        // reserves exactly the right space.
         canvas.style.width = `${cardW}px`;
         canvas.style.height = `${cardH}px`;
         canvas.style.maxWidth = "100%";
