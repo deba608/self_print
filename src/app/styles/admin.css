@@ -3777,6 +3777,7 @@
 .event-time {
   color: var(--muted);
   font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
 
 .event-type {
