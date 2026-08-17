@@ -350,42 +350,104 @@ function PdfScrollViewer({
 }) {
   const scrollStageRef = useRef<HTMLDivElement | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+
+  // Keep the loaded doc in a ref so fitMode changes can re-render without re-loading
+  const pdfDocRef = useRef<any>(null);
+  const renderAbortRef = useRef<{ cancelled: boolean }>({ cancelled: false });
+
   const [loadingDoc, setLoadingDoc] = useState(true);
   const [docError, setDocError] = useState(false);
   const [numPages, setNumPages] = useState(1);
   const [renderedCount, setRenderedCount] = useState(0);
   const [activePageInternal, setActivePageInternal] = useState(1);
 
-  // Set up intersection observer to detect current visible page
-  useEffect(() => {
+  // -- Render all pages imperatively (called after doc load and on fitMode change) --
+  const renderPages = async (doc: any, abort: { cancelled: boolean }) => {
     const container = scrollContainerRef.current;
-    if (!container || numPages <= 1) return;
+    const stage = scrollStageRef.current;
+    if (!container || !stage) return;
 
-    const cards = container.querySelectorAll(".unified-pdf-page-card");
-    if (!cards.length) return;
+    container.innerHTML = "";
+    setRenderedCount(0);
+    setActivePageInternal(1);
+    onActivePageChange(1);
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (entry.isIntersecting) {
-            const pageNum = parseInt(entry.target.getAttribute("data-page-num") || "1", 10);
-            if (Number.isFinite(pageNum)) {
-              setActivePageInternal(pageNum);
-              onActivePageChange(pageNum);
+    const parentW = stage.clientWidth || 600;
+    const parentH = stage.clientHeight || 700;
+
+    let width = Math.max(Math.min(parentW - 32, 860), 220);
+    if (fitMode === "page") {
+      // Fit in one screen: calculate width from height
+      const maxH = parentH - 64;
+      width = Math.max(Math.min(parentW - 48, maxH * 0.72), 220);
+    }
+
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+    for (let i = 1; i <= doc.numPages; i++) {
+      if (abort.cancelled) return;
+      const page = await doc.getPage(i);
+      const unscaled = page.getViewport({ scale: 1 });
+      const scale = (width / unscaled.width) * dpr;
+      const vp = page.getViewport({ scale });
+
+      const card = document.createElement("div");
+      card.className = "unified-pdf-page-card";
+      card.setAttribute("data-page-num", String(i));
+
+      const badge = document.createElement("div");
+      badge.className = "unified-pdf-page-badge";
+      badge.textContent = `Page ${i} / ${doc.numPages}`;
+      card.appendChild(badge);
+
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.floor(vp.width);
+      canvas.height = Math.floor(vp.height);
+      canvas.style.width = `${width}px`;
+      canvas.style.maxWidth = "100%";
+      canvas.style.height = `${Math.floor(vp.height / dpr)}px`;
+      canvas.className = "unified-pdf-canvas";
+      card.appendChild(canvas);
+      container.appendChild(card);
+
+      const ctx = canvas.getContext("2d");
+      if (!ctx) continue;
+      await page.render({ canvasContext: ctx, viewport: vp } as any).promise;
+      if (abort.cancelled) return;
+
+      setRenderedCount(i);
+    }
+
+    // After all cards are in DOM, set up IntersectionObserver
+    if (!abort.cancelled) {
+      const cards = container.querySelectorAll(".unified-pdf-page-card");
+      // Disconnect previous observer if any
+      (container as any).__observer?.disconnect();
+      const observer = new IntersectionObserver(
+        (entries) => {
+          let best: { num: number; ratio: number } = { num: 1, ratio: -1 };
+          for (const entry of entries) {
+            if (entry.intersectionRatio > best.ratio) {
+              const n = parseInt(entry.target.getAttribute("data-page-num") || "1", 10);
+              best = { num: n, ratio: entry.intersectionRatio };
             }
           }
+          if (best.ratio > 0) {
+            setActivePageInternal(best.num);
+            onActivePageChange(best.num);
+          }
+        },
+        {
+          root: scrollStageRef.current, // ← the actual scrollable element
+          threshold: [0, 0.25, 0.5, 0.75, 1.0],
         }
-      },
-      {
-        root: scrollStageRef.current,
-        threshold: 0.35,
-      }
-    );
+      );
+      cards.forEach((c) => observer.observe(c));
+      (container as any).__observer = observer;
+    }
+  };
 
-    cards.forEach((c) => observer.observe(c));
-    return () => observer.disconnect();
-  }, [renderedCount, numPages, onActivePageChange]);
-
+  // -- Load PDF doc (only when file changes) --
   useEffect(() => {
     let cancelled = false;
     setLoadingDoc(true);
@@ -393,9 +455,13 @@ function PdfScrollViewer({
 
     (async () => {
       try {
-        const data = await file.arrayBuffer();
+        // Destroy previous doc
+        await pdfDocRef.current?.destroy?.();
+        pdfDocRef.current = null;
+
         const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
         pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
+        const data = await file.arrayBuffer();
         const doc = await pdfjs.getDocument({
           data: new Uint8Array(data),
           disableFontFace: true,
@@ -403,65 +469,18 @@ function PdfScrollViewer({
           useWorkerFetch: false,
         } as unknown as Parameters<typeof pdfjs.getDocument>[0]).promise;
 
-        if (cancelled) return;
+        if (cancelled) { await doc.destroy(); return; }
+        pdfDocRef.current = doc;
         setNumPages(doc.numPages);
         onTotalPagesChange(doc.numPages);
         setLoadingDoc(false);
 
-        const container = scrollContainerRef.current;
-        const stage = scrollStageRef.current;
-        if (!container || !stage) return;
-        container.innerHTML = "";
-        setRenderedCount(0);
-        setActivePageInternal(1);
-        onActivePageChange(1);
-
-        const parentW = stage.clientWidth || 600;
-        const parentH = stage.clientHeight || 700;
-
-        let width = Math.max(Math.min(parentW - 32, 860), 220);
-        if (fitMode === "page") {
-          width = Math.max(Math.min(parentW - 48, (parentH - 90) * 0.72), 220);
-        }
-
-        const dpr = Math.min(window.devicePixelRatio || 1, 2);
-
-        for (let i = 1; i <= doc.numPages; i++) {
-          if (cancelled) return;
-          const page = await doc.getPage(i);
-          const unscaled = page.getViewport({ scale: 1 });
-          const scale = width / unscaled.width;
-          const vp = page.getViewport({ scale: scale * dpr });
-
-          const card = document.createElement("div");
-          card.className = "unified-pdf-page-card";
-          card.setAttribute("data-page-num", String(i));
-
-          const badge = document.createElement("div");
-          badge.className = "unified-pdf-page-badge";
-          badge.textContent = `Page ${i} / ${doc.numPages}`;
-          card.appendChild(badge);
-
-          const canvas = document.createElement("canvas");
-          canvas.width = vp.width;
-          canvas.height = vp.height;
-          canvas.style.width = `${width}px`;
-          canvas.style.maxWidth = "100%";
-          canvas.style.height = `${(vp.height / dpr).toFixed(0)}px`;
-          canvas.className = "unified-pdf-canvas";
-          card.appendChild(canvas);
-
-          container.appendChild(card);
-
-          const ctx = canvas.getContext("2d");
-          if (!ctx) continue;
-          await page.render({ canvasContext: ctx, viewport: vp } as any).promise;
-
-          if (!cancelled) {
-            setRenderedCount(i);
-          }
-        }
-      } catch (err) {
+        // Start rendering
+        const abort = { cancelled: false };
+        renderAbortRef.current.cancelled = true;
+        renderAbortRef.current = abort;
+        await renderPages(doc, abort);
+      } catch {
         if (!cancelled) {
           setDocError(true);
           setLoadingDoc(false);
@@ -471,8 +490,26 @@ function PdfScrollViewer({
 
     return () => {
       cancelled = true;
+      renderAbortRef.current.cancelled = true;
     };
-  }, [file, fitMode, onActivePageChange, onTotalPagesChange]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [file]);
+
+  // -- Re-render on fitMode change WITHOUT reloading the file --
+  useEffect(() => {
+    const doc = pdfDocRef.current;
+    if (!doc) return; // doc not loaded yet, first load will handle it
+
+    const abort = { cancelled: false };
+    renderAbortRef.current.cancelled = true;
+    renderAbortRef.current = abort;
+    renderPages(doc, abort);
+
+    return () => { abort.cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fitMode]);
+
+
 
   if (loadingDoc) {
     return (
