@@ -13,6 +13,7 @@ import {
   Download,
   AlertCircle,
   RotateCcw,
+  RotateCw,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
@@ -340,6 +341,27 @@ function PdfScrollViewer({
   const [renderedCount, setRenderedCount] = useState(0);
   const [activePageInternal, setActivePageInternal] = useState(1);
   const [jumpDraft, setJumpDraft] = useState("");
+  const [userRotation, setUserRotation] = useState(0); // 0, 90, 180, 270
+  const [containerW, setContainerW] = useState(0);
+
+  // Measure stage width dynamically via ResizeObserver
+  useEffect(() => {
+    const el = scrollStageRef.current;
+    if (!el) return;
+    const measure = () => {
+      const rect = el.getBoundingClientRect();
+      const w = Math.floor(rect.width) || el.clientWidth || 0;
+      if (w > 0) setContainerW((prev) => (Math.abs(prev - w) > 8 ? w : prev));
+    };
+    measure();
+    if (typeof ResizeObserver !== "undefined") {
+      const ro = new ResizeObserver(measure);
+      ro.observe(el);
+      return () => ro.disconnect();
+    }
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [loadingDoc]);
 
   // -- Scroll so a given page is at the top of the scroll stage --
   const goToPage = (target: number) => {
@@ -373,8 +395,9 @@ function PdfScrollViewer({
     setActivePageInternal(1);
     onActivePageChange(1);
 
-    const parentW = stage.clientWidth || 600;
+    const parentW = containerW || stage.clientWidth || 600;
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const targetW = Math.max(Math.min(parentW - 32, 860), 220);
 
     // Phase 1: build sized placeholder cards for every page (metadata only,
     // no rasterizing) so the scroll stage has correct height/layout instantly
@@ -386,28 +409,33 @@ function PdfScrollViewer({
       for (let i = 1; i <= doc.numPages; i++) {
         if (abort.cancelled) return;
         const page = await doc.getPage(i);
-        const unscaled = page.getViewport({ scale: 1 });
+        const effectiveRotation = ((page.rotate || 0) + userRotation) % 360;
+        const unscaled = page.getViewport({ scale: 1, rotation: effectiveRotation });
 
-        // page.getViewport already applies the page's intrinsic rotation
-        const width = Math.max(Math.min(parentW - 32, 860), 220);
-
-        const scale = (width / unscaled.width) * dpr;
-        const vp = page.getViewport({ scale });
+        const scale = (targetW / unscaled.width) * dpr;
+        const vp = page.getViewport({ scale, rotation: effectiveRotation });
         vpByPage.set(i, vp);
+
+        const cardW = Math.floor(vp.width / dpr);
+        const cardH = Math.floor(vp.height / dpr);
 
         const card = document.createElement("div");
         card.className = "unified-pdf-page-card is-pending";
         card.setAttribute("data-page-num", String(i));
+        card.style.width = `${cardW}px`;
+        card.style.maxWidth = "100%";
 
         const badge = document.createElement("div");
         badge.className = "unified-pdf-page-badge";
-        badge.textContent = `Page ${i} / ${doc.numPages}`;
+        badge.textContent = `Page ${i} / ${doc.numPages}${userRotation > 0 ? ` (${userRotation}°)` : ""}`;
         card.appendChild(badge);
 
         const canvas = document.createElement("canvas");
-        canvas.style.width = `${width}px`;
+        canvas.width = Math.floor(vp.width);
+        canvas.height = Math.floor(vp.height);
+        canvas.style.width = `${cardW}px`;
+        canvas.style.height = `${cardH}px`;
         canvas.style.maxWidth = "100%";
-        canvas.style.height = `${Math.floor(vp.height / dpr)}px`;
         canvas.className = "unified-pdf-canvas";
         card.appendChild(canvas);
         container.appendChild(card);
@@ -528,10 +556,6 @@ function PdfScrollViewer({
         pdfDocRef.current = doc;
         setNumPages(doc.numPages);
         onTotalPagesChange(doc.numPages);
-        // Rendering starts from the effect below once the scroll container has
-        // actually mounted — calling renderPages here would run before React
-        // swaps the loading spinner for the container, see null refs, and
-        // silently leave the viewer blank.
         setLoadingDoc(false);
       } catch {
         if (!cancelled) {
@@ -552,8 +576,7 @@ function PdfScrollViewer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [file]);
 
-  // -- Render pages once the scroll container is mounted (after doc load). Runs
-// as an effect so the container/stage refs are guaranteed to be committed. --
+  // -- Render pages once the scroll container is mounted (after doc load or rotation/resize change) --
   useEffect(() => {
     if (loadingDoc || docError) return;
     const doc = pdfDocRef.current;
@@ -575,9 +598,7 @@ function PdfScrollViewer({
       abort.tasks.forEach((t) => t.cancel());
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loadingDoc, docError]);
-
-
+  }, [loadingDoc, docError, userRotation, containerW]);
 
   if (loadingDoc) {
     return (
@@ -602,7 +623,7 @@ function PdfScrollViewer({
       <div className="unified-pdf-scroll-stage" ref={scrollStageRef}>
         <div ref={scrollContainerRef} className="unified-pdf-scroll-list" />
 
-        {/* Floating page navigation pill: realtime counter + prev/next + jump */}
+        {/* Floating page navigation pill: realtime counter + prev/next + jump + rotate */}
         <div className="unified-pdf-float-status">
           <button
             type="button"
@@ -644,6 +665,16 @@ function PdfScrollViewer({
             title="Next page"
           >
             <ChevronRight size={16} aria-hidden="true" />
+          </button>
+
+          <button
+            type="button"
+            className="unified-pdf-nav-btn"
+            onClick={() => setUserRotation((r) => (r + 90) % 360)}
+            aria-label="Rotate 90 degrees clockwise"
+            title="Rotate 90° clockwise"
+          >
+            <RotateCw size={14} aria-hidden="true" />
           </button>
         </div>
       </div>

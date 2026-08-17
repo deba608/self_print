@@ -6,7 +6,8 @@ import { useEffect, useState } from "react";
 import {
   ChevronLeft, CreditCard, Printer, RotateCcw, Save, X,
   FileText, Image, CheckCircle2, AlertCircle, Loader2, Circle,
-  Upload, Send, FileCheck, IndianRupee, MapPinned, Truck
+  Upload, Send, FileCheck, IndianRupee, MapPinned, Truck,
+  Eye, SlidersHorizontal, ScrollText, Info, Clock, User, MessageSquare
 } from "lucide-react";
 import { paperSizeLabels } from "@/lib/pricing";
 import { manualPrint } from "@/lib/manualPrint";
@@ -280,7 +281,7 @@ export default function JobDetail({ id }: { id: string }) {
         </Link>
       )}
 
-      <div className="job-detail-header">
+      <div className="job-detail-header" data-status={job.status}>
         <div className="job-detail-left">
           <div className="job-detail-token">
             <span>Token</span>
@@ -295,6 +296,17 @@ export default function JobDetail({ id }: { id: string }) {
           {job.needsConversion === 1 && (
             <span className="conversion-note">Needs conversion</span>
           )}
+          <div className="job-detail-sub">
+            <Clock size={13} aria-hidden="true" />
+            <span>{new Date(job.createdAt).toLocaleString()}</span>
+            {job.customerName && (
+              <>
+                <span className="dot">·</span>
+                <User size={13} aria-hidden="true" />
+                <span>{job.customerName}</span>
+              </>
+            )}
+          </div>
         </div>
         <div className="job-detail-right">
           <strong className="job-detail-price">{formatRupees(job.pricePaise)}</strong>
@@ -312,18 +324,24 @@ export default function JobDetail({ id }: { id: string }) {
       <ProgressTracker job={job} events={detail.events} />
 
       <div className="mobile-tabs" role="tablist" aria-label="Job detail sections">
-        {(["details", "preview", "settings", "log"] as const).map((tab) => (
+        {([
+          { key: "details", label: "Details", icon: Info },
+          { key: "preview", label: "Preview", icon: Eye },
+          { key: "settings", label: "Settings", icon: SlidersHorizontal },
+          { key: "log", label: "Log", icon: ScrollText }
+        ] as const).map(({ key, label, icon: TabIcon }) => (
           <button
             type="button"
-            key={tab}
-            id={`tab-${tab}`}
+            key={key}
+            id={`tab-${key}`}
             role="tab"
-            aria-selected={activeTab === tab}
-            aria-controls={`panel-${tab}`}
-            className={`mobile-tab ${activeTab === tab ? "active" : ""}`}
-            onClick={() => setActiveTab(tab)}
+            aria-selected={activeTab === key}
+            aria-controls={`panel-${key}`}
+            className={`mobile-tab ${activeTab === key ? "active" : ""}`}
+            onClick={() => setActiveTab(key)}
           >
-            {tab.charAt(0).toUpperCase() + tab.slice(1)}
+            <TabIcon size={15} aria-hidden="true" />
+            <span>{label}</span>
           </button>
         ))}
       </div>
@@ -461,7 +479,7 @@ function CustomNoteCard({ job }: { job: Detail["job"] }) {
   if (!job.customNote) return null;
   return (
     <div className="detail-card" style={{ borderLeft: "3px solid var(--primary-color)" }}>
-      <h3 className="card-title">Customer Instructions</h3>
+      <h3 className="card-title"><MessageSquare size={16} /> Customer Instructions</h3>
       <p style={{ margin: 0, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{job.customNote}</p>
     </div>
   );
@@ -471,7 +489,7 @@ function DeliveryCard({ job }: { job: Detail["job"] }) {
   if (job.deliveryMethod !== "delivery") return null;
   return (
     <div className="detail-card">
-      <h3 className="card-title">Delivery Details</h3>
+      <h3 className="card-title"><Truck size={16} /> Delivery Details</h3>
       <div className="summary-list">
         <div className="summary-row"><span>Name</span><strong>{job.customerName ?? "—"}</strong></div>
         <div className="summary-row"><span>Phone</span><strong>{job.customerPhone ?? "—"}</strong></div>
@@ -538,7 +556,7 @@ function ActionsCard({
 
   return (
     <div className="detail-card">
-      <h3 className="card-title">Actions</h3>
+      <h3 className="card-title"><SlidersHorizontal size={16} /> Actions</h3>
       <div className="detail-action-grid">
         {(job.status === "pending_payment" || job.status === "paid") && !(job.deliveryMethod === "delivery" && !job.paidAt) && (
           <div className="print-mode-group">
@@ -853,18 +871,35 @@ function ProgressTracker({ job, events }: { job: Detail["job"]; events: Detail["
   );
 }
 
+const EVENT_LABELS: Record<string, string> = {
+  created: "Submitted",
+  paid: "Payment received",
+  approved: "Released to print",
+  downloaded: "File downloaded",
+  spooling: "Sent to printer",
+  printed: "Printed",
+  failed: "Failed",
+  cancelled: "Cancelled",
+  manual_print: "Manual print",
+  retried: "Reprinted",
+};
+
+function eventLabel(type: string) {
+  return EVENT_LABELS[type] ?? titleCase(type);
+}
+
 function EventLogCard({ events }: { events: Detail["events"] }) {
   return (
     <div className="detail-card">
-      <h3 className="card-title">Event Log</h3>
+      <h3 className="card-title"><ScrollText size={16} /> Event Log</h3>
       <div className="event-log">
         {events.length === 0 ? (
           <p className="empty-log">No events yet.</p>
         ) : (
           events.map((event) => (
             <div key={event.id} className="event-item">
-              <span className="event-time">{new Date(event.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
-              <span className="event-type">{event.event_type}</span>
+              <span className="event-time">{new Date(event.created_at).toLocaleString()}</span>
+              <span className="event-type">{eventLabel(event.event_type)}</span>
               <span className="event-msg">{event.message}</span>
             </div>
           ))

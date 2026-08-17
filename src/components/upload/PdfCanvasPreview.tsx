@@ -173,8 +173,36 @@ export default function PdfCanvasPreview({
       const areaW = sheetW - 2 * marginPx;
       const areaH = sheetH - 2 * marginPx;
 
-      const cols = Math.ceil(Math.sqrt(pps));
-      const rows = Math.ceil(pps / cols);
+      // Calculate N-up grid based on sheet orientation:
+      let cols = 1;
+      let rows = 1;
+      if (pps === 2) {
+        // 2-up: portrait sheet stacks 2 rows (landscape A5 cells); landscape sheet places 2 columns
+        if (mmH >= mmW) {
+          cols = 1;
+          rows = 2;
+        } else {
+          cols = 2;
+          rows = 1;
+        }
+      } else if (pps === 4) {
+        cols = 2;
+        rows = 2;
+      } else if (pps === 6) {
+        if (mmH >= mmW) {
+          cols = 2;
+          rows = 3;
+        } else {
+          cols = 3;
+          rows = 2;
+        }
+      } else if (pps >= 9) {
+        cols = 3;
+        rows = 3;
+      } else if (pps > 1) {
+        cols = Math.ceil(Math.sqrt(pps));
+        rows = Math.ceil(pps / cols);
+      }
       const cellW = areaW / cols;
       const cellH = areaH / rows;
 
@@ -238,10 +266,27 @@ export default function PdfCanvasPreview({
             const page = await pdf.getPage(pageNum);
             if (abort.cancelled) return;
 
-            const vp1 = page.getViewport({ scale: 1 });
+            let vp1 = page.getViewport({ scale: 1 });
+            let pageRotation = (page.rotate || 0) % 360;
+
+            // Auto-rotate: if the page orientation does not match the target cell's orientation,
+            // rotate by 90° so it fills the cell rather than shrinking to a small strip
+            // (mirrors the print agent's Auto-Rotate behavior in print-image.ps1).
+            const isCellLandscape = cellW > cellH;
+            const isPageLandscape = vp1.width > vp1.height;
+            if (isPageLandscape !== isCellLandscape) {
+              const rotatedVp1 = page.getViewport({ scale: 1, rotation: (pageRotation + 90) % 360 });
+              const fitOriginal = Math.min(cellW / vp1.width, cellH / vp1.height);
+              const fitRotated = Math.min(cellW / rotatedVp1.width, cellH / rotatedVp1.height);
+              if (fitRotated > fitOriginal) {
+                pageRotation = (pageRotation + 90) % 360;
+                vp1 = rotatedVp1;
+              }
+            }
+
             const fitScale = Math.min(cellW / vp1.width, cellH / vp1.height);
             const scale = Math.max(0.05, fitScale) * dpr;
-            const vp = page.getViewport({ scale });
+            const vp = page.getViewport({ scale, rotation: pageRotation });
 
             // Render to offscreen canvas, then blit
             const offscreen = document.createElement("canvas");
