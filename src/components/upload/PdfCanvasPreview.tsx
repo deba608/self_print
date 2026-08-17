@@ -80,6 +80,41 @@ export default function PdfCanvasPreview({ file, fallbackPageCount, sim }: { fil
     };
   }, [file]);
 
+  const [containerSize, setContainerSize] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
+
+  // Listen to container resizing (mount, layout changes, device rotation, scrollbar toggles)
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const measure = () => {
+      const style = window.getComputedStyle(el);
+      const padX = (parseFloat(style.paddingLeft) || 0) + (parseFloat(style.paddingRight) || 0);
+      const padY = (parseFloat(style.paddingTop) || 0) + (parseFloat(style.paddingBottom) || 0);
+      const availableW = Math.max(0, el.clientWidth - padX);
+      const availableH = Math.max(0, el.clientHeight - padY);
+      setContainerSize((prev) => {
+        if (Math.abs(prev.width - availableW) < 1 && Math.abs(prev.height - availableH) < 1) {
+          return prev;
+        }
+        return { width: availableW, height: availableH };
+      });
+    };
+
+    measure();
+
+    if (typeof ResizeObserver !== "undefined") {
+      const observer = new ResizeObserver(() => {
+        measure();
+      });
+      observer.observe(el);
+      return () => observer.disconnect();
+    } else {
+      window.addEventListener("resize", measure);
+      return () => window.removeEventListener("resize", measure);
+    }
+  }, []);
+
   // Pages-per-sheet grid: same layout math as agent/print-image.ps1 — cols is
   // the ceiling square root, pages fill row-major, each page fits its cell.
   const pps = Math.max(1, sim?.pagesPerSheet ?? 1);
@@ -107,14 +142,23 @@ export default function PdfCanvasPreview({ file, fallbackPageCount, sim }: { fil
         const context = canvas.getContext("2d");
         if (!context) return;
 
-        // Subtract .pdfjs-canvas-wrap's own padding (14px each side, 28px per
-        // axis) so the sheet never exceeds the actual available space. This
-        // was off by 4px before (used 24 instead of 28), which let the canvas
-        // overflow past the right padding edge — visible as an uneven gap
-        // (14px left, ~10px right) since the wrap centers via flexbox and
-        // silently clips overflow instead of centering it symmetrically.
-        const containerWidth = Math.max((containerRef.current?.clientWidth ?? 320) - 28, 240);
-        const containerHeight = Math.max((containerRef.current?.clientHeight ?? 400) - 28, 300);
+        const wrap = containerRef.current;
+        let availableW = containerSize.width;
+        let availableH = containerSize.height;
+
+        if ((!availableW || availableW <= 0) && wrap) {
+          const style = window.getComputedStyle(wrap);
+          const padX = (parseFloat(style.paddingLeft) || 0) + (parseFloat(style.paddingRight) || 0);
+          availableW = Math.max(wrap.clientWidth - padX, 100);
+        }
+        if ((!availableH || availableH <= 0) && wrap) {
+          const style = window.getComputedStyle(wrap);
+          const padY = (parseFloat(style.paddingTop) || 0) + (parseFloat(style.paddingBottom) || 0);
+          availableH = Math.max(wrap.clientHeight - padY, 200);
+        }
+
+        const containerWidth = Math.max(availableW || 300, 100);
+        const containerHeight = Math.max(availableH || 400, 200);
 
         // Sheet aspect from paper size + orientation. Without sim, fall back
         // to the first page's own aspect (plain document view).
@@ -132,6 +176,7 @@ export default function PdfCanvasPreview({ file, fallbackPageCount, sim }: { fil
         canvas.width = Math.floor(sheetW * pixelRatio);
         canvas.height = Math.floor(sheetH * pixelRatio);
         canvas.style.width = `${Math.floor(sheetW)}px`;
+        canvas.style.maxWidth = "100%";
         canvas.style.height = `${Math.floor(sheetH)}px`;
         context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
 
@@ -194,7 +239,7 @@ export default function PdfCanvasPreview({ file, fallbackPageCount, sim }: { fil
       disposed = true;
       renderTaskRef.current?.cancel();
     };
-  }, [pageNumber, pdfVersion, fitMode, pps, sim?.layout, sim?.paperSize, sim?.margins, pageCount, pageList]);
+  }, [pageNumber, pdfVersion, fitMode, pps, sim?.layout, sim?.paperSize, sim?.margins, pageCount, pageList, containerSize.width, containerSize.height]);
 
   // Keep the sheet cursor valid when pages-per-sheet (and thus sheet count) changes.
   useEffect(() => {

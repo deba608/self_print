@@ -807,7 +807,7 @@ input, select, button {
     max-width: 1120px;
   }
 }
-.step-content { display: grid; gap: var(--space-4); }
+.step-content { display: grid; gap: var(--space-4); min-width: 0; max-width: 100%; width: 100%; }
 
 /* Reserves space for the now-fixed .form-actions bar (see --mobile-form-actions-h)
    so content isn't hidden underneath it. Only needed where the wizard (and
@@ -2750,6 +2750,9 @@ input, select, button {
   min-height: 320px;
   margin-bottom: 0;
   border: 1px solid var(--line);
+  min-width: 0;
+  max-width: 100%;
+  width: 100%;
 }
 
 /* Bill / receipt card shown once payment is confirmed */
@@ -2875,6 +2878,8 @@ input, select, button {
 
 .pdfjs-preview {
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   background: #eef1f5;
@@ -2888,11 +2893,14 @@ input, select, button {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 16px;
+  padding: 10px 14px;
   background: #fff;
   border-bottom: 1px solid var(--line);
   flex-wrap: wrap;
-  gap: 12px;
+  gap: 10px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .pdfjs-pagination {
@@ -3026,23 +3034,28 @@ input, select, button {
 .pdfjs-canvas-wrap {
   position: relative;
   width: 100%;
-  min-height: 320px;
+  max-width: 100%;
+  min-height: 280px;
   max-height: min(58vh, 520px);
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
   display: flex;
   align-items: flex-start;
-  justify-content: center;
+  justify-content: safe center;
   padding: 14px;
   background: #eef1f5;
+  box-sizing: border-box;
 }
 
 .pdfjs-canvas {
   display: block;
-  max-width: none;
+  max-width: 100%;
+  height: auto;
   background: #fff;
   border: 1px solid var(--line);
   border-radius: 6px;
   box-shadow: 0 8px 22px rgba(23, 32, 42, 0.14);
+  margin: 0 auto;
 }
 
 .pdfjs-loading {
@@ -3129,6 +3142,10 @@ input, select, button {
   border-radius: 14px;
   padding: 14px 18px;
   margin-bottom: 0;
+  min-width: 0;
+  max-width: 100%;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .settings-summary[open] {
@@ -3143,6 +3160,7 @@ input, select, button {
   justify-content: space-between;
   gap: 10px;
   font-size: 13px;
+  min-width: 0;
 }
 
 .settings-summary summary::-webkit-details-marker { display: none; }
@@ -3170,6 +3188,7 @@ input, select, button {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  min-width: 0;
 }
 
 /* Wraps the grid + paper note so both toggle together — same reasoning as
@@ -3219,6 +3238,10 @@ input, select, button {
   background: linear-gradient(135deg, var(--accent-light) 0%, #e0f0eb 100%);
   border-radius: 14px;
   margin-bottom: 0;
+  min-width: 0;
+  max-width: 100%;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .total-price span {
@@ -3239,6 +3262,9 @@ input, select, button {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  min-width: 0;
+  max-width: 100%;
+  width: 100%;
 }
 
 .total-price-row {
