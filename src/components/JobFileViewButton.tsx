@@ -7,15 +7,11 @@ import {
   FileText,
   FileCode,
   FileImage,
-  Layers,
-  ScrollText,
   Loader2,
   X,
   Download,
   AlertCircle,
   RotateCcw,
-  ChevronLeft,
-  ChevronRight,
   Maximize2,
   Minimize2,
 } from "lucide-react";
@@ -171,11 +167,15 @@ function FileViewer({
   const src = `/api/user/files/${fileId}`;
   const isImage = (mimeType ?? "").startsWith("image/");
   const isPdf = (mimeType ?? "") === "application/pdf" || fileName.toLowerCase().endsWith(".pdf");
-  const [mode, setMode] = useState<"page" | "scroll">("page");
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(isPdf);
   const [error, setError] = useState(false);
   const [retryKey, setRetryKey] = useState(0);
+
+  // Shared fit mode & active page state
+  const [fitMode, setFitMode] = useState<"width" | "page">("width");
+  const [activePage, setActivePage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
   useEffect(() => {
     if (!isPdf) return;
@@ -207,7 +207,7 @@ function FileViewer({
 
   return (
     <>
-      {/* Unified Single Header Toolbar */}
+      {/* Minimal Unified Header with 1/10 Counter and 2-in-1 Fit Button */}
       <div className="file-viewer-head">
         <div className="file-viewer-title-group">
           <div className="file-viewer-type-pill">
@@ -218,33 +218,40 @@ function FileViewer({
           </span>
           {totalFiles > 1 && (
             <span className="file-viewer-file-count-badge">
-              {fileIndex} of {totalFiles}
+              File {fileIndex} of {totalFiles}
             </span>
           )}
         </div>
 
         <div className="file-viewer-head-actions">
-          {isPdf && pdfFile && (
-            <div className="file-viewer-mode-switch" role="group" aria-label="PDF viewing mode">
-              <button
-                type="button"
-                className={`file-viewer-mode-option ${mode === "page" ? "is-active" : ""}`}
-                onClick={() => setMode("page")}
-                title="Single page view"
-              >
-                <Layers size={14} aria-hidden="true" />
-                <span>Pages</span>
-              </button>
-              <button
-                type="button"
-                className={`file-viewer-mode-option ${mode === "scroll" ? "is-active" : ""}`}
-                onClick={() => setMode("scroll")}
-                title="Continuous vertical scroll"
-              >
-                <ScrollText size={14} aria-hidden="true" />
-                <span>Scroll</span>
-              </button>
+          {/* 1 / 10 Page Numbering Badge */}
+          {isPdf && pdfFile && totalPages > 0 && (
+            <div className="file-viewer-page-counter" aria-label="Page counter">
+              <FileText size={13} aria-hidden="true" />
+              <span>Page</span>
+              <strong>{activePage}</strong>
+              <span className="file-viewer-page-sep">/</span>
+              <span>{totalPages}</span>
             </div>
+          )}
+
+          {/* 2-in-1 Animated Fit Toggle */}
+          {isPdf && pdfFile && (
+            <button
+              type="button"
+              className={`pdfjs-fit-toggle-btn ${fitMode === "page" ? "is-fit-page" : "is-fit-width"}`}
+              onClick={() => setFitMode((m) => (m === "width" ? "page" : "width"))}
+              title={fitMode === "width" ? "Switch to Fit Page" : "Switch to Fit Width"}
+              aria-label={fitMode === "width" ? "Switch to Fit Page" : "Switch to Fit Width"}
+            >
+              <span className="pdfjs-fit-icon-wrap" aria-hidden="true">
+                <Maximize2 className="pdfjs-fit-icon fit-width-icon" size={15} />
+                <Minimize2 className="pdfjs-fit-icon fit-page-icon" size={15} />
+              </span>
+              <span className="pdfjs-fit-label file-viewer-btn-text">
+                {fitMode === "width" ? "Fit Width" : "Fit Page"}
+              </span>
+            </button>
           )}
 
           <a
@@ -270,7 +277,7 @@ function FileViewer({
         </div>
       </div>
 
-      {/* Seamless Single-Layer Content Area */}
+      {/* Content Area */}
       {isImage ? (
         <div className="file-viewer-body file-viewer-img-stage">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -304,7 +311,12 @@ function FileViewer({
               <span>Rendering PDF document…</span>
             </div>
           ) : (
-            <UnifiedPdfViewer file={pdfFile} mode={mode} />
+            <PdfScrollViewer
+              file={pdfFile}
+              fitMode={fitMode}
+              onActivePageChange={setActivePage}
+              onTotalPagesChange={setTotalPages}
+            />
           )}
         </div>
       ) : (
@@ -324,22 +336,56 @@ function FileViewer({
   );
 }
 
-// Unified, seamless PDF rendering engine with Page mode and Continuous Scroll mode
-function UnifiedPdfViewer({ file, mode }: { file: File; mode: "page" | "scroll" }) {
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const renderTaskRef = useRef<any>(null);
+// Continuous vertical scroll viewer for PDF with dynamic page tracking
+function PdfScrollViewer({
+  file,
+  fitMode,
+  onActivePageChange,
+  onTotalPagesChange,
+}: {
+  file: File;
+  fitMode: "width" | "page";
+  onActivePageChange: (p: number) => void;
+  onTotalPagesChange: (t: number) => void;
+}) {
+  const scrollStageRef = useRef<HTMLDivElement | null>(null);
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const [loadingDoc, setLoadingDoc] = useState(true);
+  const [docError, setDocError] = useState(false);
+  const [numPages, setNumPages] = useState(1);
+  const [renderedCount, setRenderedCount] = useState(0);
+  const [activePageInternal, setActivePageInternal] = useState(1);
 
-  const [pdfDoc, setPdfDoc] = useState<any>(null);
-  const [numPages, setNumPages] = useState<number>(1);
-  const [currentPage, setCurrentPage] = useState<number>(1);
-  const [pageInput, setPageInput] = useState<string>("");
-  const [fitMode, setFitMode] = useState<"width" | "page">("width");
-  const [loadingDoc, setLoadingDoc] = useState<boolean>(true);
-  const [docError, setDocError] = useState<boolean>(false);
-  const [renderedCount, setRenderedCount] = useState<number>(0);
+  // Set up intersection observer to detect current visible page
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container || numPages <= 1) return;
 
-  // Load PDF Document
+    const cards = container.querySelectorAll(".unified-pdf-page-card");
+    if (!cards.length) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            const pageNum = parseInt(entry.target.getAttribute("data-page-num") || "1", 10);
+            if (Number.isFinite(pageNum)) {
+              setActivePageInternal(pageNum);
+              onActivePageChange(pageNum);
+            }
+          }
+        }
+      },
+      {
+        root: scrollStageRef.current,
+        threshold: 0.35,
+      }
+    );
+
+    cards.forEach((c) => observer.observe(c));
+    return () => observer.disconnect();
+  }, [renderedCount, numPages, onActivePageChange]);
+
   useEffect(() => {
     let cancelled = false;
     setLoadingDoc(true);
@@ -358,151 +404,75 @@ function UnifiedPdfViewer({ file, mode }: { file: File; mode: "page" | "scroll" 
         } as unknown as Parameters<typeof pdfjs.getDocument>[0]).promise;
 
         if (cancelled) return;
-        setPdfDoc(doc);
         setNumPages(doc.numPages);
-        setCurrentPage(1);
+        onTotalPagesChange(doc.numPages);
+        setLoadingDoc(false);
+
+        const container = scrollContainerRef.current;
+        const stage = scrollStageRef.current;
+        if (!container || !stage) return;
+        container.innerHTML = "";
+        setRenderedCount(0);
+        setActivePageInternal(1);
+        onActivePageChange(1);
+
+        const parentW = stage.clientWidth || 600;
+        const parentH = stage.clientHeight || 700;
+
+        let width = Math.max(Math.min(parentW - 32, 860), 220);
+        if (fitMode === "page") {
+          width = Math.max(Math.min(parentW - 48, (parentH - 90) * 0.72), 220);
+        }
+
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+        for (let i = 1; i <= doc.numPages; i++) {
+          if (cancelled) return;
+          const page = await doc.getPage(i);
+          const unscaled = page.getViewport({ scale: 1 });
+          const scale = width / unscaled.width;
+          const vp = page.getViewport({ scale: scale * dpr });
+
+          const card = document.createElement("div");
+          card.className = "unified-pdf-page-card";
+          card.setAttribute("data-page-num", String(i));
+
+          const badge = document.createElement("div");
+          badge.className = "unified-pdf-page-badge";
+          badge.textContent = `Page ${i} / ${doc.numPages}`;
+          card.appendChild(badge);
+
+          const canvas = document.createElement("canvas");
+          canvas.width = vp.width;
+          canvas.height = vp.height;
+          canvas.style.width = `${width}px`;
+          canvas.style.maxWidth = "100%";
+          canvas.style.height = `${(vp.height / dpr).toFixed(0)}px`;
+          canvas.className = "unified-pdf-canvas";
+          card.appendChild(canvas);
+
+          container.appendChild(card);
+
+          const ctx = canvas.getContext("2d");
+          if (!ctx) continue;
+          await page.render({ canvasContext: ctx, viewport: vp } as any).promise;
+
+          if (!cancelled) {
+            setRenderedCount(i);
+          }
+        }
       } catch (err) {
-        if (!cancelled) setDocError(true);
-      } finally {
-        if (!cancelled) setLoadingDoc(false);
+        if (!cancelled) {
+          setDocError(true);
+          setLoadingDoc(false);
+        }
       }
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [file]);
-
-  // Keyboard navigation for page view
-  useEffect(() => {
-    if (mode !== "page") return;
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement) return;
-      if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
-        setCurrentPage((p) => Math.max(1, p - 1));
-      } else if (e.key === "ArrowRight" || e.key === "ArrowDown" || e.key === " ") {
-        setCurrentPage((p) => Math.min(numPages, p + 1));
-      }
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [mode, numPages]);
-
-  // Render Single Page Mode
-  useEffect(() => {
-    if (!pdfDoc || mode !== "page") return;
-    let cancelled = false;
-
-    async function renderSinglePage() {
-      try {
-        renderTaskRef.current?.cancel();
-        const page = await pdfDoc.getPage(currentPage);
-        if (cancelled) return;
-
-        const canvas = canvasRef.current;
-        const container = containerRef.current;
-        if (!canvas || !container) return;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) return;
-
-        const containerW = Math.max(container.clientWidth - 32, 200);
-        const containerH = Math.max(container.clientHeight - 88, 240);
-        const unscaledVp = page.getViewport({ scale: 1 });
-
-        let scale = containerW / unscaledVp.width;
-        if (fitMode === "page") {
-          const scaleH = containerH / unscaledVp.height;
-          scale = Math.min(scale, scaleH);
-        }
-
-        const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
-        const vp = page.getViewport({ scale: scale * dpr });
-
-        const drawW = unscaledVp.width * scale;
-        const drawH = unscaledVp.height * scale;
-
-        canvas.width = vp.width;
-        canvas.height = vp.height;
-        canvas.style.width = `${Math.floor(drawW)}px`;
-        canvas.style.maxWidth = "100%";
-        canvas.style.height = `${Math.floor(drawH)}px`;
-
-        const renderTask = page.render({ canvasContext: ctx, viewport: vp });
-        renderTaskRef.current = renderTask;
-        await renderTask.promise;
-      } catch (err: any) {
-        if (err?.name !== "RenderingCancelledException") {
-          console.error("Single page render error:", err);
-        }
-      }
-    }
-
-    renderSinglePage();
-
-    return () => {
-      cancelled = true;
-      renderTaskRef.current?.cancel();
-    };
-  }, [pdfDoc, currentPage, mode, fitMode]);
-
-  // Render Continuous Scroll Mode
-  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
-  useEffect(() => {
-    if (!pdfDoc || mode !== "scroll") return;
-    let cancelled = false;
-
-    async function renderAllPages() {
-      const container = scrollContainerRef.current;
-      if (!container) return;
-      container.innerHTML = "";
-      setRenderedCount(0);
-
-      const parentW = container.clientWidth || 600;
-      const width = Math.max(Math.min(parentW - 32, 820), 220);
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
-
-      for (let i = 1; i <= pdfDoc.numPages; i++) {
-        if (cancelled) return;
-        const page = await pdfDoc.getPage(i);
-        const unscaled = page.getViewport({ scale: 1 });
-        const scale = width / unscaled.width;
-        const vp = page.getViewport({ scale: scale * dpr });
-
-        const card = document.createElement("div");
-        card.className = "unified-pdf-page-card";
-
-        const badge = document.createElement("div");
-        badge.className = "unified-pdf-page-badge";
-        badge.textContent = `Page ${i} of ${pdfDoc.numPages}`;
-        card.appendChild(badge);
-
-        const canvas = document.createElement("canvas");
-        canvas.width = vp.width;
-        canvas.height = vp.height;
-        canvas.style.width = `${width}px`;
-        canvas.style.maxWidth = "100%";
-        canvas.style.height = `${(vp.height / dpr).toFixed(0)}px`;
-        canvas.className = "unified-pdf-canvas";
-        card.appendChild(canvas);
-
-        container.appendChild(card);
-
-        const ctx = canvas.getContext("2d");
-        if (!ctx) continue;
-        await page.render({ canvasContext: ctx, viewport: vp } as any).promise;
-
-        if (!cancelled) {
-          setRenderedCount(i);
-        }
-      }
-    }
-
-    renderAllPages();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [pdfDoc, mode]);
+  }, [file, fitMode, onActivePageChange, onTotalPagesChange]);
 
   if (loadingDoc) {
     return (
@@ -523,96 +493,20 @@ function UnifiedPdfViewer({ file, mode }: { file: File; mode: "page" | "scroll" 
   }
 
   return (
-    <div className="unified-pdf-container" ref={containerRef}>
-      {mode === "page" ? (
-        <div className="unified-pdf-page-stage">
-          <canvas ref={canvasRef} className="unified-pdf-single-canvas" />
+    <div className="unified-pdf-container">
+      <div className="unified-pdf-scroll-stage" ref={scrollStageRef}>
+        <div ref={scrollContainerRef} className="unified-pdf-scroll-list" />
 
-          {/* Floating Navigation Controls */}
-          {numPages > 1 && (
-            <div className="unified-pdf-float-bar">
-              <button
-                type="button"
-                className="unified-pdf-nav-btn"
-                disabled={currentPage <= 1}
-                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                aria-label="Previous Page"
-                title="Previous Page (Left Arrow)"
-              >
-                <ChevronLeft size={18} />
-              </button>
-
-              <div className="unified-pdf-page-jump">
-                <span>Page</span>
-                <input
-                  type="number"
-                  min={1}
-                  max={numPages}
-                  value={pageInput}
-                  placeholder={String(currentPage)}
-                  onChange={(e) => setPageInput(e.target.value.replace(/\D/g, ""))}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      const num = parseInt(pageInput, 10);
-                      if (num >= 1 && num <= numPages) {
-                        setCurrentPage(num);
-                        setPageInput("");
-                      }
-                    }
-                  }}
-                  onBlur={() => {
-                    const num = parseInt(pageInput, 10);
-                    if (num >= 1 && num <= numPages) {
-                      setCurrentPage(num);
-                    }
-                    setPageInput("");
-                  }}
-                  aria-label="Jump to page"
-                  className="unified-pdf-page-input"
-                />
-                <span>of {numPages}</span>
-              </div>
-
-              <button
-                type="button"
-                className="unified-pdf-nav-btn"
-                disabled={currentPage >= numPages}
-                onClick={() => setCurrentPage((p) => Math.min(numPages, p + 1))}
-                aria-label="Next Page"
-                title="Next Page (Right Arrow)"
-              >
-                <ChevronRight size={18} />
-              </button>
-
-              <div className="unified-pdf-divider" />
-
-              <button
-                type="button"
-                className={`unified-pdf-fit-btn ${fitMode === "page" ? "is-active" : ""}`}
-                onClick={() => setFitMode((m) => (m === "width" ? "page" : "width"))}
-                title={fitMode === "width" ? "Fit whole page to screen" : "Fit to width"}
-                aria-label={fitMode === "width" ? "Fit whole page to screen" : "Fit to width"}
-              >
-                {fitMode === "width" ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
-              </button>
-            </div>
-          )}
+        {/* Floating page count status pill */}
+        <div className="unified-pdf-float-status">
+          <FileText size={14} aria-hidden="true" />
+          <span>
+            {renderedCount > 0 && renderedCount < numPages
+              ? `Loading page ${renderedCount} / ${numPages}…`
+              : `${activePageInternal} / ${numPages} pages`}
+          </span>
         </div>
-      ) : (
-        <div className="unified-pdf-scroll-stage">
-          <div ref={scrollContainerRef} className="unified-pdf-scroll-list" />
-
-          {/* Floating page count status */}
-          <div className="unified-pdf-float-status">
-            <ScrollText size={14} aria-hidden="true" />
-            <span>
-              {renderedCount > 0 && renderedCount < numPages
-                ? `Loading page ${renderedCount} of ${numPages}…`
-                : `${numPages} ${numPages === 1 ? "page" : "pages"}`}
-            </span>
-          </div>
-        </div>
-      )}
+      </div>
     </div>
   );
 }

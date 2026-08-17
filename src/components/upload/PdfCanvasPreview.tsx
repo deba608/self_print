@@ -1,12 +1,18 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, ArrowRight, FileText, Loader2, Maximize2, Minimize2 } from "lucide-react";
+import { FileText, Loader2, Maximize2, Minimize2 } from "lucide-react";
 
 // Paper dimensions in mm, portrait width × height. Landscape swaps them.
 const PAPER_MM: Record<string, [number, number]> = {
-  A3: [297, 420], A4: [210, 297], A5: [148, 210], A6: [105, 148],
-  B5: [176, 250], Letter: [216, 279], Legal: [216, 356], Photo: [102, 152],
+  A3: [297, 420],
+  A4: [210, 297],
+  A5: [148, 210],
+  A6: [105, 148],
+  B5: [176, 250],
+  Letter: [216, 279],
+  Legal: [216, 356],
+  Photo: [102, 152],
 };
 
 // What the print helper does with margins, mirrored for the preview:
@@ -15,24 +21,36 @@ const MARGIN_FRACTION: Record<string, number> = { default: 0.05, minimum: 0.02, 
 
 export type PreviewSim = {
   pagesPerSheet: number;
-  layout: string;      // portrait | landscape
-  paperSize: string;   // A3..Photo
-  margins: string;     // default | minimum | none
+  layout: string; // portrait | landscape
+  paperSize: string; // A3..Photo
+  margins: string; // default | minimum | none
   pages?: number[] | null; // 1-based page numbers to include; null/absent = all
 };
 
-export default function PdfCanvasPreview({ file, fallbackPageCount, sim }: { file: File; fallbackPageCount: number; sim?: PreviewSim }) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+export default function PdfCanvasPreview({
+  file,
+  fallbackPageCount,
+  sim,
+}: {
+  file: File;
+  fallbackPageCount: number;
+  sim?: PreviewSim;
+}) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const renderTaskRef = useRef<{ cancel: () => void } | null>(null);
-  const pdfRef = useRef<{ destroy: () => Promise<void> | void; numPages: number; getPage: (page: number) => Promise<any> } | null>(null);
-  const [pageNumber, setPageNumber] = useState(1);
-  const [pageInput, setPageInput] = useState("");
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const pdfRef = useRef<{
+    destroy: () => Promise<void> | void;
+    numPages: number;
+    getPage: (page: number) => Promise<any>;
+  } | null>(null);
+
   const [pageCount, setPageCount] = useState(fallbackPageCount);
   const [pdfVersion, setPdfVersion] = useState(0);
-  const [fitMode, setFitMode] = useState<"page" | "width">("width");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [scrollRenderedCount, setScrollRenderedCount] = useState(0);
+  const [activeSheet, setActiveSheet] = useState(1);
+  const [fitMode, setFitMode] = useState<"width" | "page">("width");
 
   useEffect(() => {
     let disposed = false;
@@ -40,10 +58,7 @@ export default function PdfCanvasPreview({ file, fallbackPageCount, sim }: { fil
     async function loadPdf() {
       setLoading(true);
       setError("");
-      setPageNumber(1);
-      setPageInput("");
       try {
-        renderTaskRef.current?.cancel();
         await pdfRef.current?.destroy?.();
         const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
         const data = await file.arrayBuffer();
@@ -73,14 +88,15 @@ export default function PdfCanvasPreview({ file, fallbackPageCount, sim }: { fil
 
     return () => {
       disposed = true;
-      renderTaskRef.current?.cancel();
       pdfRef.current?.destroy?.();
-      renderTaskRef.current = null;
       pdfRef.current = null;
     };
   }, [file]);
 
-  const [containerSize, setContainerSize] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
+  const [containerSize, setContainerSize] = useState<{ width: number; height: number }>({
+    width: 0,
+    height: 0,
+  });
 
   // Listen to container resizing (mount, layout changes, device rotation, scrollbar toggles)
   useEffect(() => {
@@ -130,18 +146,50 @@ export default function PdfCanvasPreview({ file, fallbackPageCount, sim }: { fil
   }, [pagesKey, pageCount]);
   const sheetCount = Math.max(1, Math.ceil(pageList.length / pps));
 
+  // Intersection observer to track current visible sheet
   useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container || sheetCount <= 1) return;
+
+    const cards = container.querySelectorAll(".pdfjs-scroll-sheet-card");
+    if (!cards.length) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            const idx = parseInt(entry.target.getAttribute("data-sheet-idx") || "1", 10);
+            if (Number.isFinite(idx)) {
+              setActiveSheet(idx);
+            }
+          }
+        }
+      },
+      {
+        root: containerRef.current,
+        threshold: 0.4,
+      }
+    );
+
+    cards.forEach((c) => observer.observe(c));
+    return () => observer.disconnect();
+  }, [scrollRenderedCount, sheetCount]);
+
+  // Render Continuous Scroll View (Default & Only Mode)
+  useEffect(() => {
+    if (!pdfRef.current) return;
     let disposed = false;
 
-    async function renderSheet() {
-      if (!pdfRef.current || !canvasRef.current) return;
+    async function renderAllSheets() {
+      const pdf = pdfRef.current;
+      const container = scrollContainerRef.current;
+      if (!container || !pdf) return;
+      container.innerHTML = "";
       setLoading(true);
-      try {
-        renderTaskRef.current?.cancel();
-        const canvas = canvasRef.current;
-        const context = canvas.getContext("2d");
-        if (!context) return;
+      setScrollRenderedCount(0);
+      setActiveSheet(1);
 
+      try {
         const wrap = containerRef.current;
         let availableW = containerSize.width;
         let availableH = containerSize.height;
@@ -160,108 +208,131 @@ export default function PdfCanvasPreview({ file, fallbackPageCount, sim }: { fil
         const containerWidth = Math.max(availableW || 300, 100);
         const containerHeight = Math.max(availableH || 400, 200);
 
-        // Sheet aspect from paper size + orientation. Without sim, fall back
-        // to the first page's own aspect (plain document view).
         let [mmW, mmH] = PAPER_MM[sim?.paperSize ?? "A4"] ?? PAPER_MM.A4;
         if (sim?.layout === "landscape") [mmW, mmH] = [mmH, mmW];
 
         let sheetW = containerWidth;
         let sheetH = (sheetW * mmH) / mmW;
+
         if (fitMode === "page" && sheetH > containerHeight) {
           sheetH = containerHeight;
           sheetW = (sheetH * mmW) / mmH;
         }
 
-        const pixelRatio = window.devicePixelRatio || 1;
-        canvas.width = Math.floor(sheetW * pixelRatio);
-        canvas.height = Math.floor(sheetH * pixelRatio);
-        canvas.style.width = `${Math.floor(sheetW)}px`;
-        canvas.style.maxWidth = "100%";
-        canvas.style.height = `${Math.floor(sheetH)}px`;
-        context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
-
-        // White sheet of paper.
-        context.fillStyle = "#ffffff";
-        context.fillRect(0, 0, sheetW, sheetH);
+        const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
 
         const marginPx = sheetW * (MARGIN_FRACTION[sim?.margins ?? "default"] ?? 0.05);
-        const areaX = marginPx, areaY = marginPx;
-        const areaW = sheetW - 2 * marginPx, areaH = sheetH - 2 * marginPx;
+        const areaX = marginPx,
+          areaY = marginPx;
+        const areaW = sheetW - 2 * marginPx,
+          areaH = sheetH - 2 * marginPx;
 
         const cols = Math.ceil(Math.sqrt(pps));
         const rows = Math.ceil(pps / cols);
-        const cellW = areaW / cols, cellH = areaH / rows;
+        const cellW = areaW / cols,
+          cellH = areaH / rows;
 
-        const firstIdx = (pageNumber - 1) * pps;
-        for (let n = 0; n < pps; n++) {
-          const pageIdx = pageList[firstIdx + n];
-          if (!pageIdx) break;
-          const page = await pdfRef.current.getPage(pageIdx);
+        for (let s = 1; s <= sheetCount; s++) {
           if (disposed) return;
 
-          const vp1 = page.getViewport({ scale: 1 });
-          const fit = Math.min(cellW / vp1.width, cellH / vp1.height);
-          const vp = page.getViewport({ scale: Math.max(0.1, fit) * pixelRatio });
+          const card = document.createElement("div");
+          card.className = "pdfjs-scroll-sheet-card";
+          card.setAttribute("data-sheet-idx", String(s));
 
-          const off = document.createElement("canvas");
-          off.width = Math.max(1, Math.floor(vp.width));
-          off.height = Math.max(1, Math.floor(vp.height));
-          const offCtx = off.getContext("2d");
-          if (!offCtx) continue;
-          const renderTask = page.render({ canvasContext: offCtx, viewport: vp });
-          renderTaskRef.current = renderTask;
-          await renderTask.promise;
-          if (disposed) return;
+          const badge = document.createElement("div");
+          badge.className = "pdfjs-scroll-sheet-badge";
+          badge.textContent = pps > 1 ? `Sheet ${s} / ${sheetCount}` : `Page ${s} / ${sheetCount}`;
+          card.appendChild(badge);
 
-          const drawW = vp.width / pixelRatio, drawH = vp.height / pixelRatio;
-          const col = n % cols, row = Math.floor(n / cols);
-          const x = areaX + col * cellW + (cellW - drawW) / 2;
-          const y = areaY + row * cellH + (cellH - drawH) / 2;
-          context.drawImage(off, x, y, drawW, drawH);
-          // Faint page outline so multiple pages per sheet read clearly.
-          if (pps > 1) {
-            context.strokeStyle = "rgba(0,0,0,0.12)";
-            context.strokeRect(x, y, drawW, drawH);
+          const canvas = document.createElement("canvas");
+          canvas.width = Math.floor(sheetW * pixelRatio);
+          canvas.height = Math.floor(sheetH * pixelRatio);
+          canvas.style.width = `${Math.floor(sheetW)}px`;
+          canvas.style.maxWidth = "100%";
+          canvas.style.height = `${Math.floor(sheetH)}px`;
+          canvas.className = "pdfjs-canvas";
+          card.appendChild(canvas);
+
+          container.appendChild(card);
+
+          const ctx = canvas.getContext("2d");
+          if (!ctx) continue;
+
+          ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+          ctx.fillStyle = "#ffffff";
+          ctx.fillRect(0, 0, sheetW, sheetH);
+
+          const firstIdx = (s - 1) * pps;
+          for (let n = 0; n < pps; n++) {
+            const pageIdx = pageList[firstIdx + n];
+            if (!pageIdx) break;
+            const page = await pdf.getPage(pageIdx);
+            if (disposed) return;
+
+            const vp1 = page.getViewport({ scale: 1 });
+            const fit = Math.min(cellW / vp1.width, cellH / vp1.height);
+            const vp = page.getViewport({ scale: Math.max(0.1, fit) * pixelRatio });
+
+            const off = document.createElement("canvas");
+            off.width = Math.max(1, Math.floor(vp.width));
+            off.height = Math.max(1, Math.floor(vp.height));
+            const offCtx = off.getContext("2d");
+            if (!offCtx) continue;
+
+            const renderTask = page.render({ canvasContext: offCtx, viewport: vp });
+            await renderTask.promise;
+            if (disposed) return;
+
+            const drawW = vp.width / pixelRatio,
+              drawH = vp.height / pixelRatio;
+            const col = n % cols,
+              row = Math.floor(n / cols);
+            const x = areaX + col * cellW + (cellW - drawW) / 2;
+            const y = areaY + row * cellH + (cellH - drawH) / 2;
+            ctx.drawImage(off, x, y, drawW, drawH);
+            if (pps > 1) {
+              ctx.strokeStyle = "rgba(0,0,0,0.12)";
+              ctx.strokeRect(x, y, drawW, drawH);
+            }
+          }
+
+          if (!disposed) {
+            setScrollRenderedCount(s);
           }
         }
       } catch (err) {
         if (!disposed && !(err instanceof Error && err.name === "RenderingCancelledException")) {
-          setError("Unable to render this PDF page.");
+          setError("Unable to render scroll view.");
         }
       } finally {
         if (!disposed) setLoading(false);
       }
     }
 
-    renderSheet();
+    renderAllSheets();
 
     return () => {
       disposed = true;
-      renderTaskRef.current?.cancel();
     };
-  }, [pageNumber, pdfVersion, fitMode, pps, sim?.layout, sim?.paperSize, sim?.margins, pageCount, pageList, containerSize.width, containerSize.height]);
-
-  // Keep the sheet cursor valid when pages-per-sheet (and thus sheet count) changes.
-  useEffect(() => {
-    if (pageNumber > sheetCount) setPageNumber(sheetCount);
-  }, [sheetCount, pageNumber]);
-
-  function handlePageJump() {
-    const num = parseInt(pageInput, 10);
-    if (Number.isFinite(num) && num >= 1 && num <= sheetCount) {
-      setPageNumber(num);
-      setPageInput("");
-    }
-  }
-
-  function handlePageInputKey(e: React.KeyboardEvent) {
-    if (e.key === "Enter") handlePageJump();
-  }
+  }, [
+    pdfVersion,
+    fitMode,
+    pps,
+    sim?.layout,
+    sim?.paperSize,
+    sim?.margins,
+    sheetCount,
+    pageList,
+    containerSize.width,
+    containerSize.height,
+  ]);
 
   if (error) {
     return (
       <div className="pdf-preview-fallback">
-        <div className="fallback-icon"><FileText size={28} aria-hidden="true" /></div>
+        <div className="fallback-icon">
+          <FileText size={28} aria-hidden="true" />
+        </div>
         <p>{error}</p>
         <span className="file-info">{file.name}</span>
         <span className="mobile-hint">The file will still be uploaded for printing.</span>
@@ -271,54 +342,39 @@ export default function PdfCanvasPreview({ file, fallbackPageCount, sim }: { fil
 
   return (
     <div className="pdfjs-preview">
+      {/* Clean Toolbar with 1/10 Page Numbering and 2-in-1 Animated Fit Toggle */}
       <div className="pdfjs-toolbar">
-        <div className="pdfjs-pagination">
-          <button type="button" onClick={() => setPageNumber((page) => Math.max(1, page - 1))} disabled={pageNumber <= 1} aria-label="Previous PDF page" className="pdfjs-nav-btn">
-            <ArrowLeft size={18} />
-          </button>
-          <div className="pdfjs-page-jump">
-            <span className="pdfjs-page-label">{pps > 1 ? "Sheet" : "Page"}</span>
-            <input
-              type="number"
-              min="1"
-              max={sheetCount}
-              value={pageInput}
-              onChange={(e) => setPageInput(e.target.value.replace(/[^0-9]/g, ""))}
-              onKeyDown={handlePageInputKey}
-              onBlur={handlePageJump}
-              placeholder={String(pageNumber)}
-              aria-label={pps > 1 ? "Jump to sheet" : "Jump to page"}
-              className="pdfjs-page-input"
-            />
-            <span className="pdfjs-page-of">of</span>
-            <span className="pdfjs-page-total">{sheetCount}</span>
-          </div>
-          <button type="button" onClick={() => setPageNumber((page) => Math.min(sheetCount, page + 1))} disabled={pageNumber >= sheetCount} aria-label="Next PDF page" className="pdfjs-nav-btn">
-            <ArrowRight size={18} />
-          </button>
+        {/* Page Numbering: 1 / 10 */}
+        <div className="pdfjs-page-counter-badge" aria-label="Page counter">
+          <FileText size={14} className="pdfjs-page-counter-icon" aria-hidden="true" />
+          <span className="pdfjs-page-counter-text">
+            {pps > 1 ? "Sheet" : "Page"}
+          </span>
+          <span className="pdfjs-page-counter-numbers">
+            <strong className="pdfjs-page-counter-active">{activeSheet}</strong>
+            <span className="pdfjs-page-counter-sep">/</span>
+            <span className="pdfjs-page-counter-total">{sheetCount}</span>
+          </span>
         </div>
 
-        <div className="pdfjs-zoom-controls">
-          <button
-            type="button"
-            className={`pdfjs-fit-btn ${fitMode === "width" ? "active" : ""}`}
-            onClick={() => setFitMode("width")}
-            aria-label="Fit to width"
-            title="Fit to width"
-          >
-            <Maximize2 size={16} />
-          </button>
-          <button
-            type="button"
-            className={`pdfjs-fit-btn ${fitMode === "page" ? "active" : ""}`}
-            onClick={() => setFitMode("page")}
-            aria-label="Fit to page"
-            title="Fit to page"
-          >
-            <Minimize2 size={16} />
-          </button>
-        </div>
+        {/* 2-in-1 Animated Fit Toggle Button */}
+        <button
+          type="button"
+          className={`pdfjs-fit-toggle-btn ${fitMode === "page" ? "is-fit-page" : "is-fit-width"}`}
+          onClick={() => setFitMode((m) => (m === "width" ? "page" : "width"))}
+          title={fitMode === "width" ? "Switch to Fit Page" : "Switch to Fit Width"}
+          aria-label={fitMode === "width" ? "Switch to Fit Page" : "Switch to Fit Width"}
+        >
+          <span className="pdfjs-fit-icon-wrap" aria-hidden="true">
+            <Maximize2 className="pdfjs-fit-icon fit-width-icon" size={15} />
+            <Minimize2 className="pdfjs-fit-icon fit-page-icon" size={15} />
+          </span>
+          <span className="pdfjs-fit-label">
+            {fitMode === "width" ? "Fit Width" : "Fit Page"}
+          </span>
+        </button>
       </div>
+
       <div className="pdfjs-canvas-wrap" ref={containerRef}>
         {loading ? (
           <div className="pdfjs-loading">
@@ -326,7 +382,8 @@ export default function PdfCanvasPreview({ file, fallbackPageCount, sim }: { fil
             Rendering preview...
           </div>
         ) : null}
-        <canvas ref={canvasRef} className="pdfjs-canvas" />
+
+        <div ref={scrollContainerRef} className="pdfjs-scroll-container" />
       </div>
     </div>
   );
