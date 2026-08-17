@@ -15,8 +15,6 @@ import {
   RotateCcw,
   ChevronLeft,
   ChevronRight,
-  Maximize2,
-  Minimize2,
 } from "lucide-react";
 
 export type ViewableFile = {
@@ -174,8 +172,6 @@ function FileViewer({
   const [loading, setLoading] = useState(isPdf);
   const [error, setError] = useState(false);
   const [retryKey, setRetryKey] = useState(0);
-
-  const [fitMode, setFitMode] = useState<"width" | "page">("width");
   const [activePage, setActivePage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
@@ -235,24 +231,6 @@ function FileViewer({
               <span className="file-viewer-page-sep">/</span>
               <span>{totalPages}</span>
             </div>
-          )}
-
-          {isPdf && pdfFile && (
-            <button
-              type="button"
-              className={`pdfjs-fit-toggle-btn ${fitMode === "page" ? "is-fit-page" : "is-fit-width"}`}
-              onClick={() => setFitMode((m) => (m === "width" ? "page" : "width"))}
-              title={fitMode === "width" ? "Switch to Fit Page" : "Switch to Fit Width"}
-              aria-label={fitMode === "width" ? "Switch to Fit Page" : "Switch to Fit Width"}
-            >
-              <span className="pdfjs-fit-icon-wrap" aria-hidden="true">
-                <Maximize2 className="pdfjs-fit-icon fit-width-icon" size={15} />
-                <Minimize2 className="pdfjs-fit-icon fit-page-icon" size={15} />
-              </span>
-              <span className="pdfjs-fit-label file-viewer-btn-text">
-                {fitMode === "width" ? "Fit Width" : "Fit Page"}
-              </span>
-            </button>
           )}
 
           <a
