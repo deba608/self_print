@@ -317,12 +317,10 @@ function FileViewer({
 // Continuous vertical scroll viewer for PDF with dynamic page tracking
 function PdfScrollViewer({
   file,
-  fitMode,
   onActivePageChange,
   onTotalPagesChange,
 }: {
   file: File;
-  fitMode: "width" | "page";
   onActivePageChange: (p: number) => void;
   onTotalPagesChange: (t: number) => void;
 }) {
@@ -376,7 +374,6 @@ function PdfScrollViewer({
     onActivePageChange(1);
 
     const parentW = stage.clientWidth || 600;
-    const parentH = stage.clientHeight || 700;
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
 
     // Phase 1: build sized placeholder cards for every page (metadata only,
@@ -392,12 +389,7 @@ function PdfScrollViewer({
         const unscaled = page.getViewport({ scale: 1 });
 
         // page.getViewport already applies the page's intrinsic rotation
-        let width = Math.max(Math.min(parentW - 32, 860), 220);
-        if (fitMode === "page") {
-          const maxH = Math.max(parentH - 48, 160);
-          const aspect = unscaled.width / unscaled.height;
-          width = Math.max(Math.min(parentW - 48, maxH * aspect), 220);
-        }
+        const width = Math.max(Math.min(parentW - 32, 860), 220);
 
         const scale = (width / unscaled.width) * dpr;
         const vp = page.getViewport({ scale });
@@ -583,7 +575,7 @@ function PdfScrollViewer({
       abort.tasks.forEach((t) => t.cancel());
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loadingDoc, docError, fitMode]);
+  }, [loadingDoc, docError]);
 
 
 
