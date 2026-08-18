@@ -13,5 +13,6 @@
 @import "./styles/track-and-timeline.css";
 @import "./styles/admin-delivery.css";
 @import "./styles/workspace-and-account.css";
+@import "./styles/pdf-viewer.css";
 /* delivery.css is imported by src/app/delivery/layout.tsx — its classes are
    used only by the rider dashboard, so other surfaces don't download it. */
