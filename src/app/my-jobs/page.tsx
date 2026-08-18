@@ -337,6 +337,7 @@ async function JobsList({ filter, limit }: { filter: Filter; limit: number }) {
                       disabledReason={
                         isPurged ? "File retention period (3 days) expired" : "No files attached"
                       }
+                      simplePdfControls
                       variant="primary"
                     />
                     <Link

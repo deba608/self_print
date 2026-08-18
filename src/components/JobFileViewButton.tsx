@@ -25,6 +25,9 @@ interface JobFileViewButtonProps {
   disabledReason?: string;
   variant?: "primary" | "secondary" | "chip";
   className?: string;
+  /** Hides the PDF zoom toolbar cluster for a simpler customer-facing viewer
+   *  (my-jobs). Admin keeps full zoom controls. */
+  simplePdfControls?: boolean;
 }
 
 export default function JobFileViewButton({
@@ -34,6 +37,7 @@ export default function JobFileViewButton({
   disabledReason,
   variant = "chip",
   className = "",
+  simplePdfControls = false,
 }: JobFileViewButtonProps) {
   const [open, setOpen] = useState(false);
   const [activeIdx, setActiveIdx] = useState(0);
@@ -136,6 +140,7 @@ export default function JobFileViewButton({
                 fileIndex={activeIdx + 1}
                 totalFiles={files.length}
                 onClose={() => setOpen(false)}
+                simplePdfControls={simplePdfControls}
               />
             </div>
           </div>,
@@ -152,6 +157,7 @@ function FileViewer({
   fileIndex,
   totalFiles,
   onClose,
+  simplePdfControls,
 }: {
   fileId: string;
   fileName: string;
@@ -159,6 +165,7 @@ function FileViewer({
   fileIndex: number;
   totalFiles: number;
   onClose: () => void;
+  simplePdfControls: boolean;
 }) {
   const src = `/api/user/files/${fileId}`;
   const isImage = (mimeType ?? "").startsWith("image/");
@@ -218,7 +225,7 @@ function FileViewer({
         </div>
       ) : isPdf ? (
         <div className="file-viewer-body file-viewer-pdf-stage">
-          <PdfViewer fileUrl={src} fileName={fileName} />
+          <PdfViewer fileUrl={src} fileName={fileName} hideZoomControls={simplePdfControls} />
         </div>
       ) : (
         // Non-PDF documents before conversion

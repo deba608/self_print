@@ -51,6 +51,10 @@ export interface PdfViewerProps {
   /** Renders a close button in the toolbar when provided. Omit for embedded (non-modal) use. */
   onClose?: () => void;
   className?: string;
+  /** Hides the zoom in/reset/out toolbar cluster for a simpler customer-facing
+   *  toolbar. Pinch-to-zoom and the +/-/0 keyboard shortcuts still work — this
+   *  only declutters the buttons, it doesn't disable zooming. */
+  hideZoomControls?: boolean;
 }
 
 type Status = "loading" | "ready" | "error";
@@ -59,7 +63,7 @@ function normalizeRotation(rotate: number | undefined): number {
   return (((rotate ?? 0) % 360) + 360) % 360;
 }
 
-export default function PdfViewer({ fileUrl, fileName = "document.pdf", onClose, className = "" }: PdfViewerProps) {
+export default function PdfViewer({ fileUrl, fileName = "document.pdf", onClose, className = "", hideZoomControls = false }: PdfViewerProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const docRef = useRef<PdfJsDoc | null>(null);
@@ -165,12 +169,20 @@ export default function PdfViewer({ fileUrl, fileName = "document.pdf", onClose,
     return () => ro.disconnect();
   }, []);
 
-  // -- Sidebar defaults open on desktop, closed on mobile/tablet --
+  // -- Sidebar defaults open on desktop, closed on mobile/tablet. Below the
+  // breakpoint it renders as a full-height overlay (see .pdfv-sidebar CSS),
+  // so isNarrow also drives auto-closing it after a tap there instead of
+  // leaving it covering the page. --
+  const [isNarrow, setIsNarrow] = useState(false);
   useEffect(() => {
     if (typeof window === "undefined") return;
     const mq = window.matchMedia(`(min-width: ${SIDEBAR_BREAKPOINT}px)`);
     setSidebarOpen(mq.matches);
-    const onChange = (e: MediaQueryListEvent) => setSidebarOpen(e.matches);
+    setIsNarrow(!mq.matches);
+    const onChange = (e: MediaQueryListEvent) => {
+      setSidebarOpen(e.matches);
+      setIsNarrow(!e.matches);
+    };
     mq.addEventListener("change", onChange);
     return () => mq.removeEventListener("change", onChange);
   }, []);
@@ -549,37 +561,39 @@ export default function PdfViewer({ fileUrl, fileName = "document.pdf", onClose,
         </div>
 
         <div className="pdfv-toolbar-group pdfv-toolbar-right">
-          <div className="pdfv-zoom-group">
-            <button
-              type="button"
-              className="pdfv-icon-btn"
-              onClick={zoomOut}
-              disabled={status !== "ready" || zoom <= MIN_ZOOM}
-              aria-label="Zoom out"
-              title="Zoom out (-)"
-            >
-              <ZoomOut size={17} />
-            </button>
-            <button
-              type="button"
-              className="pdfv-zoom-pct"
-              onClick={resetZoom}
-              disabled={status !== "ready"}
-              title="Reset to fit width (0)"
-            >
-              {Math.round(zoom * 100)}%
-            </button>
-            <button
-              type="button"
-              className="pdfv-icon-btn"
-              onClick={zoomIn}
-              disabled={status !== "ready" || zoom >= MAX_ZOOM}
-              aria-label="Zoom in"
-              title="Zoom in (+)"
-            >
-              <ZoomIn size={17} />
-            </button>
-          </div>
+          {!hideZoomControls && (
+            <div className="pdfv-zoom-group">
+              <button
+                type="button"
+                className="pdfv-icon-btn"
+                onClick={zoomOut}
+                disabled={status !== "ready" || zoom <= MIN_ZOOM}
+                aria-label="Zoom out"
+                title="Zoom out (-)"
+              >
+                <ZoomOut size={17} />
+              </button>
+              <button
+                type="button"
+                className="pdfv-zoom-pct"
+                onClick={resetZoom}
+                disabled={status !== "ready"}
+                title="Reset to fit width (0)"
+              >
+                {Math.round(zoom * 100)}%
+              </button>
+              <button
+                type="button"
+                className="pdfv-icon-btn"
+                onClick={zoomIn}
+                disabled={status !== "ready" || zoom >= MAX_ZOOM}
+                aria-label="Zoom in"
+                title="Zoom in (+)"
+              >
+                <ZoomIn size={17} />
+              </button>
+            </div>
+          )}
 
           <button
             type="button"
@@ -682,13 +696,23 @@ export default function PdfViewer({ fileUrl, fileName = "document.pdf", onClose,
       {/* -- Body: sidebar + page stage -- */}
       <div className="pdfv-body">
         {sidebarOpen && status === "ready" && docRef.current && (
-          <PdfThumbSidebar
-            doc={docRef.current}
-            numPages={numPages}
-            currentPage={currentPage}
-            aspect={pageOneMeta?.aspect ?? 1.414}
-            onSelect={goToPage}
-          />
+          <>
+            {/* Mobile only (CSS-gated): dims the page and gives an obvious tap
+                target to dismiss the sidebar, since it covers the whole stage
+                as an overlay rather than pushing content aside there. */}
+            <div className="pdfv-sidebar-backdrop" onClick={() => setSidebarOpen(false)} aria-hidden="true" />
+            <PdfThumbSidebar
+              doc={docRef.current}
+              numPages={numPages}
+              currentPage={currentPage}
+              aspect={pageOneMeta?.aspect ?? 1.414}
+              onSelect={(p) => {
+                goToPage(p);
+                if (isNarrow) setSidebarOpen(false);
+              }}
+              onClose={() => setSidebarOpen(false)}
+            />
+          </>
         )}
 
         <div className="pdfv-stage" ref={stageRef} onScroll={onStageScroll}>
@@ -824,12 +848,14 @@ function PdfThumbSidebar({
   currentPage,
   aspect,
   onSelect,
+  onClose,
 }: {
   doc: PdfJsDoc;
   numPages: number;
   currentPage: number;
   aspect: number;
   onSelect: (page: number) => void;
+  onClose: () => void;
 }) {
   const listRef = useRef<HTMLDivElement>(null);
   const activeRef = useRef<HTMLButtonElement>(null);
@@ -844,6 +870,13 @@ function PdfThumbSidebar({
 
   return (
     <div className="pdfv-sidebar" ref={listRef}>
+      {/* CSS-gated to mobile only — desktop dismisses via the toolbar toggle. */}
+      <div className="pdfv-sidebar-head">
+        <span>Pages</span>
+        <button type="button" className="pdfv-icon-btn" onClick={onClose} aria-label="Close page list">
+          <X size={16} />
+        </button>
+      </div>
       {pages.map((p) => (
         <PdfThumb
           key={p}

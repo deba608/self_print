@@ -199,6 +199,7 @@
   min-height: 0;
   display: flex;
   overflow: hidden;
+  position: relative; /* scopes the mobile sidebar + its backdrop to this area, not the toolbar above */
 }
 
 .pdfv-sidebar {
@@ -212,6 +213,21 @@
   flex-direction: column;
   align-items: center;
   gap: 10px;
+}
+
+.pdfv-sidebar-head {
+  display: none; /* shown only on mobile — see the 900px breakpoint below */
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 2px 4px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.pdfv-sidebar-backdrop {
+  display: none;
 }
 
 .pdfv-thumb {
@@ -394,15 +410,38 @@
   margin-top: 6px;
 }
 
-/* -- Responsive: tablet and below collapse the sidebar + hide desktop-only controls -- */
+/* -- Responsive: tablet and below turn the sidebar into a slide-in drawer
+   with a dismiss backdrop, instead of a permanent column -- */
 @media (max-width: 900px) {
   .pdfv-sidebar {
     position: absolute;
     inset: 0 auto 0 0;
-    z-index: 5;
-    width: 112px;
+    z-index: 6;
+    width: 168px;
     box-shadow: 4px 0 16px rgba(0, 0, 0, 0.15);
+    animation: pdfv-sidebar-in 0.18s var(--ease-out, ease-out);
   }
+  .pdfv-sidebar-head {
+    display: flex;
+  }
+  .pdfv-sidebar-backdrop {
+    display: block;
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    background: rgba(15, 23, 42, 0.4);
+    animation: pdfv-fade-in 0.18s ease-out;
+  }
+}
+
+@keyframes pdfv-sidebar-in {
+  from { transform: translateX(-8px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes pdfv-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 @media (max-width: 640px) {
