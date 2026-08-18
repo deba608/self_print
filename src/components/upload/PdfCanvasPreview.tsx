@@ -387,7 +387,12 @@ export default function PdfCanvasPreview({
   // renderSheets). Drives both lazy-render scheduling and active-sheet tracking. --
   const setupObserver = useCallback((schedule: (s: number, priority?: boolean) => void) => {
     const list = canvasListRef.current;
-    const scroller = scrollRef.current;
+    // .pdfjs-canvas-wrap (outerRef) is the element with overflow-y:auto — the
+    // actual scroll box. .pdfjs-scroll-container (scrollRef) is just a flex
+    // wrapper with no overflow of its own, so using it as the observer root
+    // measured intersection against the wrong box and made active-sheet
+    // tracking unreliable.
+    const scroller = outerRef.current;
     if (!list || !scroller) return;
 
     const cards = list.querySelectorAll(".pdfjs-scroll-sheet-card");
@@ -435,10 +440,17 @@ export default function PdfCanvasPreview({
     // made prev/next feel laggy/unresponsive on fast clicks.
     pendingTargetRef.current = clamped;
     setActiveSheet(clamped);
+    const scroller = outerRef.current; // .pdfjs-canvas-wrap — the actual overflow:auto box
     const card = canvasListRef.current?.querySelector<HTMLElement>(
       `.pdfjs-scroll-sheet-card[data-sheet-idx="${clamped}"]`
     );
-    card?.scrollIntoView({ block: "start", behavior: "smooth" });
+    if (scroller && card) {
+      // Scroll the internal box directly instead of card.scrollIntoView(),
+      // which walks up and scrolls every ancestor including the page itself
+      // — that's what was dragging the whole page down and displacing the
+      // toolbar out from under the user's cursor on every click.
+      scroller.scrollTo({ top: card.offsetTop - 14, behavior: "smooth" });
+    }
     window.setTimeout(() => {
       if (pendingTargetRef.current === clamped) pendingTargetRef.current = null;
     }, 700);
