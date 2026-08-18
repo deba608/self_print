@@ -43,6 +43,11 @@ export default function PdfCanvasPreview({
   const outerRef = useRef<HTMLDivElement>(null);      // outer layout wrapper (for ResizeObserver)
   const scrollRef = useRef<HTMLDivElement>(null);      // the scrollable stage
   const canvasListRef = useRef<HTMLDivElement>(null);  // imperative canvas list
+  // Sheet the user just clicked/jumped to. While set, the IntersectionObserver
+  // won't overwrite activeSheet — during a smooth scroll, intermediate cards
+  // briefly have the highest intersection ratio and were flipping the page
+  // counter back and forth before landing, making prev/next feel broken.
+  const pendingTargetRef = useRef<number | null>(null);
 
   const pdfRef = useRef<PdfJsDoc | null>(null);
   const renderAbortRef = useRef<{ cancelled: boolean; tasks: Set<{ cancel: () => void }> }>({
@@ -397,7 +402,7 @@ export default function PdfCanvasPreview({
           if (entry.isIntersecting) schedule(idx, true);
           if (entry.intersectionRatio > best.ratio) best = { idx, ratio: entry.intersectionRatio };
         }
-        if (best.ratio > 0) setActiveSheet(best.idx);
+        if (best.ratio > 0 && pendingTargetRef.current === null) setActiveSheet(best.idx);
       },
       {
         root: scroller,     // ← must be the scrollable container
@@ -425,10 +430,18 @@ export default function PdfCanvasPreview({
   // -- Scroll the scrollable stage so a given sheet is at the top of the view --
   const goToSheet = useCallback((target: number) => {
     const clamped = Math.max(1, Math.min(target, totalSheets));
+    // Update the counter and disabled state immediately rather than waiting
+    // for the scroll to settle and the observer to report back — that's what
+    // made prev/next feel laggy/unresponsive on fast clicks.
+    pendingTargetRef.current = clamped;
+    setActiveSheet(clamped);
     const card = canvasListRef.current?.querySelector<HTMLElement>(
       `.pdfjs-scroll-sheet-card[data-sheet-idx="${clamped}"]`
     );
     card?.scrollIntoView({ block: "start", behavior: "smooth" });
+    window.setTimeout(() => {
+      if (pendingTargetRef.current === clamped) pendingTargetRef.current = null;
+    }, 700);
   }, [totalSheets]);
 
   // Commit a typed page/sheet number from the jump input.
