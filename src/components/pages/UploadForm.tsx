@@ -50,12 +50,14 @@ function BulkFileCustomizePanel({
       <div className="bulk-customize-row">
         <label>Sides</label>
         <select
-          value={override?.duplex ?? jobDefaults.duplex}
-          onChange={(e) => onChange({ duplex: e.target.value as "simplex" | "long-edge" | "short-edge" })}
+          // Same 2-choice model as the job-level Sides control (page-mode-grid
+          // above) — "Double-sided" always means long-edge. Short-edge was a
+          // 3rd option nobody asked for and never existed at job level either.
+          value={(override?.duplex ?? jobDefaults.duplex) === "simplex" ? "simplex" : "double"}
+          onChange={(e) => onChange({ duplex: e.target.value === "double" ? "long-edge" : "simplex" })}
         >
           <option value="simplex">Single-sided</option>
-          <option value="long-edge">Double-sided (long edge)</option>
-          <option value="short-edge">Double-sided (short edge)</option>
+          <option value="double">Double-sided</option>
         </select>
       </div>
       <div className="bulk-customize-row">
