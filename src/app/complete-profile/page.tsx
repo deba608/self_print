@@ -12,13 +12,13 @@ export default async function CompleteProfilePage() {
 
   const { data: profile } = await supabase
     .from("customer_profiles")
-    .select("phone")
+    .select("phone, display_name")
     .eq("id", user.id)
     .maybeSingle();
 
-  if (profile?.phone) {
+  if (profile?.phone && profile?.display_name) {
     redirect("/my-jobs");
   }
 
-  return <CompleteProfileForm />;
+  return <CompleteProfileForm needsName={!profile?.display_name} />;
 }

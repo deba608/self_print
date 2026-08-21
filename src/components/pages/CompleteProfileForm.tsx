@@ -2,17 +2,22 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Phone } from "lucide-react";
+import { Phone, User } from "lucide-react";
 import { AuthShell, AuthInput, AuthError, AuthSubmit } from "@/components/ui/Auth";
 
-export default function CompleteProfileForm() {
+export default function CompleteProfileForm({ needsName = false }: { needsName?: boolean }) {
   const router = useRouter();
+  const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (needsName && !name.trim()) {
+      setError("Name is required");
+      return;
+    }
     if (!phone.trim()) {
       setError("Phone number is required");
       return;
@@ -24,7 +29,7 @@ export default function CompleteProfileForm() {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone }),
+        body: JSON.stringify({ phone, name: needsName ? name.trim() : undefined }),
       });
       if (!response.ok) {
         const body = await response.json().catch(() => ({}));
@@ -42,6 +47,19 @@ export default function CompleteProfileForm() {
   return (
     <AuthShell title="One Last Step" subtitle="Enter your WhatsApp number to receive order updates and delivery tracking">
       <form className="login-form" onSubmit={handleSubmit}>
+        {needsName && (
+          <AuthInput
+            id="name"
+            label="Your Name"
+            icon={User}
+            value={name}
+            onChange={setName}
+            placeholder="Full name"
+            autoComplete="name"
+            disabled={loading}
+            required
+          />
+        )}
         <AuthInput
           id="phone"
           label="WhatsApp Number"
