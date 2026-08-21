@@ -307,16 +307,10 @@ async function JobsList({ filter, limit }: { filter: Filter; limit: number }) {
                 </div>
 
                 <div className="jobs-card-footer">
-                  <div className="jobs-card-badges">
+                  <div className="jobs-status-row">
                     <Badge variant={status.variant} icon={status.icon}>
                       {status.label}
                     </Badge>
-                    <JobActions
-                      token={job.token}
-                      pricePaise={Number(job.price_paise)}
-                      paidAt={job.paid_at}
-                      status={job.status}
-                    />
                     {isDelivery &&
                       (job.delivery_status === "delivered" ? (
                         <Badge variant="success" icon={PackageCheck}>
@@ -331,6 +325,12 @@ async function JobsList({ filter, limit }: { filter: Filter; limit: number }) {
                           Delivery
                         </Badge>
                       ))}
+                    <JobActions
+                      token={job.token}
+                      pricePaise={Number(job.price_paise)}
+                      paidAt={job.paid_at}
+                      status={job.status}
+                    />
                   </div>
 
                   <div className="jobs-card-actions">
