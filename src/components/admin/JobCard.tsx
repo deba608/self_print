@@ -99,6 +99,7 @@ function JobCard({
           <div className="job-title">
             <span className="queue-num">#{job.queuePosition}</span>
             <span className="job-token">Token {job.token}</span>
+            {job.customerName && <span className="job-customer-name">{job.customerName}</span>}
           </div>
         </div>
 
