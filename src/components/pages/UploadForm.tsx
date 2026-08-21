@@ -1964,6 +1964,10 @@ export default function UploadForm() {
             </button>
           )}
 
+          {/* Per-file names/thumbnails/customize — visible from this step
+              (right after upload) instead of only on the final Preview step. */}
+          {isBulk && bulkFileListNode}
+
           {/* Add more PDFs to this job (converts a single PDF into a batch).
               Hidden for images/docs — bulk is PDF-only. */}
           {(isBulk || file?.type === "application/pdf") && (
