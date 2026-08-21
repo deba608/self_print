@@ -35,40 +35,76 @@ function BulkFileCustomizePanel({
   onChange: (patch: Partial<FileSettingsOverride>) => void;
   onReset: () => void;
 }) {
+  const printType = override?.printType ?? jobDefaults.printType;
+  const isDouble = (override?.duplex ?? jobDefaults.duplex) !== "simplex";
+  const copies = override?.copies ?? jobDefaults.copies;
+
   return (
     <div className="bulk-file-customize-panel" onClick={(e) => e.stopPropagation()}>
       <div className="bulk-customize-row">
         <label>Print</label>
-        <select
-          value={override?.printType ?? jobDefaults.printType}
-          onChange={(e) => onChange({ printType: e.target.value as "bw" | "color" })}
-        >
-          <option value="bw">B&amp;W</option>
-          <option value="color">Color</option>
-        </select>
+        <div className="bulk-switch" role="group" aria-label="Print color">
+          <button
+            type="button"
+            className={`bulk-switch-opt ${printType === "bw" ? "active" : ""}`}
+            onClick={() => onChange({ printType: "bw" })}
+          >
+            B&amp;W
+          </button>
+          <button
+            type="button"
+            className={`bulk-switch-opt ${printType === "color" ? "active" : ""}`}
+            onClick={() => onChange({ printType: "color" })}
+          >
+            Color
+          </button>
+        </div>
       </div>
       <div className="bulk-customize-row">
         <label>Sides</label>
-        <select
-          // Same 2-choice model as the job-level Sides control (page-mode-grid
-          // above) — "Double-sided" always means long-edge. Short-edge was a
-          // 3rd option nobody asked for and never existed at job level either.
-          value={(override?.duplex ?? jobDefaults.duplex) === "simplex" ? "simplex" : "double"}
-          onChange={(e) => onChange({ duplex: e.target.value === "double" ? "long-edge" : "simplex" })}
-        >
-          <option value="simplex">Single-sided</option>
-          <option value="double">Double-sided</option>
-        </select>
+        <div className="bulk-switch" role="group" aria-label="Sides">
+          <button
+            type="button"
+            className={`bulk-switch-opt ${!isDouble ? "active" : ""}`}
+            onClick={() => onChange({ duplex: "simplex" })}
+          >
+            Single
+          </button>
+          <button
+            type="button"
+            className={`bulk-switch-opt ${isDouble ? "active" : ""}`}
+            // Same 2-choice model as the job-level Sides control (page-mode-grid
+            // above) — "Double-sided" always means long-edge. Short-edge was a
+            // 3rd option nobody asked for and never existed at job level either.
+            onClick={() => onChange({ duplex: "long-edge" })}
+          >
+            Double
+          </button>
+        </div>
       </div>
       <div className="bulk-customize-row">
         <label>Copies</label>
-        <input
-          type="number"
-          min={1}
-          max={99}
-          value={override?.copies ?? jobDefaults.copies}
-          onChange={(e) => onChange({ copies: Math.max(1, Math.min(99, Math.floor(Number(e.target.value)) || 1)) })}
-        />
+        <div className="bulk-stepper">
+          <button
+            type="button"
+            className="bulk-stepper-btn"
+            onClick={() => onChange({ copies: Math.max(1, copies - 1) })}
+            disabled={copies <= 1}
+            aria-label="Decrease copies"
+          >
+            −
+          </button>
+          <span className="bulk-stepper-value">{copies}</span>
+          <button
+            type="button"
+            className="bulk-stepper-btn"
+            onClick={() => onChange({ copies: Math.min(99, copies + 1) })}
+            disabled={copies >= 99}
+            aria-label="Increase copies"
+          >
+            +
+          </button>
+        </div>
       </div>
       {override && (
         <button type="button" className="bulk-customize-reset" onClick={onReset}>

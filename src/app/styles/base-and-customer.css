@@ -1461,6 +1461,69 @@ input, select, button {
   min-height: 38px;
 }
 
+/* Per-file Print/Sides switches — segmented control, same visual language as
+   the job-level page-mode-grid toggle, just compact enough for a 3-up grid. */
+.bulk-switch {
+  display: flex;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  overflow: hidden;
+  min-height: 38px;
+}
+.bulk-switch-opt {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0 4px;
+  transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
+}
+.bulk-switch-opt + .bulk-switch-opt {
+  border-left: 1px solid var(--line);
+}
+.bulk-switch-opt.active {
+  background: var(--accent);
+  color: #fff;
+}
+
+/* Per-file copies stepper */
+.bulk-stepper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  min-height: 38px;
+  overflow: hidden;
+}
+.bulk-stepper-btn {
+  flex: 0 0 30%;
+  height: 100%;
+  border: none;
+  background: transparent;
+  color: var(--ink);
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+.bulk-stepper-btn:disabled {
+  color: var(--line);
+  cursor: not-allowed;
+}
+.bulk-stepper-value {
+  flex: 1;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
 /* Mobile: stays the same compact 3-column grid as desktop — the old
    minimized layout was the right call, so this only nudges tap comfort
    (min-height) rather than blowing the panel up to full-width stacked
