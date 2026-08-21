@@ -11,7 +11,11 @@ type Props = {
   status: string;
 };
 
-const CANCELLABLE = ["pending_payment", "paid", "approved"];
+// Kept in sync with CUSTOMER_CANCELLABLE_STATUSES in
+// src/app/api/jobs/[token]/cancel/route.ts — once a job is released
+// ("approved") the print agent can start consuming paper/ink within its 5s
+// poll, so self-cancel is cut off before that, not at printing/printed.
+const CANCELLABLE = ["pending_payment", "paid"];
 
 export default function JobActions({ token, pricePaise, paidAt: initialPaidAt, status: initialStatus }: Props) {
   const [pricing, setPricing] = useState<Pricing | null>(null);
