@@ -91,11 +91,14 @@ function BulkFileCustomizePanel({
             // Same 2-choice model as the job-level Sides control (page-mode-grid
             // above) — "Double-sided" always means long-edge. Short-edge was a
             // 3rd option nobody asked for and never existed at job level either.
-            onClick={() => onChange({ duplex: "long-edge" })}
+            onClick={() => canDuplex && onChange({ duplex: "long-edge" })}
+            disabled={!canDuplex}
+            title={!canDuplex ? "Needs at least 2 pages" : undefined}
           >
             Double
           </button>
         </div>
+        {!canDuplex && <span className="bulk-customize-note">1-page file — single-sided only</span>}
       </div>
       <div className="bulk-customize-row">
         <label>Copies</label>
@@ -1615,6 +1618,7 @@ export default function UploadForm() {
           <BulkFileCustomizePanel
             override={bulkFileOverrides[id]}
             jobDefaults={{ printType, duplex, paperSize, copies, pagesPerSheet }}
+            pageCount={bulkPageCounts[i] ?? 1}
             onChange={(patch) => setBulkFileOverrides((prev) => ({ ...prev, [id]: { ...prev[id], ...patch } }))}
             onReset={() => setBulkFileOverrides((prev) => { const next = { ...prev }; delete next[id]; return next; })}
           />
@@ -1951,6 +1955,7 @@ export default function UploadForm() {
                   <BulkFileCustomizePanel
                     override={bulkFileOverrides[customizingBulkId]}
                     jobDefaults={{ printType, duplex, paperSize, copies, pagesPerSheet }}
+                    pageCount={bulkPageCounts[bulkIds.indexOf(customizingBulkId)] ?? 1}
                     onChange={(patch) => setBulkFileOverrides((prev) => ({ ...prev, [customizingBulkId]: { ...prev[customizingBulkId], ...patch } }))}
                     onReset={() => setBulkFileOverrides((prev) => { const next = { ...prev }; delete next[customizingBulkId]; return next; })}
                   />
