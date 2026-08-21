@@ -57,5 +57,16 @@ export default function BulkThumb({ file, grayscale, width = 44 }: { file: File;
   }, [file, width]);
 
   if (failed) return <FileText size={18} aria-hidden="true" />;
-  return <canvas ref={canvasRef} className={`bulk-thumb ${grayscale ? "bw-sim-img" : ""}`} aria-hidden="true" />;
+  // Reserve the slot at its target size up front — without this the canvas
+  // sits at the browser's intrinsic 300x150 default until pdf.js finishes
+  // rendering and sets the real dimensions, which blows the card open and
+  // overlaps neighboring cards in the grid for a moment on every load.
+  return (
+    <canvas
+      ref={canvasRef}
+      className={`bulk-thumb ${grayscale ? "bw-sim-img" : ""}`}
+      style={{ width, height: Math.round(width * 1.3) }}
+      aria-hidden="true"
+    />
+  );
 }

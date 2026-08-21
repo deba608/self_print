@@ -3155,8 +3155,15 @@ input, select, button {
   color: var(--ink);
 }
 
-/* Bulk first-page thumbnails */
+/* Bulk first-page thumbnails. BulkThumb only sets the canvas's inline
+   width/height once pdf.js finishes rendering — before that (and if it never
+   fires, e.g. a corrupt PDF) the canvas sits at its browser-default intrinsic
+   300x150, blowing up the card and overlapping neighbors. Cap it so it never
+   exceeds its slot regardless of render state. */
 .bulk-thumb {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
   border: 1px solid var(--line);
   border-radius: 3px;
   background: #fff;
