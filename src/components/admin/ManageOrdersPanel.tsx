@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Check, CheckSquare, Loader2, ListTodo, Printer, Square, Trash2, X } from "lucide-react";
+import { Check, CheckSquare, Loader2, ListTodo, Printer, RotateCcw, Square, Trash2, X } from "lucide-react";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 
 export type ManageJob = {
@@ -31,6 +31,8 @@ export default function ManageOrdersPanel({
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
   const [filterStatus, setFilterStatus] = useState("all");
   const [leavingIds, setLeavingIds] = useState<Set<string>>(new Set());
+  const [restoring, setRestoring] = useState(false);
+  const [restoreMsg, setRestoreMsg] = useState("");
 
   const filteredJobs = filterStatus === "all" ? jobs : jobs.filter((j) => j.status === filterStatus);
 
@@ -101,6 +103,29 @@ export default function ManageOrdersPanel({
     }
   }
 
+  async function restoreAll() {
+    setRestoring(true);
+    setRestoreMsg("");
+    try {
+      const response = await fetch("/api/admin/jobs/restore-all", { method: "POST", credentials: "include" });
+      if (response.status === 401) {
+        router.push("/admin");
+        return;
+      }
+      const data = await response.json().catch(() => ({}));
+      if (response.ok) {
+        setRestoreMsg(data.restored > 0 ? `Restored ${data.restored} order${data.restored === 1 ? "" : "s"}.` : "No deleted orders to restore.");
+        onRefresh();
+      } else {
+        setRestoreMsg(data.error ?? "Could not restore orders.");
+      }
+    } catch {
+      setRestoreMsg("Could not restore orders.");
+    } finally {
+      setRestoring(false);
+    }
+  }
+
   function toggleSelect(id: string) {
     const next = new Set(selectedIds);
     if (next.has(id)) next.delete(id); else next.add(id);
@@ -121,10 +146,21 @@ export default function ManageOrdersPanel({
             <ListTodo size={20} className="panel-icon" />
             <h2>Manage Orders</h2>
           </div>
+          <button
+            type="button"
+            className="manage-restore-all-btn"
+            onClick={restoreAll}
+            disabled={restoring}
+            title="Bring back every order previously deleted from this list"
+          >
+            {restoring ? <Loader2 size={14} className="spin" /> : <RotateCcw size={14} />}
+            Restore all deleted
+          </button>
           <button type="button" className="panel-close" onClick={onClose} aria-label="Close">
             <X size={20} />
           </button>
         </div>
+        {restoreMsg && <p className="manage-restore-msg">{restoreMsg}</p>}
 
         <div className="manage-orders-filters">
           <button

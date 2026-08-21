@@ -1328,6 +1328,19 @@ export async function bulkArchiveJobs(ids: string[]): Promise<void> {
   sqlite.transaction((rows: string[]) => { for (const id of rows) stmt.run(now, id); })(ids);
 }
 
+// Un-archives every archived job so it reappears in the admin queue/history.
+// Files already deleted at archive time (see DELETE /api/admin/jobs/[id])
+// stay deleted — this restores the row, not the uploaded content.
+export async function restoreAllArchivedJobs(): Promise<number> {
+  if (isSupabase) {
+    const mod = await import('./db-supabase');
+    return mod.restoreAllArchivedJobs();
+  }
+  const sqlite = await getDbInstance();
+  const result = sqlite.prepare('UPDATE jobs SET archived_at = NULL WHERE archived_at IS NOT NULL').run();
+  return result.changes ?? 0;
+}
+
 // Hard-delete for super-admin purge only — removes rows permanently.
 export async function bulkDeleteJobs(ids: string[]): Promise<void> {
   if (isSupabase) {

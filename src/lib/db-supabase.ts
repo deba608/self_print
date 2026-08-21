@@ -966,6 +966,16 @@ export async function bulkArchiveJobs(ids: string[]) {
   if (error) throw error;
 }
 
+export async function restoreAllArchivedJobs(): Promise<number> {
+  const { data, error } = await supabase
+    .from('jobs')
+    .update({ archived_at: null })
+    .not('archived_at', 'is', null)
+    .select('id');
+  if (error) throw error;
+  return data?.length ?? 0;
+}
+
 export async function bulkDeleteJobs(ids: string[]) {
   const { error } = await supabase
     .from('jobs')
