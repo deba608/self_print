@@ -1484,6 +1484,15 @@ export default function UploadForm() {
   // it gates Confirm directly since there is no intermediate Preview click.
   const settingsInvalid =
     (pageRangeMode === "custom" && !!customPageRange.trim() && !isValidPageRange) || isDuplexInvalid || deliveryServiceInvalid;
+  // Desktop's stage-1 "Continue" button advances to the fulfillment page,
+  // where the delivery pincode/address fields actually live (see fs-fulfil —
+  // deliveryMethod defaults to "delivery" but that section only renders once
+  // fulfilStage is true). Gating this button on deliveryServiceInvalid was a
+  // deadlock: with no pincode entered yet, it's always invalid, so desktop
+  // users could never reach the stage where they'd enter one. Page-range/
+  // duplex issues are already visible on this screen, so those still gate it.
+  const stage1Invalid =
+    (pageRangeMode === "custom" && !!customPageRange.trim() && !isValidPageRange) || isDuplexInvalid;
 
   const acceptingOrdersCheck = pricing ? isAcceptingOrders(pricing) : { ok: true as const };
   const shopClosed = !acceptingOrdersCheck.ok;
@@ -2795,11 +2804,11 @@ export default function UploadForm() {
               type="button"
               className="btn-primary btn-submit"
               onClick={() => {
-                if (settingsInvalid) return;
+                if (stage1Invalid) return;
                 setError("");
                 setFulfilStage(true);
               }}
-              disabled={busy || (isBulk && bulkUploading) || settingsInvalid}
+              disabled={busy || (isBulk && bulkUploading) || stage1Invalid}
             >
               Continue <ArrowRight size={20} aria-hidden="true" />
             </button>
