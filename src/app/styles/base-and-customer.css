@@ -1461,22 +1461,14 @@ input, select, button {
   min-height: 38px;
 }
 
-/* Mobile: stack to one column and grow tap targets/text — 3 cramped selects
-   in a 320-375px row is the exact "small UI on mobile" complaint this fixes. */
+/* Mobile: stays the same compact 3-column grid as desktop — the old
+   minimized layout was the right call, so this only nudges tap comfort
+   (min-height) rather than blowing the panel up to full-width stacked
+   fields. */
 @media (max-width: 480px) {
   .bulk-file-customize-panel {
-    grid-template-columns: 1fr;
-    gap: 10px;
-    padding: 14px;
-  }
-  .bulk-customize-row label {
-    font-size: 12px;
-  }
-  .bulk-customize-row select,
-  .bulk-customize-row input {
-    font-size: 15px;
-    padding: 9px 10px;
-    min-height: 44px;
+    gap: 8px;
+    padding: 10px;
   }
 }
 
