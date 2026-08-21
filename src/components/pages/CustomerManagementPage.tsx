@@ -80,6 +80,7 @@ export default function CustomerManagementPage() {
         customer.email,
         customer.phone,
         customer.latestAddress,
+        ...customer.tokens,
       ].some((value) => value?.toLowerCase().includes(normalizedQuery));
     });
   }, [customers, query, kind]);
@@ -216,7 +217,7 @@ export default function CustomerManagementPage() {
                       type="search"
                       value={query}
                       onChange={(event) => setQuery(event.target.value)}
-                      placeholder="Search by name, email, phone or address…"
+                      placeholder="Search by name, email, phone, address or order token…"
                       autoComplete="off"
                     />
                     {query && (

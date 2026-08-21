@@ -112,6 +112,9 @@ export type CustomerManagementRow = {
   totalSpentPaise: number;
   lastOrderAt: string | null;
   latestAddress: string | null;
+  // Every order token this customer has placed — lets the customer list be
+  // searched by token, not just name/email/phone/address.
+  tokens: string[];
 };
 
 export type JobFile = {

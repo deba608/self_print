@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { AlertTriangle, Loader2, Truck, X } from "lucide-react";
+import { AlertTriangle, Loader2, Search, Truck, X } from "lucide-react";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { ToastStack, useToasts } from "@/components/ui/Toast";
 import type { Job, PricingConfig as Pricing } from "@/lib/types";
@@ -82,6 +82,7 @@ export default function AdminDashboard() {
   const [deliveryFilter, setDeliveryFilterState] = useState<"all" | "pickup" | "delivery">(
     () => (searchParams.get("fulfillment") as "all" | "pickup" | "delivery" | null) ?? "all"
   );
+  const [tokenQuery, setTokenQuery] = useState(() => searchParams.get("q") ?? "");
 
   // Keep the current filters in the URL so navigating to a job's detail page
   // and back (or a browser back/forward) restores the queue view instead of
@@ -415,13 +416,21 @@ export default function AdminDashboard() {
   const methodFilteredJobs = deliveryFilter === "all"
     ? jobs
     : jobs.filter((j) => (j.deliveryMethod ?? "pickup") === deliveryFilter);
-  const filteredJobs = filterStatus === "all"
+  const statusFilteredJobs = filterStatus === "all"
     ? methodFilteredJobs
     : filterStatus === "pending_payment"
       ? methodFilteredJobs.filter((j) => j.status === "pending_payment" || j.status === "paid")
       : filterStatus === "printing"
         ? methodFilteredJobs.filter((j) => j.status === "approved" || j.status === "printing")
         : methodFilteredJobs.filter((j) => j.status === filterStatus);
+  const normalizedTokenQuery = tokenQuery.trim().toLowerCase();
+  const filteredJobs = !normalizedTokenQuery
+    ? statusFilteredJobs
+    : statusFilteredJobs.filter((j) =>
+        [j.token, j.customerName, j.customerPhone, j.file?.originalName].some((value) =>
+          value?.toLowerCase().includes(normalizedTokenQuery)
+        )
+      );
   const outForDeliveryCount = jobs.filter((j) => j.deliveryStatus === "out_for_delivery").length;
 
   const recentAttempts = [...jobs]
@@ -528,6 +537,26 @@ export default function AdminDashboard() {
         </div>
       )}
 
+
+      <div className="admin-search-row">
+        <label className="management-search admin-token-search" htmlFor="dashboard-token-search">
+          <Search size={17} aria-hidden="true" />
+          <span className="sr-only">Search token, customer, phone or file</span>
+          <input
+            id="dashboard-token-search"
+            type="search"
+            value={tokenQuery}
+            onChange={(e) => setTokenQuery(e.target.value)}
+            placeholder="Search token, customer, phone or file…"
+            autoComplete="off"
+          />
+          {tokenQuery && (
+            <button type="button" className="management-search-clear" onClick={() => setTokenQuery("")} aria-label="Clear search">
+              &times;
+            </button>
+          )}
+        </label>
+      </div>
 
       <div className="admin-filter-row">
         <div className="admin-filter-group">

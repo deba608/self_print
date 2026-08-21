@@ -57,6 +57,7 @@ function addJobToCustomerSummary(
     deliveryMethod: string;
     deliveryStatus: string | null;
     deliveryAddress: string | null;
+    token?: string;
   }
 ) {
   summary.totalOrders += 1;
@@ -64,6 +65,7 @@ function addJobToCustomerSummary(
   if (job.deliveryMethod === "delivery") summary.deliveryOrders += 1;
   if (job.deliveryStatus === "delivered") summary.deliveredOrders += 1;
   if (job.paidAt) summary.totalSpentPaise += job.pricePaise;
+  if (job.token) summary.tokens.push(job.token);
   if (!summary.lastOrderAt || job.createdAt > summary.lastOrderAt) {
     summary.lastOrderAt = job.createdAt;
     if (job.deliveryAddress) summary.latestAddress = job.deliveryAddress;
@@ -452,7 +454,7 @@ export async function getCustomerManagementRows(): Promise<CustomerManagementRow
   const sqlite = await getDbInstance();
   const rows = sqlite.prepare(`
     SELECT customer_user_id, customer_name, customer_phone, delivery_address,
-      delivery_method, delivery_status, status, price_paise, paid_at, created_at
+      delivery_method, delivery_status, status, price_paise, paid_at, created_at, token
     FROM jobs
     WHERE customer_user_id IS NOT NULL OR customer_phone IS NOT NULL
     ORDER BY created_at DESC
@@ -477,6 +479,7 @@ export async function getCustomerManagementRows(): Promise<CustomerManagementRow
         totalSpentPaise: 0,
         lastOrderAt: null,
         latestAddress: row.delivery_address ? String(row.delivery_address) : null,
+        tokens: [],
       });
     }
     addJobToCustomerSummary(customers.get(id)!, {
@@ -487,6 +490,7 @@ export async function getCustomerManagementRows(): Promise<CustomerManagementRow
       deliveryMethod: String(row.delivery_method ?? "pickup"),
       deliveryStatus: row.delivery_status ? String(row.delivery_status) : null,
       deliveryAddress: row.delivery_address ? String(row.delivery_address) : null,
+      token: row.token ? String(row.token) : undefined,
     });
   }
 

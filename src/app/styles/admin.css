@@ -42,6 +42,12 @@
   font-weight: 700;
 }
 
+.admin-search-row {
+  margin: 16px 0 0;
+  max-width: 420px;
+}
+.admin-token-search { width: 100%; }
+
 /* === Filter row — status + fulfillment filters, moved out of the navbar
    into the main content where there's room to breathe. Two groups share
    one row: Status leads (primary triage), Fulfillment trails. === */

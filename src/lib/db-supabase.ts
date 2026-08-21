@@ -159,7 +159,7 @@ export async function getCustomerManagementRows(): Promise<CustomerManagementRow
       .order('created_at', { ascending: false }),
     supabase
       .from('jobs')
-      .select('customer_user_id, customer_name, customer_phone, delivery_address, delivery_method, delivery_status, status, price_paise, paid_at, created_at')
+      .select('customer_user_id, customer_name, customer_phone, delivery_address, delivery_method, delivery_status, status, price_paise, paid_at, created_at, token')
       .order('created_at', { ascending: false })
       .limit(2000),
   ]);
@@ -181,6 +181,7 @@ export async function getCustomerManagementRows(): Promise<CustomerManagementRow
       totalSpentPaise: 0,
       lastOrderAt: null,
       latestAddress: null,
+      tokens: [],
     });
   }
 
@@ -203,6 +204,7 @@ export async function getCustomerManagementRows(): Promise<CustomerManagementRow
         totalSpentPaise: 0,
         lastOrderAt: null,
         latestAddress: row.delivery_address ? String(row.delivery_address) : null,
+        tokens: [],
       });
     }
     const customer = customers.get(id)!;
@@ -211,6 +213,7 @@ export async function getCustomerManagementRows(): Promise<CustomerManagementRow
     if (row.delivery_method === "delivery") customer.deliveryOrders += 1;
     if (row.delivery_status === "delivered") customer.deliveredOrders += 1;
     if (row.paid_at) customer.totalSpentPaise += Number(row.price_paise);
+    if (row.token) customer.tokens.push(String(row.token));
     const createdAt = String(row.created_at);
     if (!customer.lastOrderAt || createdAt > customer.lastOrderAt) {
       customer.lastOrderAt = createdAt;
