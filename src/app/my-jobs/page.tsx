@@ -22,6 +22,7 @@ import Badge, { type BadgeVariant } from "@/components/ui/Badge";
 import EmptyState from "@/components/ui/EmptyState";
 import Skeleton from "@/components/ui/Skeleton";
 import JobFileViewButton from "@/components/JobFileViewButton";
+import JobActions from "@/components/JobActions";
 
 // Status → badge mapping per docs/UI_UX_PLAN.md §1.2 — icon + text, never color alone.
 const statusMap: Record<string, { label: string; variant: BadgeVariant; icon: LucideIcon }> = {
@@ -310,6 +311,12 @@ async function JobsList({ filter, limit }: { filter: Filter; limit: number }) {
                     <Badge variant={status.variant} icon={status.icon}>
                       {status.label}
                     </Badge>
+                    <JobActions
+                      token={job.token}
+                      pricePaise={Number(job.price_paise)}
+                      paidAt={job.paid_at}
+                      status={job.status}
+                    />
                     {isDelivery &&
                       (job.delivery_status === "delivered" ? (
                         <Badge variant="success" icon={PackageCheck}>

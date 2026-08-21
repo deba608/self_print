@@ -198,7 +198,79 @@
   padding-top: var(--space-3);
   border-top: 1px solid var(--line);
 }
-.jobs-card-badges { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.jobs-card-badges { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+
+/* Pay-now / cancel actions inside the job card badge row */
+.job-actions-group { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.job-actions-paid {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(22, 163, 74, 0.12);
+  color: #15803d;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.job-actions-pay-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out);
+}
+.job-actions-pay-btn:hover { background: var(--accent-strong); }
+.job-actions-pay-btn:active { transform: scale(0.97); }
+.job-actions-pay-btn:disabled { opacity: 0.7; cursor: not-allowed; }
+.job-actions-cancel-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--muted);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
+}
+.job-actions-cancel-btn:hover { border-color: #dc2626; color: #dc2626; }
+.job-actions-cancel-confirm {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.job-actions-cancel-yes,
+.job-actions-cancel-no {
+  padding: 5px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: transparent;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.job-actions-cancel-yes { border-color: #dc2626; color: #dc2626; }
+.job-actions-cancel-yes:hover { background: rgba(220, 38, 38, 0.08); }
+.job-actions-cancel-yes:disabled { opacity: 0.7; cursor: not-allowed; }
+.job-actions-cancel-no:hover { border-color: var(--accent); color: var(--accent-strong); }
+.job-actions-error {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 12px;
+}
 .jobs-list-card .jobs-price { flex: 0 0 auto; font-size: 20px; line-height: 1; }
 .jobs-list-card:hover .jobs-card-arrow { color: var(--accent); transform: translateX(2px); }
 .jobs-card-arrow { transition: color var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out); }
