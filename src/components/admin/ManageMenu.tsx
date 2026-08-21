@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { BarChart2, ChevronDown, LayoutGrid, ListTodo, ShieldCheck, Users, UsersRound } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { BarChart2, ChevronDown, LayoutGrid, ListTodo, Loader2, RotateCcw, ShieldCheck, Users, UsersRound } from "lucide-react";
 
 // Groups the 4 "navigate away to a full management page" links that used
 // to sit as bare icons alongside stay-in-place utility buttons (refresh,
@@ -11,7 +12,29 @@ import { BarChart2, ChevronDown, LayoutGrid, ListTodo, ShieldCheck, Users, Users
 // makes that boundary obvious instead of hiding it behind identical icons.
 export default function ManageMenu() {
   const [open, setOpen] = useState(false);
+  const [restoring, setRestoring] = useState(false);
+  const [restoreMsg, setRestoreMsg] = useState("");
   const ref = useRef<HTMLDivElement>(null);
+  const router = useRouter();
+
+  async function restoreDeleted() {
+    setRestoring(true);
+    setRestoreMsg("");
+    try {
+      const res = await fetch("/api/admin/jobs/restore-all", { method: "POST", credentials: "include" });
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 401) {
+        router.push("/admin");
+        return;
+      }
+      setRestoreMsg(res.ok ? (data.restored > 0 ? `Restored ${data.restored} order${data.restored === 1 ? "" : "s"}.` : "No deleted orders to restore.") : (data.error ?? "Could not restore orders."));
+      if (res.ok && data.restored > 0) router.refresh();
+    } catch {
+      setRestoreMsg("Could not restore orders.");
+    } finally {
+      setRestoring(false);
+    }
+  }
 
   useEffect(() => {
     if (!open) return;
@@ -62,6 +85,19 @@ export default function ManageMenu() {
               </span>
             </Link>
           ))}
+          <button
+            type="button"
+            className="manage-menu-item manage-menu-action"
+            role="menuitem"
+            onClick={restoreDeleted}
+            disabled={restoring}
+          >
+            {restoring ? <Loader2 size={17} className="spin" aria-hidden="true" /> : <RotateCcw size={17} aria-hidden="true" />}
+            <span className="manage-menu-item-text">
+              <strong>Restore deleted orders</strong>
+              <span>{restoreMsg || "Bring back every previously deleted order"}</span>
+            </span>
+          </button>
         </div>
       )}
     </div>

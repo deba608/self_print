@@ -456,6 +456,18 @@
   flex-shrink: 0;
   color: var(--accent);
 }
+.manage-menu-action {
+  width: 100%;
+  border: none;
+  border-top: 1px solid var(--line);
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+  margin-top: 4px;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+}
+.manage-menu-action:disabled { opacity: 0.6; cursor: not-allowed; }
 .manage-menu-item-text {
   display: flex;
   flex-direction: column;
