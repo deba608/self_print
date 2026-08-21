@@ -131,6 +131,22 @@ export type JobFile = {
   // FILE_RETENTION_DAYS). storagePath is emptied at the same time; the row
   // itself (name/size/kind) is kept forever for order history.
   purgedAt: string | null;
+  // Per-file print-settings override for bulk jobs (see
+  // docs/bulk-per-file-customization-plan.md). Null/undefined = inherit the
+  // job's settings — every non-customized file stays exactly as before.
+  settings: FileSettingsOverride | null;
+};
+
+// Partial override of the job-level print settings, scoped to one file in a
+// bulk job. Missing keys fall back to the job's own value — see
+// effectiveFileSettings() in src/lib/pricing.ts, the single place both the
+// server and the client resolve "override ?? job default".
+export type FileSettingsOverride = {
+  printType?: PrintType;
+  duplex?: PrintDuplex;
+  paperSize?: PaperSize;
+  copies?: number;
+  pagesPerSheet?: number;
 };
 
 export type PricingConfig = {
@@ -160,6 +176,12 @@ export type PricingConfig = {
   // the free-delivery threshold entirely (fee always charged).
   freeDeliveryThresholdPaise: number;
   serviceArea: ServiceAreaConfig;
+  // Order-acceptance window, staff-controlled from the Pricing panel.
+  // acceptingOrders is a manual kill switch (independent of the time window);
+  // when either open/close time is null, the time window is not enforced.
+  acceptingOrders: boolean;
+  orderOpenTime: string | null; // "HH:MM", 24h, shop-local time
+  orderCloseTime: string | null;
 };
 
 export type RetentionConfig = {

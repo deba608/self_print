@@ -6,10 +6,68 @@ import { createJob, createJobWithFiles, getJobByToken, getPricing, nextQueuePosi
 import { estimatePageCount, measureStoredFile, saveUpload, validateUpload } from "@/lib/files";
 import { bucketPathFor, isValidStoredName, verifyStoredNameSig } from "@/lib/storage";
 import { clientIp, isRateLimited } from "@/lib/ratelimit";
-import { calculatePrice, calculateSpiralBindingPrice, effectiveDeliveryFeePaise, selectedPageCount } from "@/lib/pricing";
+import { calculatePrice, calculateSpiralBindingPrice, effectiveDeliveryFeePaise, effectiveFileSettings, isAcceptingOrders, selectedPageCount } from "@/lib/pricing";
 import { createClient } from "@/lib/supabase/server";
 import { checkDeliveryServiceable, isValidPincode } from "@/lib/service-area";
-import type { PaperSize, PrintDuplex, PrintLayout, PrintMargins, PrintScale, PrintType } from "@/lib/types";
+import type { FileSettingsOverride, PaperSize, PrintDuplex, PrintLayout, PrintMargins, PrintScale, PrintType } from "@/lib/types";
+
+// Validates one bulk file's settings override against the same enums/ranges
+// as the job-level fields. Returns null (meaning "no override", i.e. inherit
+// job defaults) for an absent/empty entry, or an error string.
+function validateFileOverride(raw: unknown): FileSettingsOverride | null | { error: string } {
+  if (raw === null || raw === undefined) return null;
+  if (typeof raw !== "object") return { error: "Invalid per-file settings." };
+  const o = raw as Record<string, unknown>;
+  const out: FileSettingsOverride = {};
+  if (o.printType !== undefined) {
+    if (!printTypes.includes(o.printType as PrintType)) return { error: "Invalid per-file print type." };
+    out.printType = o.printType as PrintType;
+  }
+  if (o.duplex !== undefined) {
+    if (!duplexOptions.includes(o.duplex as PrintDuplex)) return { error: "Invalid per-file duplex setting." };
+    out.duplex = o.duplex as PrintDuplex;
+  }
+  if (o.paperSize !== undefined) {
+    if (!paperSizes.includes(o.paperSize as PaperSize)) return { error: "Invalid per-file paper size." };
+    out.paperSize = o.paperSize as PaperSize;
+  }
+  if (o.copies !== undefined) {
+    const n = Math.floor(Number(o.copies));
+    if (!Number.isFinite(n) || n < 1 || n > 99) return { error: "Per-file copies must be between 1 and 99." };
+    out.copies = n;
+  }
+  if (o.pagesPerSheet !== undefined) {
+    const n = Math.floor(Number(o.pagesPerSheet));
+    if (!Number.isFinite(n) || n < 1 || n > 4) return { error: "Invalid per-file pages-per-sheet." };
+    out.pagesPerSheet = n;
+  }
+  return Object.keys(out).length > 0 ? out : null;
+}
+
+// Parses the optional fileSettingsJson form field: a JSON array, index-aligned
+// with the uploaded files, each entry null or a partial override. Returns an
+// all-null array (same length as fileCount) when the field is absent, so
+// callers never need a separate "no overrides" branch.
+function parseFileOverrides(form: FormData, fileCount: number): (FileSettingsOverride | null)[] | { error: string } {
+  const raw = form.get("fileSettingsJson");
+  if (raw === null) return new Array(fileCount).fill(null);
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(String(raw));
+  } catch {
+    return { error: "Invalid per-file settings list." };
+  }
+  if (!Array.isArray(parsed) || parsed.length !== fileCount) {
+    return { error: "Per-file settings must match the number of files." };
+  }
+  const out: (FileSettingsOverride | null)[] = [];
+  for (const entry of parsed) {
+    const validated = validateFileOverride(entry);
+    if (validated && "error" in validated) return validated;
+    out.push(validated);
+  }
+  return out;
+}
 
 // Best-effort lookup of the logged-in customer's id from the session cookie.
 // Unauthenticated requests (guests) resolve to `{ user: null }` with no error,
@@ -117,6 +175,11 @@ export async function POST(request: NextRequest) {
   try {
     if (isRateLimited("jobs-create", clientIp(request.headers), JOBS_MAX_PER_WINDOW, JOBS_RATE_WINDOW_MS)) {
       return NextResponse.json({ error: "Too many requests. Please try again later." }, { status: 429 });
+    }
+
+    const hoursCheck = isAcceptingOrders(await getPricing());
+    if (!hoursCheck.ok) {
+      return NextResponse.json({ error: hoursCheck.reason }, { status: 503 });
     }
 
     const form = await request.formData();
@@ -393,7 +456,7 @@ async function handleBulk(form: FormData, customer: { id: string; displayName: s
     file_kind: string;
     storage_path: string;
   }>;
-  let pageCount: number;
+  let perFilePageCounts: number[];
 
   const filesJsonRaw = form.get("filesJson");
   if (filesJsonRaw !== null) {
@@ -432,7 +495,7 @@ async function handleBulk(form: FormData, customer: { id: string; displayName: s
       return NextResponse.json({ error: "Total upload size is too large." }, { status: 400 });
     }
 
-    pageCount = measured.reduce((sum, m) => sum + Math.max(1, m.pageCount), 0);
+    perFilePageCounts = measured.map((m) => Math.max(1, m.pageCount));
     filesData = files.map((f, i) => ({
       original_name: f.originalName,
       stored_name: f.storedName,
@@ -454,7 +517,7 @@ async function handleBulk(form: FormData, customer: { id: string; displayName: s
     }
 
     filesData = [];
-    pageCount = 0;
+    perFilePageCounts = [];
     for (const upload of uploads) {
       if (upload.size > MAX_UPLOAD_BYTES) {
         return NextResponse.json({ error: `"${upload.name}" is too large` }, { status: 400 });
@@ -472,7 +535,7 @@ async function handleBulk(form: FormData, customer: { id: string; displayName: s
         return NextResponse.json({ error: "Bulk upload accepts PDF files only." }, { status: 400 });
       }
       const saved = await saveUpload(upload, ext, "pdf");
-      pageCount += Math.max(1, estimatePageCount("pdf", saved.bytes));
+      perFilePageCounts.push(Math.max(1, estimatePageCount("pdf", saved.bytes)));
       filesData.push({
         original_name: upload.name,
         stored_name: saved.storedName,
@@ -483,6 +546,13 @@ async function handleBulk(form: FormData, customer: { id: string; displayName: s
       });
     }
   }
+
+  const overrides = parseFileOverrides(form, filesData.length);
+  if ("error" in overrides) {
+    return NextResponse.json({ error: overrides.error }, { status: 400 });
+  }
+
+  const pageCount = perFilePageCounts.reduce((sum, n) => sum + n, 0);
   const pricing = await getPricing();
   if (deliveryMethod === "delivery") {
     const check = checkDeliveryServiceable(
@@ -496,11 +566,31 @@ async function handleBulk(form: FormData, customer: { id: string; displayName: s
     );
     if (!check.ok) return NextResponse.json({ error: check.reason }, { status: 400 });
   }
-  // Bulk has no page range; duplex needs 2+ pages across the whole batch.
-  if (duplex !== "simplex" && pageCount < 2) {
-    return NextResponse.json({ error: "Double-sided printing requires at least 2 pages." }, { status: 400 });
-  }
-  const printPricePaise = calculatePrice({ printType, copies, pageRange: null, paperSize, pageCount: Math.max(pageCount, 1), pricing, duplex, pagesPerSheet });
+
+  const jobDefaults = { printType, duplex, paperSize, copies, pagesPerSheet };
+  // Price per file at its own effective settings (override ?? job default)
+  // and sum, instead of one flat calculatePrice() over the total page count —
+  // that flat call was correct only because every file shared one setting.
+  // A file downgrades its own duplex to simplex when it doesn't have enough
+  // pages for it, rather than erroring the whole order out — the old
+  // job-level "needs 2+ pages" guard doesn't make sense per-file since
+  // duplex can now differ file to file.
+  let printPricePaise = 0;
+  filesData.forEach((_, i) => {
+    const effective = effectiveFileSettings(jobDefaults, overrides[i]);
+    const pages = perFilePageCounts[i];
+    const duplexForFile = effective.duplex !== "simplex" && pages < 2 ? "simplex" : effective.duplex;
+    printPricePaise += calculatePrice({
+      printType: effective.printType,
+      copies: effective.copies,
+      pageRange: null,
+      paperSize: effective.paperSize,
+      pageCount: pages,
+      pricing,
+      duplex: duplexForFile,
+      pagesPerSheet: effective.pagesPerSheet,
+    });
+  });
   const addonFeePaise = (hasSpiralBinding ? calculateSpiralBindingPrice(pageCount, pricing) * spiralBindingQty : 0) + (hasCoverFile ? pricing.coverFilePaise * coverFileQty : 0) + (hasBondPaper ? pricing.bondPaperPerPagePaise * pageCount : 0);
   const deliveryFeePaise = deliveryMethod === "delivery" ? effectiveDeliveryFeePaise(printPricePaise + addonFeePaise, pricing.deliveryFeePaise, pricing.freeDeliveryThresholdPaise) : 0;
   const pricePaise = printPricePaise + addonFeePaise + deliveryFeePaise;
@@ -541,7 +631,8 @@ async function handleBulk(form: FormData, customer: { id: string; displayName: s
     custom_note: customNote,
   };
 
-  const { jobId } = await createJobWithFiles(jobData, filesData);
+  const filesDataWithSettings = filesData.map((fd, i) => ({ ...fd, settings: overrides[i] }));
+  const { jobId } = await createJobWithFiles(jobData, filesDataWithSettings);
 
   return NextResponse.json({ jobId, token, pricePaise, deliveryFeePaise, addonFeePaise, needsConversion: false, pageCount, queuePosition: queuePos });
 }

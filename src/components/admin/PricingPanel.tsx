@@ -5,7 +5,7 @@ import { Check, Clock, Loader2, X, Zap } from "lucide-react";
 import type { PricingConfig as Pricing } from "@/lib/types";
 import { calculatePrice } from "@/lib/pricing";
 
-type NumericPricing = Omit<Pricing, "serviceArea">;
+type NumericPricing = Omit<Pricing, "serviceArea" | "acceptingOrders" | "orderOpenTime" | "orderCloseTime">;
 type PricingDraft = {
   [Key in keyof NumericPricing]: NumericPricing[Key] | "";
 };
@@ -106,10 +106,13 @@ export default function PricingPanel({
   onClose
 }: {
   pricing: Pricing | null;
-  onSave: (data: NumericPricing) => Promise<void>;
+  onSave: (data: NumericPricing & { acceptingOrders: boolean; orderOpenTime: string | null; orderCloseTime: string | null }) => Promise<void>;
   onClose: () => void;
 }) {
   const [formData, setFormData] = useState<PricingDraft>(toDraft(pricing || defaultPricing));
+  const [acceptingOrders, setAcceptingOrders] = useState(pricing?.acceptingOrders ?? true);
+  const [orderOpenTime, setOrderOpenTime] = useState(pricing?.orderOpenTime ?? "");
+  const [orderCloseTime, setOrderCloseTime] = useState(pricing?.orderCloseTime ?? "");
   const [priceInputs, setPriceInputs] = useState({
     bwPerPagePaise: formatPaiseInput((pricing || defaultPricing).bwPerPagePaise),
     colorPerPagePaise: formatPaiseInput((pricing || defaultPricing).colorPerPagePaise),
@@ -149,6 +152,9 @@ export default function PricingPanel({
       spiralBindingSlab4Paise: formatPaiseInput(nextPricing.spiralBindingSlab4Paise),
       spiralBindingSlab5Paise: formatPaiseInput(nextPricing.spiralBindingSlab5Paise),
     });
+    setAcceptingOrders(pricing?.acceptingOrders ?? true);
+    setOrderOpenTime(pricing?.orderOpenTime ?? "");
+    setOrderCloseTime(pricing?.orderCloseTime ?? "");
   }, [pricing]);
 
   const updateField = (field: keyof NumericPricing, value: string, transform: (value: string) => number = Number) => {
@@ -210,10 +216,19 @@ export default function PricingPanel({
       setError("Fill every pricing value before saving.");
       return;
     }
+    if ((orderOpenTime && !orderCloseTime) || (!orderOpenTime && orderCloseTime)) {
+      setError("Set both an opening and closing time, or clear both.");
+      return;
+    }
 
     setSaving(true);
     try {
-      await onSave(nextPricing);
+      await onSave({
+        ...nextPricing,
+        acceptingOrders,
+        orderOpenTime: orderOpenTime || null,
+        orderCloseTime: orderCloseTime || null,
+      });
       setSaved(true);
       setTimeout(() => {
         setSaved(false);
@@ -395,6 +410,46 @@ export default function PricingPanel({
                   {typeof formData.expiryMinutes === "number" && formData.expiryMinutes > 0
                     ? `${(formData.expiryMinutes / 60).toFixed(1)} hours in the queue before removal`
                     : ""}
+                </span>
+              </div>
+            </div>
+          </section>
+
+          <section className="pricing-section">
+            <h3>Order hours</h3>
+            <div className="pricing-grid">
+              <div className="pricing-field">
+                <label htmlFor="acceptingOrders">Accepting new orders</label>
+                <label className="pricing-toggle">
+                  <input
+                    id="acceptingOrders"
+                    type="checkbox"
+                    checked={acceptingOrders}
+                    onChange={(e) => setAcceptingOrders(e.target.checked)}
+                  />
+                  <span>{acceptingOrders ? "Open" : "Closed — customers can't upload"}</span>
+                </label>
+              </div>
+              <div className="pricing-field">
+                <label htmlFor="orderOpenTime">Daily order window</label>
+                <div className="order-hours-range">
+                  <Clock size={16} className="time-icon" aria-hidden="true" />
+                  <input
+                    id="orderOpenTime"
+                    type="time"
+                    value={orderOpenTime}
+                    onChange={(e) => setOrderOpenTime(e.target.value)}
+                  />
+                  <span>to</span>
+                  <input
+                    id="orderCloseTime"
+                    type="time"
+                    value={orderCloseTime}
+                    onChange={(e) => setOrderCloseTime(e.target.value)}
+                  />
+                </div>
+                <span className="pricing-hint">
+                  Leave both blank to accept orders any time (subject to the toggle above). Times are shop-local (IST).
                 </span>
               </div>
             </div>

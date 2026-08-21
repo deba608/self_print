@@ -57,6 +57,11 @@ type SupabaseJobFile = {
   file_kind: string;
   storage_path: string;
   created_at: string;
+  // Per-file print-settings override for bulk jobs — see
+  // docs/bulk-per-file-customization-plan.md. JSON-encoded partial of
+  // { print_type, duplex, paper_size, copies, pages_per_sheet }; null/absent
+  // means this file just uses the job's own settings.
+  settings_json?: string | null;
 };
 
 type WindowsPrinter = {
@@ -371,14 +376,15 @@ async function processJob(jobId: string) {
             log(`File downloaded: ${fileBytes.length} bytes`);
             await logEvent(jobId, "downloaded", `Downloaded ${file.original_name} (${(fileBytes.length / 1024).toFixed(0)} KB), file ${idx + 1}/${files.length}.`);
 
-            const printer = printerForJob(job);
+            const fileJob = effectiveJobForFile(job, file);
+            const printer = printerForJob(fileJob);
             if (!printer) throw new Error("No printer selected. Set a printer in admin dashboard.");
 
-            log(`Printing ${job.copies} copy(s), paper: ${job.paper_size}, type: ${job.print_type}, printer: ${printer}...`);
+            log(`Printing ${fileJob.copies} copy(s), paper: ${fileJob.paper_size}, type: ${fileJob.print_type}, printer: ${printer}...`);
             await logEvent(jobId, "spooling", `Printing ${file.original_name} (${idx + 1}/${files.length}) on ${printer}.`);
             const PRINT_TIMEOUT_MS = 5 * 60 * 1000; // 5 min — covers PDF rasterisation + GDI spool
             await Promise.race([
-              printJob(tempPath, job, printer),
+              printJob(tempPath, fileJob, printer),
               new Promise<never>((_, reject) =>
                 setTimeout(() => reject(new Error("Print job timed out after 5 minutes")), PRINT_TIMEOUT_MS)
               )
@@ -542,6 +548,31 @@ async function updateStatus(jobId: string, status: string, message: string) {
   if (isTerminal) {
     log(`GIVING UP updating job ${jobId} to "${status}" — job may be re-run by the stale-lease cron. Check manually.`);
   }
+}
+
+// Merges one bulk file's settings override (job_files.settings_json) onto
+// the job's own settings — see docs/bulk-per-file-customization-plan.md.
+// Every downstream function (printerForJob, printJob, renderPdfToPngs,
+// printImagesGDI, paperName, renderDpiFor) just reads fields off a
+// job-shaped object, so passing this merged copy instead of the raw job is
+// the whole integration — no signature changes needed anywhere else.
+function effectiveJobForFile(job: SupabaseJob, file: SupabaseJobFile): SupabaseJob {
+  if (!file.settings_json) return job;
+  let override: Record<string, unknown>;
+  try {
+    override = JSON.parse(file.settings_json);
+  } catch {
+    return job;
+  }
+  if (!override || typeof override !== "object") return job;
+  return {
+    ...job,
+    print_type: typeof override.printType === "string" ? override.printType : job.print_type,
+    duplex: typeof override.duplex === "string" ? override.duplex : job.duplex,
+    paper_size: typeof override.paperSize === "string" ? override.paperSize : job.paper_size,
+    copies: typeof override.copies === "number" ? override.copies : job.copies,
+    pages_per_sheet: typeof override.pagesPerSheet === "number" ? override.pagesPerSheet : job.pages_per_sheet,
+  };
 }
 
 function printerForJob(job: SupabaseJob): string {

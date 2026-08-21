@@ -96,6 +96,19 @@ async function attachDeliveryPersonNames(jobs: Job[]): Promise<Job[]> {
   return jobs;
 }
 
+// Same "don't throw on bad JSON" contract as db.ts's parseFileSettings.
+function parseFileSettings(raw: unknown): JobFile['settings'] {
+  if (!raw) return null;
+  if (typeof raw === 'object') return raw as JobFile['settings'];
+  if (typeof raw !== 'string') return null;
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
 // Helper to convert Supabase row to JobFile type
 function mapJobFile(row: any): JobFile {
   return {
@@ -108,7 +121,8 @@ function mapJobFile(row: any): JobFile {
     fileKind: row.file_kind,
     storagePath: String(row.storage_path),
     createdAt: String(row.created_at),
-    purgedAt: row.purged_at ? String(row.purged_at) : null
+    purgedAt: row.purged_at ? String(row.purged_at) : null,
+    settings: parseFileSettings(row.settings_json),
   };
 }
 
@@ -408,6 +422,7 @@ export async function createJobWithFiles(jobData: any, filesData: any[]) {
     // `ORDER BY created_at ASC, id ASC` — file ids are random UUIDs, so id
     // alone can't be relied on as a tiebreaker across a shared timestamp.
     created_at: new Date(Date.parse(now) + i).toISOString(),
+    settings_json: (fd.settings ?? fd.settingsOverride) ? JSON.stringify(fd.settings ?? fd.settingsOverride) : null,
   }));
   const { error: fileError } = await supabase.from('job_files').insert(fileRows);
   if (fileError) throw fileError;
@@ -642,6 +657,9 @@ const PRICING_DEFAULTS: PricingConfig = {
   deliveryFeePaise: 0,
   freeDeliveryThresholdPaise: 20000,
   serviceArea: DEFAULT_SERVICE_AREA,
+  acceptingOrders: true,
+  orderOpenTime: null,
+  orderCloseTime: null,
 };
 
 export async function getPricing(): Promise<PricingConfig> {
@@ -681,7 +699,10 @@ export async function getPricing(): Promise<PricingConfig> {
     expiryMinutes: data.expiry_minutes ?? PRICING_DEFAULTS.expiryMinutes,
     deliveryFeePaise: data.delivery_fee_paise ?? PRICING_DEFAULTS.deliveryFeePaise,
     freeDeliveryThresholdPaise: data.free_delivery_threshold_paise ?? PRICING_DEFAULTS.freeDeliveryThresholdPaise,
-    serviceArea: parseServiceAreaConfig(data.service_area_config)
+    serviceArea: parseServiceAreaConfig(data.service_area_config),
+    acceptingOrders: data.accepting_orders == null ? true : Boolean(data.accepting_orders),
+    orderOpenTime: data.order_open_time ?? null,
+    orderCloseTime: data.order_close_time ?? null,
   };
 }
 
@@ -714,6 +735,9 @@ export async function updatePricing(pricing: PricingConfig) {
       delivery_fee_paise: pricing.deliveryFeePaise,
       free_delivery_threshold_paise: pricing.freeDeliveryThresholdPaise,
       service_area_config: serializeServiceAreaConfig(pricing.serviceArea),
+      accepting_orders: pricing.acceptingOrders,
+      order_open_time: pricing.orderOpenTime,
+      order_close_time: pricing.orderCloseTime,
       updated_at: now
     })
     .eq('id', 1);

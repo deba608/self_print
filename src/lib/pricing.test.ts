@@ -28,6 +28,9 @@ const pricing: PricingConfig = {
   deliveryFeePaise: 0,
   freeDeliveryThresholdPaise: 20000,
   serviceArea: DEFAULT_SERVICE_AREA,
+  acceptingOrders: true,
+  orderOpenTime: null,
+  orderCloseTime: null,
 };
 
 describe("calculatePrice pagesPerSheet", () => {

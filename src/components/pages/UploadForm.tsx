@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, useRef } from "react";
 import Link from "next/link";
 import { UploadCloud, FileText, Image, ArrowLeft, ArrowRight, Check, Eye, Loader2, File, Settings2, Printer, Copy, Store, X, Search, CreditCard, RefreshCw, Info, Truck, MapPin, Navigation, AlertCircle, ChevronDown, Heart } from "lucide-react";
-import { formatRupees, paperSizeLabels, allPaperSizes, calculateSpiralBindingPrice, effectiveDeliveryFeePaise } from "@/lib/pricing";
+import { formatRupees, paperSizeLabels, allPaperSizes, calculateSpiralBindingPrice, effectiveDeliveryFeePaise, isAcceptingOrders } from "@/lib/pricing";
 import { estimatePdfPages } from "@/lib/pdf-pages";
 import { MAX_BULK_FILES } from "@/lib/limits";
 import { checkDeliveryServiceable, isValidPincode } from "@/lib/service-area";
@@ -51,16 +51,31 @@ export default function UploadForm() {
     }
   }, []);
 
-  // Restore guest profile from a previous session (localStorage).
+  // Restore guest profile and last delivery address from a previous session (localStorage).
   useEffect(() => {
     try {
       const raw = localStorage.getItem("selfprint:guestProfile");
       if (raw) {
         const p = JSON.parse(raw);
-        if (p?.name) setGuestName(p.name);
-        if (p?.phone) setGuestPhone(p.phone);
+        if (p?.name) {
+          setGuestName(p.name);
+          setCustomerName((prev) => prev || p.name);
+        }
+        if (p?.phone) {
+          setGuestPhone(p.phone);
+          setCustomerPhone((prev) => prev || p.phone);
+        }
         // Returning guest — allow uploads without re-showing the popup.
         setGuestAllowed(true);
+      }
+      const rawAddr = localStorage.getItem("selfprint:lastDeliveryAddress");
+      if (rawAddr) {
+        const d = JSON.parse(rawAddr);
+        if (d?.name) setCustomerName((prev) => prev || d.name);
+        if (d?.phone) setCustomerPhone((prev) => prev || d.phone);
+        if (d?.address) setDeliveryAddress((prev) => prev || d.address);
+        if (d?.pincode) setDeliveryPincode((prev) => prev || d.pincode);
+        if (d?.area) setDeliveryArea((prev) => prev || d.area);
       }
     } catch { /* private mode or corrupt data — ignore */ }
   }, []);
@@ -103,7 +118,7 @@ export default function UploadForm() {
     pageCount?: number;
   } | null>(null);
   const [error, setError] = useState("");
-  const [deliveryMethod, setDeliveryMethod] = useState<"pickup" | "delivery">("pickup");
+  const [deliveryMethod, setDeliveryMethod] = useState<"pickup" | "delivery">("delivery");
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [deliveryAddress, setDeliveryAddress] = useState("");
@@ -412,7 +427,18 @@ export default function UploadForm() {
 
   function saveLastSettings() {
     const s: LastSettings = { printType, copies, paperSize, layout, scale, margins, pagesPerSheet, duplex, hasSpiralBinding, hasCoverFile, hasBondPaper };
-    try { localStorage.setItem(LAST_SETTINGS_KEY, JSON.stringify(s)); } catch { /* private mode */ }
+    try {
+      localStorage.setItem(LAST_SETTINGS_KEY, JSON.stringify(s));
+      if (deliveryMethod === "delivery" && deliveryAddress.trim()) {
+        localStorage.setItem("selfprint:lastDeliveryAddress", JSON.stringify({
+          name: customerName.trim(),
+          phone: customerPhone.trim(),
+          address: deliveryAddress.trim(),
+          pincode: deliveryPincode.trim(),
+          area: deliveryArea.trim(),
+        }));
+      }
+    } catch { /* private mode */ }
   }
 
   function applyLastSettings() {
@@ -476,7 +502,8 @@ export default function UploadForm() {
   const deliveryOfferable = !isDocFile && onlinePaymentRailAvailable;
 
   useEffect(() => {
-    if (!deliveryOfferable && deliveryMethod === "delivery") {
+    // If pricing has loaded and delivery is not available (e.g. DOC file or no online payment rail), fall back to pickup.
+    if (pricing && !deliveryOfferable && deliveryMethod === "delivery") {
       setDeliveryMethod("pickup");
       setCustomerName("");
       setCustomerPhone("");
@@ -485,7 +512,7 @@ export default function UploadForm() {
       setLocationState("idle");
       setLocationError("");
     }
-  }, [deliveryOfferable, deliveryMethod]);
+  }, [pricing, deliveryOfferable, deliveryMethod]);
 
   // While the "GPS still fetching" dialog is open and the customer chose to
   // wait, resolve automatically the moment the fetch settles — captured
@@ -1073,6 +1100,13 @@ export default function UploadForm() {
   }
 
   async function doSubmit() {
+    if (pricing) {
+      const hours = isAcceptingOrders(pricing);
+      if (!hours.ok) {
+        setError(hours.reason);
+        return;
+      }
+    }
     if (deliveryServiceInvalid) {
       setError(!serviceCheck.ok ? serviceCheck.reason : "Enter a valid 6-digit pincode for delivery.");
       return;
@@ -1207,10 +1241,30 @@ export default function UploadForm() {
     setBulkUploadDoneIds(new Set());
     setResult(null);
     setError("");
-    setDeliveryMethod("pickup");
-    setCustomerName("");
-    setCustomerPhone("");
-    setDeliveryAddress("");
+    setDeliveryMethod(deliveryOfferable ? "delivery" : "pickup");
+    try {
+      const raw = localStorage.getItem("selfprint:lastDeliveryAddress");
+      if (raw) {
+        const d = JSON.parse(raw);
+        setCustomerName(d?.name || guestName || "");
+        setCustomerPhone(d?.phone || guestPhone || "");
+        setDeliveryAddress(d?.address || "");
+        setDeliveryPincode(d?.pincode || "");
+        setDeliveryArea(d?.area || "");
+      } else {
+        setCustomerName(guestName || "");
+        setCustomerPhone(guestPhone || "");
+        setDeliveryAddress("");
+        setDeliveryPincode("");
+        setDeliveryArea("");
+      }
+    } catch {
+      setCustomerName(guestName || "");
+      setCustomerPhone(guestPhone || "");
+      setDeliveryAddress("");
+      setDeliveryPincode("");
+      setDeliveryArea("");
+    }
     setDeliveryLocation(null);
     setLocationState("idle");
     setLocationError("");
@@ -1296,8 +1350,17 @@ export default function UploadForm() {
   const settingsInvalid =
     (pageRangeMode === "custom" && !!customPageRange.trim() && !isValidPageRange) || isDuplexInvalid || deliveryServiceInvalid;
 
+  const acceptingOrdersCheck = pricing ? isAcceptingOrders(pricing) : { ok: true as const };
+  const shopClosed = !acceptingOrdersCheck.ok;
+
   return (
     <div className="upload-form">
+      {shopClosed && (
+        <div className="shop-closed-banner" role="alert">
+          {acceptingOrdersCheck.reason}
+        </div>
+      )}
+
       {/* Intro copy — only makes sense on the upload screen itself; once the
           customer has a file in and is deep in settings/preview it's just
           dead weight pushing the actual controls further down. */}
@@ -2488,7 +2551,7 @@ export default function UploadForm() {
               type="button"
               className="btn-primary btn-submit"
               onClick={handleSubmit}
-              disabled={busy || (isBulk && bulkUploading) || settingsInvalid}
+              disabled={busy || (isBulk && bulkUploading) || settingsInvalid || shopClosed}
               aria-busy={busy || (isBulk && bulkUploading)}
             >
               {busy ? (
@@ -2819,7 +2882,7 @@ export default function UploadForm() {
               type="button"
               className="btn-primary btn-submit"
               onClick={handleSubmit}
-              disabled={busy || (isBulk && bulkUploading)}
+              disabled={busy || (isBulk && bulkUploading) || shopClosed}
               aria-busy={busy || (isBulk && bulkUploading)}
             >
               {busy ? (

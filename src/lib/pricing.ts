@@ -1,4 +1,23 @@
-import type { PaperSize, PricingConfig, PrintDuplex, PrintType } from "./types";
+import type { FileSettingsOverride, PaperSize, PricingConfig, PrintDuplex, PrintType } from "./types";
+
+// Resolves one bulk file's effective print settings: its own override where
+// present, falling back to the job-level value for every other field. The
+// single place this merge happens — the server (pricing + the bulk insert)
+// and the client estimate both call this instead of re-deriving it, so they
+// can't drift apart.
+export function effectiveFileSettings(
+  jobDefaults: { printType: PrintType; duplex: PrintDuplex; paperSize: PaperSize; copies: number; pagesPerSheet: number },
+  override: FileSettingsOverride | null | undefined
+): { printType: PrintType; duplex: PrintDuplex; paperSize: PaperSize; copies: number; pagesPerSheet: number } {
+  if (!override) return jobDefaults;
+  return {
+    printType: override.printType ?? jobDefaults.printType,
+    duplex: override.duplex ?? jobDefaults.duplex,
+    paperSize: override.paperSize ?? jobDefaults.paperSize,
+    copies: override.copies ?? jobDefaults.copies,
+    pagesPerSheet: override.pagesPerSheet ?? jobDefaults.pagesPerSheet,
+  };
+}
 
 const paperMultipliers: Record<PaperSize, keyof Omit<PricingConfig, "bwPerPagePaise" | "colorPerPagePaise" | "photoPrintPaise" | "copyMultiplier" | "expiryMinutes">> = {
   A3: "a3Multiplier",
@@ -93,6 +112,31 @@ export function effectiveDeliveryFeePaise(orderSubtotalPaise: number, deliveryFe
 
 export function formatRupees(paise: number) {
   return `₹${(paise / 100).toFixed(2)}`;
+}
+
+// Shop hours check — staff toggle in the Pricing panel. acceptingOrders is a
+// manual kill switch; when both open/close times are set it's additionally
+// gated to that daily window (shop-local, Asia/Kolkata — the deployment is
+// India-only, see CLAUDE.md's bom1/ap-south-1 region note).
+export function isAcceptingOrders(pricing: PricingConfig): { ok: true } | { ok: false; reason: string } {
+  if (!pricing.acceptingOrders) {
+    return { ok: false, reason: "We're not accepting new orders right now. Please check back later." };
+  }
+  if (pricing.orderOpenTime && pricing.orderCloseTime) {
+    const nowHHMM = new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Asia/Kolkata",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).format(new Date());
+    const { orderOpenTime: open, orderCloseTime: close } = pricing;
+    // Same-day window (e.g. 09:00-21:00) vs. overnight window (e.g. 21:00-06:00).
+    const inWindow = open <= close ? nowHHMM >= open && nowHHMM < close : nowHHMM >= open || nowHHMM < close;
+    if (!inWindow) {
+      return { ok: false, reason: `We're currently closed. Orders are accepted ${open}–${close}.` };
+    }
+  }
+  return { ok: true };
 }
 
 export const paperSizeLabels: Record<PaperSize, string> = {

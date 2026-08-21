@@ -37,6 +37,9 @@ export type Pricing = {
   shopReviewUrl?: string;
   razorpayKeyId?: string;
   serviceArea: ServiceAreaConfig;
+  acceptingOrders: boolean;
+  orderOpenTime: string | null;
+  orderCloseTime: string | null;
 };
 
 // Loads the Razorpay Standard Checkout script once and resolves when ready.

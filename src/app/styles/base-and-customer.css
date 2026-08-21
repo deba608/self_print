@@ -573,6 +573,17 @@ input, select, button {
 
 .upload-form { display: flex; flex-direction: column; gap: var(--space-5); }
 
+.shop-closed-banner {
+  padding: 12px 16px;
+  border-radius: 10px;
+  background: var(--warn-light, #fef3c7);
+  color: var(--warn, #b45309);
+  border: 1px solid rgba(180, 83, 9, 0.25);
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
 /* === Desktop one-page workspace — 2×2 zones ===
    file card ......... live preview
    print settings .... fulfillment + price + confirm

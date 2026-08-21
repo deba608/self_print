@@ -28,7 +28,9 @@ export async function PUT(request: NextRequest) {
       }
     }
 
-    let serviceArea = (await getPricing()).serviceArea;
+    const currentPricing = await getPricing();
+
+    let serviceArea = currentPricing.serviceArea;
     if (body.serviceArea !== undefined) {
       const validated = validateServiceAreaConfig(body.serviceArea);
       if ("error" in validated) {
@@ -37,7 +39,22 @@ export async function PUT(request: NextRequest) {
       serviceArea = validated.config;
     }
 
-    const currentPricing = await getPricing();
+    const timePattern = /^([01]\d|2[0-3]):[0-5]\d$/;
+    let orderOpenTime = currentPricing.orderOpenTime;
+    let orderCloseTime = currentPricing.orderCloseTime;
+    if (body.orderOpenTime !== undefined || body.orderCloseTime !== undefined) {
+      const open = body.orderOpenTime ?? null;
+      const close = body.orderCloseTime ?? null;
+      if ((open && !timePattern.test(open)) || (close && !timePattern.test(close))) {
+        return NextResponse.json({ error: "Order hours must be in HH:MM format." }, { status: 400 });
+      }
+      if ((open && !close) || (!open && close)) {
+        return NextResponse.json({ error: "Set both an opening and closing time, or clear both." }, { status: 400 });
+      }
+      orderOpenTime = open;
+      orderCloseTime = close;
+    }
+    const acceptingOrders = typeof body.acceptingOrders === "boolean" ? body.acceptingOrders : currentPricing.acceptingOrders;
     await updatePricing({
       bwPerPagePaise: body.bwPerPagePaise,
       colorPerPagePaise: body.colorPerPagePaise,
@@ -62,7 +79,10 @@ export async function PUT(request: NextRequest) {
       expiryMinutes: body.expiryMinutes,
       deliveryFeePaise: body.deliveryFeePaise,
       freeDeliveryThresholdPaise: body.freeDeliveryThresholdPaise,
-      serviceArea
+      serviceArea,
+      acceptingOrders,
+      orderOpenTime,
+      orderCloseTime
     });
 
     return NextResponse.json(await getPricing());

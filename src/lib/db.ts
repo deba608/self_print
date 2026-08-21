@@ -272,6 +272,9 @@ async function ensureJobFileColumns(database: any) {
   if (!columns.has('purged_at')) {
     database.prepare(`ALTER TABLE job_files ADD COLUMN purged_at TEXT`).run();
   }
+  if (!columns.has('settings_json')) {
+    database.prepare(`ALTER TABLE job_files ADD COLUMN settings_json TEXT`).run();
+  }
 }
 
 async function ensureAgentConfigColumns(database: any) {
@@ -321,7 +324,10 @@ async function ensurePricingColumns(database: any) {
     ['spiral_binding_slab5_paise', 'INTEGER NOT NULL DEFAULT 5000'],
     ['delivery_fee_paise', 'INTEGER NOT NULL DEFAULT 0'],
     ['free_delivery_threshold_paise', 'INTEGER NOT NULL DEFAULT 20000'],
-    ['service_area_config', "TEXT NOT NULL DEFAULT ''"]
+    ['service_area_config', "TEXT NOT NULL DEFAULT ''"],
+    ['accepting_orders', 'INTEGER NOT NULL DEFAULT 1'],
+    ['order_open_time', 'TEXT'],
+    ['order_close_time', 'TEXT']
   ];
   for (const [name, definition] of additions) {
     if (!columns.has(name)) {
@@ -414,6 +420,20 @@ function mapJob(row: Record<string, unknown>, expiryMinutes: number = 1440): Job
   };
 }
 
+// Parses job_files.settings_json (a per-file print-settings override for
+// bulk jobs — see docs/bulk-per-file-customization-plan.md). Malformed JSON
+// falls back to "no override" rather than throwing, since this is stored
+// client-supplied data feeding a display/pricing path, not a security check.
+export function parseFileSettings(raw: unknown): JobFile['settings'] {
+  if (!raw || typeof raw !== 'string') return null;
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
 // Helper to convert SQLite row to JobFile type
 export function mapJobFile(row: Record<string, unknown>): JobFile {
   return {
@@ -426,7 +446,8 @@ export function mapJobFile(row: Record<string, unknown>): JobFile {
     fileKind: row.file_kind as JobFile['fileKind'],
     storagePath: String(row.storage_path),
     createdAt: String(row.created_at),
-    purgedAt: row.purged_at ? String(row.purged_at) : null
+    purgedAt: row.purged_at ? String(row.purged_at) : null,
+    settings: parseFileSettings(row.settings_json),
   };
 }
 
@@ -556,7 +577,8 @@ export async function getJobsPage(limit: number, cursor?: string | null): Promis
         fileKind: row.f_file_kind as any,
         storagePath: String(row.f_storage_path),
         createdAt: String(row.f_created_at),
-        purgedAt: row.f_purged_at ? String(row.f_purged_at) : null
+        purgedAt: row.f_purged_at ? String(row.f_purged_at) : null,
+        settings: null,
       };
     }
     job.fileCount = Number(row.f_count ?? (row.f_id ? 1 : 0));
@@ -760,8 +782,8 @@ export async function createJobWithFiles(
     );
 
     const insertFile = sqlite.prepare(`
-      INSERT INTO job_files (id, job_id, original_name, stored_name, mime_type, size_bytes, file_kind, storage_path, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO job_files (id, job_id, original_name, stored_name, mime_type, size_bytes, file_kind, storage_path, created_at, settings_json)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     filesData.forEach((fd, i) => {
       // Offset each file's created_at by i ms so multi-file batches (which all
@@ -769,6 +791,7 @@ export async function createJobWithFiles(
       // `ORDER BY created_at ASC, id ASC` — file ids are random UUIDs, so id
       // alone can't be relied on as a tiebreaker across a shared timestamp.
       const fileCreatedAt = new Date(Date.parse(now) + i).toISOString();
+      const settings = fd.settings ?? fd.settingsOverride ?? null;
       insertFile.run(
         fileIds[i], jobId,
         fd.originalName ?? fd.original_name,
@@ -777,7 +800,8 @@ export async function createJobWithFiles(
         fd.sizeBytes ?? fd.size_bytes,
         fd.fileKind ?? fd.file_kind,
         fd.storagePath ?? fd.storage_path,
-        fileCreatedAt
+        fileCreatedAt,
+        settings ? JSON.stringify(settings) : null
       );
     });
 
@@ -1006,7 +1030,10 @@ export async function getPricing(): Promise<PricingConfig> {
     expiryMinutes: (row.expiry_minutes as number) ?? 1440,
     deliveryFeePaise: (row.delivery_fee_paise as number) ?? 0,
     freeDeliveryThresholdPaise: (row.free_delivery_threshold_paise as number) ?? 20000,
-    serviceArea: parseServiceAreaConfig(row.service_area_config as string)
+    serviceArea: parseServiceAreaConfig(row.service_area_config as string),
+    acceptingOrders: row.accepting_orders == null ? true : Boolean(row.accepting_orders),
+    orderOpenTime: (row.order_open_time as string) || null,
+    orderCloseTime: (row.order_close_time as string) || null,
   };
   return pricingCache;
 }
@@ -1030,7 +1057,8 @@ export async function updatePricing(pricing: PricingConfig): Promise<void> {
       bond_paper_per_page_paise = ?, spiral_binding_slab1_paise = ?,
       spiral_binding_slab2_paise = ?, spiral_binding_slab3_paise = ?,
       spiral_binding_slab4_paise = ?, spiral_binding_slab5_paise = ?,
-       expiry_minutes = ?, delivery_fee_paise = ?, free_delivery_threshold_paise = ?, service_area_config = ?, updated_at = ?
+       expiry_minutes = ?, delivery_fee_paise = ?, free_delivery_threshold_paise = ?, service_area_config = ?,
+       accepting_orders = ?, order_open_time = ?, order_close_time = ?, updated_at = ?
     WHERE id = 1
   `).run(
      pricing.bwPerPagePaise, pricing.colorPerPagePaise, pricing.photoPrintPaise,
@@ -1041,7 +1069,8 @@ export async function updatePricing(pricing: PricingConfig): Promise<void> {
      pricing.spiralBindingSlab2Paise, pricing.spiralBindingSlab3Paise,
      pricing.spiralBindingSlab4Paise, pricing.spiralBindingSlab5Paise,
      pricing.expiryMinutes, pricing.deliveryFeePaise, pricing.freeDeliveryThresholdPaise,
-     serializeServiceAreaConfig(pricing.serviceArea), now
+     serializeServiceAreaConfig(pricing.serviceArea),
+     pricing.acceptingOrders ? 1 : 0, pricing.orderOpenTime, pricing.orderCloseTime, now
   );
 }
 

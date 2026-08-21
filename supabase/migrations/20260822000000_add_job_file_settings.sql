@@ -1,0 +1,1 @@
+ALTER TABLE job_files ADD COLUMN IF NOT EXISTS settings_json TEXT;
