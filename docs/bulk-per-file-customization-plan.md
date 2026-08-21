@@ -27,8 +27,14 @@ live estimate — the client), and let the UI edit them.
 
 ## Scope for this pass
 
-**In**: `printType`, `duplex`, `paperSize`, `copies`, `pagesPerSheet` — the
-fields that actually change per document (a resume vs. a poster).
+**In (backend — validated, priced, stored, honored by the agent)**: `printType`,
+`duplex`, `paperSize`, `copies`, `pagesPerSheet`.
+
+**In (customer-facing UI)**: `printType`, `duplex`, `copies` only — the panel
+was trimmed to 3 fields to keep the per-file customize drawer quick to use.
+`paperSize`/`pagesPerSheet` overrides still work end-to-end if set (e.g. via
+the API directly); there's just no UI control for them. Add the two selects
+back to `BulkFileCustomizePanel` in `UploadForm.tsx` if that changes.
 
 **Deferred**: `scale`, `margins`, `layout` per-file (rarely need to differ,
 adds UI clutter for little value — inherit job-level). Per-file
