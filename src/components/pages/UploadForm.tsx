@@ -3,9 +3,10 @@
 import { useEffect, useMemo, useState, useRef } from "react";
 import Link from "next/link";
 import { UploadCloud, FileText, Image, ArrowLeft, ArrowRight, Check, Eye, Loader2, File, Settings2, Printer, Copy, Store, X, Search, CreditCard, RefreshCw, Info, Truck, MapPin, Navigation, AlertCircle, ChevronDown, Heart } from "lucide-react";
-import { formatRupees, paperSizeLabels, allPaperSizes, calculateSpiralBindingPrice, effectiveDeliveryFeePaise, isAcceptingOrders } from "@/lib/pricing";
+import { formatRupees, paperSizeLabels, allPaperSizes, calculateSpiralBindingPrice, calculatePrice, effectiveDeliveryFeePaise, effectiveFileSettings, isAcceptingOrders } from "@/lib/pricing";
 import { estimatePdfPages } from "@/lib/pdf-pages";
 import { MAX_BULK_FILES } from "@/lib/limits";
+import type { FileSettingsOverride } from "@/lib/types";
 import { checkDeliveryServiceable, isValidPincode } from "@/lib/service-area";
 
 import BulkThumb from "../upload/BulkThumb";
@@ -201,6 +202,12 @@ export default function UploadForm() {
   // Ids currently animating out (X clicked); actual removal happens on
   // transition-end so the collapse always plays against the correct file.
   const [leavingBulkIds, setLeavingBulkIds] = useState<Set<string>>(new Set());
+  // Per-file settings overrides for bulk jobs, keyed by the same stable
+  // bulkIds used everywhere else — see docs/bulk-per-file-customization-plan.md.
+  // A file with no entry here just inherits the job-level settings.
+  const [bulkFileOverrides, setBulkFileOverrides] = useState<Record<string, FileSettingsOverride>>({});
+  // Which bulk file's customize panel is open — only one at a time.
+  const [customizingBulkId, setCustomizingBulkId] = useState<string | null>(null);
   // Sticky: once a 2+ file selection enters bulk, we stay in bulk UI even if
   // the user removes files down to 1 via the ✕ button. Cleared only on reset
   // or an explicit fresh single-file selection — never derived from length.
@@ -611,7 +618,38 @@ export default function UploadForm() {
     const pages = isBulk ? bulkTotalPages : selectedPages;
 
     let printAndAddonPaise: number;
-    if (paperSize === "Photo") {
+    if (isBulk) {
+      // Per-file settings override for bulk jobs — sum each file's own price
+      // at its effective (override ?? job-level) settings instead of one flat
+      // calculation, so a customized file's cost actually reflects its own
+      // paper/duplex/copies. Mirrors the server (api/jobs/route.ts) exactly
+      // via the same effectiveFileSettings()/calculatePrice() helpers.
+      const jobDefaults = {
+        printType: printType as "bw" | "color",
+        duplex: duplex as "simplex" | "long-edge" | "short-edge",
+        paperSize: paperSize as "A3" | "A4" | "A5" | "A6" | "B5" | "Letter" | "Legal" | "Photo",
+        copies,
+        pagesPerSheet,
+      };
+      const printCostPaise = bulkFiles.reduce((sum, _f, i) => {
+        const id = bulkIds[i];
+        const override = id ? bulkFileOverrides[id] : undefined;
+        const effective = effectiveFileSettings(jobDefaults, override ?? null);
+        const filePages = bulkPageCounts[i] ?? 1;
+        return sum + calculatePrice({
+          printType: effective.printType,
+          copies: effective.copies,
+          pageRange: null,
+          paperSize: effective.paperSize,
+          pageCount: filePages,
+          pricing,
+          duplex: effective.duplex !== "simplex" && filePages < 2 ? "simplex" : effective.duplex,
+          pagesPerSheet: effective.pagesPerSheet,
+        });
+      }, 0);
+      const addonFeePaiseVal = (hasSpiralBinding ? calculateSpiralBindingPrice(bulkTotalPages, pricing) * spiralBindingQty : 0) + (hasCoverFile ? pricing.coverFilePaise * coverFileQty : 0) + (hasBondPaper ? pricing.bondPaperPerPagePaise * bulkTotalPages : 0);
+      printAndAddonPaise = printCostPaise + addonFeePaiseVal;
+    } else if (paperSize === "Photo") {
       // Round to whole paise exactly like the server (calculatePrice) so the
       // estimate never drifts a paisa from the final charged amount.
       printAndAddonPaise = Math.round(pricing.photoPrintPaise * copies);
@@ -653,7 +691,7 @@ export default function UploadForm() {
     const deliveryFeePaise = deliveryMethod === "delivery" ? effectiveDeliveryFeePaise(printAndAddonPaise, pricing.deliveryFeePaise, pricing.freeDeliveryThresholdPaise) : 0;
     const isFreeDelivery = deliveryMethod === "delivery" && pricing.deliveryFeePaise > 0 && deliveryFeePaise === 0;
     return { totalPaise: printAndAddonPaise + deliveryFeePaise, printAndAddonPaise, deliveryFeePaise, isFreeDelivery };
-  }, [copies, selectedPages, paperSize, printType, pricing, duplex, isBulk, bulkTotalPages, deliveryMethod, pagesPerSheet, hasSpiralBinding, hasCoverFile, hasBondPaper, spiralBindingQty, coverFileQty]);
+  }, [copies, selectedPages, paperSize, printType, pricing, duplex, isBulk, bulkTotalPages, bulkFiles, bulkIds, bulkPageCounts, bulkFileOverrides, deliveryMethod, pagesPerSheet, hasSpiralBinding, hasCoverFile, hasBondPaper, spiralBindingQty, coverFileQty]);
 
   const estimate = priceBreakdown.totalPaise / 100;
 
@@ -875,6 +913,8 @@ export default function UploadForm() {
     setBulkFiles([]);
     setBulkPageCounts([]);
     setBulkIds([]);
+    setBulkFileOverrides({});
+    setCustomizingBulkId(null);
     setBulkMode(false);
     setBulkUploading(false);
     bulkUploadsRef.current = null;
@@ -963,6 +1003,13 @@ export default function UploadForm() {
     // stop tracking this one so it's excluded from submit).
     if (id !== undefined) {
       bulkUploadsRef.current?.delete(id);
+      setBulkFileOverrides((prev) => {
+        if (!(id in prev)) return prev;
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+      setCustomizingBulkId((prev) => (prev === id ? null : prev));
     }
     setError("");
     setBulkFiles((prev) => prev.filter((_, idx) => idx !== i));
@@ -1037,6 +1084,13 @@ export default function UploadForm() {
       if (guestName) bulkForm.set("guestName", guestName);
       if (guestPhone) bulkForm.set("guestPhone", guestPhone);
       appendDeliveryDetails(bulkForm);
+      // Index-aligned with bulkFiles — null for a file with no customization.
+      bulkForm.set("fileSettingsJson", JSON.stringify(
+        bulkFiles.map((_f, i) => {
+          const id = bulkIds[i];
+          return (id && bulkFileOverrides[id]) || null;
+        })
+      ));
 
       if (uploadResults.some((r) => r.fallback)) {
         // Direct upload unavailable — send the PDFs themselves; the server
@@ -1234,6 +1288,8 @@ export default function UploadForm() {
     setBulkFiles([]);
     setBulkPageCounts([]);
     setBulkIds([]);
+    setBulkFileOverrides({});
+    setCustomizingBulkId(null);
     setBulkMode(false);
     setBulkUploading(false);
     setSingleUploading(false);
@@ -1661,6 +1717,8 @@ export default function UploadForm() {
                 setBulkFiles([]);
                 setBulkPageCounts([]);
                 setBulkIds([]);
+                setBulkFileOverrides({});
+                setCustomizingBulkId(null);
                 setBulkMode(false);
                 setBulkUploading(false);
                 setError("");
@@ -2615,9 +2673,9 @@ export default function UploadForm() {
                     const id = bulkIds[i];
                     const isLeaving = id !== undefined && leavingBulkIds.has(id);
                     return (
+                    <div key={id ?? i} className="bulk-file-item">
                     <div
                       className={`bulk-file-row ${i === bulkPreviewIndex ? "active" : ""} ${isLeaving ? "leaving" : ""} ${dragOverIndex === i ? "drag-over" : ""}`}
-                      key={id ?? i}
                       draggable={bulkFiles.length > 1}
                       role="button"
                       tabIndex={0}
@@ -2640,7 +2698,18 @@ export default function UploadForm() {
                       <BulkThumb file={f} grayscale={printType === "bw"} />
                       <span className="bulk-file-name">{f.name}</span>
                       <span className="bulk-file-pages">{bulkPageCounts[i] ?? 1} pg</span>
+                      {id && bulkFileOverrides[id] && <span className="bulk-file-custom-badge">Custom</span>}
                       {bulkUploadStatus(bulkIds[i], f)}
+                      <button type="button" className={`bulk-file-customize ${id && customizingBulkId === id ? "active" : ""}`}
+                        aria-label={`Customize settings for ${f.name}`}
+                        aria-pressed={id !== undefined && customizingBulkId === id}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (!id) return;
+                          setCustomizingBulkId((prev) => (prev === id ? null : id));
+                        }}>
+                        <Settings2 size={15} />
+                      </button>
                       <button type="button" className="bulk-file-remove" aria-label={`Remove ${f.name}`}
                         onClick={(e) => {
                           e.stopPropagation();
@@ -2649,6 +2718,74 @@ export default function UploadForm() {
                         }}>
                         <X size={16} />
                       </button>
+                    </div>
+                    {id && customizingBulkId === id && (
+                      <div className="bulk-file-customize-panel" onClick={(e) => e.stopPropagation()}>
+                        <div className="bulk-customize-row">
+                          <label>Print</label>
+                          <select
+                            value={bulkFileOverrides[id]?.printType ?? printType}
+                            onChange={(e) => setBulkFileOverrides((prev) => ({ ...prev, [id]: { ...prev[id], printType: e.target.value as "bw" | "color" } }))}
+                          >
+                            <option value="bw">B&amp;W</option>
+                            <option value="color">Color</option>
+                          </select>
+                        </div>
+                        <div className="bulk-customize-row">
+                          <label>Sides</label>
+                          <select
+                            value={bulkFileOverrides[id]?.duplex ?? duplex}
+                            onChange={(e) => setBulkFileOverrides((prev) => ({ ...prev, [id]: { ...prev[id], duplex: e.target.value as "simplex" | "long-edge" | "short-edge" } }))}
+                          >
+                            <option value="simplex">Single-sided</option>
+                            <option value="long-edge">Double-sided (long edge)</option>
+                            <option value="short-edge">Double-sided (short edge)</option>
+                          </select>
+                        </div>
+                        <div className="bulk-customize-row">
+                          <label>Paper</label>
+                          <select
+                            value={bulkFileOverrides[id]?.paperSize ?? paperSize}
+                            onChange={(e) => setBulkFileOverrides((prev) => ({ ...prev, [id]: { ...prev[id], paperSize: e.target.value as typeof allPaperSizes[number] } }))}
+                          >
+                            {allPaperSizes.map((p) => <option key={p} value={p}>{p}</option>)}
+                          </select>
+                        </div>
+                        <div className="bulk-customize-row">
+                          <label>Copies</label>
+                          <input
+                            type="number"
+                            min={1}
+                            max={99}
+                            value={bulkFileOverrides[id]?.copies ?? copies}
+                            onChange={(e) => {
+                              const n = Math.max(1, Math.min(99, Math.floor(Number(e.target.value)) || 1));
+                              setBulkFileOverrides((prev) => ({ ...prev, [id]: { ...prev[id], copies: n } }));
+                            }}
+                          />
+                        </div>
+                        <div className="bulk-customize-row">
+                          <label>Per sheet</label>
+                          <select
+                            value={bulkFileOverrides[id]?.pagesPerSheet ?? pagesPerSheet}
+                            onChange={(e) => setBulkFileOverrides((prev) => ({ ...prev, [id]: { ...prev[id], pagesPerSheet: Number(e.target.value) } }))}
+                          >
+                            <option value={1}>1</option>
+                            <option value={2}>2</option>
+                            <option value={4}>4</option>
+                          </select>
+                        </div>
+                        {bulkFileOverrides[id] && (
+                          <button
+                            type="button"
+                            className="bulk-customize-reset"
+                            onClick={() => setBulkFileOverrides((prev) => { const next = { ...prev }; delete next[id]; return next; })}
+                          >
+                            <RefreshCw size={13} /> Reset to job defaults
+                          </button>
+                        )}
+                      </div>
+                    )}
                     </div>
                     );
                   })}

@@ -4,6 +4,7 @@
 -- file a job is. Mirror the existing "customers can view own jobs" policy.
 alter table public.job_files enable row level security;
 
+drop policy if exists "customers can view own job files" on public.job_files;
 create policy "customers can view own job files" on public.job_files
   for select using (
     exists (
@@ -13,6 +14,7 @@ create policy "customers can view own job files" on public.job_files
     )
   );
 
+drop policy if exists "staff can view all job files" on public.job_files;
 create policy "staff can view all job files" on public.job_files
   for select using (
     exists (
@@ -20,3 +22,4 @@ create policy "staff can view all job files" on public.job_files
       where staff_profiles.id = auth.uid()
     )
   );
+

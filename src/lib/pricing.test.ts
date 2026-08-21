@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { calculatePrice, calculateSpiralBindingPrice, effectiveDeliveryFeePaise } from "./pricing";
+import { calculatePrice, calculateSpiralBindingPrice, effectiveDeliveryFeePaise, effectiveFileSettings } from "./pricing";
 import type { PricingConfig } from "./types";
 import { DEFAULT_SERVICE_AREA } from "./service-area";
 
@@ -130,5 +130,30 @@ describe("effectiveDeliveryFeePaise free-delivery threshold", () => {
 
   it("always charges the fee when the threshold is disabled (0)", () => {
     expect(effectiveDeliveryFeePaise(1_000_000, feePaise, 0)).toBe(feePaise);
+  });
+});
+
+describe("effectiveFileSettings (bulk per-file customization)", () => {
+  const jobDefaults = { printType: "bw", duplex: "simplex", paperSize: "A4", copies: 1, pagesPerSheet: 1 } as const;
+
+  it("inherits every job default when there is no override", () => {
+    expect(effectiveFileSettings(jobDefaults, null)).toEqual(jobDefaults);
+    expect(effectiveFileSettings(jobDefaults, undefined)).toEqual(jobDefaults);
+  });
+
+  it("applies only the overridden fields, inheriting the rest", () => {
+    expect(effectiveFileSettings(jobDefaults, { printType: "color" })).toEqual({
+      ...jobDefaults,
+      printType: "color",
+    });
+  });
+
+  it("applies every field when all are overridden", () => {
+    const override = { printType: "color", duplex: "long-edge", paperSize: "A3", copies: 3, pagesPerSheet: 2 } as const;
+    expect(effectiveFileSettings(jobDefaults, override)).toEqual(override);
+  });
+
+  it("an empty override object still falls back to job defaults field by field", () => {
+    expect(effectiveFileSettings(jobDefaults, {})).toEqual(jobDefaults);
   });
 });

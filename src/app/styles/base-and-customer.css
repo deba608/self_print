@@ -1277,6 +1277,101 @@ input, select, button {
   color: #c0392b;
 }
 
+/* Per-file customization (see docs/bulk-per-file-customization-plan.md) —
+   wraps the existing draggable row so the expandable panel stacks under it
+   without disturbing the row's own layout/animation. */
+.bulk-file-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.bulk-file-custom-badge {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--accent-strong);
+  background: var(--accent-light);
+  border: 1px solid rgba(13, 122, 116, 0.25);
+  padding: 2px 6px;
+  border-radius: 999px;
+}
+
+.bulk-file-customize {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.bulk-file-customize:hover,
+.bulk-file-customize.active {
+  background: var(--accent-light);
+  color: var(--accent);
+}
+
+.bulk-file-customize-panel {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px 12px;
+  margin: -4px 0 8px;
+  padding: 12px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-top: none;
+  border-radius: 0 0 10px 10px;
+  animation: fadeInUp 0.2s var(--ease-out) both;
+}
+
+.bulk-customize-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.bulk-customize-row label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.bulk-customize-row select,
+.bulk-customize-row input {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  background: #fff;
+}
+
+.bulk-customize-reset {
+  grid-column: 1 / -1;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 4px;
+}
+
+.bulk-customize-reset:hover {
+  color: var(--accent);
+}
+
 /* Print Type Toggle */
 .print-type-toggle {
   display: grid;
