@@ -5,6 +5,7 @@ import Link from "next/link";
 import { UploadCloud, FileText, Image, ArrowLeft, ArrowRight, Check, Eye, Loader2, File, Settings2, Printer, Copy, Store, X, Search, CreditCard, RefreshCw, Info, Truck, MapPin, Navigation, AlertCircle, ChevronDown, Heart } from "lucide-react";
 import { formatRupees, paperSizeLabels, allPaperSizes, calculateSpiralBindingPrice, effectiveDeliveryFeePaise } from "@/lib/pricing";
 import { estimatePdfPages } from "@/lib/pdf-pages";
+import { MAX_BULK_FILES } from "@/lib/limits";
 import { checkDeliveryServiceable, isValidPincode } from "@/lib/service-area";
 
 import BulkThumb from "../upload/BulkThumb";
@@ -1485,7 +1486,7 @@ export default function UploadForm() {
             <div className="file-zone-board">
               <h3 className="file-zone-title">
                 Your files
-                {isBulk && <span className="file-zone-count">{bulkFiles.length}/10 · {bulkTotalPages} pages</span>}
+                {isBulk && <span className="file-zone-count">{bulkFiles.length}/{MAX_BULK_FILES} · {bulkTotalPages} pages</span>}
               </h3>
               <div className="file-thumb-grid">
                 {isBulk ? (
@@ -1565,8 +1566,8 @@ export default function UploadForm() {
                     type="button"
                     className="file-thumb-add"
                     onClick={() => addMoreInputRef.current?.click()}
-                    disabled={isBulk && bulkFiles.length >= 10}
-                    title={isBulk && bulkFiles.length >= 10 ? "Maximum 10 files per job" : "Add more PDFs to this job (click or drag files here)"}
+                    disabled={isBulk && bulkFiles.length >= MAX_BULK_FILES}
+                    title={isBulk && bulkFiles.length >= MAX_BULK_FILES ? `Maximum ${MAX_BULK_FILES} files per job` : "Add more PDFs to this job (click or drag files here)"}
                     onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "copy"; }}
                     onDrop={(e) => {
                       e.preventDefault();
@@ -1656,13 +1657,13 @@ export default function UploadForm() {
                 type="button"
                 className="add-more-btn"
                 onClick={() => addMoreInputRef.current?.click()}
-                disabled={isBulk && bulkFiles.length >= 10}
-                title={isBulk && bulkFiles.length >= 10 ? "Maximum 10 files per job" : undefined}
+                disabled={isBulk && bulkFiles.length >= MAX_BULK_FILES}
+                title={isBulk && bulkFiles.length >= MAX_BULK_FILES ? `Maximum ${MAX_BULK_FILES} files per job` : undefined}
               >
                 <UploadCloud size={16} aria-hidden="true" />
                 Add more PDFs
                 <span className="add-more-hint">
-                  {isBulk ? `${bulkFiles.length}/10 files` : "print several in one job"}
+                  {isBulk ? `${bulkFiles.length}/${MAX_BULK_FILES} files` : "print several in one job"}
                 </span>
               </button>
           )}

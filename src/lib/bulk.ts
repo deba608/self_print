@@ -1,8 +1,9 @@
 import { MAX_UPLOAD_BYTES } from "./config";
 import { validateUpload } from "./files";
 import { isValidStoredName } from "./storage";
+import { MAX_BULK_FILES } from "./limits";
 
-export const MAX_BULK_FILES = 10;
+export { MAX_BULK_FILES };
 
 export type BulkFileMeta = {
   storedName: string;

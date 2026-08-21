@@ -37,7 +37,7 @@ describe("parseBulkFiles", () => {
   it("rejects more than MAX_BULK_FILES", () => {
     const many = Array.from({ length: MAX_BULK_FILES + 1 }, (_, i) => pdf(i));
     const res = parseBulkFiles(rawFrom(many));
-    expect(res).toEqual({ error: expect.stringContaining("10") });
+    expect(res).toEqual({ error: expect.stringContaining(String(MAX_BULK_FILES)) });
   });
 
   it("rejects empty list", () => {
