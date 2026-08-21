@@ -20,6 +20,83 @@ import { createClient } from "@/lib/supabase/client";
 type Step = "upload" | "settings" | "preview" | "converting" | "done" | "docx-warning";
 type PageRangeMode = "all" | "custom";
 
+// Per-file settings panel for bulk uploads — shared between the mobile
+// wizard's inline row list and the desktop thumbnail grid's drawer, so the
+// two surfaces can't drift apart on which fields are editable. See
+// docs/bulk-per-file-customization-plan.md.
+function BulkFileCustomizePanel({
+  override,
+  jobDefaults,
+  onChange,
+  onReset,
+}: {
+  override: FileSettingsOverride | undefined;
+  jobDefaults: { printType: string; duplex: string; paperSize: string; copies: number; pagesPerSheet: number };
+  onChange: (patch: Partial<FileSettingsOverride>) => void;
+  onReset: () => void;
+}) {
+  return (
+    <div className="bulk-file-customize-panel" onClick={(e) => e.stopPropagation()}>
+      <div className="bulk-customize-row">
+        <label>Print</label>
+        <select
+          value={override?.printType ?? jobDefaults.printType}
+          onChange={(e) => onChange({ printType: e.target.value as "bw" | "color" })}
+        >
+          <option value="bw">B&amp;W</option>
+          <option value="color">Color</option>
+        </select>
+      </div>
+      <div className="bulk-customize-row">
+        <label>Sides</label>
+        <select
+          value={override?.duplex ?? jobDefaults.duplex}
+          onChange={(e) => onChange({ duplex: e.target.value as "simplex" | "long-edge" | "short-edge" })}
+        >
+          <option value="simplex">Single-sided</option>
+          <option value="long-edge">Double-sided (long edge)</option>
+          <option value="short-edge">Double-sided (short edge)</option>
+        </select>
+      </div>
+      <div className="bulk-customize-row">
+        <label>Paper</label>
+        <select
+          value={override?.paperSize ?? jobDefaults.paperSize}
+          onChange={(e) => onChange({ paperSize: e.target.value as typeof allPaperSizes[number] })}
+        >
+          {allPaperSizes.map((p) => <option key={p} value={p}>{p}</option>)}
+        </select>
+      </div>
+      <div className="bulk-customize-row">
+        <label>Copies</label>
+        <input
+          type="number"
+          min={1}
+          max={99}
+          value={override?.copies ?? jobDefaults.copies}
+          onChange={(e) => onChange({ copies: Math.max(1, Math.min(99, Math.floor(Number(e.target.value)) || 1)) })}
+        />
+      </div>
+      <div className="bulk-customize-row">
+        <label>Per sheet</label>
+        <select
+          value={override?.pagesPerSheet ?? jobDefaults.pagesPerSheet}
+          onChange={(e) => onChange({ pagesPerSheet: Number(e.target.value) })}
+        >
+          <option value={1}>1</option>
+          <option value={2}>2</option>
+          <option value={4}>4</option>
+        </select>
+      </div>
+      {override && (
+        <button type="button" className="bulk-customize-reset" onClick={onReset}>
+          <RefreshCw size={13} /> Reset to job defaults
+        </button>
+      )}
+    </div>
+  );
+}
+
 export default function UploadForm() {
   const [step, setStep] = useState<Step>("upload");
   const [showNudge, setShowNudge] = useState(false);
@@ -1629,7 +1706,22 @@ export default function UploadForm() {
                       <BulkThumb file={f} grayscale={printType === "bw"} width={82} />
                       <span className="file-thumb-name" title={f.name}>{f.name}</span>
                       <span className="file-thumb-pages">{bulkPageCounts[i] ?? 1} pg</span>
+                      {bulkIds[i] && bulkFileOverrides[bulkIds[i]] && <span className="file-thumb-custom-badge">Custom</span>}
                       {bulkUploadStatus(bulkIds[i], f)}
+                      <button
+                        type="button"
+                        className={`file-thumb-customize ${bulkIds[i] && customizingBulkId === bulkIds[i] ? "active" : ""}`}
+                        aria-label={`Customize settings for ${f.name}`}
+                        aria-pressed={bulkIds[i] !== undefined && customizingBulkId === bulkIds[i]}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const fid = bulkIds[i];
+                          if (!fid) return;
+                          setCustomizingBulkId((prev) => (prev === fid ? null : fid));
+                        }}
+                      >
+                        <Settings2 size={13} />
+                      </button>
                       <button
                         type="button"
                         className="file-thumb-remove"
@@ -1701,6 +1793,24 @@ export default function UploadForm() {
                   </button>
                 )}
               </div>
+              {isBulk && customizingBulkId && bulkIds.includes(customizingBulkId) && (
+                <div className="file-zone-customize-drawer">
+                  <div className="file-zone-customize-head">
+                    <span>
+                      Customizing <strong>{bulkFiles[bulkIds.indexOf(customizingBulkId)]?.name}</strong>
+                    </span>
+                    <button type="button" className="file-thumb-remove" aria-label="Close customize panel" onClick={() => setCustomizingBulkId(null)}>
+                      <X size={13} />
+                    </button>
+                  </div>
+                  <BulkFileCustomizePanel
+                    override={bulkFileOverrides[customizingBulkId]}
+                    jobDefaults={{ printType, duplex, paperSize, copies, pagesPerSheet }}
+                    onChange={(patch) => setBulkFileOverrides((prev) => ({ ...prev, [customizingBulkId]: { ...prev[customizingBulkId], ...patch } }))}
+                    onReset={() => setBulkFileOverrides((prev) => { const next = { ...prev }; delete next[customizingBulkId]; return next; })}
+                  />
+                </div>
+              )}
             </div>
           ) : (
             <>
@@ -2720,71 +2830,12 @@ export default function UploadForm() {
                       </button>
                     </div>
                     {id && customizingBulkId === id && (
-                      <div className="bulk-file-customize-panel" onClick={(e) => e.stopPropagation()}>
-                        <div className="bulk-customize-row">
-                          <label>Print</label>
-                          <select
-                            value={bulkFileOverrides[id]?.printType ?? printType}
-                            onChange={(e) => setBulkFileOverrides((prev) => ({ ...prev, [id]: { ...prev[id], printType: e.target.value as "bw" | "color" } }))}
-                          >
-                            <option value="bw">B&amp;W</option>
-                            <option value="color">Color</option>
-                          </select>
-                        </div>
-                        <div className="bulk-customize-row">
-                          <label>Sides</label>
-                          <select
-                            value={bulkFileOverrides[id]?.duplex ?? duplex}
-                            onChange={(e) => setBulkFileOverrides((prev) => ({ ...prev, [id]: { ...prev[id], duplex: e.target.value as "simplex" | "long-edge" | "short-edge" } }))}
-                          >
-                            <option value="simplex">Single-sided</option>
-                            <option value="long-edge">Double-sided (long edge)</option>
-                            <option value="short-edge">Double-sided (short edge)</option>
-                          </select>
-                        </div>
-                        <div className="bulk-customize-row">
-                          <label>Paper</label>
-                          <select
-                            value={bulkFileOverrides[id]?.paperSize ?? paperSize}
-                            onChange={(e) => setBulkFileOverrides((prev) => ({ ...prev, [id]: { ...prev[id], paperSize: e.target.value as typeof allPaperSizes[number] } }))}
-                          >
-                            {allPaperSizes.map((p) => <option key={p} value={p}>{p}</option>)}
-                          </select>
-                        </div>
-                        <div className="bulk-customize-row">
-                          <label>Copies</label>
-                          <input
-                            type="number"
-                            min={1}
-                            max={99}
-                            value={bulkFileOverrides[id]?.copies ?? copies}
-                            onChange={(e) => {
-                              const n = Math.max(1, Math.min(99, Math.floor(Number(e.target.value)) || 1));
-                              setBulkFileOverrides((prev) => ({ ...prev, [id]: { ...prev[id], copies: n } }));
-                            }}
-                          />
-                        </div>
-                        <div className="bulk-customize-row">
-                          <label>Per sheet</label>
-                          <select
-                            value={bulkFileOverrides[id]?.pagesPerSheet ?? pagesPerSheet}
-                            onChange={(e) => setBulkFileOverrides((prev) => ({ ...prev, [id]: { ...prev[id], pagesPerSheet: Number(e.target.value) } }))}
-                          >
-                            <option value={1}>1</option>
-                            <option value={2}>2</option>
-                            <option value={4}>4</option>
-                          </select>
-                        </div>
-                        {bulkFileOverrides[id] && (
-                          <button
-                            type="button"
-                            className="bulk-customize-reset"
-                            onClick={() => setBulkFileOverrides((prev) => { const next = { ...prev }; delete next[id]; return next; })}
-                          >
-                            <RefreshCw size={13} /> Reset to job defaults
-                          </button>
-                        )}
-                      </div>
+                      <BulkFileCustomizePanel
+                        override={bulkFileOverrides[id]}
+                        jobDefaults={{ printType, duplex, paperSize, copies, pagesPerSheet }}
+                        onChange={(patch) => setBulkFileOverrides((prev) => ({ ...prev, [id]: { ...prev[id], ...patch } }))}
+                        onReset={() => setBulkFileOverrides((prev) => { const next = { ...prev }; delete next[id]; return next; })}
+                      />
                     )}
                     </div>
                     );

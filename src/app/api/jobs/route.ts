@@ -574,12 +574,19 @@ async function handleBulk(form: FormData, customer: { id: string; displayName: s
   // A file downgrades its own duplex to simplex when it doesn't have enough
   // pages for it, rather than erroring the whole order out — the old
   // job-level "needs 2+ pages" guard doesn't make sense per-file since
-  // duplex can now differ file to file.
+  // duplex can now differ file to file. The downgrade is written back into
+  // overrides[i] (not just used locally for pricing) so job_files.settings_json
+  // — and therefore the print agent's effectiveJobForFile() — agrees with what
+  // was actually charged; otherwise the agent would still attempt a duplex
+  // print the customer was billed simplex for.
   let printPricePaise = 0;
   filesData.forEach((_, i) => {
     const effective = effectiveFileSettings(jobDefaults, overrides[i]);
     const pages = perFilePageCounts[i];
-    const duplexForFile = effective.duplex !== "simplex" && pages < 2 ? "simplex" : effective.duplex;
+    if (effective.duplex !== "simplex" && pages < 2) {
+      effective.duplex = "simplex";
+      overrides[i] = { ...overrides[i], duplex: "simplex" };
+    }
     printPricePaise += calculatePrice({
       printType: effective.printType,
       copies: effective.copies,
@@ -587,7 +594,7 @@ async function handleBulk(form: FormData, customer: { id: string; displayName: s
       paperSize: effective.paperSize,
       pageCount: pages,
       pricing,
-      duplex: duplexForFile,
+      duplex: effective.duplex,
       pagesPerSheet: effective.pagesPerSheet,
     });
   });

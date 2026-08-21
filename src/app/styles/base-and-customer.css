@@ -781,6 +781,68 @@ input, select, button {
   transition: all var(--duration-fast) var(--ease-out);
 }
 .file-thumb-remove:hover { background: var(--danger); color: #fff; }
+
+/* Per-file customization (see docs/bulk-per-file-customization-plan.md) */
+.file-thumb-customize {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  background: #fff;
+  color: var(--muted);
+  box-shadow: 0 1px 4px rgba(23, 32, 42, 0.2);
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-out);
+}
+.file-thumb-customize:hover,
+.file-thumb-customize.active {
+  background: var(--accent);
+  color: #fff;
+}
+
+.file-thumb-custom-badge {
+  position: absolute;
+  bottom: 6px;
+  left: 6px;
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--accent-strong);
+  background: var(--accent-light);
+  border: 1px solid rgba(13, 122, 116, 0.25);
+  padding: 1px 5px;
+  border-radius: 999px;
+}
+
+.file-zone-customize-drawer {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--bg);
+  padding: 10px 12px 12px;
+  animation: fadeInUp 0.2s var(--ease-out) both;
+}
+
+.file-zone-customize-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.file-zone-customize-head strong { color: var(--ink); }
+.file-zone-customize-head .file-thumb-remove {
+  position: static;
+  box-shadow: none;
+  background: transparent;
+}
+.file-zone-customize-head .file-thumb-remove:hover { background: var(--danger); color: #fff; }
 .file-thumb-card.drag-over {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-light);
