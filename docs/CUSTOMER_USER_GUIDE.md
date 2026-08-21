@@ -10,22 +10,26 @@ Scan the QR code posted at the shop counter with your phone camera. It opens the
 
 - Tap the upload box and pick your file, or drag-and-drop on desktop.
 - Supported: PDF, JPG, PNG, DOC, DOCX.
-- You can upload more than one file in one order.
+- You can upload more than one file in one order (PDF only) — this switches you into **bulk mode**.
 - DOC/DOCX files are converted to PDF automatically before printing — this may take a minute.
 
 ## 3. Choose print settings
 
-For each file, set:
+Set your order's defaults — these apply to every file unless you customize one individually (see below):
 
 - **Print type** — Black & White or Color
 - **Copies** — how many copies you need
 - **Paper size** — A4, A3, Photo, etc.
 - **Duplex** — single-sided or double-sided (only shown when the file supports it)
 - **Layout / pages per sheet** — fit multiple pages on one sheet if needed
-- **Page range** — print all pages or select specific ones
+- **Page range** — print all pages or select specific ones (single-file orders only)
 - **Add-ons** (if offered) — spiral binding, cover page, bond paper
 
 Your last-used settings are remembered on this device for next time.
+
+### Customizing one file in a bulk order
+
+Uploaded more than one PDF? Each file shows a small **⚙ gear icon** — tap it to open that file's own settings (print type, sides, copies) without changing the rest of your order. A **"Custom"** badge marks any file you've adjusted, and the price updates live. Tap the gear again, or use **"Reset to job defaults"** inside the panel, to undo it. Everything still submits as one order with one token.
 
 ## 4. Add a note (optional)
 

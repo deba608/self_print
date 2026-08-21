@@ -782,6 +782,45 @@ input, select, button {
 }
 .file-thumb-remove:hover { background: var(--danger); color: #fff; }
 
+/* One-time onboarding hint (see docs/bulk-per-file-customization-plan.md) —
+   a pulsing ring on the first file's gear icon plus a small callout bubble,
+   shown until the user tries it once or 9s pass. */
+@keyframes pulse-hint-ring {
+  0% { box-shadow: 0 0 0 0 rgba(13, 122, 116, 0.55), 0 1px 4px rgba(23, 32, 42, 0.2); }
+  70% { box-shadow: 0 0 0 8px rgba(13, 122, 116, 0), 0 1px 4px rgba(23, 32, 42, 0.2); }
+  100% { box-shadow: 0 0 0 0 rgba(13, 122, 116, 0), 0 1px 4px rgba(23, 32, 42, 0.2); }
+}
+
+.pulse-hint {
+  animation: pulse-hint-ring 1.6s ease-out infinite;
+}
+
+.customize-hint-bubble {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 5;
+  white-space: nowrap;
+  background: var(--ink);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 5px 9px;
+  border-radius: 6px;
+  box-shadow: var(--shadow-md, 0 4px 12px rgba(0,0,0,0.15));
+  animation: fadeInUp 0.25s var(--ease-out) both;
+  pointer-events: none;
+}
+
+.customize-hint-bubble::before {
+  content: "";
+  position: absolute;
+  bottom: 100%;
+  left: 10px;
+  border: 5px solid transparent;
+  border-bottom-color: var(--ink);
+}
+
 /* Per-file customization (see docs/bulk-per-file-customization-plan.md) */
 .file-thumb-customize {
   position: absolute;

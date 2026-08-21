@@ -59,15 +59,6 @@ function BulkFileCustomizePanel({
         </select>
       </div>
       <div className="bulk-customize-row">
-        <label>Paper</label>
-        <select
-          value={override?.paperSize ?? jobDefaults.paperSize}
-          onChange={(e) => onChange({ paperSize: e.target.value as typeof allPaperSizes[number] })}
-        >
-          {allPaperSizes.map((p) => <option key={p} value={p}>{p}</option>)}
-        </select>
-      </div>
-      <div className="bulk-customize-row">
         <label>Copies</label>
         <input
           type="number"
@@ -76,17 +67,6 @@ function BulkFileCustomizePanel({
           value={override?.copies ?? jobDefaults.copies}
           onChange={(e) => onChange({ copies: Math.max(1, Math.min(99, Math.floor(Number(e.target.value)) || 1)) })}
         />
-      </div>
-      <div className="bulk-customize-row">
-        <label>Per sheet</label>
-        <select
-          value={override?.pagesPerSheet ?? jobDefaults.pagesPerSheet}
-          onChange={(e) => onChange({ pagesPerSheet: Number(e.target.value) })}
-        >
-          <option value={1}>1</option>
-          <option value={2}>2</option>
-          <option value={4}>4</option>
-        </select>
       </div>
       {override && (
         <button type="button" className="bulk-customize-reset" onClick={onReset}>
@@ -289,6 +269,26 @@ export default function UploadForm() {
   // the user removes files down to 1 via the ✕ button. Cleared only on reset
   // or an explicit fresh single-file selection — never derived from length.
   const [bulkMode, setBulkMode] = useState(false);
+  // One-time onboarding pulse on the per-file customize (gear) icons, shown
+  // to new users the first time they have 2+ bulk files until they either
+  // try it or the hint times out. Persisted so it only ever shows once per
+  // device, matching the "remembers this device" pattern the guide already
+  // documents for last-used settings.
+  const [showCustomizeHint, setShowCustomizeHint] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (window.localStorage.getItem("selfprint:seenBulkCustomizeHint")) return;
+    if (bulkMode && bulkFiles.length >= 2) {
+      setShowCustomizeHint(true);
+      const timer = window.setTimeout(() => dismissCustomizeHint(), 9000);
+      return () => window.clearTimeout(timer);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bulkMode, bulkFiles.length]);
+  function dismissCustomizeHint() {
+    setShowCustomizeHint(false);
+    if (typeof window !== "undefined") window.localStorage.setItem("selfprint:seenBulkCustomizeHint", "1");
+  }
   // Which bulk file the full print preview shows; row taps switch it. Clamped
   // whenever files are removed so it always points at a real file.
   const [bulkPreviewIndex, setBulkPreviewIndex] = useState(0);
@@ -1710,17 +1710,23 @@ export default function UploadForm() {
                       {bulkUploadStatus(bulkIds[i], f)}
                       <button
                         type="button"
-                        className={`file-thumb-customize ${bulkIds[i] && customizingBulkId === bulkIds[i] ? "active" : ""}`}
+                        className={`file-thumb-customize ${bulkIds[i] && customizingBulkId === bulkIds[i] ? "active" : ""} ${i === 0 && showCustomizeHint ? "pulse-hint" : ""}`}
                         aria-label={`Customize settings for ${f.name}`}
                         aria-pressed={bulkIds[i] !== undefined && customizingBulkId === bulkIds[i]}
                         onClick={(e) => {
                           e.stopPropagation();
                           const fid = bulkIds[i];
                           if (!fid) return;
+                          dismissCustomizeHint();
                           setCustomizingBulkId((prev) => (prev === fid ? null : fid));
                         }}
                       >
                         <Settings2 size={13} />
+                        {i === 0 && showCustomizeHint && (
+                          <span className="customize-hint-bubble" role="status">
+                            New: customize each file
+                          </span>
+                        )}
                       </button>
                       <button
                         type="button"
@@ -2810,15 +2816,21 @@ export default function UploadForm() {
                       <span className="bulk-file-pages">{bulkPageCounts[i] ?? 1} pg</span>
                       {id && bulkFileOverrides[id] && <span className="bulk-file-custom-badge">Custom</span>}
                       {bulkUploadStatus(bulkIds[i], f)}
-                      <button type="button" className={`bulk-file-customize ${id && customizingBulkId === id ? "active" : ""}`}
+                      <button type="button" className={`bulk-file-customize ${id && customizingBulkId === id ? "active" : ""} ${i === 0 && showCustomizeHint ? "pulse-hint" : ""}`}
                         aria-label={`Customize settings for ${f.name}`}
                         aria-pressed={id !== undefined && customizingBulkId === id}
                         onClick={(e) => {
                           e.stopPropagation();
                           if (!id) return;
+                          dismissCustomizeHint();
                           setCustomizingBulkId((prev) => (prev === id ? null : id));
                         }}>
                         <Settings2 size={15} />
+                        {i === 0 && showCustomizeHint && (
+                          <span className="customize-hint-bubble" role="status">
+                            New: customize each file
+                          </span>
+                        )}
                       </button>
                       <button type="button" className="bulk-file-remove" aria-label={`Remove ${f.name}`}
                         onClick={(e) => {
