@@ -150,6 +150,9 @@ export type PricingConfig = {
   spiralBindingSlab5Paise: number;
   expiryMinutes: number;
   deliveryFeePaise: number;
+  // Delivery fee is waived once printAndAddonPaise reaches this. 0 disables
+  // the free-delivery threshold entirely (fee always charged).
+  freeDeliveryThresholdPaise: number;
   serviceArea: ServiceAreaConfig;
 };
 

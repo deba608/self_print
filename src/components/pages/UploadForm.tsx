@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, useRef } from "react";
 import Link from "next/link";
 import { UploadCloud, FileText, Image, ArrowLeft, ArrowRight, Check, Eye, Loader2, File, Settings2, Printer, Copy, Store, X, Search, CreditCard, RefreshCw, Info, Truck, MapPin, Navigation, AlertCircle, ChevronDown, Heart } from "lucide-react";
-import { formatRupees, paperSizeLabels, allPaperSizes, calculateSpiralBindingPrice, effectiveDeliveryFeePaise, FREE_DELIVERY_THRESHOLD_PAISE } from "@/lib/pricing";
+import { formatRupees, paperSizeLabels, allPaperSizes, calculateSpiralBindingPrice, effectiveDeliveryFeePaise } from "@/lib/pricing";
 import { estimatePdfPages } from "@/lib/pdf-pages";
 import { checkDeliveryServiceable, isValidPincode } from "@/lib/service-area";
 
@@ -622,7 +622,7 @@ export default function UploadForm() {
       printAndAddonPaise = printCostPaise + addonFeePaiseVal;
     }
 
-    const deliveryFeePaise = deliveryMethod === "delivery" ? effectiveDeliveryFeePaise(printAndAddonPaise, pricing.deliveryFeePaise) : 0;
+    const deliveryFeePaise = deliveryMethod === "delivery" ? effectiveDeliveryFeePaise(printAndAddonPaise, pricing.deliveryFeePaise, pricing.freeDeliveryThresholdPaise) : 0;
     const isFreeDelivery = deliveryMethod === "delivery" && pricing.deliveryFeePaise > 0 && deliveryFeePaise === 0;
     return { totalPaise: printAndAddonPaise + deliveryFeePaise, printAndAddonPaise, deliveryFeePaise, isFreeDelivery };
   }, [copies, selectedPages, paperSize, printType, pricing, duplex, isBulk, bulkTotalPages, deliveryMethod, pagesPerSheet, hasSpiralBinding, hasCoverFile, hasBondPaper, spiralBindingQty, coverFileQty]);
@@ -2263,6 +2263,12 @@ export default function UploadForm() {
           {(!onePage || fulfilStage) && deliveryOfferable && (
             <div className="delivery-method-section">
               <h4 className="delivery-method-title">How will you get your prints?</h4>
+              {pricing && pricing.deliveryFeePaise > 0 && pricing.freeDeliveryThresholdPaise > 0 && (
+                <p className="free-delivery-line">
+                  <Truck size={13} aria-hidden="true" />
+                  Free delivery on orders above {formatRupees(pricing.freeDeliveryThresholdPaise)}
+                </p>
+              )}
               <div className="delivery-method-toggle" role="group" aria-label="Pickup or delivery">
                 <button
                   type="button"
@@ -2296,7 +2302,7 @@ export default function UploadForm() {
 
               {/* Marketing nudge: shows the win once free, or how close they
                   are, to push order value over the free-delivery threshold. */}
-              {deliveryMethod === "delivery" && pricing && pricing.deliveryFeePaise > 0 && (
+              {deliveryMethod === "delivery" && pricing && pricing.deliveryFeePaise > 0 && pricing.freeDeliveryThresholdPaise > 0 && (
                 priceBreakdown.isFreeDelivery ? (
                   <p className="delivery-free-banner">
                     <Truck size={14} aria-hidden="true" />
@@ -2304,7 +2310,7 @@ export default function UploadForm() {
                   </p>
                 ) : (
                   <p className="delivery-upsell-hint">
-                    Add {formatRupees(Math.max(0, FREE_DELIVERY_THRESHOLD_PAISE - priceBreakdown.printAndAddonPaise))} more to your order for FREE delivery
+                    Add {formatRupees(Math.max(0, pricing.freeDeliveryThresholdPaise - priceBreakdown.printAndAddonPaise))} more to your order for FREE delivery
                   </p>
                 )
               )}

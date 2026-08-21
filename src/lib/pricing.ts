@@ -83,13 +83,12 @@ export function calculatePrice(input: {
   return Math.round(pageCostSum * copies * paperMultiplier * input.pricing.copyMultiplier);
 }
 
-// Marketing threshold: delivery is free once the order (print + add-ons,
-// before the delivery fee itself) crosses this. Flat and hardcoded for now —
-// promote to a pricing_config column if it ever needs to be admin-editable.
-export const FREE_DELIVERY_THRESHOLD_PAISE = 20000; // ₹200
-
-export function effectiveDeliveryFeePaise(orderSubtotalPaise: number, deliveryFeePaise: number) {
-  return orderSubtotalPaise >= FREE_DELIVERY_THRESHOLD_PAISE ? 0 : deliveryFeePaise;
+// Delivery is free once the order (print + add-ons, before the delivery fee
+// itself) crosses pricing.freeDeliveryThresholdPaise — admin-editable in the
+// Pricing panel. A threshold of 0 disables the discount (fee always charged).
+export function effectiveDeliveryFeePaise(orderSubtotalPaise: number, deliveryFeePaise: number, freeDeliveryThresholdPaise: number) {
+  if (freeDeliveryThresholdPaise <= 0) return deliveryFeePaise;
+  return orderSubtotalPaise >= freeDeliveryThresholdPaise ? 0 : deliveryFeePaise;
 }
 
 export function formatRupees(paise: number) {

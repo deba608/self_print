@@ -32,6 +32,7 @@ export type Pricing = {
   spiralBindingSlab5Paise: number;
   expiryMinutes: number;
   deliveryFeePaise: number;
+  freeDeliveryThresholdPaise: number;
   shopName?: string;
   shopReviewUrl?: string;
   razorpayKeyId?: string;

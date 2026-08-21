@@ -19,7 +19,8 @@ export async function PUT(request: NextRequest) {
       "a3Multiplier", "a4Multiplier", "a5Multiplier", "a6Multiplier", "b5Multiplier",
       "legalMultiplier", "photoMultiplier", "duplexBwPerPagePaise", "spiralBindingPerPagePaise",
       "coverFilePaise", "bondPaperPerPagePaise", "spiralBindingSlab1Paise", "spiralBindingSlab2Paise",
-      "spiralBindingSlab3Paise", "spiralBindingSlab4Paise", "spiralBindingSlab5Paise", "expiryMinutes", "deliveryFeePaise"
+      "spiralBindingSlab3Paise", "spiralBindingSlab4Paise", "spiralBindingSlab5Paise", "expiryMinutes", "deliveryFeePaise",
+      "freeDeliveryThresholdPaise"
     ];
     for (const key of required) {
       if (typeof body[key] !== "number" || body[key] < 0) {
@@ -60,6 +61,7 @@ export async function PUT(request: NextRequest) {
       spiralBindingSlab5Paise: body.spiralBindingSlab5Paise,
       expiryMinutes: body.expiryMinutes,
       deliveryFeePaise: body.deliveryFeePaise,
+      freeDeliveryThresholdPaise: body.freeDeliveryThresholdPaise,
       serviceArea
     });
 

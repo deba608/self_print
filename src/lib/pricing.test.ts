@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { calculatePrice, calculateSpiralBindingPrice, effectiveDeliveryFeePaise, FREE_DELIVERY_THRESHOLD_PAISE } from "./pricing";
+import { calculatePrice, calculateSpiralBindingPrice, effectiveDeliveryFeePaise } from "./pricing";
 import type { PricingConfig } from "./types";
 import { DEFAULT_SERVICE_AREA } from "./service-area";
 
@@ -26,6 +26,7 @@ const pricing: PricingConfig = {
   spiralBindingSlab5Paise: 5000,
   expiryMinutes: 30,
   deliveryFeePaise: 0,
+  freeDeliveryThresholdPaise: 20000,
   serviceArea: DEFAULT_SERVICE_AREA,
 };
 
@@ -106,20 +107,25 @@ describe("calculateSpiralBindingPrice slabs", () => {
 
 describe("effectiveDeliveryFeePaise free-delivery threshold", () => {
   const feePaise = 4000; // ₹40 flat delivery fee
+  const threshold = 20000; // ₹200
 
   it("charges the fee below the threshold", () => {
-    expect(effectiveDeliveryFeePaise(FREE_DELIVERY_THRESHOLD_PAISE - 1, feePaise)).toBe(feePaise);
+    expect(effectiveDeliveryFeePaise(threshold - 1, feePaise, threshold)).toBe(feePaise);
   });
 
   it("waives the fee exactly at the threshold", () => {
-    expect(effectiveDeliveryFeePaise(FREE_DELIVERY_THRESHOLD_PAISE, feePaise)).toBe(0);
+    expect(effectiveDeliveryFeePaise(threshold, feePaise, threshold)).toBe(0);
   });
 
   it("waives the fee above the threshold", () => {
-    expect(effectiveDeliveryFeePaise(FREE_DELIVERY_THRESHOLD_PAISE + 500, feePaise)).toBe(0);
+    expect(effectiveDeliveryFeePaise(threshold + 500, feePaise, threshold)).toBe(0);
   });
 
   it("stays 0 when there was no delivery fee to begin with", () => {
-    expect(effectiveDeliveryFeePaise(0, 0)).toBe(0);
+    expect(effectiveDeliveryFeePaise(0, 0, threshold)).toBe(0);
+  });
+
+  it("always charges the fee when the threshold is disabled (0)", () => {
+    expect(effectiveDeliveryFeePaise(1_000_000, feePaise, 0)).toBe(feePaise);
   });
 });

@@ -617,6 +617,7 @@ const PRICING_DEFAULTS: PricingConfig = {
   spiralBindingSlab5Paise: 5000,
   expiryMinutes: 1440,
   deliveryFeePaise: 0,
+  freeDeliveryThresholdPaise: 20000,
   serviceArea: DEFAULT_SERVICE_AREA,
 };
 
@@ -656,6 +657,7 @@ export async function getPricing(): Promise<PricingConfig> {
     spiralBindingSlab5Paise: data.spiral_binding_slab5_paise ?? PRICING_DEFAULTS.spiralBindingSlab5Paise,
     expiryMinutes: data.expiry_minutes ?? PRICING_DEFAULTS.expiryMinutes,
     deliveryFeePaise: data.delivery_fee_paise ?? PRICING_DEFAULTS.deliveryFeePaise,
+    freeDeliveryThresholdPaise: data.free_delivery_threshold_paise ?? PRICING_DEFAULTS.freeDeliveryThresholdPaise,
     serviceArea: parseServiceAreaConfig(data.service_area_config)
   };
 }
@@ -687,6 +689,7 @@ export async function updatePricing(pricing: PricingConfig) {
       spiral_binding_slab5_paise: pricing.spiralBindingSlab5Paise,
       expiry_minutes: pricing.expiryMinutes,
       delivery_fee_paise: pricing.deliveryFeePaise,
+      free_delivery_threshold_paise: pricing.freeDeliveryThresholdPaise,
       service_area_config: serializeServiceAreaConfig(pricing.serviceArea),
       updated_at: now
     })

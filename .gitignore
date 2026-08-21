@@ -77,3 +77,6 @@ electron-agent/
 
 # Packaged shop delivery build (generated, not source)
 dist-shop-package/
+
+# Supabase CLI runtime cache
+supabase/.temp/

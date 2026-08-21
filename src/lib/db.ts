@@ -315,6 +315,7 @@ async function ensurePricingColumns(database: any) {
     ['spiral_binding_slab4_paise', 'INTEGER NOT NULL DEFAULT 4000'],
     ['spiral_binding_slab5_paise', 'INTEGER NOT NULL DEFAULT 5000'],
     ['delivery_fee_paise', 'INTEGER NOT NULL DEFAULT 0'],
+    ['free_delivery_threshold_paise', 'INTEGER NOT NULL DEFAULT 20000'],
     ['service_area_config', "TEXT NOT NULL DEFAULT ''"]
   ];
   for (const [name, definition] of additions) {
@@ -968,6 +969,7 @@ export async function getPricing(): Promise<PricingConfig> {
     spiralBindingSlab5Paise: (row.spiral_binding_slab5_paise as number) ?? 5000,
     expiryMinutes: (row.expiry_minutes as number) ?? 1440,
     deliveryFeePaise: (row.delivery_fee_paise as number) ?? 0,
+    freeDeliveryThresholdPaise: (row.free_delivery_threshold_paise as number) ?? 20000,
     serviceArea: parseServiceAreaConfig(row.service_area_config as string)
   };
   return pricingCache;
@@ -992,7 +994,7 @@ export async function updatePricing(pricing: PricingConfig): Promise<void> {
       bond_paper_per_page_paise = ?, spiral_binding_slab1_paise = ?,
       spiral_binding_slab2_paise = ?, spiral_binding_slab3_paise = ?,
       spiral_binding_slab4_paise = ?, spiral_binding_slab5_paise = ?,
-       expiry_minutes = ?, delivery_fee_paise = ?, service_area_config = ?, updated_at = ?
+       expiry_minutes = ?, delivery_fee_paise = ?, free_delivery_threshold_paise = ?, service_area_config = ?, updated_at = ?
     WHERE id = 1
   `).run(
      pricing.bwPerPagePaise, pricing.colorPerPagePaise, pricing.photoPrintPaise,
@@ -1002,7 +1004,7 @@ export async function updatePricing(pricing: PricingConfig): Promise<void> {
      pricing.bondPaperPerPagePaise, pricing.spiralBindingSlab1Paise,
      pricing.spiralBindingSlab2Paise, pricing.spiralBindingSlab3Paise,
      pricing.spiralBindingSlab4Paise, pricing.spiralBindingSlab5Paise,
-     pricing.expiryMinutes, pricing.deliveryFeePaise,
+     pricing.expiryMinutes, pricing.deliveryFeePaise, pricing.freeDeliveryThresholdPaise,
      serializeServiceAreaConfig(pricing.serviceArea), now
   );
 }

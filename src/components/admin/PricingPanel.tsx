@@ -33,6 +33,7 @@ const defaultPricing: NumericPricing = {
   spiralBindingSlab5Paise: 5000,
   expiryMinutes: 1440,
   deliveryFeePaise: 0,
+  freeDeliveryThresholdPaise: 20000,
 };
 
 // Strip non-numeric extras (e.g. serviceArea) off the incoming pricing
@@ -117,6 +118,7 @@ export default function PricingPanel({
     spiralBindingPerPagePaise: formatPaiseInput((pricing || defaultPricing).spiralBindingPerPagePaise),
     coverFilePaise: formatPaiseInput((pricing || defaultPricing).coverFilePaise),
     deliveryFeePaise: formatPaiseInput((pricing || defaultPricing).deliveryFeePaise),
+    freeDeliveryThresholdPaise: formatPaiseInput((pricing || defaultPricing).freeDeliveryThresholdPaise),
     bondPaperPerPagePaise: formatPaiseInput((pricing || defaultPricing).bondPaperPerPagePaise),
     spiralBindingSlab1Paise: formatPaiseInput((pricing || defaultPricing).spiralBindingSlab1Paise),
     spiralBindingSlab2Paise: formatPaiseInput((pricing || defaultPricing).spiralBindingSlab2Paise),
@@ -139,6 +141,7 @@ export default function PricingPanel({
       spiralBindingPerPagePaise: formatPaiseInput(nextPricing.spiralBindingPerPagePaise),
       coverFilePaise: formatPaiseInput(nextPricing.coverFilePaise),
       deliveryFeePaise: formatPaiseInput(nextPricing.deliveryFeePaise),
+      freeDeliveryThresholdPaise: formatPaiseInput(nextPricing.freeDeliveryThresholdPaise),
       bondPaperPerPagePaise: formatPaiseInput(nextPricing.bondPaperPerPagePaise),
       spiralBindingSlab1Paise: formatPaiseInput(nextPricing.spiralBindingSlab1Paise),
       spiralBindingSlab2Paise: formatPaiseInput(nextPricing.spiralBindingSlab2Paise),
@@ -159,7 +162,7 @@ export default function PricingPanel({
     setError("");
   };
 
-  const updatePriceField = (field: "bwPerPagePaise" | "colorPerPagePaise" | "photoPrintPaise" | "duplexBwPerPagePaise" | "spiralBindingPerPagePaise" | "coverFilePaise" | "deliveryFeePaise" | "bondPaperPerPagePaise" | "spiralBindingSlab1Paise" | "spiralBindingSlab2Paise" | "spiralBindingSlab3Paise" | "spiralBindingSlab4Paise" | "spiralBindingSlab5Paise", rawValue: string) => {
+  const updatePriceField = (field: "bwPerPagePaise" | "colorPerPagePaise" | "photoPrintPaise" | "duplexBwPerPagePaise" | "spiralBindingPerPagePaise" | "coverFilePaise" | "deliveryFeePaise" | "freeDeliveryThresholdPaise" | "bondPaperPerPagePaise" | "spiralBindingSlab1Paise" | "spiralBindingSlab2Paise" | "spiralBindingSlab3Paise" | "spiralBindingSlab4Paise" | "spiralBindingSlab5Paise", rawValue: string) => {
     setPriceInputs(prev => ({ ...prev, [field]: rawValue }));
     if (rawValue === "") {
       setFormData(prev => ({ ...prev, [field]: "" }));
@@ -367,6 +370,12 @@ export default function PricingPanel({
                 value={priceInputs.deliveryFeePaise}
                 onChange={(v) => updatePriceField("deliveryFeePaise", v)}
                 hint="Added once per delivery order."
+              />
+              <PriceField
+                label="Free delivery above"
+                value={priceInputs.freeDeliveryThresholdPaise}
+                onChange={(v) => updatePriceField("freeDeliveryThresholdPaise", v)}
+                hint="Delivery fee is waived once the order (before delivery) reaches this. Set to 0 to disable."
               />
               <div className="pricing-field">
                 <label htmlFor="expiryMinutes">Expire unpaid jobs after</label>
