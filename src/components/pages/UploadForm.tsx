@@ -825,9 +825,9 @@ export default function UploadForm() {
     }
 
     let combined = [...current, ...added];
-    if (combined.length > 10) {
-      setError("You can print up to 10 files in one job — only the first 10 were kept.");
-      combined = combined.slice(0, 10);
+    if (combined.length > MAX_BULK_FILES) {
+      setError(`You can print up to ${MAX_BULK_FILES} files in one job — only the first ${MAX_BULK_FILES} were kept.`);
+      combined = combined.slice(0, MAX_BULK_FILES);
     } else {
       setError("");
     }
@@ -854,9 +854,9 @@ export default function UploadForm() {
       }
 
       let selected = selectedFiles;
-      if (selected.length > 10) {
-        setError("You can upload up to 10 files at once — only the first 10 were kept.");
-        selected = selected.slice(0, 10);
+      if (selected.length > MAX_BULK_FILES) {
+        setError(`You can upload up to ${MAX_BULK_FILES} files at once — only the first ${MAX_BULK_FILES} were kept.`);
+        selected = selected.slice(0, MAX_BULK_FILES);
       } else {
         setError("");
       }
