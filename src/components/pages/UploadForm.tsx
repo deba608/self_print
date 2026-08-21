@@ -1486,6 +1486,83 @@ export default function UploadForm() {
   const acceptingOrdersCheck = pricing ? isAcceptingOrders(pricing) : { ok: true as const };
   const shopClosed = !acceptingOrdersCheck.ok;
 
+  // Mobile bulk file list — thumbnails, names, per-file customize gear.
+  // Shared between the settings step and the preview step so it shows up
+  // starting from step 2 (right after upload) instead of only at the final
+  // review screen; desktop shows its own always-visible grid instead (see
+  // fs-file-zone's onePage branch), so this only ever renders on mobile.
+  const bulkFileListNode = !isBulk ? null : (
+    <div className="bulk-file-list">
+      {bulkFiles.map((f, i) => {
+        const id = bulkIds[i];
+        const isLeaving = id !== undefined && leavingBulkIds.has(id);
+        return (
+        <div key={id ?? i} className="bulk-file-item">
+        <div
+          className={`bulk-file-row ${i === bulkPreviewIndex ? "active" : ""} ${isLeaving ? "leaving" : ""} ${dragOverIndex === i ? "drag-over" : ""}`}
+          draggable={bulkFiles.length > 1}
+          role="button"
+          tabIndex={0}
+          aria-label={`Preview ${f.name}`}
+          aria-pressed={i === bulkPreviewIndex}
+          onClick={() => setBulkPreviewIndex(i)}
+          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setBulkPreviewIndex(i); } }}
+          onTransitionEnd={(e) => {
+            if (e.target !== e.currentTarget || e.propertyName !== "max-height") return;
+            if (id === undefined || !leavingBulkIds.has(id)) return;
+            removeBulkFile(bulkIds.indexOf(id));
+            setLeavingBulkIds((prev) => { const next = new Set(prev); next.delete(id); return next; });
+          }}
+          onDragStart={(e) => { dragIndexRef.current = i; e.dataTransfer.effectAllowed = "move"; }}
+          onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; setDragOverIndex(i); }}
+          onDragLeave={() => { if (dragOverIndex === i) setDragOverIndex(null); }}
+          onDrop={(e) => { e.preventDefault(); const from = dragIndexRef.current; if (from !== null && from !== i) swapBulkFiles(from, i); dragIndexRef.current = null; setDragOverIndex(null); }}
+          onDragEnd={() => { dragIndexRef.current = null; setDragOverIndex(null); }}
+        >
+          <BulkThumb file={f} grayscale={printType === "bw"} />
+          <span className="bulk-file-name">{f.name}</span>
+          <span className="bulk-file-pages">{bulkPageCounts[i] ?? 1} pg</span>
+          {id && bulkFileOverrides[id] && <span className="bulk-file-custom-badge">Custom</span>}
+          {bulkUploadStatus(bulkIds[i], f)}
+          <button type="button" className={`bulk-file-customize ${id && customizingBulkId === id ? "active" : ""} ${i === 0 && showCustomizeHint ? "pulse-hint" : ""}`}
+            aria-label={`Customize settings for ${f.name}`}
+            aria-pressed={id !== undefined && customizingBulkId === id}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (!id) return;
+              dismissCustomizeHint();
+              setCustomizingBulkId((prev) => (prev === id ? null : id));
+            }}>
+            <Settings2 size={15} />
+            {i === 0 && showCustomizeHint && (
+              <span className="customize-hint-bubble" role="status">
+                New: customize each file
+              </span>
+            )}
+          </button>
+          <button type="button" className="bulk-file-remove" aria-label={`Remove ${f.name}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (id === undefined) { removeBulkFile(i); return; }
+              setLeavingBulkIds((prev) => new Set(prev).add(id));
+            }}>
+            <X size={16} />
+          </button>
+        </div>
+        {id && customizingBulkId === id && (
+          <BulkFileCustomizePanel
+            override={bulkFileOverrides[id]}
+            jobDefaults={{ printType, duplex, paperSize, copies, pagesPerSheet }}
+            onChange={(patch) => setBulkFileOverrides((prev) => ({ ...prev, [id]: { ...prev[id], ...patch } }))}
+            onReset={() => setBulkFileOverrides((prev) => { const next = { ...prev }; delete next[id]; return next; })}
+          />
+        )}
+        </div>
+        );
+      })}
+    </div>
+  );
+
   return (
     <div className="upload-form">
       {shopClosed && (
@@ -2782,78 +2859,10 @@ export default function UploadForm() {
             {isBulk && (
               <>
                 {/* File management lives in the desktop file zone; this row
-                    list is the mobile wizard's version only. */}
-                {!onePage && (
-                <div className="bulk-file-list">
-                  {bulkFiles.map((f, i) => {
-                    const id = bulkIds[i];
-                    const isLeaving = id !== undefined && leavingBulkIds.has(id);
-                    return (
-                    <div key={id ?? i} className="bulk-file-item">
-                    <div
-                      className={`bulk-file-row ${i === bulkPreviewIndex ? "active" : ""} ${isLeaving ? "leaving" : ""} ${dragOverIndex === i ? "drag-over" : ""}`}
-                      draggable={bulkFiles.length > 1}
-                      role="button"
-                      tabIndex={0}
-                      aria-label={`Preview ${f.name}`}
-                      aria-pressed={i === bulkPreviewIndex}
-                      onClick={() => setBulkPreviewIndex(i)}
-                      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setBulkPreviewIndex(i); } }}
-                      onTransitionEnd={(e) => {
-                        if (e.target !== e.currentTarget || e.propertyName !== "max-height") return;
-                        if (id === undefined || !leavingBulkIds.has(id)) return;
-                        removeBulkFile(bulkIds.indexOf(id));
-                        setLeavingBulkIds((prev) => { const next = new Set(prev); next.delete(id); return next; });
-                      }}
-                      onDragStart={(e) => { dragIndexRef.current = i; e.dataTransfer.effectAllowed = "move"; }}
-                      onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; setDragOverIndex(i); }}
-                      onDragLeave={() => { if (dragOverIndex === i) setDragOverIndex(null); }}
-                      onDrop={(e) => { e.preventDefault(); const from = dragIndexRef.current; if (from !== null && from !== i) swapBulkFiles(from, i); dragIndexRef.current = null; setDragOverIndex(null); }}
-                      onDragEnd={() => { dragIndexRef.current = null; setDragOverIndex(null); }}
-                    >
-                      <BulkThumb file={f} grayscale={printType === "bw"} />
-                      <span className="bulk-file-name">{f.name}</span>
-                      <span className="bulk-file-pages">{bulkPageCounts[i] ?? 1} pg</span>
-                      {id && bulkFileOverrides[id] && <span className="bulk-file-custom-badge">Custom</span>}
-                      {bulkUploadStatus(bulkIds[i], f)}
-                      <button type="button" className={`bulk-file-customize ${id && customizingBulkId === id ? "active" : ""} ${i === 0 && showCustomizeHint ? "pulse-hint" : ""}`}
-                        aria-label={`Customize settings for ${f.name}`}
-                        aria-pressed={id !== undefined && customizingBulkId === id}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (!id) return;
-                          dismissCustomizeHint();
-                          setCustomizingBulkId((prev) => (prev === id ? null : id));
-                        }}>
-                        <Settings2 size={15} />
-                        {i === 0 && showCustomizeHint && (
-                          <span className="customize-hint-bubble" role="status">
-                            New: customize each file
-                          </span>
-                        )}
-                      </button>
-                      <button type="button" className="bulk-file-remove" aria-label={`Remove ${f.name}`}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (id === undefined) { removeBulkFile(i); return; }
-                          setLeavingBulkIds((prev) => new Set(prev).add(id));
-                        }}>
-                        <X size={16} />
-                      </button>
-                    </div>
-                    {id && customizingBulkId === id && (
-                      <BulkFileCustomizePanel
-                        override={bulkFileOverrides[id]}
-                        jobDefaults={{ printType, duplex, paperSize, copies, pagesPerSheet }}
-                        onChange={(patch) => setBulkFileOverrides((prev) => ({ ...prev, [id]: { ...prev[id], ...patch } }))}
-                        onReset={() => setBulkFileOverrides((prev) => { const next = { ...prev }; delete next[id]; return next; })}
-                      />
-                    )}
-                    </div>
-                    );
-                  })}
-                </div>
-                )}
+                    list is the mobile wizard's version only — also shown a
+                    step earlier, in Settings, so it's visible from the 2nd
+                    page instead of only here at the end. */}
+                {!onePage && bulkFileListNode}
                 {/* Full print preview of the tapped file — same viewer as single mode */}
                 {bulkFiles[bulkPreviewIndex] && (
                   <PdfCanvasPreview
