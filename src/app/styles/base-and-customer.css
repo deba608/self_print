@@ -3505,12 +3505,58 @@ input, select, button {
   position: absolute;
   top: -8px;
   right: -6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   padding: 2px 7px;
   background: var(--accent);
   color: #fff;
   font-size: 10.5px;
   font-weight: 700;
   border-radius: 6px;
+}
+
+/* Free-delivery win state: crossed the order threshold. */
+.delivery-fee-tag.delivery-fee-free {
+  background: var(--ok);
+}
+
+.delivery-fee-strike {
+  text-decoration: line-through;
+  opacity: 0.75;
+}
+
+.delivery-fee-free-text {
+  color: var(--ok);
+  font-weight: 800;
+}
+
+/* Marketing banners under the pickup/delivery toggle: the win once free
+   delivery is unlocked, or a nudge toward it while short of the threshold. */
+.delivery-free-banner {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 10px 0 0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--ok-light);
+  color: var(--ok);
+  font-size: 12.5px;
+  font-weight: 700;
+}
+.delivery-free-banner svg { flex-shrink: 0; }
+
+.delivery-upsell-hint {
+  margin: 10px 0 0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px dashed var(--accent);
+  background: var(--accent-bg);
+  color: var(--accent-strong);
+  font-size: 12.5px;
+  font-weight: 700;
+  text-align: center;
 }
 
 .addon-toggle-row {

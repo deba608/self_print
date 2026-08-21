@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { calculatePrice, calculateSpiralBindingPrice } from "./pricing";
+import { calculatePrice, calculateSpiralBindingPrice, effectiveDeliveryFeePaise, FREE_DELIVERY_THRESHOLD_PAISE } from "./pricing";
 import type { PricingConfig } from "./types";
 import { DEFAULT_SERVICE_AREA } from "./service-area";
 
@@ -101,5 +101,25 @@ describe("calculateSpiralBindingPrice slabs", () => {
     expect(calculateSpiralBindingPrice(151, pricing)).toBe(4000); // 151-200
     expect(calculateSpiralBindingPrice(200, pricing)).toBe(4000); // 151-200
     expect(calculateSpiralBindingPrice(201, pricing)).toBe(5000); // >200
+  });
+});
+
+describe("effectiveDeliveryFeePaise free-delivery threshold", () => {
+  const feePaise = 4000; // ₹40 flat delivery fee
+
+  it("charges the fee below the threshold", () => {
+    expect(effectiveDeliveryFeePaise(FREE_DELIVERY_THRESHOLD_PAISE - 1, feePaise)).toBe(feePaise);
+  });
+
+  it("waives the fee exactly at the threshold", () => {
+    expect(effectiveDeliveryFeePaise(FREE_DELIVERY_THRESHOLD_PAISE, feePaise)).toBe(0);
+  });
+
+  it("waives the fee above the threshold", () => {
+    expect(effectiveDeliveryFeePaise(FREE_DELIVERY_THRESHOLD_PAISE + 500, feePaise)).toBe(0);
+  });
+
+  it("stays 0 when there was no delivery fee to begin with", () => {
+    expect(effectiveDeliveryFeePaise(0, 0)).toBe(0);
   });
 });

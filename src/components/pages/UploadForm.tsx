@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, useRef } from "react";
 import Link from "next/link";
 import { UploadCloud, FileText, Image, ArrowLeft, ArrowRight, Check, Eye, Loader2, File, Settings2, Printer, Copy, Store, X, Search, CreditCard, RefreshCw, Info, Truck, MapPin, Navigation, AlertCircle, ChevronDown, Heart } from "lucide-react";
-import { formatRupees, paperSizeLabels, allPaperSizes, calculateSpiralBindingPrice } from "@/lib/pricing";
+import { formatRupees, paperSizeLabels, allPaperSizes, calculateSpiralBindingPrice, effectiveDeliveryFeePaise, FREE_DELIVERY_THRESHOLD_PAISE } from "@/lib/pricing";
 import { estimatePdfPages } from "@/lib/pdf-pages";
 import { checkDeliveryServiceable, isValidPincode } from "@/lib/service-area";
 
@@ -571,50 +571,63 @@ export default function UploadForm() {
     deliveryMethod === "delivery" &&
     !(pincodeValid && serviceCheck.ok && (areaOptions.length === 0 || deliveryArea));
 
-  const estimate = useMemo(() => {
-    if (!pricing) return 0;
+  // Single source of truth for the estimate breakdown — `estimate` (the
+  // grand total, in rupees) is kept as its own binding below since most call
+  // sites only ever needed that number; the delivery-fee/free-delivery badge
+  // reads the other fields instead of re-deriving the price math a second time.
+  const priceBreakdown = useMemo(() => {
+    const zero = { totalPaise: 0, printAndAddonPaise: 0, deliveryFeePaise: 0, isFreeDelivery: false };
+    if (!pricing) return zero;
     // Bulk mode has no page-range selector — price off the summed page count
     // across the whole batch instead of the single-file selectedPages.
     const pages = isBulk ? bulkTotalPages : selectedPages;
+
+    let printAndAddonPaise: number;
     if (paperSize === "Photo") {
       // Round to whole paise exactly like the server (calculatePrice) so the
       // estimate never drifts a paisa from the final charged amount.
-      return Math.round(pricing.photoPrintPaise * copies) / 100 + (deliveryMethod === "delivery" ? pricing.deliveryFeePaise / 100 : 0);
-    }
-    const isDuplex = duplex !== "simplex";
-    const baseSimplex = printType === "bw" ? pricing.bwPerPagePaise : pricing.colorPerPagePaise;
-    const baseDuplex = (isDuplex && pricing.duplexBwPerPagePaise && printType === "bw") ? pricing.duplexBwPerPagePaise
-      : printType === "bw" ? pricing.bwPerPagePaise : pricing.colorPerPagePaise;
-
-    // N-up printing (pagesPerSheet > 1) crams multiple document pages onto one
-    // printed side, so only ceil(pages / pagesPerSheet) physical sides get
-    // billed — mirrors calculatePrice server-side.
-    const sides = Math.ceil(pages / Math.max(1, pagesPerSheet));
-    let pageCostSum = 0;
-    if (!isDuplex) {
-      pageCostSum = baseSimplex * sides;
+      printAndAddonPaise = Math.round(pricing.photoPrintPaise * copies);
     } else {
-      const doubleSidedPages = Math.floor(sides / 2) * 2;
-      const singleSidedPages = sides % 2;
-      pageCostSum = (baseDuplex * doubleSidedPages) + (baseSimplex * singleSidedPages);
+      const isDuplex = duplex !== "simplex";
+      const baseSimplex = printType === "bw" ? pricing.bwPerPagePaise : pricing.colorPerPagePaise;
+      const baseDuplex = (isDuplex && pricing.duplexBwPerPagePaise && printType === "bw") ? pricing.duplexBwPerPagePaise
+        : printType === "bw" ? pricing.bwPerPagePaise : pricing.colorPerPagePaise;
+
+      // N-up printing (pagesPerSheet > 1) crams multiple document pages onto one
+      // printed side, so only ceil(pages / pagesPerSheet) physical sides get
+      // billed — mirrors calculatePrice server-side.
+      const sides = Math.ceil(pages / Math.max(1, pagesPerSheet));
+      let pageCostSum = 0;
+      if (!isDuplex) {
+        pageCostSum = baseSimplex * sides;
+      } else {
+        const doubleSidedPages = Math.floor(sides / 2) * 2;
+        const singleSidedPages = sides % 2;
+        pageCostSum = (baseDuplex * doubleSidedPages) + (baseSimplex * singleSidedPages);
+      }
+
+      let paperMultiplier = 1;
+      switch (paperSize) {
+        case "A3": paperMultiplier = pricing.a3Multiplier; break;
+        case "A4": case "Letter": paperMultiplier = pricing.a4Multiplier; break;
+        case "A5": paperMultiplier = pricing.a5Multiplier; break;
+        case "A6": paperMultiplier = pricing.a6Multiplier; break;
+        case "B5": paperMultiplier = pricing.b5Multiplier; break;
+        case "Legal": paperMultiplier = pricing.legalMultiplier; break;
+      }
+      // Round to whole paise exactly like the server (calculatePrice) so the
+      // estimate never drifts a paisa from the final charged amount.
+      const printCostPaise = Math.round(pageCostSum * copies * paperMultiplier * pricing.copyMultiplier);
+      const addonFeePaiseVal = (hasSpiralBinding ? calculateSpiralBindingPrice(isBulk ? bulkTotalPages : selectedPages, pricing) * spiralBindingQty : 0) + (hasCoverFile ? pricing.coverFilePaise * coverFileQty : 0) + (hasBondPaper ? pricing.bondPaperPerPagePaise * (isBulk ? bulkTotalPages : selectedPages) : 0);
+      printAndAddonPaise = printCostPaise + addonFeePaiseVal;
     }
 
-    let paperMultiplier = 1;
-    switch (paperSize) {
-      case "A3": paperMultiplier = pricing.a3Multiplier; break;
-      case "A4": case "Letter": paperMultiplier = pricing.a4Multiplier; break;
-      case "A5": paperMultiplier = pricing.a5Multiplier; break;
-      case "A6": paperMultiplier = pricing.a6Multiplier; break;
-      case "B5": paperMultiplier = pricing.b5Multiplier; break;
-      case "Legal": paperMultiplier = pricing.legalMultiplier; break;
-    }
-    // Round to whole paise exactly like the server (calculatePrice) so the
-    // estimate never drifts a paisa from the final charged amount.
-    const printCost = Math.round(pageCostSum * copies * paperMultiplier * pricing.copyMultiplier) / 100;
-    const deliveryFee = deliveryMethod === "delivery" ? pricing.deliveryFeePaise / 100 : 0;
-    const addonFee = (hasSpiralBinding ? calculateSpiralBindingPrice(isBulk ? bulkTotalPages : selectedPages, pricing) / 100 * spiralBindingQty : 0) + (hasCoverFile ? pricing.coverFilePaise / 100 * coverFileQty : 0) + (hasBondPaper ? pricing.bondPaperPerPagePaise / 100 * (isBulk ? bulkTotalPages : selectedPages) : 0);
-    return printCost + deliveryFee + addonFee;
-   }, [copies, selectedPages, paperSize, printType, pricing, duplex, isBulk, bulkTotalPages, deliveryMethod, pagesPerSheet, hasSpiralBinding, hasCoverFile, hasBondPaper, spiralBindingQty, coverFileQty]);
+    const deliveryFeePaise = deliveryMethod === "delivery" ? effectiveDeliveryFeePaise(printAndAddonPaise, pricing.deliveryFeePaise) : 0;
+    const isFreeDelivery = deliveryMethod === "delivery" && pricing.deliveryFeePaise > 0 && deliveryFeePaise === 0;
+    return { totalPaise: printAndAddonPaise + deliveryFeePaise, printAndAddonPaise, deliveryFeePaise, isFreeDelivery };
+  }, [copies, selectedPages, paperSize, printType, pricing, duplex, isBulk, bulkTotalPages, deliveryMethod, pagesPerSheet, hasSpiralBinding, hasCoverFile, hasBondPaper, spiralBindingQty, coverFileQty]);
+
+  const estimate = priceBreakdown.totalPaise / 100;
 
    const addonFeeTotal = useMemo(() => {
      if (!pricing) return 0;
@@ -2269,10 +2282,32 @@ export default function UploadForm() {
                   <Truck size={18} aria-hidden="true" />
                   Home Delivery
                   {pricing && pricing.deliveryFeePaise > 0 && (
-                    <span className="delivery-fee-tag">+{formatRupees(pricing.deliveryFeePaise)}</span>
+                    priceBreakdown.isFreeDelivery ? (
+                      <span className="delivery-fee-tag delivery-fee-free">
+                        <span className="delivery-fee-strike">{formatRupees(pricing.deliveryFeePaise)}</span>
+                        FREE
+                      </span>
+                    ) : (
+                      <span className="delivery-fee-tag">+{formatRupees(pricing.deliveryFeePaise)}</span>
+                    )
                   )}
                 </button>
               </div>
+
+              {/* Marketing nudge: shows the win once free, or how close they
+                  are, to push order value over the free-delivery threshold. */}
+              {deliveryMethod === "delivery" && pricing && pricing.deliveryFeePaise > 0 && (
+                priceBreakdown.isFreeDelivery ? (
+                  <p className="delivery-free-banner">
+                    <Truck size={14} aria-hidden="true" />
+                    Free delivery unlocked — you saved {formatRupees(pricing.deliveryFeePaise)}!
+                  </p>
+                ) : (
+                  <p className="delivery-upsell-hint">
+                    Add {formatRupees(Math.max(0, FREE_DELIVERY_THRESHOLD_PAISE - priceBreakdown.printAndAddonPaise))} more to your order for FREE delivery
+                  </p>
+                )
+              )}
 
               {deliveryMethod === "delivery" && (
                 <div className="delivery-contact-fields">
@@ -2694,7 +2729,7 @@ export default function UploadForm() {
                 {addonFeeTotal > 0 && (
                   <div className="total-price-row">
                     <span>Printing</span>
-                    <span>₹{(estimate - addonFeeTotal - (deliveryMethod === "delivery" ? pricing.deliveryFeePaise / 100 : 0)).toFixed(2)}</span>
+                    <span>₹{(priceBreakdown.printAndAddonPaise / 100 - addonFeeTotal).toFixed(2)}</span>
                   </div>
                 )}
                 {hasSpiralBinding && (
@@ -2718,7 +2753,18 @@ export default function UploadForm() {
                 {deliveryMethod === "delivery" && (
                   <div className="total-price-row">
                     <span>Delivery</span>
-                    <span>{pricing.deliveryFeePaise > 0 ? `₹${(pricing.deliveryFeePaise / 100).toFixed(2)}` : "Free"}</span>
+                    <span>
+                      {priceBreakdown.isFreeDelivery ? (
+                        <>
+                          <span className="delivery-fee-strike">₹{(pricing.deliveryFeePaise / 100).toFixed(2)}</span>{" "}
+                          <span className="delivery-fee-free-text">FREE</span>
+                        </>
+                      ) : pricing.deliveryFeePaise > 0 ? (
+                        `₹${(pricing.deliveryFeePaise / 100).toFixed(2)}`
+                      ) : (
+                        "Free"
+                      )}
+                    </span>
                   </div>
                 )}
                 <div className="total-price">

@@ -6,7 +6,7 @@ import { createJob, createJobWithFiles, getJobByToken, getPricing, nextQueuePosi
 import { estimatePageCount, measureStoredFile, saveUpload, validateUpload } from "@/lib/files";
 import { bucketPathFor, isValidStoredName, verifyStoredNameSig } from "@/lib/storage";
 import { clientIp, isRateLimited } from "@/lib/ratelimit";
-import { calculatePrice, calculateSpiralBindingPrice, selectedPageCount } from "@/lib/pricing";
+import { calculatePrice, calculateSpiralBindingPrice, effectiveDeliveryFeePaise, selectedPageCount } from "@/lib/pricing";
 import { createClient } from "@/lib/supabase/server";
 import { checkDeliveryServiceable, isValidPincode } from "@/lib/service-area";
 import type { PaperSize, PrintDuplex, PrintLayout, PrintMargins, PrintScale, PrintType } from "@/lib/types";
@@ -281,7 +281,7 @@ export async function POST(request: NextRequest) {
     }
     const printPricePaise = calculatePrice({ printType, copies, pageRange, paperSize, pageCount: Math.max(pageCount, 1), pricing, duplex, pagesPerSheet });
     const addonFeePaise = (hasSpiralBinding ? calculateSpiralBindingPrice(selectedPageCount(pageCount, pageRange), pricing) * spiralBindingQty : 0) + (hasCoverFile ? pricing.coverFilePaise * coverFileQty : 0) + (hasBondPaper ? pricing.bondPaperPerPagePaise * selectedPageCount(pageCount, pageRange) : 0);
-    const deliveryFeePaise = deliveryMethod === "delivery" ? pricing.deliveryFeePaise : 0;
+    const deliveryFeePaise = deliveryMethod === "delivery" ? effectiveDeliveryFeePaise(printPricePaise + addonFeePaise, pricing.deliveryFeePaise) : 0;
     const pricePaise = printPricePaise + addonFeePaise + deliveryFeePaise;
 
     const jobData = {
@@ -500,7 +500,7 @@ async function handleBulk(form: FormData, customerUserId: string | null): Promis
   }
   const printPricePaise = calculatePrice({ printType, copies, pageRange: null, paperSize, pageCount: Math.max(pageCount, 1), pricing, duplex, pagesPerSheet });
   const addonFeePaise = (hasSpiralBinding ? calculateSpiralBindingPrice(pageCount, pricing) * spiralBindingQty : 0) + (hasCoverFile ? pricing.coverFilePaise * coverFileQty : 0) + (hasBondPaper ? pricing.bondPaperPerPagePaise * pageCount : 0);
-  const deliveryFeePaise = deliveryMethod === "delivery" ? pricing.deliveryFeePaise : 0;
+  const deliveryFeePaise = deliveryMethod === "delivery" ? effectiveDeliveryFeePaise(printPricePaise + addonFeePaise, pricing.deliveryFeePaise) : 0;
   const pricePaise = printPricePaise + addonFeePaise + deliveryFeePaise;
   const [token, queuePos] = await Promise.all([randomToken(), nextQueuePosition()]);
 

@@ -83,6 +83,15 @@ export function calculatePrice(input: {
   return Math.round(pageCostSum * copies * paperMultiplier * input.pricing.copyMultiplier);
 }
 
+// Marketing threshold: delivery is free once the order (print + add-ons,
+// before the delivery fee itself) crosses this. Flat and hardcoded for now —
+// promote to a pricing_config column if it ever needs to be admin-editable.
+export const FREE_DELIVERY_THRESHOLD_PAISE = 20000; // ₹200
+
+export function effectiveDeliveryFeePaise(orderSubtotalPaise: number, deliveryFeePaise: number) {
+  return orderSubtotalPaise >= FREE_DELIVERY_THRESHOLD_PAISE ? 0 : deliveryFeePaise;
+}
+
 export function formatRupees(paise: number) {
   return `₹${(paise / 100).toFixed(2)}`;
 }

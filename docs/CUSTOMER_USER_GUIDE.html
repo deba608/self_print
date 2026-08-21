@@ -1,0 +1,472 @@
+<title>SelfPrint — Customer Guide</title>
+<style>
+  :root {
+    --bg: #F7F7F5;
+    --bg-alt: #EEECEA;
+    --bg-code: #E8E6E1;
+    --text: #18181B;
+    --text-muted: #6B6B74;
+    --text-faint: #A0A0A8;
+    --accent: #0D7A74;
+    --accent-tint: #EAF5F4;
+    --accent-dark: #0A5E59;
+    --warn: #C2620A;
+    --warn-tint: #FEF3E8;
+    --success: #1A7F4B;
+    --success-tint: #EDFAF3;
+    --danger: #B91C1C;
+    --danger-tint: #FEF2F2;
+    --border: #D8D6D0;
+    --border-strong: #BFBCB5;
+    --rule: #E2E0DA;
+    --step-num: #CFCDC8;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #13141A; --bg-alt: #1C1D25; --bg-code: #21222C;
+      --text: #E4E3DF; --text-muted: #8F8F9A; --text-faint: #555560;
+      --accent: #2BB5AD; --accent-tint: #0D2E2C; --accent-dark: #5DCFC8;
+      --warn: #E8854A; --warn-tint: #261A0E;
+      --success: #3AB870; --success-tint: #0E221A;
+      --danger: #F87171; --danger-tint: #2A1010;
+      --border: #2C2D38; --border-strong: #3E3F4E; --rule: #242530;
+      --step-num: #2E2F3C;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #13141A; --bg-alt: #1C1D25; --bg-code: #21222C;
+    --text: #E4E3DF; --text-muted: #8F8F9A; --text-faint: #555560;
+    --accent: #2BB5AD; --accent-tint: #0D2E2C; --accent-dark: #5DCFC8;
+    --warn: #E8854A; --warn-tint: #261A0E;
+    --success: #3AB870; --success-tint: #0E221A;
+    --danger: #F87171; --danger-tint: #2A1010;
+    --border: #2C2D38; --border-strong: #3E3F4E; --rule: #242530;
+    --step-num: #2E2F3C;
+  }
+  :root[data-theme="light"] {
+    --bg: #F7F7F5; --bg-alt: #EEECEA; --bg-code: #E8E6E1;
+    --text: #18181B; --text-muted: #6B6B74; --text-faint: #A0A0A8;
+    --accent: #0D7A74; --accent-tint: #EAF5F4; --accent-dark: #0A5E59;
+    --warn: #C2620A; --warn-tint: #FEF3E8;
+    --success: #1A7F4B; --success-tint: #EDFAF3;
+    --danger: #B91C1C; --danger-tint: #FEF2F2;
+    --border: #D8D6D0; --border-strong: #BFBCB5; --rule: #E2E0DA;
+    --step-num: #CFCDC8;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    font-size: 15px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .layout {
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    grid-template-rows: auto 1fr;
+    min-height: 100vh;
+    max-width: 1000px;
+    margin: 0 auto;
+  }
+
+  header {
+    grid-column: 1 / -1;
+    padding: 40px 40px 28px;
+    border-bottom: 1px solid var(--rule);
+    display: flex;
+    align-items: flex-end;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+  .header-eyebrow {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--text-faint); margin-bottom: 6px;
+  }
+  header h1 {
+    font-size: 26px; font-weight: 700; letter-spacing: -0.03em;
+    line-height: 1.2; color: var(--text);
+  }
+  header h1 span { color: var(--accent); }
+  .header-meta { margin-left: auto; display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+  .badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 3px 10px; border-radius: 20px; font-size: 11.5px;
+    font-weight: 600; letter-spacing: 0.02em;
+  }
+  .badge-steps { background: var(--accent-tint); color: var(--accent-dark); border: 1px solid color-mix(in srgb, var(--accent) 20%, transparent); }
+  .badge-noapp { background: var(--success-tint); color: var(--success); border: 1px solid color-mix(in srgb, var(--success) 20%, transparent); }
+
+  nav {
+    grid-column: 1; padding: 32px 24px 32px 40px;
+    position: sticky; top: 0; height: 100vh; overflow-y: auto;
+    border-right: 1px solid var(--rule);
+  }
+  .nav-label {
+    font-size: 10.5px; font-weight: 700; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--text-faint); margin-bottom: 12px;
+  }
+  nav ul { list-style: none; }
+  nav ul li + li { margin-top: 2px; }
+  nav a {
+    display: block; font-size: 13px; color: var(--text-muted);
+    text-decoration: none; padding: 4px 8px; border-radius: 5px;
+    transition: background 0.12s, color 0.12s; line-height: 1.4;
+  }
+  nav a:hover { background: var(--bg-alt); color: var(--text); }
+  nav a.active { color: var(--accent); background: var(--accent-tint); font-weight: 500; }
+
+  main { grid-column: 2; padding: 40px 48px 80px; min-width: 0; }
+
+  section { scroll-margin-top: 24px; }
+  section + section { margin-top: 56px; border-top: 1px solid var(--rule); padding-top: 48px; }
+
+  .section-eyebrow {
+    font-size: 10.5px; font-weight: 700; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--accent); margin-bottom: 8px;
+  }
+  h2 {
+    font-size: 20px; font-weight: 700; letter-spacing: -0.02em;
+    line-height: 1.25; text-wrap: balance; margin-bottom: 20px;
+  }
+  h3 {
+    font-size: 14px; font-weight: 700; letter-spacing: -0.01em;
+    margin-top: 28px; margin-bottom: 10px; color: var(--text);
+  }
+  p { margin-bottom: 14px; color: var(--text); max-width: 64ch; }
+  p:last-child { margin-bottom: 0; }
+
+  code {
+    font-family: ui-monospace, 'Cascadia Code', 'SF Mono', Consolas, monospace;
+    font-size: 12.5px; background: var(--bg-code);
+    padding: 1px 5px; border-radius: 4px; color: var(--accent-dark);
+  }
+
+  /* Steps */
+  .steps { display: flex; flex-direction: column; gap: 0; }
+  .step {
+    display: grid; grid-template-columns: 40px 1fr;
+    gap: 0 16px; padding: 20px 0; border-top: 1px solid var(--rule);
+  }
+  .step:first-child { border-top: none; padding-top: 0; }
+  .step-num {
+    font-size: 22px; font-weight: 800; color: var(--step-num);
+    font-variant-numeric: tabular-nums; line-height: 1.3;
+    letter-spacing: -0.02em; padding-top: 1px;
+  }
+  .step-content h4 { font-size: 14px; font-weight: 700; margin-bottom: 6px; color: var(--text); }
+  .step-content p { font-size: 14px; margin-bottom: 8px; max-width: 58ch; }
+  .step-content ul { padding-left: 18px; font-size: 14px; color: var(--text-muted); line-height: 2; }
+  .step-content li strong { color: var(--text); }
+  .step-tag {
+    display: inline-block; font-size: 10px; font-weight: 700;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    padding: 2px 7px; border-radius: 4px; margin-bottom: 6px;
+  }
+  .tag-optional { background: var(--bg-code); color: var(--text-muted); }
+  .tag-required { background: var(--accent-tint); color: var(--accent-dark); }
+  .tag-delivery { background: var(--warn-tint); color: var(--warn); }
+
+  /* Callouts */
+  .callout {
+    padding: 12px 16px; border-radius: 8px; border-left: 3px solid;
+    margin: 16px 0; font-size: 13.5px; max-width: 68ch;
+  }
+  .callout-warn { background: var(--warn-tint); border-color: var(--warn); }
+  .callout-warn strong { color: var(--warn); }
+  .callout-info { background: var(--accent-tint); border-color: var(--accent); }
+  .callout-info strong { color: var(--accent-dark); }
+  .callout-success { background: var(--success-tint); border-color: var(--success); }
+  .callout-success strong { color: var(--success); }
+
+  /* Option cards */
+  .options { display: flex; gap: 12px; flex-wrap: wrap; margin: 12px 0; }
+  .option-card {
+    flex: 1; min-width: 140px; padding: 14px 16px;
+    background: var(--bg-alt); border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+  .option-card .oc-label { font-size: 12px; font-weight: 700; margin-bottom: 4px; color: var(--text); }
+  .option-card .oc-note { font-size: 11.5px; color: var(--text-muted); line-height: 1.5; }
+
+  /* Settings grid */
+  .settings-grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 4px 12px; margin: 10px 0; max-width: 52ch;
+  }
+  .sg-item { font-size: 13px; color: var(--text-muted); padding: 2px 0; }
+  .sg-item strong { color: var(--text); }
+
+  /* Status flow */
+  .status-flow { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 12px 0; }
+  .status-pill {
+    display: inline-block; font-size: 11px; font-weight: 600;
+    padding: 2px 8px; border-radius: 10px; vertical-align: middle;
+  }
+  .s-default  { background: var(--bg-code); color: var(--text-muted); }
+  .s-active   { background: var(--success-tint); color: var(--success); }
+  .s-arrow    { color: var(--text-faint); font-size: 13px; }
+
+  /* Token highlight */
+  .token-highlight {
+    display: flex; align-items: flex-start; gap: 14px;
+    padding: 16px 18px;
+    background: var(--accent-tint);
+    border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent);
+    border-radius: 10px; margin: 16px 0; max-width: 56ch;
+  }
+  .token-highlight .th-icon {
+    font-size: 22px; flex-shrink: 0; line-height: 1;
+  }
+  .token-highlight .th-label {
+    font-size: 11px; font-weight: 700; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--accent-dark); margin-bottom: 3px;
+  }
+  .token-highlight .th-body {
+    font-size: 13px; color: var(--text-muted); line-height: 1.5;
+  }
+
+  /* Tips list */
+  .tips-list { list-style: none; display: flex; flex-direction: column; gap: 6px; margin: 4px 0; }
+  .tips-list li {
+    display: flex; gap: 10px; align-items: flex-start;
+    font-size: 13.5px; padding: 8px 12px;
+    background: var(--bg-alt); border-radius: 6px;
+    color: var(--text-muted);
+  }
+  .tips-list li::before {
+    content: '→'; color: var(--warn); font-weight: 700; flex-shrink: 0; margin-top: 0;
+  }
+
+  @page { margin: 14mm 16mm; size: A4; }
+  @media print {
+    body { background: #fff; }
+    nav { display: none; }
+    .layout { display: block; max-width: 100%; }
+    header { padding: 20px 0 16px; }
+    main { padding: 0; }
+    .step { break-inside: avoid; }
+    .callout, .token-highlight, .options { break-inside: avoid; }
+  }
+
+  @media (max-width: 780px) {
+    .layout { grid-template-columns: 1fr; }
+    nav { display: none; }
+    header { padding: 24px 20px 18px; }
+    main { padding: 24px 20px 60px; grid-column: 1; }
+    .options { flex-direction: column; }
+    .settings-grid { grid-template-columns: 1fr; }
+  }
+</style>
+
+<div class="layout">
+  <header>
+    <div>
+      <div class="header-eyebrow">SelfPrint · Customer Guide</div>
+      <h1>How to <span>print</span> with SelfPrint</h1>
+    </div>
+    <div class="header-meta">
+      <span class="badge badge-noapp">No app needed</span>
+      <span class="badge badge-steps">9 steps</span>
+    </div>
+  </header>
+
+  <nav>
+    <div class="nav-label">Steps</div>
+    <ul>
+      <li><a href="#scan">1. Scan QR code</a></li>
+      <li><a href="#upload">2. Upload file</a></li>
+      <li><a href="#settings">3. Print settings</a></li>
+      <li><a href="#note">4. Add a note</a></li>
+      <li><a href="#delivery">5. Pickup or delivery</a></li>
+      <li><a href="#token">6. Get your token</a></li>
+      <li><a href="#track">7. Track order</a></li>
+      <li><a href="#payment">8. Payment</a></li>
+      <li><a href="#collect">9. Collect order</a></li>
+      <li><a href="#tips">Tips</a></li>
+    </ul>
+  </nav>
+
+  <main>
+
+    <section id="scan">
+      <div class="section-eyebrow">Start here</div>
+      <h2>Scan the QR code at the counter</h2>
+      <p>Point your phone camera at the QR code posted at the shop. It opens the SelfPrint upload page directly in your browser — no app to install, no account required to get started.</p>
+      <div class="callout callout-info">
+        <strong>Use your own mobile data</strong> — not the shop WiFi. Your files upload directly from your phone, so a personal connection is faster and more secure.
+      </div>
+    </section>
+
+    <section id="upload">
+      <div class="section-eyebrow">Step 2</div>
+      <h2>Upload your file</h2>
+      <p>Tap the upload box on the page and select your file. You can add multiple files to one order.</p>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">→</div>
+          <div class="step-content">
+            <h4>Supported formats</h4>
+            <p>PDF, JPG, PNG, DOC, DOCX</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">→</div>
+          <div class="step-content">
+            <h4>DOC / DOCX files</h4>
+            <p>Converted to PDF automatically before printing. This takes about a minute — keep the tab open while it runs.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">→</div>
+          <div class="step-content">
+            <h4>Multiple files</h4>
+            <p>You can upload more than one file in a single order. Each file gets its own print settings.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="settings">
+      <div class="section-eyebrow">Step 3</div>
+      <h2>Choose print settings</h2>
+      <p>Configure how each file should be printed. Your last-used settings are remembered on this device for next time.</p>
+      <div class="settings-grid">
+        <div class="sg-item"><strong>Print type</strong> — B&amp;W or Color</div>
+        <div class="sg-item"><strong>Copies</strong> — how many you need</div>
+        <div class="sg-item"><strong>Paper size</strong> — A4, A3, Photo…</div>
+        <div class="sg-item"><strong>Duplex</strong> — single or double-sided</div>
+        <div class="sg-item"><strong>Pages per sheet</strong> — fit multiple pages</div>
+        <div class="sg-item"><strong>Page range</strong> — all pages or select</div>
+      </div>
+      <p style="margin-top:12px; font-size:13.5px; color:var(--text-muted)">Add-ons (if offered): spiral binding, cover page, bond paper.</p>
+    </section>
+
+    <section id="note">
+      <div class="section-eyebrow">Step 4</div>
+      <h2>Add a note <span style="font-size:13px; font-weight:400; color:var(--text-muted)">(optional)</span></h2>
+      <p>Use the note box to leave any special instructions for the shop — for example: <em>"staple pages"</em>, <em>"urgent"</em>, or <em>"print only from page 3 onwards"</em>.</p>
+      <p style="font-size:13px; color:var(--text-muted)">Maximum 250 characters.</p>
+    </section>
+
+    <section id="delivery">
+      <div class="section-eyebrow">Step 5</div>
+      <h2>Choose pickup or home delivery</h2>
+      <div class="options">
+        <div class="option-card">
+          <div class="oc-label">🏪 Pickup at counter</div>
+          <div class="oc-note">Collect your prints at the shop. Pay by cash, UPI, or card when you arrive.</div>
+        </div>
+        <div class="option-card">
+          <div class="oc-label">🚚 Home delivery</div>
+          <div class="oc-note">Available for PDF and image orders in serviceable pincodes. Online payment required upfront (UPI / Razorpay). Enter your address, pincode, and confirm location.</div>
+        </div>
+      </div>
+      <div class="callout callout-warn">
+        <strong>DOC / DOCX orders</strong> cannot use home delivery — choose pickup for those. Delivery also requires online payment; cash-at-door is not available.
+      </div>
+    </section>
+
+    <section id="token">
+      <div class="section-eyebrow">Step 6</div>
+      <h2>Submit and get your order token</h2>
+      <p>After you submit, you'll receive an order token. This is your reference number for the entire order.</p>
+      <div class="token-highlight">
+        <div class="th-icon">🎫</div>
+        <div>
+          <div class="th-label">Your order token</div>
+          <div class="th-body">Write it down or keep the page open. You'll need it to track your order and collect your prints at the counter.</div>
+        </div>
+      </div>
+      <ul style="padding-left:18px; font-size:14px; color:var(--text-muted); line-height:2.2; margin-top:8px;">
+        <li>Paid online? Your order starts processing right away.</li>
+        <li>Paying at the counter? Show your token to staff when you arrive.</li>
+      </ul>
+    </section>
+
+    <section id="track">
+      <div class="section-eyebrow">Step 7</div>
+      <h2>Track your order</h2>
+      <p>Go to <code>/track</code> and enter your token to see live status:</p>
+      <div class="status-flow">
+        <span class="status-pill s-default">Uploaded</span>
+        <span class="s-arrow">›</span>
+        <span class="status-pill s-default">Approved</span>
+        <span class="s-arrow">›</span>
+        <span class="status-pill s-default">Printing</span>
+        <span class="s-arrow">›</span>
+        <span class="status-pill s-active">Ready / Delivered</span>
+      </div>
+      <p style="margin-top:14px;">If you registered an account, <code>/my-jobs</code> shows all your past and current orders — no token needed.</p>
+    </section>
+
+    <section id="payment">
+      <div class="section-eyebrow">Step 8</div>
+      <h2>Payment</h2>
+      <div class="options">
+        <div class="option-card">
+          <div class="oc-label">Pay at counter</div>
+          <div class="oc-note">Cash, UPI, or card. Staff mark it paid once received. Works for all pickup orders.</div>
+        </div>
+        <div class="option-card">
+          <div class="oc-label">Pay online</div>
+          <div class="oc-note">UPI or Razorpay checkout during submission. Required for all home delivery orders.</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="collect">
+      <div class="section-eyebrow">Step 9</div>
+      <h2>Collect or receive your order</h2>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">→</div>
+          <div class="step-content">
+            <h4>Pickup</h4>
+            <p>Come to the counter once your order status shows <span class="status-pill s-active">Ready</span>. Show your token to staff.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">→</div>
+          <div class="step-content">
+            <h4>Home delivery</h4>
+            <p>Your order is dispatched to the address you entered. Track the status at <code>/track</code> the same way.</p>
+          </div>
+        </div>
+      </div>
+      <div class="callout callout-success">
+        <strong>That's it.</strong> Your prints are ready. No account required, no app to uninstall — just scan again next time.
+      </div>
+    </section>
+
+    <section id="tips">
+      <div class="section-eyebrow">Good to know</div>
+      <h2>Tips before you submit</h2>
+      <ul class="tips-list">
+        <li>Keep the browser tab open until you see your token — closing early may lose your order.</li>
+        <li>Large files take longer to upload. A stable mobile data connection helps.</li>
+        <li>Check the page range and orientation in the preview before submitting — once staff approve the job, printing starts immediately.</li>
+      </ul>
+    </section>
+
+  </main>
+</div>
+
+<script>
+  const sections = document.querySelectorAll('section[id]');
+  const navLinks = document.querySelectorAll('nav a');
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        navLinks.forEach(a => a.classList.remove('active'));
+        const active = document.querySelector(`nav a[href="#${e.target.id}"]`);
+        if (active) active.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-20% 0px -60% 0px' });
+  sections.forEach(s => observer.observe(s));
+</script>
