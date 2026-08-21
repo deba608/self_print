@@ -5,16 +5,19 @@ import { useRouter } from "next/navigation";
 import { Phone, User } from "lucide-react";
 import { AuthShell, AuthInput, AuthError, AuthSubmit } from "@/components/ui/Auth";
 
-export default function CompleteProfileForm({ needsName = false }: { needsName?: boolean }) {
+export default function CompleteProfileForm({ defaultName = "" }: { defaultName?: string }) {
   const router = useRouter();
-  const [name, setName] = useState("");
+  // Always editable, even when Google supplied a name — a Google account can
+  // carry any name regardless of the email it's signed up with, so it's
+  // pre-filled as a starting point, not trusted as final.
+  const [name, setName] = useState(defaultName);
   const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (needsName && !name.trim()) {
+    if (!name.trim()) {
       setError("Name is required");
       return;
     }
@@ -29,7 +32,7 @@ export default function CompleteProfileForm({ needsName = false }: { needsName?:
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone, name: needsName ? name.trim() : undefined }),
+        body: JSON.stringify({ phone, name: name.trim() }),
       });
       if (!response.ok) {
         const body = await response.json().catch(() => ({}));
@@ -47,19 +50,17 @@ export default function CompleteProfileForm({ needsName = false }: { needsName?:
   return (
     <AuthShell title="One Last Step" subtitle="Enter your WhatsApp number to receive order updates and delivery tracking">
       <form className="login-form" onSubmit={handleSubmit}>
-        {needsName && (
-          <AuthInput
-            id="name"
-            label="Your Name"
-            icon={User}
-            value={name}
-            onChange={setName}
-            placeholder="Full name"
-            autoComplete="name"
-            disabled={loading}
-            required
-          />
-        )}
+        <AuthInput
+          id="name"
+          label="Your Name"
+          icon={User}
+          value={name}
+          onChange={setName}
+          placeholder="Full name"
+          autoComplete="name"
+          disabled={loading}
+          required
+        />
         <AuthInput
           id="phone"
           label="WhatsApp Number"

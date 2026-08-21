@@ -15,7 +15,7 @@ import type { PaperSize, PrintDuplex, PrintLayout, PrintMargins, PrintScale, Pri
 // Unauthenticated requests (guests) resolve to `{ user: null }` with no error,
 // so this is safe to call unconditionally; any failure (e.g. Supabase env not
 // configured in pure-SQLite local dev) is swallowed and treated as a guest.
-async function getCustomerUserId(): Promise<string | null> {
+async function getCustomerUserId(): Promise<{ id: string; displayName: string | null } | null> {
   try {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
@@ -25,10 +25,10 @@ async function getCustomerUserId(): Promise<string | null> {
     // otherwise their jobs would surface under /my-jobs for that account.
     const { data: profile } = await supabase
       .from("customer_profiles")
-      .select("id")
+      .select("id, display_name")
       .eq("id", user.id)
       .maybeSingle();
-    return profile ? user.id : null;
+    return profile ? { id: user.id, displayName: profile.display_name ?? null } : null;
   } catch {
     return null;
   }
@@ -120,10 +120,11 @@ export async function POST(request: NextRequest) {
     }
 
     const form = await request.formData();
-    const customerUserId = await getCustomerUserId();
+    const customer = await getCustomerUserId();
+    const customerUserId = customer?.id ?? null;
 
     if (form.get("bulk") === "true") {
-      return await handleBulk(form, customerUserId);
+      return await handleBulk(form, customer);
     }
 
     const printType = String(form.get("printType") ?? "bw") as PrintType;
@@ -306,7 +307,7 @@ export async function POST(request: NextRequest) {
       needs_conversion: needsConversion,
       queue_position: queuePos,
       delivery_method: deliveryMethod,
-      customer_name: deliveryDetails.customerName,
+      customer_name: deliveryDetails.customerName ?? customer?.displayName ?? null,
       customer_phone: deliveryDetails.customerPhone,
       delivery_address: deliveryDetails.deliveryAddress,
       delivery_pincode: deliveryDetails.deliveryPincode,
@@ -340,7 +341,8 @@ export async function POST(request: NextRequest) {
   }
 }
 
-async function handleBulk(form: FormData, customerUserId: string | null): Promise<NextResponse> {
+async function handleBulk(form: FormData, customer: { id: string; displayName: string | null } | null): Promise<NextResponse> {
+  const customerUserId = customer?.id ?? null;
   // Shared settings (page range intentionally omitted for bulk).
   const printType = String(form.get("printType") ?? "bw") as PrintType;
   const copies = Math.max(1, Math.floor(Number(form.get("copies") ?? 1)));
@@ -526,7 +528,7 @@ async function handleBulk(form: FormData, customerUserId: string | null): Promis
     needs_conversion: 0,
     queue_position: queuePos,
     delivery_method: deliveryMethod,
-    customer_name: deliveryDetails.customerName,
+    customer_name: deliveryDetails.customerName ?? customer?.displayName ?? null,
     customer_phone: deliveryDetails.customerPhone,
     delivery_address: deliveryDetails.deliveryAddress,
     delivery_pincode: deliveryDetails.deliveryPincode,

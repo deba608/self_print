@@ -20,5 +20,5 @@ export default async function CompleteProfilePage() {
     redirect("/my-jobs");
   }
 
-  return <CompleteProfileForm needsName={!profile?.display_name} />;
+  return <CompleteProfileForm defaultName={profile?.display_name ?? ""} />;
 }
