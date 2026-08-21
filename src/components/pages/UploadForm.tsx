@@ -27,17 +27,32 @@ type PageRangeMode = "all" | "custom";
 function BulkFileCustomizePanel({
   override,
   jobDefaults,
+  pageCount,
   onChange,
   onReset,
 }: {
   override: FileSettingsOverride | undefined;
   jobDefaults: { printType: string; duplex: string; paperSize: string; copies: number; pagesPerSheet: number };
+  // This file's own page count — double-sided needs at least 2 pages to mean
+  // anything, same rule as the job-level Sides control (see canDuplex above).
+  pageCount: number;
   onChange: (patch: Partial<FileSettingsOverride>) => void;
   onReset: () => void;
 }) {
   const printType = override?.printType ?? jobDefaults.printType;
-  const isDouble = (override?.duplex ?? jobDefaults.duplex) !== "simplex";
+  const canDuplex = pageCount >= 2;
+  const isDouble = canDuplex && (override?.duplex ?? jobDefaults.duplex) !== "simplex";
   const copies = override?.copies ?? jobDefaults.copies;
+
+  // A single-page file can't stay set to double-sided once selected (e.g. the
+  // job default was double but this file's override/page-range brings it to
+  // 1 page) — snap it back to simplex so the invalid state never persists.
+  useEffect(() => {
+    if (!canDuplex && override?.duplex && override.duplex !== "simplex") {
+      onChange({ duplex: "simplex" });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canDuplex]);
 
   return (
     <div className="bulk-file-customize-panel" onClick={(e) => e.stopPropagation()}>
