@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getJobByToken, updateJobStatus } from "@/lib/db";
+import { getJobByToken, updateJobStatus, markJobRefunded } from "@/lib/db";
 import { createClient } from "@/lib/supabase/server";
+import { isRazorpayConfigured, refundPayment } from "@/lib/razorpay";
 
 // Customer self-cancel. Only the job's own owner may cancel, and only before
-// it's already printing/printed/cancelled. No refund is issued here — there
-// is no online refund flow (Razorpay refund API is never called anywhere in
-// this codebase); a paid job that gets cancelled needs a manual counter
-// refund by staff, so the response flags that case for the UI to explain.
+// it's already printing/printed/cancelled. If the job was paid online via
+// Razorpay, a full refund is issued automatically through Razorpay's refund
+// API. Counter-paid jobs still need a manual refund at the counter — there's
+// no way to reverse cash from here.
 export async function POST(request: NextRequest, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
   if (!/^\d{6}$/.test(token)) {
@@ -38,5 +39,26 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   await updateJobStatus(job.id, "cancelled");
 
-  return NextResponse.json({ ok: true, wasPaid: Boolean(job.paidAt) });
+  const needsOnlineRefund =
+    Boolean(job.paidAt) && job.paidVia === "online" && Boolean(job.razorpayPaymentId);
+
+  if (!needsOnlineRefund) {
+    return NextResponse.json({ ok: true, wasPaid: Boolean(job.paidAt), refundStatus: null });
+  }
+
+  if (!isRazorpayConfigured()) {
+    await markJobRefunded(job.id, "failed");
+    return NextResponse.json({ ok: true, wasPaid: true, refundStatus: "failed" });
+  }
+
+  try {
+    await refundPayment(job.razorpayPaymentId as string, job.pricePaise);
+    await markJobRefunded(job.id, "refunded");
+    return NextResponse.json({ ok: true, wasPaid: true, refundStatus: "refunded" });
+  } catch {
+    // Razorpay rejected or errored on the refund call. The job stays
+    // cancelled either way; flag it for staff to refund manually.
+    await markJobRefunded(job.id, "failed");
+    return NextResponse.json({ ok: true, wasPaid: true, refundStatus: "failed" });
+  }
 }

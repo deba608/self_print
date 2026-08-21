@@ -68,6 +68,9 @@ export type Job = {
   updatedAt: string;
   paidAt: string | null;
   paidVia: "online" | "counter" | null;
+  razorpayPaymentId: string | null;
+  refundStatus: "none" | "processing" | "refunded" | "failed" | null;
+  refundedAt: string | null;
   printedAt: string | null;
   expiresAt: string;
   issueReportedAt: string | null;

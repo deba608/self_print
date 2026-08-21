@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { paidAt } = await markJobPaid(job.id, "online");
+  const { paidAt } = await markJobPaid(job.id, "online", razorpay_payment_id);
 
   return NextResponse.json({ ok: true, status: "paid" });
 }

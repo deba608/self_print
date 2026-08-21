@@ -49,6 +49,9 @@ function mapJob(row: any, expiryMinutes: number = 1440): Job {
     updatedAt: String(row.updated_at),
     paidAt: row.paid_at ? String(row.paid_at) : null,
     paidVia: row.paid_via ? (row.paid_via as Job['paidVia']) : null,
+    razorpayPaymentId: row.razorpay_payment_id ? String(row.razorpay_payment_id) : null,
+    refundStatus: row.refund_status ? (row.refund_status as Job['refundStatus']) : null,
+    refundedAt: row.refunded_at ? String(row.refunded_at) : null,
     printedAt: row.printed_at ? String(row.printed_at) : null,
     expiresAt,
     issueReportedAt: row.issue_reported_at ? String(row.issue_reported_at) : null,
@@ -517,7 +520,11 @@ export async function resolveJobIssue(id: string): Promise<void> {
 // Payment is tracked independently of print-progress status — a job can be
 // released/printed before it's paid (pay-at-counter-after-print flow), so
 // marking paid only ever touches paid_at, never the status column.
-export async function markJobPaid(id: string, via: 'online' | 'counter' = 'counter'): Promise<{ paidAt: string }> {
+export async function markJobPaid(
+  id: string,
+  via: 'online' | 'counter' = 'counter',
+  paymentId?: string
+): Promise<{ paidAt: string }> {
   const { data: existing, error: selError } = await supabase
     .from('jobs')
     .select('paid_at')
@@ -532,7 +539,7 @@ export async function markJobPaid(id: string, via: 'online' | 'counter' = 'count
   const now = new Date().toISOString();
   const { error } = await supabase
     .from('jobs')
-    .update({ paid_at: now, paid_via: via, updated_at: now })
+    .update({ paid_at: now, paid_via: via, razorpay_payment_id: paymentId ?? null, updated_at: now })
     .eq('id', id);
   if (error) throw error;
 
@@ -541,6 +548,19 @@ export async function markJobPaid(id: string, via: 'online' | 'counter' = 'count
     .insert([{ id: crypto.randomUUID(), job_id: id, event_type: 'paid', message: `Marked as paid (${via}).`, created_at: now }]);
 
   return { paidAt: now };
+}
+
+// Records the outcome of a Razorpay refund attempt for a job.
+export async function markJobRefunded(
+  id: string,
+  refundStatus: 'processing' | 'refunded' | 'failed'
+): Promise<void> {
+  const now = new Date().toISOString();
+  const { error } = await supabase
+    .from('jobs')
+    .update({ refund_status: refundStatus, refunded_at: refundStatus === 'refunded' ? now : null, updated_at: now })
+    .eq('id', id);
+  if (error) throw error;
 }
 
 export async function updateJobSettings(id: string, settings: {

@@ -21,6 +21,7 @@ export default function JobActions({ token, pricePaise, paidAt: initialPaidAt, s
   const [payError, setPayError] = useState("");
   const [cancelState, setCancelState] = useState<"idle" | "confirm" | "cancelling">("idle");
   const [cancelError, setCancelError] = useState("");
+  const [refundStatus, setRefundStatus] = useState<"processing" | "refunded" | "failed" | null>(null);
 
   useEffect(() => {
     fetch("/api/pricing")
@@ -102,10 +103,21 @@ export default function JobActions({ token, pricePaise, paidAt: initialPaidAt, s
       if (!res.ok) throw new Error(data.error ?? "Could not cancel this order.");
       setStatus("cancelled");
       setCancelState("idle");
+      if (data.refundStatus) setRefundStatus(data.refundStatus);
     } catch (err) {
       setCancelState("confirm");
       setCancelError(err instanceof Error ? err.message : "Could not cancel this order.");
     }
+  }
+
+  if (status === "cancelled" && refundStatus) {
+    return refundStatus === "refunded" ? (
+      <span className="job-actions-refunded">
+        <CircleCheck size={14} aria-hidden="true" /> Refunded
+      </span>
+    ) : (
+      <span className="job-actions-refund-pending">Cancelled — refund pending, contact the counter</span>
+    );
   }
 
   if (paidAt) {
@@ -139,7 +151,7 @@ export default function JobActions({ token, pricePaise, paidAt: initialPaidAt, s
 
       {canCancel && cancelState !== "idle" && (
         <div className="job-actions-cancel-confirm">
-          <span>Cancel this order?</span>
+          <span>{paidAt ? "Cancel & refund this order?" : "Cancel this order?"}</span>
           <button type="button" className="job-actions-cancel-yes" onClick={cancelJob} disabled={cancelState === "cancelling"}>
             {cancelState === "cancelling" ? <Loader2 size={13} className="spin" aria-hidden="true" /> : "Yes, cancel"}
           </button>

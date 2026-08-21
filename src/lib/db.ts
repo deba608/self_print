@@ -251,7 +251,10 @@ async function ensureJobColumns(database: any) {
     ['delivery_pincode', 'TEXT'],
     ['delivery_area', 'TEXT'],
     ['custom_note', 'TEXT'],
-    ['archived_at', 'TEXT']
+    ['archived_at', 'TEXT'],
+    ['razorpay_payment_id', 'TEXT'],
+    ['refund_status', 'TEXT'],
+    ['refunded_at', 'TEXT']
   ];
   for (const [name, definition] of additions) {
     if (!columns.has(name)) {
@@ -381,6 +384,9 @@ function mapJob(row: Record<string, unknown>, expiryMinutes: number = 1440): Job
     updatedAt: String(row.updated_at),
     paidAt: row.paid_at ? String(row.paid_at) : null,
     paidVia: row.paid_via ? (row.paid_via as Job['paidVia']) : null,
+    razorpayPaymentId: row.razorpay_payment_id ? String(row.razorpay_payment_id) : null,
+    refundStatus: row.refund_status ? (row.refund_status as Job['refundStatus']) : null,
+    refundedAt: row.refunded_at ? String(row.refunded_at) : null,
     printedAt: row.printed_at ? String(row.printed_at) : null,
     expiresAt,
     issueReportedAt: row.issue_reported_at ? String(row.issue_reported_at) : null,
@@ -877,20 +883,46 @@ export async function resolveJobIssue(id: string): Promise<void> {
 // Payment is tracked independently of print-progress status — a job can be
 // released/printed before it's paid (pay-at-counter-after-print flow), so
 // marking paid only ever touches paid_at, never the status column.
-export async function markJobPaid(id: string, via: "online" | "counter" = "counter"): Promise<{ paidAt: string }> {
+export async function markJobPaid(
+  id: string,
+  via: "online" | "counter" = "counter",
+  paymentId?: string
+): Promise<{ paidAt: string }> {
   if (isSupabase) {
     const mod = await import('./db-supabase');
-    return mod.markJobPaid(id, via);
+    return mod.markJobPaid(id, via, paymentId);
   }
 
   const crypto = await import('node:crypto');
   const sqlite = await getDbInstance();
   const now = new Date().toISOString();
-  sqlite.prepare(`UPDATE jobs SET paid_at = COALESCE(paid_at, ?), paid_via = COALESCE(paid_via, ?), updated_at = ? WHERE id = ?`).run(now, via, now, id);
+  sqlite
+    .prepare(
+      `UPDATE jobs SET paid_at = COALESCE(paid_at, ?), paid_via = COALESCE(paid_via, ?), razorpay_payment_id = COALESCE(razorpay_payment_id, ?), updated_at = ? WHERE id = ?`
+    )
+    .run(now, via, paymentId ?? null, now, id);
   sqlite.prepare("INSERT INTO print_events (id, job_id, event_type, message, created_at) VALUES (?, ?, ?, ?, ?)")
     .run(crypto.randomUUID(), id, 'paid', `Marked as paid (${via}).`, now);
   const row = sqlite.prepare(`SELECT paid_at FROM jobs WHERE id = ?`).get(id) as { paid_at: string };
   return { paidAt: row.paid_at };
+}
+
+// Records the outcome of a Razorpay refund attempt so the customer's job card
+// and any future support lookup can show refund state without calling out to
+// Razorpay again.
+export async function markJobRefunded(
+  id: string,
+  refundStatus: "processing" | "refunded" | "failed"
+): Promise<void> {
+  if (isSupabase) {
+    const mod = await import('./db-supabase');
+    return mod.markJobRefunded(id, refundStatus);
+  }
+  const sqlite = await getDbInstance();
+  const now = new Date().toISOString();
+  sqlite
+    .prepare(`UPDATE jobs SET refund_status = ?, refunded_at = ?, updated_at = ? WHERE id = ?`)
+    .run(refundStatus, refundStatus === 'refunded' ? now : null, now, id);
 }
 
 export async function updateJobSettings(id: string, settings: {

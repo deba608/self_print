@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ ok: true });
         }
         if (!job.paidAt) {
-          await markJobPaid(job.id, "online");
+          await markJobPaid(job.id, "online", String(entity?.id ?? ""));
         }
       } catch {
         // Unknown / already-removed job — ack anyway so Razorpay stops retrying.

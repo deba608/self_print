@@ -53,6 +53,11 @@ export function verifyWebhookSignature(rawBody: string, signature: string | null
   return timingSafeEqualHex(expected, signature);
 }
 
+/** Issues a full refund for a captured payment. Amount is in paise. */
+export async function refundPayment(paymentId: string, amountPaise: number) {
+  return razorpay().payments.refund(paymentId, { amount: Math.round(amountPaise) });
+}
+
 export function isWebhookConfigured(): boolean {
   return Boolean(RAZORPAY_WEBHOOK_SECRET);
 }
