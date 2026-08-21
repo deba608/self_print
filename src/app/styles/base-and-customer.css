@@ -3461,16 +3461,70 @@ input, select, button {
   margin: 0;
 }
 
-.free-delivery-line {
+/* Free-delivery progress reminder — one card instead of three scattered
+   lines: icon + message, a fill bar showing how close the order is to the
+   threshold, and (while still short) the threshold itself as a footnote.
+   Reuses the same track/fill shape as .upload-progress-track so progress
+   bars read consistently across the app. */
+.free-delivery-widget {
+  margin: 4px 0 14px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--accent-bg);
+  border: 1px solid rgba(13, 122, 116, 0.18);
+  transition: background 200ms ease, border-color 200ms ease;
+}
+
+.free-delivery-widget-row {
   display: flex;
   align-items: center;
-  gap: 6px;
-  margin: 4px 0 12px;
-  font-size: 12.5px;
-  font-weight: 700;
+  gap: 7px;
   color: var(--accent-strong);
 }
-.free-delivery-line svg { flex-shrink: 0; }
+.free-delivery-widget-row svg { flex-shrink: 0; }
+
+.free-delivery-widget-text {
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+.free-delivery-widget-track {
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(13, 122, 116, 0.15);
+  overflow: hidden;
+  margin-top: 8px;
+}
+
+.free-delivery-widget-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent);
+  transition: width 320ms var(--ease-spring, ease-out);
+}
+
+.free-delivery-widget-threshold {
+  display: block;
+  margin-top: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+/* Unlocked state: the reminder becomes the receipt of a win. */
+.free-delivery-widget.is-unlocked {
+  background: var(--ok-light);
+  border-color: rgba(21, 128, 61, 0.25);
+}
+.free-delivery-widget.is-unlocked .free-delivery-widget-row {
+  color: var(--ok);
+}
+.free-delivery-widget.is-unlocked .free-delivery-widget-track {
+  background: rgba(21, 128, 61, 0.15);
+}
+.free-delivery-widget.is-unlocked .free-delivery-widget-fill {
+  background: var(--ok);
+}
 
 .delivery-method-toggle {
   display: flex;
@@ -3540,34 +3594,6 @@ input, select, button {
 .delivery-fee-free-text {
   color: var(--ok);
   font-weight: 800;
-}
-
-/* Marketing banners under the pickup/delivery toggle: the win once free
-   delivery is unlocked, or a nudge toward it while short of the threshold. */
-.delivery-free-banner {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin: 10px 0 0;
-  padding: 8px 12px;
-  border-radius: 8px;
-  background: var(--ok-light);
-  color: var(--ok);
-  font-size: 12.5px;
-  font-weight: 700;
-}
-.delivery-free-banner svg { flex-shrink: 0; }
-
-.delivery-upsell-hint {
-  margin: 10px 0 0;
-  padding: 8px 12px;
-  border-radius: 8px;
-  border: 1px dashed var(--accent);
-  background: var(--accent-bg);
-  color: var(--accent-strong);
-  font-size: 12.5px;
-  font-weight: 700;
-  text-align: center;
 }
 
 .addon-toggle-row {

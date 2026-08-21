@@ -2263,12 +2263,36 @@ export default function UploadForm() {
           {(!onePage || fulfilStage) && deliveryOfferable && (
             <div className="delivery-method-section">
               <h4 className="delivery-method-title">How will you get your prints?</h4>
+
+              {/* Always-visible progress reminder — not gated on Home Delivery being
+                  selected, since it's an incentive to add more / switch to delivery,
+                  not just a receipt of a choice already made. */}
               {pricing && pricing.deliveryFeePaise > 0 && pricing.freeDeliveryThresholdPaise > 0 && (
-                <p className="free-delivery-line">
-                  <Truck size={13} aria-hidden="true" />
-                  Free delivery on orders above {formatRupees(pricing.freeDeliveryThresholdPaise)}
-                </p>
+                <div className={`free-delivery-widget ${priceBreakdown.isFreeDelivery ? "is-unlocked" : ""}`}>
+                  <div className="free-delivery-widget-row">
+                    <Truck size={15} aria-hidden="true" />
+                    <span className="free-delivery-widget-text">
+                      {priceBreakdown.isFreeDelivery
+                        ? `Free delivery unlocked — you saved ${formatRupees(pricing.deliveryFeePaise)}!`
+                        : `Add ${formatRupees(Math.max(0, pricing.freeDeliveryThresholdPaise - priceBreakdown.printAndAddonPaise))} more for FREE delivery`}
+                    </span>
+                  </div>
+                  <div className="free-delivery-widget-track">
+                    <div
+                      className="free-delivery-widget-fill"
+                      style={{
+                        width: `${Math.min(100, (priceBreakdown.printAndAddonPaise / pricing.freeDeliveryThresholdPaise) * 100)}%`,
+                      }}
+                    />
+                  </div>
+                  {!priceBreakdown.isFreeDelivery && (
+                    <span className="free-delivery-widget-threshold">
+                      Free delivery on orders above {formatRupees(pricing.freeDeliveryThresholdPaise)}
+                    </span>
+                  )}
+                </div>
               )}
+
               <div className="delivery-method-toggle" role="group" aria-label="Pickup or delivery">
                 <button
                   type="button"
@@ -2299,21 +2323,6 @@ export default function UploadForm() {
                   )}
                 </button>
               </div>
-
-              {/* Marketing nudge: shows the win once free, or how close they
-                  are, to push order value over the free-delivery threshold. */}
-              {deliveryMethod === "delivery" && pricing && pricing.deliveryFeePaise > 0 && pricing.freeDeliveryThresholdPaise > 0 && (
-                priceBreakdown.isFreeDelivery ? (
-                  <p className="delivery-free-banner">
-                    <Truck size={14} aria-hidden="true" />
-                    Free delivery unlocked — you saved {formatRupees(pricing.deliveryFeePaise)}!
-                  </p>
-                ) : (
-                  <p className="delivery-upsell-hint">
-                    Add {formatRupees(Math.max(0, pricing.freeDeliveryThresholdPaise - priceBreakdown.printAndAddonPaise))} more to your order for FREE delivery
-                  </p>
-                )
-              )}
 
               {deliveryMethod === "delivery" && (
                 <div className="delivery-contact-fields">
