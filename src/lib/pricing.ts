@@ -156,8 +156,8 @@ export function nextOpenLabel(days: string | null, windows: Array<[string | null
 }
 
 function windowsLabel(pricing: PricingConfig) {
-  const windows = [pricing.orderOpenTime && pricing.orderCloseTime ? `${pricing.orderOpenTime}–${pricing.orderCloseTime}` : null,
-    pricing.orderOpenTime2 && pricing.orderCloseTime2 ? `${pricing.orderOpenTime2}–${pricing.orderCloseTime2}` : null]
+  const windows = [pricing.orderOpenTime && pricing.orderCloseTime ? `${to12h(pricing.orderOpenTime)}–${to12h(pricing.orderCloseTime)}` : null,
+    pricing.orderOpenTime2 && pricing.orderCloseTime2 ? `${to12h(pricing.orderOpenTime2)}–${to12h(pricing.orderCloseTime2)}` : null]
     .filter(Boolean);
   return windows.join(", ");
 }
@@ -217,11 +217,12 @@ export function isDeliveryAvailable(pricing: PricingConfig): { ok: true } | { ok
   const daysLabel = allowedDays.map((d) => ISO_WEEKDAY_LABEL[d]).join(", ");
   const next = nextOpenLabel(pricing.deliveryDays, [[open, close]]);
   const reopenSuffix = next ? ` Next delivery slot: ${next}.` : "";
+  const windowLabel = `${to12h(open)}–${to12h(close)}`;
   if (!allowedDays.includes(isoWeekday)) {
-    return { ok: false, reason: `Home delivery is available ${daysLabel}, ${open}–${close}.${reopenSuffix}` };
+    return { ok: false, reason: `Home delivery is available ${daysLabel}, ${windowLabel}.${reopenSuffix}` };
   }
   if (!timeInWindow(hhmm, open, close)) {
-    return { ok: false, reason: `Home delivery is available ${daysLabel}, ${open}–${close}.${reopenSuffix}` };
+    return { ok: false, reason: `Home delivery is available ${daysLabel}, ${windowLabel}.${reopenSuffix}` };
   }
   return { ok: true };
 }
