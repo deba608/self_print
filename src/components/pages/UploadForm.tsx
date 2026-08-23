@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState, useRef } from "react";
 import Link from "next/link";
 import { UploadCloud, FileText, Image, ArrowLeft, ArrowRight, Check, Eye, Loader2, File, Settings2, Printer, Copy, Store, X, Search, CreditCard, RefreshCw, Info, Truck, MapPin, Navigation, AlertCircle, ChevronDown, Heart } from "lucide-react";
 import { formatRupees, paperSizeLabels, allPaperSizes, calculateSpiralBindingPrice, calculatePrice, effectiveDeliveryFeePaise, effectiveFileSettings, isAcceptingOrders, isDeliveryAvailable } from "@/lib/pricing";
-import ShopHoursCard from "@/components/upload/ShopHoursCard";
 import { estimatePdfPages } from "@/lib/pdf-pages";
 import { MAX_BULK_FILES } from "@/lib/limits";
 import type { FileSettingsOverride } from "@/lib/types";
@@ -1638,8 +1637,6 @@ export default function UploadForm() {
 
   return (
     <div className="upload-form">
-      {pricing && step === "upload" && <ShopHoursCard pricing={pricing} />}
-
       {shopClosed && (
         <div className="shop-closed-banner" role="alert">
           {acceptingOrdersCheck.reason}
