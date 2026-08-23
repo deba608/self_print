@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, useRef } from "react";
 import Link from "next/link";
 import { UploadCloud, FileText, Image, ArrowLeft, ArrowRight, Check, Eye, Loader2, File, Settings2, Printer, Copy, Store, X, Search, CreditCard, RefreshCw, Info, Truck, MapPin, Navigation, AlertCircle, ChevronDown, Heart } from "lucide-react";
-import { formatRupees, paperSizeLabels, allPaperSizes, calculateSpiralBindingPrice, calculatePrice, effectiveDeliveryFeePaise, effectiveFileSettings, isAcceptingOrders } from "@/lib/pricing";
+import { formatRupees, paperSizeLabels, allPaperSizes, calculateSpiralBindingPrice, calculatePrice, effectiveDeliveryFeePaise, effectiveFileSettings, isAcceptingOrders, isDeliveryAvailable } from "@/lib/pricing";
 import { estimatePdfPages } from "@/lib/pdf-pages";
 import { MAX_BULK_FILES } from "@/lib/limits";
 import type { FileSettingsOverride } from "@/lib/types";
@@ -132,6 +132,12 @@ function BulkFileCustomizePanel({
     </div>
   );
 }
+
+type LastSettings = {
+  printType: string; copies: number; paperSize: string; layout: string;
+  scale: string; margins: string; pagesPerSheet: number; duplex: string;
+  hasSpiralBinding: boolean; hasCoverFile: boolean; hasBondPaper: boolean;
+};
 
 export default function UploadForm() {
   const [step, setStep] = useState<Step>("upload");
@@ -549,11 +555,6 @@ export default function UploadForm() {
   // Repeat-print: remembers the last successful job's settings so a
   // returning customer can apply them with one tap instead of re-picking
   // print type, copies, paper size, etc. every visit.
-  type LastSettings = {
-    printType: string; copies: number; paperSize: string; layout: string;
-    scale: string; margins: string; pagesPerSheet: number; duplex: string;
-    hasSpiralBinding: boolean; hasCoverFile: boolean; hasBondPaper: boolean;
-  };
   const LAST_SETTINGS_KEY = "selfprint:lastSettings";
   const [lastSettings, setLastSettings] = useState<LastSettings | null>(null);
   const [appliedLastSettings, setAppliedLastSettings] = useState(false);
@@ -639,10 +640,11 @@ export default function UploadForm() {
   // — hide the delivery option entirely in that case.
   const onlinePaymentRailAvailable = Boolean((pricing?.razorpayKeyId ?? "").trim());
 
-  const deliveryOfferable = !isDocFile && onlinePaymentRailAvailable;
+  const deliveryHours = pricing ? isDeliveryAvailable(pricing) : { ok: true as const };
+  const deliveryOfferable = !isDocFile && onlinePaymentRailAvailable && deliveryHours.ok;
 
   useEffect(() => {
-    // If pricing has loaded and delivery is not available (e.g. DOC file or no online payment rail), fall back to pickup.
+    // If pricing has loaded and delivery is not available (e.g. DOC file, no online payment rail, or outside delivery hours), fall back to pickup.
     if (pricing && !deliveryOfferable && deliveryMethod === "delivery") {
       setDeliveryMethod("pickup");
       setCustomerName("");
@@ -1291,6 +1293,10 @@ export default function UploadForm() {
       const hours = isAcceptingOrders(pricing);
       if (!hours.ok) {
         setError(hours.reason);
+        return;
+      }
+      if (deliveryMethod === "delivery" && !deliveryHours.ok) {
+        setError(deliveryHours.reason);
         return;
       }
     }
@@ -2646,6 +2652,9 @@ export default function UploadForm() {
           )}
           {/* Fulfillment choice: on the desktop workspace this hides behind
               the Continue button (its own stage); mobile keeps it inline. */}
+          {(!onePage || fulfilStage) && !deliveryOfferable && !deliveryHours.ok && (
+            <p className="pricing-hint delivery-closed-note">{deliveryHours.reason} Shop pickup is available.</p>
+          )}
           {(!onePage || fulfilStage) && deliveryOfferable && (
             <div className="delivery-method-section">
               <h4 className="delivery-method-title">How will you get your prints?</h4>
@@ -3143,7 +3152,8 @@ export default function UploadForm() {
               and the settings-step error block is not rendered here. */}
           {!onePage && error && (
             <div key={error} className="error-msg" role="alert">
-              {error}
+              <AlertCircle size={18} aria-hidden="true" style={{ flexShrink: 0 }} />
+              <span>{error}</span>
             </div>
           )}
 

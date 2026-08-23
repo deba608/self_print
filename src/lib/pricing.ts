@@ -114,27 +114,92 @@ export function formatRupees(paise: number) {
   return `₹${(paise / 100).toFixed(2)}`;
 }
 
+function timeInWindow(nowHHMM: string, open: string, close: string) {
+  // Same-day window (e.g. 09:00-21:00) vs. overnight window (e.g. 21:00-06:00).
+  return open <= close ? nowHHMM >= open && nowHHMM < close : nowHHMM >= open || nowHHMM < close;
+}
+
+function nowInIST() {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Kolkata",
+    weekday: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(new Date());
+  const weekdayShort = parts.find((p) => p.type === "weekday")?.value ?? "Mon";
+  const hhmm = `${parts.find((p) => p.type === "hour")?.value}:${parts.find((p) => p.type === "minute")?.value}`;
+  return { isoWeekday: WEEKDAY_ISO[weekdayShort] ?? 1, hhmm };
+}
+
+function windowsLabel(pricing: PricingConfig) {
+  const windows = [pricing.orderOpenTime && pricing.orderCloseTime ? `${pricing.orderOpenTime}–${pricing.orderCloseTime}` : null,
+    pricing.orderOpenTime2 && pricing.orderCloseTime2 ? `${pricing.orderOpenTime2}–${pricing.orderCloseTime2}` : null]
+    .filter(Boolean);
+  return windows.join(", ");
+}
+
 // Shop hours check — staff toggle in the Pricing panel. acceptingOrders is a
-// manual kill switch; when both open/close times are set it's additionally
-// gated to that daily window (shop-local, Asia/Kolkata — the deployment is
+// manual kill switch; when open/close times are set it's additionally gated
+// to those daily windows (a second window covers a lunch-break split
+// schedule) and to orderDays (shop-local, Asia/Kolkata — the deployment is
 // India-only, see CLAUDE.md's bom1/ap-south-1 region note).
 export function isAcceptingOrders(pricing: PricingConfig): { ok: true } | { ok: false; reason: string } {
   if (!pricing.acceptingOrders) {
     return { ok: false, reason: "We're not accepting new orders right now. Please check back later." };
   }
-  if (pricing.orderOpenTime && pricing.orderCloseTime) {
-    const nowHHMM = new Intl.DateTimeFormat("en-GB", {
-      timeZone: "Asia/Kolkata",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-    }).format(new Date());
-    const { orderOpenTime: open, orderCloseTime: close } = pricing;
-    // Same-day window (e.g. 09:00-21:00) vs. overnight window (e.g. 21:00-06:00).
-    const inWindow = open <= close ? nowHHMM >= open && nowHHMM < close : nowHHMM >= open || nowHHMM < close;
-    if (!inWindow) {
-      return { ok: false, reason: `We're currently closed. Orders are accepted ${open}–${close}.` };
-    }
+  const hasWindow = Boolean(pricing.orderOpenTime && pricing.orderCloseTime);
+  if (!hasWindow) return { ok: true };
+
+  const { isoWeekday, hhmm } = nowInIST();
+  const allowedDays = pricing.orderDays
+    ? pricing.orderDays.split(",").map((d) => Number(d.trim())).filter((d) => d >= 1 && d <= 7)
+    : [1, 2, 3, 4, 5, 6, 7];
+  if (!allowedDays.includes(isoWeekday)) {
+    return { ok: false, reason: `We're closed today. Shop hours: ${windowsLabel(pricing)}.` };
+  }
+
+  const inFirstWindow = timeInWindow(hhmm, pricing.orderOpenTime!, pricing.orderCloseTime!);
+  const inSecondWindow = pricing.orderOpenTime2 && pricing.orderCloseTime2
+    ? timeInWindow(hhmm, pricing.orderOpenTime2, pricing.orderCloseTime2)
+    : false;
+  if (!inFirstWindow && !inSecondWindow) {
+    return { ok: false, reason: `We're currently closed. Shop hours: ${windowsLabel(pricing)}.` };
+  }
+  return { ok: true };
+}
+
+const WEEKDAY_ISO: Record<string, number> = { Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7 };
+const ISO_WEEKDAY_LABEL: Record<number, string> = { 1: "Mon", 2: "Tue", 3: "Wed", 4: "Thu", 5: "Fri", 6: "Sat", 7: "Sun" };
+
+// Home delivery window check — separate from isAcceptingOrders, since
+// delivery riders keep narrower hours (and fewer days) than shop pickup.
+// Null open/close time disables the check entirely (delivery available
+// whenever the shop is accepting orders).
+export function isDeliveryAvailable(pricing: PricingConfig): { ok: true } | { ok: false; reason: string } {
+  if (!pricing.deliveryOpenTime || !pricing.deliveryCloseTime) return { ok: true };
+  const allowedDays = (pricing.deliveryDays || "1,2,3,4,5,6")
+    .split(",")
+    .map((d) => Number(d.trim()))
+    .filter((d) => d >= 1 && d <= 7);
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Kolkata",
+    weekday: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(new Date());
+  const weekdayShort = parts.find((p) => p.type === "weekday")?.value ?? "Mon";
+  const nowHHMM = `${parts.find((p) => p.type === "hour")?.value}:${parts.find((p) => p.type === "minute")?.value}`;
+  const isoWeekday = WEEKDAY_ISO[weekdayShort] ?? 1;
+  const { deliveryOpenTime: open, deliveryCloseTime: close } = pricing;
+  const daysLabel = allowedDays.map((d) => ISO_WEEKDAY_LABEL[d]).join(", ");
+  if (!allowedDays.includes(isoWeekday)) {
+    return { ok: false, reason: `Home delivery is available ${daysLabel}, ${open}–${close}.` };
+  }
+  const inWindow = open <= close ? nowHHMM >= open && nowHHMM < close : nowHHMM >= open || nowHHMM < close;
+  if (!inWindow) {
+    return { ok: false, reason: `Home delivery is available ${daysLabel}, ${open}–${close}.` };
   }
   return { ok: true };
 }

@@ -327,13 +327,21 @@ async function ensurePricingColumns(database: any) {
     ['service_area_config', "TEXT NOT NULL DEFAULT ''"],
     ['accepting_orders', 'INTEGER NOT NULL DEFAULT 1'],
     ['order_open_time', 'TEXT'],
-    ['order_close_time', 'TEXT']
+    ['order_close_time', 'TEXT'],
+    ['delivery_open_time', "TEXT DEFAULT '18:00'"],
+    ['delivery_close_time', "TEXT DEFAULT '20:30'"],
+    ['delivery_days', "TEXT DEFAULT '1,2,3,4,5,6'"]
   ];
   for (const [name, definition] of additions) {
     if (!columns.has(name)) {
       database.prepare(`ALTER TABLE pricing_config ADD COLUMN ${name} ${definition}`).run();
     }
   }
+  // Shop pickup hours (9AM-9PM) requested as the initial default — only
+  // backfilled if an admin hasn't already configured a custom window.
+  database.prepare(
+    `UPDATE pricing_config SET order_open_time = '09:00', order_close_time = '21:00' WHERE id = 1 AND order_open_time IS NULL AND order_close_time IS NULL`
+  ).run();
 }
 
 async function seedDefaults(database: any, agentToken: string, hashToken: (s: string) => string) {
@@ -1034,6 +1042,9 @@ export async function getPricing(): Promise<PricingConfig> {
     acceptingOrders: row.accepting_orders == null ? true : Boolean(row.accepting_orders),
     orderOpenTime: (row.order_open_time as string) || null,
     orderCloseTime: (row.order_close_time as string) || null,
+    deliveryOpenTime: (row.delivery_open_time as string) || null,
+    deliveryCloseTime: (row.delivery_close_time as string) || null,
+    deliveryDays: (row.delivery_days as string) || null,
   };
   return pricingCache;
 }
@@ -1058,7 +1069,8 @@ export async function updatePricing(pricing: PricingConfig): Promise<void> {
       spiral_binding_slab2_paise = ?, spiral_binding_slab3_paise = ?,
       spiral_binding_slab4_paise = ?, spiral_binding_slab5_paise = ?,
        expiry_minutes = ?, delivery_fee_paise = ?, free_delivery_threshold_paise = ?, service_area_config = ?,
-       accepting_orders = ?, order_open_time = ?, order_close_time = ?, updated_at = ?
+       accepting_orders = ?, order_open_time = ?, order_close_time = ?,
+       delivery_open_time = ?, delivery_close_time = ?, delivery_days = ?, updated_at = ?
     WHERE id = 1
   `).run(
      pricing.bwPerPagePaise, pricing.colorPerPagePaise, pricing.photoPrintPaise,
@@ -1070,7 +1082,8 @@ export async function updatePricing(pricing: PricingConfig): Promise<void> {
      pricing.spiralBindingSlab4Paise, pricing.spiralBindingSlab5Paise,
      pricing.expiryMinutes, pricing.deliveryFeePaise, pricing.freeDeliveryThresholdPaise,
      serializeServiceAreaConfig(pricing.serviceArea),
-     pricing.acceptingOrders ? 1 : 0, pricing.orderOpenTime, pricing.orderCloseTime, now
+     pricing.acceptingOrders ? 1 : 0, pricing.orderOpenTime, pricing.orderCloseTime,
+     pricing.deliveryOpenTime, pricing.deliveryCloseTime, pricing.deliveryDays, now
   );
 }
 

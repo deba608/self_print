@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kanha &amp; Brothers — Print Poster</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #e8eaed;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  }
+
+  .poster {
+    width: 1080px;
+    height: 1080px;
+    background: #ffffff;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    transform-origin: top left;
+  }
+
+  /* Scale down for screen preview */
+  @media screen {
+    .poster { transform: scale(0.5); margin: -270px; }
+    body { padding: 40px; }
+  }
+
+  @media print {
+    body { background: #fff; padding: 0; margin: 0; display: block; }
+    .poster { transform: none; margin: 0; width: 210mm; height: 210mm; }
+  }
+
+  /* Top teal bar */
+  .top-accent {
+    background: #0d7a74;
+    padding: 40px 56px 36px;
+    flex-shrink: 0;
+  }
+
+  .shop-name {
+    font-size: 54px;
+    font-weight: 800;
+    letter-spacing: -0.025em;
+    color: #ffffff;
+    line-height: 1.05;
+  }
+
+  .shop-type {
+    font-size: 20px;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.55);
+    margin-top: 6px;
+  }
+
+  /* Main body */
+  .body {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 360px;
+    min-height: 0;
+  }
+
+  /* Left panel */
+  .left {
+    padding: 48px 48px 40px 56px;
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+    border-right: 1px solid #e8eaed;
+  }
+
+  .price-block {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+    line-height: 1;
+  }
+
+  .rupee-symbol {
+    font-size: 52px;
+    font-weight: 800;
+    color: #0d7a74;
+    letter-spacing: -0.02em;
+  }
+
+  .price-num {
+    font-size: 130px;
+    font-weight: 900;
+    color: #0d7a74;
+    letter-spacing: -0.05em;
+    line-height: 0.85;
+  }
+
+  .price-label {
+    font-size: 22px;
+    font-weight: 600;
+    color: #4b5563;
+    letter-spacing: 0.01em;
+    margin-top: 10px;
+  }
+
+  .divider {
+    height: 1px;
+    background: #e8eaed;
+  }
+
+  .headline {
+    font-size: 40px;
+    font-weight: 800;
+    color: #111827;
+    line-height: 1.15;
+    letter-spacing: -0.025em;
+  }
+
+  .headline .teal { color: #0d7a74; }
+
+  .feature-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .feature-list li {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    font-size: 22px;
+    color: #374151;
+    font-weight: 500;
+    line-height: 1.3;
+  }
+
+  .feature-list li::before {
+    content: '';
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #0d7a74;
+    flex-shrink: 0;
+  }
+
+  /* Right panel */
+  .right {
+    padding: 44px 40px 40px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 18px;
+    background: #f9fafb;
+  }
+
+  .qr-label {
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #6b7280;
+    text-align: center;
+  }
+
+  .qr-box {
+    background: #fff;
+    border: 2px solid #d4dbe4;
+    border-radius: 18px;
+    padding: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .qr-box img {
+    width: 240px;
+    height: 240px;
+    display: block;
+    image-rendering: pixelated;
+  }
+
+  .scan-arrow {
+    font-size: 16px;
+    color: #9ca3af;
+    text-align: center;
+    line-height: 1.5;
+    max-width: 240px;
+  }
+
+  .sp-brand {
+    margin-top: auto;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    justify-content: center;
+    padding: 14px 20px;
+    background: #eaf5f4;
+    border-radius: 40px;
+    border: 1px solid rgba(13,122,116,0.2);
+  }
+
+  .sp-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #0d7a74;
+  }
+
+  .sp-name {
+    font-size: 17px;
+    font-weight: 700;
+    color: #0d7a74;
+    letter-spacing: 0.04em;
+  }
+
+  /* Bottom bar */
+  .bottom-bar {
+    border-top: 1.5px solid #e8eaed;
+    padding: 22px 56px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #fff;
+    flex-shrink: 0;
+  }
+
+  .contact {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .contact-icon {
+    width: 40px;
+    height: 40px;
+    background: #0d7a74;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .contact-icon svg {
+    width: 20px;
+    height: 20px;
+    fill: #fff;
+  }
+
+  .contact-num {
+    font-size: 26px;
+    font-weight: 700;
+    color: #111827;
+    letter-spacing: 0.01em;
+  }
+
+  .formats-tag {
+    font-size: 18px;
+    color: #9ca3af;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+  }
+</style>
+</head>
+<body>
+<div class="poster">
+
+  <div class="top-accent">
+    <div class="shop-name">Kanha &amp; Brothers</div>
+    <div class="shop-type">Printing &amp; Stationery</div>
+  </div>
+
+  <div class="body">
+
+    <div class="left">
+      <div>
+        <div class="price-block">
+          <span class="rupee-symbol">₹</span>
+          <span class="price-num">1</span>
+        </div>
+        <div class="price-label">per print &nbsp;·&nbsp; B&amp;W</div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="headline">Print from<br>your <span class="teal">phone.</span></div>
+
+      <ul class="feature-list">
+        <li>Scan QR &amp; upload your file</li>
+        <li>PDF, JPG, PNG, DOC, DOCX</li>
+        <li>Color &amp; B&amp;W &nbsp;·&nbsp; A4 &amp; A3</li>
+        <li>Home delivery available</li>
+        <li>Pay UPI or cash at counter</li>
+      </ul>
+    </div>
+
+    <div class="right">
+      <div class="qr-label">Scan to print</div>
+      <div class="qr-box">
+        <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAXIAAAFyCAIAAABnRsZeAAAHkUlEQVR4nO3dO24kNwBFUclQ3Lt15NiRd9sbKKeOCsbwckhWn5Orv5oLCnjgfF/X9QXQ+SN8LABZAXpOK0BMVoCYrAAxWQFisgLEZAWIyQoQkxUgJitATFaAmKwAMVkBYrICxGQFiMkKEJMVICYrQOxn5Idff/359Szvv/9Z8n73fN57e76qea951Xe0ysi34LQCxGQFiMkKEJMVICYrQExWgJisADFZAWKyAuy0sl21lRyxag05stFc9bN7LnRH3u+Ja+Z55r1fpxUgJitATFaAmKwAMVkBYrICxGQFiMkKEJMV4JyV7b3nLRr33MKOPJaz6v3u6fW4fwtOK0BMVoCYrAAxWQFisgLEZAWIyQoQkxUgJitATFaA2Pd1XV8ruCf19yw4Rz7nPW/YvXfiPbjvRd/vvFfltALEZAWIyQoQkxUgJitATFaAmKwAMVkBYrICxGQF2Gll+7w7OPd04q50z5tu5/Fv4b+cVoCYrAAxWQFisgLEZAWIyQoQkxUgJitATFaA2Pd1Xb/8w3veV/ppd53e2/NW4D1vYN1zGfya9n7vjbxmpxUgJitATFaAmKwAMVkBYrICxGQFiMkKEJMVYKe7bJ/3P93fLwvn7Vn3/CT3vH/30+4qfk37vXKXLXAMfwQBMVkBYrICxGQFiMkKEJMVICYrQExWgJ1Wtvc+bYU5b0f7vBtnP+155xl5R/M2uE4rQAxWgJisADFZAWQF2JvTChCTFSAmK0BMVoBzVrb3Ttw7jqwSR9af8xa6J96TuurTWHVL7nvaPbjzOK0AMVkBYrICxGQFiMkKEJMVICYrQExWgJisAE9Z2T7PqtXpnre3ztvvjryqkZ+d9/2+Bta987bdI5xWgJisADFZAWKyAsRkBYjJChCTFSAmK0BMVoCYle1vsupW0RGrdqV73vt7b94Wds/nvee0AsRkBYjJChCTFSAmK0BMVoCYrAAxWQFisgI8ZWU7b+E3z4m3xs4z73lXrXvvrdrCnshpBYjJChCTFSAmK0BMVoCYrAAxWQFisgLEZAU4Z2V74u2t88xbUo5scPdcju65Gx55R+/Hffv3nFaAmKwAMVkBYrICxGQFiMkKEJMVICYrQAxWgNj3dV31YwIfzWkFiMkKEJMVICYrQExWgJisADFZAWKyAsRkBYjJChCTFSAmK0BMVoCYrAAxWQFisgLEZAWIyQoQkxXgq/UvYpMIEnwImHkAAAAASUVORK5CYII=" alt="QR code — selfprint-six.vercel.app">
+      </div>
+      <div class="scan-arrow">Point your camera here to upload &amp; print</div>
+
+      <div class="sp-brand">
+        <div class="sp-dot"></div>
+        <div class="sp-name">SelfPrint</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="bottom-bar">
+    <div class="contact">
+      <div class="contact-icon">
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.7 7.22a19.79 19.79 0 01-3.07-8.67A2 2 0 012.63 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.91 9.91a16 16 0 006.29 6.29l.91-.91a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/>
+        </svg>
+      </div>
+      <div class="contact-num">+91 87630 52472</div>
+    </div>
+    <div class="formats-tag">PDF &nbsp;·&nbsp; DOC &nbsp;·&nbsp; JPG &nbsp;·&nbsp; PNG</div>
+  </div>
+
+</div>
+</body>
+</html>

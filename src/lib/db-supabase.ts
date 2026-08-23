@@ -658,8 +658,11 @@ const PRICING_DEFAULTS: PricingConfig = {
   freeDeliveryThresholdPaise: 20000,
   serviceArea: DEFAULT_SERVICE_AREA,
   acceptingOrders: true,
-  orderOpenTime: null,
-  orderCloseTime: null,
+  orderOpenTime: "09:00",
+  orderCloseTime: "21:00",
+  deliveryOpenTime: "18:00",
+  deliveryCloseTime: "20:30",
+  deliveryDays: "1,2,3,4,5,6",
 };
 
 export async function getPricing(): Promise<PricingConfig> {
@@ -703,6 +706,9 @@ export async function getPricing(): Promise<PricingConfig> {
     acceptingOrders: data.accepting_orders == null ? true : Boolean(data.accepting_orders),
     orderOpenTime: data.order_open_time ?? null,
     orderCloseTime: data.order_close_time ?? null,
+    deliveryOpenTime: data.delivery_open_time ?? PRICING_DEFAULTS.deliveryOpenTime,
+    deliveryCloseTime: data.delivery_close_time ?? PRICING_DEFAULTS.deliveryCloseTime,
+    deliveryDays: data.delivery_days ?? PRICING_DEFAULTS.deliveryDays,
   };
 }
 
@@ -738,6 +744,9 @@ export async function updatePricing(pricing: PricingConfig) {
       accepting_orders: pricing.acceptingOrders,
       order_open_time: pricing.orderOpenTime,
       order_close_time: pricing.orderCloseTime,
+      delivery_open_time: pricing.deliveryOpenTime,
+      delivery_close_time: pricing.deliveryCloseTime,
+      delivery_days: pricing.deliveryDays,
       updated_at: now
     })
     .eq('id', 1);

@@ -55,6 +55,30 @@ export async function PUT(request: NextRequest) {
       orderCloseTime = close;
     }
     const acceptingOrders = typeof body.acceptingOrders === "boolean" ? body.acceptingOrders : currentPricing.acceptingOrders;
+
+    let deliveryOpenTime = currentPricing.deliveryOpenTime;
+    let deliveryCloseTime = currentPricing.deliveryCloseTime;
+    let deliveryDays = currentPricing.deliveryDays;
+    if (body.deliveryOpenTime !== undefined || body.deliveryCloseTime !== undefined) {
+      const open = body.deliveryOpenTime ?? null;
+      const close = body.deliveryCloseTime ?? null;
+      if ((open && !timePattern.test(open)) || (close && !timePattern.test(close))) {
+        return NextResponse.json({ error: "Delivery hours must be in HH:MM format." }, { status: 400 });
+      }
+      if ((open && !close) || (!open && close)) {
+        return NextResponse.json({ error: "Set both a delivery start and end time, or clear both." }, { status: 400 });
+      }
+      deliveryOpenTime = open;
+      deliveryCloseTime = close;
+    }
+    if (body.deliveryDays !== undefined) {
+      const days = body.deliveryDays;
+      if (days !== null && (typeof days !== "string" || !/^[1-7](,[1-7]){0,6}$/.test(days))) {
+        return NextResponse.json({ error: "Delivery days must be comma-separated weekdays 1-7." }, { status: 400 });
+      }
+      deliveryDays = days;
+    }
+
     await updatePricing({
       bwPerPagePaise: body.bwPerPagePaise,
       colorPerPagePaise: body.colorPerPagePaise,
@@ -82,7 +106,10 @@ export async function PUT(request: NextRequest) {
       serviceArea,
       acceptingOrders,
       orderOpenTime,
-      orderCloseTime
+      orderCloseTime,
+      deliveryOpenTime,
+      deliveryCloseTime,
+      deliveryDays
     });
 
     return NextResponse.json(await getPricing());

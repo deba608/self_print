@@ -267,6 +267,7 @@ Quick steps:
 
 - Upload PDF, JPG, PNG, DOC/DOCX via mobile data
 - Print settings: B/W or color, copies, page range, paper size, layout, scale, duplex, pages-per-sheet
+- **Per-file settings in bulk mode** — customers uploading 2–10 PDFs can override print type, duplex, and copies independently per file via `BulkFileCustomizePanel`; server prices each file on its effective settings; agent merges overrides before printing
 - N-up printing (pages-per-sheet) billed by physical sheets used, not raw page count
 - Customer "Additional Instructions" field (optional, ≤250 chars) displayed in admin job detail
 - Contact section shows shop phone for WhatsApp/call customization queries
@@ -275,8 +276,10 @@ Quick steps:
 - Live admin dashboard with SSE updates (polling fallback; see `docs/VERCEL_MEMORY_RUNBOOK.md` if memory limits approached)
 - Separate B/W and color printer selection, with per-job duplex-capability warnings
 - Batch payment mark, configurable pricing
+- **Free delivery threshold** — orders above a configurable paise amount (`pricing_config.free_delivery_threshold_paise`) waive the delivery fee automatically
+- **Order hours** — shop can set open/close times and an `accepting_orders` flag in `pricing_config`; upload form gates new orders outside those hours
 - Home delivery as an alternative to counter pickup, with optional GPS pin (skippable)
-- Razorpay checkout — all dashboard-enabled payment methods, not UPI-only
+- Razorpay checkout — all dashboard-enabled payment methods, not UPI-only; **refund tracking** via `jobs.razorpay_payment_id`, `refund_status`, `refunded_at`
 - DOC/DOCX to PDF conversion via LibreOffice
 - Auto-cleanup of finished and expired jobs
 - Customer management with delete: registered users fully removed from auth + profiles; guest customers anonymized

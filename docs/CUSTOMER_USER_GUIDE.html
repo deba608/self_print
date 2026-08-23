@@ -280,7 +280,9 @@
     <ul>
       <li><a href="#scan">1. Scan QR code</a></li>
       <li><a href="#upload">2. Upload file</a></li>
-      <li><a href="#settings">3. Print settings</a></li>
+      <li><a href="#settings">3. Print settings</a>
+        <ul class="nav-sub"><li><a href="#settings">Per-file bulk settings</a></li></ul>
+      </li>
       <li><a href="#note">4. Add a note</a></li>
       <li><a href="#delivery">5. Pickup or delivery</a></li>
       <li><a href="#token">6. Get your token</a></li>
@@ -334,7 +336,7 @@
     <section id="settings">
       <div class="section-eyebrow">Step 3</div>
       <h2>Choose print settings</h2>
-      <p>Configure how each file should be printed. Your last-used settings are remembered on this device for next time.</p>
+      <p>Set your order's defaults — these apply to every file unless you customize one individually:</p>
       <div class="settings-grid">
         <div class="sg-item"><strong>Print type</strong> — B&amp;W or Color</div>
         <div class="sg-item"><strong>Copies</strong> — how many you need</div>
@@ -344,6 +346,11 @@
         <div class="sg-item"><strong>Page range</strong> — all pages or select</div>
       </div>
       <p style="margin-top:12px; font-size:13.5px; color:var(--text-muted)">Add-ons (if offered): spiral binding, cover page, bond paper.</p>
+      <h3>Per-file settings in bulk mode</h3>
+      <p>Uploaded more than one PDF? Each file card shows a <strong>⚙ gear icon</strong> — tap it to open that file's own settings (print type, duplex, copies) without changing the rest of the order. A <code>Custom</code> badge marks any file you've adjusted; the price updates live. Tap the gear again or use <em>"Reset to job defaults"</em> to undo. Everything submits as one order with one token.</p>
+      <div class="callout callout-info">
+        <strong>Example:</strong> File A in color, File B in B&amp;W — now possible in a single order.
+      </div>
     </section>
 
     <section id="note">

@@ -5,7 +5,12 @@ import { Check, Clock, Loader2, X, Zap } from "lucide-react";
 import type { PricingConfig as Pricing } from "@/lib/types";
 import { calculatePrice } from "@/lib/pricing";
 
-type NumericPricing = Omit<Pricing, "serviceArea" | "acceptingOrders" | "orderOpenTime" | "orderCloseTime">;
+type NumericPricing = Omit<Pricing, "serviceArea" | "acceptingOrders" | "orderOpenTime" | "orderCloseTime" | "deliveryOpenTime" | "deliveryCloseTime" | "deliveryDays">;
+
+const WEEKDAYS: Array<{ iso: number; label: string }> = [
+  { iso: 1, label: "Mon" }, { iso: 2, label: "Tue" }, { iso: 3, label: "Wed" },
+  { iso: 4, label: "Thu" }, { iso: 5, label: "Fri" }, { iso: 6, label: "Sat" }, { iso: 7, label: "Sun" },
+];
 type PricingDraft = {
   [Key in keyof NumericPricing]: NumericPricing[Key] | "";
 };
@@ -106,13 +111,18 @@ export default function PricingPanel({
   onClose
 }: {
   pricing: Pricing | null;
-  onSave: (data: NumericPricing & { acceptingOrders: boolean; orderOpenTime: string | null; orderCloseTime: string | null }) => Promise<void>;
+  onSave: (data: NumericPricing & { acceptingOrders: boolean; orderOpenTime: string | null; orderCloseTime: string | null; deliveryOpenTime: string | null; deliveryCloseTime: string | null; deliveryDays: string | null }) => Promise<void>;
   onClose: () => void;
 }) {
   const [formData, setFormData] = useState<PricingDraft>(toDraft(pricing || defaultPricing));
   const [acceptingOrders, setAcceptingOrders] = useState(pricing?.acceptingOrders ?? true);
   const [orderOpenTime, setOrderOpenTime] = useState(pricing?.orderOpenTime ?? "");
   const [orderCloseTime, setOrderCloseTime] = useState(pricing?.orderCloseTime ?? "");
+  const [deliveryOpenTime, setDeliveryOpenTime] = useState(pricing?.deliveryOpenTime ?? "");
+  const [deliveryCloseTime, setDeliveryCloseTime] = useState(pricing?.deliveryCloseTime ?? "");
+  const [deliveryDays, setDeliveryDays] = useState(
+    (pricing?.deliveryDays ?? "1,2,3,4,5,6").split(",").map(Number).filter(Boolean)
+  );
   const [priceInputs, setPriceInputs] = useState({
     bwPerPagePaise: formatPaiseInput((pricing || defaultPricing).bwPerPagePaise),
     colorPerPagePaise: formatPaiseInput((pricing || defaultPricing).colorPerPagePaise),
@@ -155,6 +165,9 @@ export default function PricingPanel({
     setAcceptingOrders(pricing?.acceptingOrders ?? true);
     setOrderOpenTime(pricing?.orderOpenTime ?? "");
     setOrderCloseTime(pricing?.orderCloseTime ?? "");
+    setDeliveryOpenTime(pricing?.deliveryOpenTime ?? "");
+    setDeliveryCloseTime(pricing?.deliveryCloseTime ?? "");
+    setDeliveryDays((pricing?.deliveryDays ?? "1,2,3,4,5,6").split(",").map(Number).filter(Boolean));
   }, [pricing]);
 
   const updateField = (field: keyof NumericPricing, value: string, transform: (value: string) => number = Number) => {
@@ -220,6 +233,10 @@ export default function PricingPanel({
       setError("Set both an opening and closing time, or clear both.");
       return;
     }
+    if ((deliveryOpenTime && !deliveryCloseTime) || (!deliveryOpenTime && deliveryCloseTime)) {
+      setError("Set both a delivery start and end time, or clear both.");
+      return;
+    }
 
     setSaving(true);
     try {
@@ -228,6 +245,9 @@ export default function PricingPanel({
         acceptingOrders,
         orderOpenTime: orderOpenTime || null,
         orderCloseTime: orderCloseTime || null,
+        deliveryOpenTime: deliveryOpenTime || null,
+        deliveryCloseTime: deliveryCloseTime || null,
+        deliveryDays: deliveryDays.length ? deliveryDays.sort((a, b) => a - b).join(",") : null,
       });
       setSaved(true);
       setTimeout(() => {
@@ -451,6 +471,53 @@ export default function PricingPanel({
                 <span className="pricing-hint">
                   Leave both blank to accept orders any time (subject to the toggle above). Times are shop-local (IST).
                 </span>
+              </div>
+            </div>
+          </section>
+
+          <section className="pricing-section">
+            <h3>Delivery hours</h3>
+            <div className="pricing-grid">
+              <div className="pricing-field">
+                <label htmlFor="deliveryOpenTime">Delivery window</label>
+                <div className="order-hours-range">
+                  <Clock size={16} className="time-icon" aria-hidden="true" />
+                  <input
+                    id="deliveryOpenTime"
+                    type="time"
+                    value={deliveryOpenTime}
+                    onChange={(e) => setDeliveryOpenTime(e.target.value)}
+                  />
+                  <span>to</span>
+                  <input
+                    id="deliveryCloseTime"
+                    type="time"
+                    value={deliveryCloseTime}
+                    onChange={(e) => setDeliveryCloseTime(e.target.value)}
+                  />
+                </div>
+                <span className="pricing-hint">
+                  Leave both blank to allow delivery whenever the shop is open. Times are shop-local (IST).
+                </span>
+              </div>
+              <div className="pricing-field">
+                <label>Delivery days</label>
+                <div className="order-hours-range" role="group" aria-label="Delivery days">
+                  {WEEKDAYS.map((day) => (
+                    <label key={day.iso} className="pricing-toggle">
+                      <input
+                        type="checkbox"
+                        checked={deliveryDays.includes(day.iso)}
+                        onChange={(e) =>
+                          setDeliveryDays((prev) =>
+                            e.target.checked ? [...prev, day.iso] : prev.filter((d) => d !== day.iso)
+                          )
+                        }
+                      />
+                      <span>{day.label}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
             </div>
           </section>

@@ -86,7 +86,6 @@ export default function JobFileViewButton({
 
       {open &&
         active &&
-        typeof document !== "undefined" &&
         createPortal(
           <div
             className="file-viewer-overlay"

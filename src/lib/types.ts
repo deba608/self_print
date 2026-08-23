@@ -180,8 +180,19 @@ export type PricingConfig = {
   // acceptingOrders is a manual kill switch (independent of the time window);
   // when either open/close time is null, the time window is not enforced.
   acceptingOrders: boolean;
+  // Shop pickup hours. A second window (orderOpenTime2/orderCloseTime2)
+  // covers a split schedule, e.g. 9am-1pm + 4:30-8:30pm with a lunch
+  // break between — leave both null to skip the second window.
   orderOpenTime: string | null; // "HH:MM", 24h, shop-local time
   orderCloseTime: string | null;
+  orderOpenTime2: string | null;
+  orderCloseTime2: string | null;
+  orderDays: string | null; // comma-separated ISO weekdays, "1"=Mon..."7"=Sun; null = every day
+  // Home delivery window, separate from pickup — narrower hours and
+  // restricted to certain days (e.g. no Sunday delivery riders).
+  deliveryOpenTime: string | null;
+  deliveryCloseTime: string | null;
+  deliveryDays: string | null;
 };
 
 export type RetentionConfig = {

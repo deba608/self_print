@@ -40,6 +40,12 @@ export type Pricing = {
   acceptingOrders: boolean;
   orderOpenTime: string | null;
   orderCloseTime: string | null;
+  orderOpenTime2: string | null;
+  orderCloseTime2: string | null;
+  orderDays: string | null;
+  deliveryOpenTime: string | null;
+  deliveryCloseTime: string | null;
+  deliveryDays: string | null;
 };
 
 // Loads the Razorpay Standard Checkout script once and resolves when ready.
