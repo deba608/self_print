@@ -194,6 +194,34 @@ export function isDeliveryAvailable(pricing: PricingConfig): { ok: true } | { ok
   return { ok: true };
 }
 
+export const WEEKDAY_FULL_LABEL: Record<number, string> = {
+  1: "Monday", 2: "Tuesday", 3: "Wednesday", 4: "Thursday", 5: "Friday", 6: "Saturday", 7: "Sunday",
+};
+
+export function to12h(hhmm: string): string {
+  const [h, m] = hhmm.split(":").map(Number);
+  const period = h >= 12 ? "pm" : "am";
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return m === 0 ? `${h12} ${period}` : `${h12}:${String(m).padStart(2, "0")} ${period}`;
+}
+
+// Renders a Mon-Sun table for a hours config (pickup's two windows, or
+// delivery's one) — shared by the admin hours panel and the customer-facing
+// hours card so they can never drift out of sync with each other.
+export function weeklyScheduleLines(
+  days: string | null,
+  windows: Array<[string | null, string | null]>
+): Array<{ iso: number; day: string; hours: string }> {
+  const allowedDays = days ? days.split(",").map((d) => Number(d.trim())) : [1, 2, 3, 4, 5, 6, 7];
+  const windowLabels = windows.filter(([o, c]) => o && c).map(([o, c]) => `${to12h(o!)}–${to12h(c!)}`);
+  const hoursLabel = windowLabels.length ? windowLabels.join(", ") : "Open all day";
+  return [1, 2, 3, 4, 5, 6, 7].map((iso) => ({
+    iso,
+    day: WEEKDAY_FULL_LABEL[iso],
+    hours: allowedDays.includes(iso) ? hoursLabel : "Closed",
+  }));
+}
+
 export const paperSizeLabels: Record<PaperSize, string> = {
   A3: "A3 (297 × 420 mm)",
   A4: "A4 (210 × 297 mm)",

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Bell, BellRing, MoreHorizontal, RefreshCw, Settings } from "lucide-react";
+import { Bell, BellRing, Clock, MoreHorizontal, RefreshCw, Settings } from "lucide-react";
 
 // Collapses Alerts/Refresh/Pricing into one overflow menu at <=480px
 // (admin.css shows this trigger and hides the individual buttons at that
@@ -13,6 +13,8 @@ export default function TopbarMoreMenu({
   onRefresh,
   onOpenPricing,
   showPricing,
+  onOpenHours,
+  showHours,
 }: {
   newJobCount: number;
   soundOn: boolean;
@@ -20,6 +22,8 @@ export default function TopbarMoreMenu({
   onRefresh: () => void;
   onOpenPricing: () => void;
   showPricing: boolean;
+  onOpenHours: () => void;
+  showHours: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -88,6 +92,16 @@ export default function TopbarMoreMenu({
           >
             <Settings size={17} aria-hidden="true" />
             <span>Pricing</span>
+          </button>
+
+          <button
+            type="button"
+            className={`topbar-more-item ${showHours ? "active" : ""}`}
+            role="menuitem"
+            onClick={() => { onOpenHours(); setOpen(false); }}
+          >
+            <Clock size={17} aria-hidden="true" />
+            <span>Hours</span>
           </button>
         </div>
       )}

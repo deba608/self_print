@@ -16,6 +16,7 @@ import BatchBar from "@/components/admin/BatchBar";
 import JobCard from "@/components/admin/JobCard";
 import EmptyState from "@/components/admin/EmptyState";
 import PricingPanel from "@/components/admin/PricingPanel";
+import ServiceHoursPanel from "@/components/admin/ServiceHoursPanel";
 import PrinterPanel from "@/components/admin/PrinterPanel";
 import ManageOrdersPanel from "@/components/admin/ManageOrdersPanel";
 import { createClient } from "@/lib/supabase/client";
@@ -66,6 +67,7 @@ export default function AdminDashboard() {
   // ── Local UI state ──────────────────────────────────────────────
   const [loggingOut, setLoggingOut] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showHours, setShowHours] = useState(false);
   const [printerPanelMode, setPrinterPanelMode] = useState<"bw" | "color" | null>(null);
   // Printers list is only shown inside PrinterPanel — poll it only while the
   // panel is open instead of continuous polling for the dashboard's whole lifetime.
@@ -176,11 +178,12 @@ export default function AdminDashboard() {
     }
     function onKey(e: KeyboardEvent) {
       if (isTypingTarget(document.activeElement)) return;
-      const panelOpen = showSettings || printerPanelMode !== null || showManageOrders || confirmAction !== null || sidebarOpen;
+      const panelOpen = showSettings || showHours || printerPanelMode !== null || showManageOrders || confirmAction !== null || sidebarOpen;
       if (panelOpen) {
         if (e.key === "Escape") {
           if (confirmAction) setConfirmAction(null);
           else if (showSettings) setShowSettings(false);
+          else if (showHours) setShowHours(false);
           else if (printerPanelMode) setPrinterPanelMode(null);
           else if (showManageOrders) setShowManageOrders(false);
           else if (sidebarOpen) setSidebarOpen(false);
@@ -201,7 +204,7 @@ export default function AdminDashboard() {
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [mutateJobs, showSettings, printerPanelMode, showManageOrders, confirmAction, sidebarOpen]);
+  }, [mutateJobs, showSettings, showHours, printerPanelMode, showManageOrders, confirmAction, sidebarOpen]);
 
   // ── Actions ─────────────────────────────────────────────────────
   async function logout() {
@@ -218,7 +221,7 @@ export default function AdminDashboard() {
     }
   }
 
-  async function savePricing(data: Omit<Pricing, "serviceArea" | "acceptingOrders" | "orderOpenTime" | "orderCloseTime" | "orderOpenTime2" | "orderCloseTime2" | "orderDays" | "deliveryOpenTime" | "deliveryCloseTime" | "deliveryDays"> & { acceptingOrders: boolean; orderOpenTime: string | null; orderCloseTime: string | null; orderOpenTime2: string | null; orderCloseTime2: string | null; orderDays: string | null; deliveryOpenTime: string | null; deliveryCloseTime: string | null; deliveryDays: string | null }) {
+  async function savePricing(data: Omit<Pricing, "serviceArea" | "acceptingOrders" | "orderOpenTime" | "orderCloseTime" | "orderOpenTime2" | "orderCloseTime2" | "orderDays" | "deliveryOpenTime" | "deliveryCloseTime" | "deliveryDays">) {
     const response = await fetch("/api/admin/pricing", {
       method: "PUT",
       credentials: "include",
@@ -229,6 +232,23 @@ export default function AdminDashboard() {
     if (!response.ok) throw new Error(body.error ?? "Pricing update failed");
     mutatePricing(body);
     mutateJobs();
+  }
+
+  async function saveHours(data: {
+    acceptingOrders: boolean;
+    orderOpenTime: string | null; orderCloseTime: string | null;
+    orderOpenTime2: string | null; orderCloseTime2: string | null; orderDays: string | null;
+    deliveryOpenTime: string | null; deliveryCloseTime: string | null; deliveryDays: string | null;
+  }) {
+    const response = await fetch("/api/admin/hours", {
+      method: "PUT",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data)
+    });
+    const body = await response.json();
+    if (!response.ok) throw new Error(body.error ?? "Hours update failed");
+    mutatePricing(body);
   }
 
   const jobAction = useCallback(async (jobId: string, action: string) => {
@@ -469,12 +489,14 @@ export default function AdminDashboard() {
         soundOn={soundOn}
         onToggleSound={toggleSound}
         onRefresh={() => { mutateJobs(); }}
-        onOpenPricing={() => { setShowSettings(true); setPrinterPanelMode(null); }}
-        onOpenPrinter={(mode) => { setPrinterPanelMode(mode); setShowSettings(false); }}
+        onOpenPricing={() => { setShowSettings(true); setPrinterPanelMode(null); setShowHours(false); }}
+        onOpenHours={() => { setShowHours(true); setPrinterPanelMode(null); setShowSettings(false); }}
+        onOpenPrinter={(mode) => { setPrinterPanelMode(mode); setShowSettings(false); setShowHours(false); }}
         onLogout={logout}
         loggingOut={loggingOut}
         staffName={staff?.displayName || staff?.email}
         showPricing={showSettings}
+        showHours={showHours}
         onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
         isSuperAdmin={staff?.role === "super_admin"}
       />
@@ -491,6 +513,14 @@ export default function AdminDashboard() {
           pricing={pricing}
           onSave={savePricing}
           onClose={() => setShowSettings(false)}
+        />
+      )}
+
+      {showHours && pricing && (
+        <ServiceHoursPanel
+          pricing={pricing}
+          onSave={saveHours}
+          onClose={() => setShowHours(false)}
         />
       )}
 

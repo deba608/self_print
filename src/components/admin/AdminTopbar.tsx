@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  Bell, BellRing, ChevronDown, LogOut, Loader2, Menu, Printer, RefreshCw, Settings,
+  Bell, BellRing, ChevronDown, Clock, LogOut, Loader2, Menu, Printer, RefreshCw, Settings,
 } from "lucide-react";
 import ManageMenu from "./ManageMenu";
 import TopbarMoreMenu from "./TopbarMoreMenu";
@@ -15,11 +15,13 @@ export default function AdminTopbar({
   onToggleSound,
   onRefresh,
   onOpenPricing,
+  onOpenHours,
   onOpenPrinter,
   onLogout,
   loggingOut,
   staffName,
   showPricing,
+  showHours,
   onToggleSidebar,
   isSuperAdmin,
 }: {
@@ -30,11 +32,13 @@ export default function AdminTopbar({
   onToggleSound: () => void;
   onRefresh: () => void;
   onOpenPricing: () => void;
+  onOpenHours: () => void;
   onOpenPrinter: (mode: "bw" | "color") => void;
   onLogout: () => Promise<void>;
   loggingOut: boolean;
   staffName?: string;
   showPricing: boolean;
+  showHours: boolean;
   onToggleSidebar?: () => void;
   isSuperAdmin?: boolean;
 }) {
@@ -119,6 +123,17 @@ export default function AdminTopbar({
               <Settings size={18} />
               <span>Pricing</span>
             </button>
+
+            <button
+              type="button"
+              className={`action-btn action-btn-labeled ${showHours ? "active" : ""}`}
+              onClick={onOpenHours}
+              title="Service Hours"
+              aria-label="Service hours settings"
+            >
+              <Clock size={18} />
+              <span>Hours</span>
+            </button>
           </div>
 
           <TopbarMoreMenu
@@ -128,6 +143,8 @@ export default function AdminTopbar({
             onRefresh={onRefresh}
             onOpenPricing={onOpenPricing}
             showPricing={showPricing}
+            onOpenHours={onOpenHours}
+            showHours={showHours}
           />
 
           <div className="topbar-divider" aria-hidden="true" />

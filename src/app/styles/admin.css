@@ -1068,6 +1068,101 @@
   cursor: pointer;
 }
 
+/* === Service Hours Panel === */
+.hours-panel {
+  max-width: 640px;
+}
+
+.hours-service-card {
+  background: rgba(13, 122, 116, 0.04);
+  border: 1px solid rgba(13, 122, 116, 0.12);
+  border-radius: 10px;
+  padding: 16px 18px 18px;
+}
+.hours-service-card h3 {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0 0 10px;
+}
+
+.hours-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 999px;
+  margin-bottom: 14px;
+}
+.hours-status-badge.is-open {
+  background: rgba(22, 163, 74, 0.12);
+  color: #15803d;
+}
+.hours-status-badge.is-closed {
+  background: rgba(220, 38, 38, 0.1);
+  color: #b91c1c;
+}
+.hours-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.hours-day-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.hours-day-pill {
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--muted);
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all var(--duration-fast);
+}
+.hours-day-pill:hover {
+  border-color: var(--accent);
+  color: var(--accent-strong);
+}
+.hours-day-pill.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.hours-week-table {
+  list-style: none;
+  margin: 16px 0 0;
+  padding: 10px 0 0;
+  border-top: 1px dashed var(--line);
+}
+.hours-week-table li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 5px 0;
+  font-size: 12.5px;
+}
+.hours-week-table li span:first-child {
+  font-weight: 600;
+  color: var(--ink);
+  flex-shrink: 0;
+}
+.hours-week-table li span:last-child {
+  color: var(--muted);
+  text-align: right;
+}
+.hours-week-table li.is-closed span:last-child {
+  color: var(--danger, #b91c1c);
+}
+
 .panel-footer {
   display: flex;
   gap: 10px;
