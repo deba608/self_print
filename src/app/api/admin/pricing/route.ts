@@ -54,6 +54,29 @@ export async function PUT(request: NextRequest) {
       orderOpenTime = open;
       orderCloseTime = close;
     }
+    let orderOpenTime2 = currentPricing.orderOpenTime2;
+    let orderCloseTime2 = currentPricing.orderCloseTime2;
+    if (body.orderOpenTime2 !== undefined || body.orderCloseTime2 !== undefined) {
+      const open = body.orderOpenTime2 ?? null;
+      const close = body.orderCloseTime2 ?? null;
+      if ((open && !timePattern.test(open)) || (close && !timePattern.test(close))) {
+        return NextResponse.json({ error: "Order hours must be in HH:MM format." }, { status: 400 });
+      }
+      if ((open && !close) || (!open && close)) {
+        return NextResponse.json({ error: "Set both a start and end time for the second window, or clear both." }, { status: 400 });
+      }
+      orderOpenTime2 = open;
+      orderCloseTime2 = close;
+    }
+    let orderDays = currentPricing.orderDays;
+    if (body.orderDays !== undefined) {
+      const days = body.orderDays;
+      if (days !== null && (typeof days !== "string" || !/^[1-7](,[1-7]){0,6}$/.test(days))) {
+        return NextResponse.json({ error: "Order days must be comma-separated weekdays 1-7." }, { status: 400 });
+      }
+      orderDays = days;
+    }
+
     const acceptingOrders = typeof body.acceptingOrders === "boolean" ? body.acceptingOrders : currentPricing.acceptingOrders;
 
     let deliveryOpenTime = currentPricing.deliveryOpenTime;
@@ -107,6 +130,9 @@ export async function PUT(request: NextRequest) {
       acceptingOrders,
       orderOpenTime,
       orderCloseTime,
+      orderOpenTime2,
+      orderCloseTime2,
+      orderDays,
       deliveryOpenTime,
       deliveryCloseTime,
       deliveryDays

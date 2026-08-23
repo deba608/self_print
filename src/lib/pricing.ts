@@ -182,23 +182,13 @@ export function isDeliveryAvailable(pricing: PricingConfig): { ok: true } | { ok
     .split(",")
     .map((d) => Number(d.trim()))
     .filter((d) => d >= 1 && d <= 7);
-  const parts = new Intl.DateTimeFormat("en-GB", {
-    timeZone: "Asia/Kolkata",
-    weekday: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  }).formatToParts(new Date());
-  const weekdayShort = parts.find((p) => p.type === "weekday")?.value ?? "Mon";
-  const nowHHMM = `${parts.find((p) => p.type === "hour")?.value}:${parts.find((p) => p.type === "minute")?.value}`;
-  const isoWeekday = WEEKDAY_ISO[weekdayShort] ?? 1;
+  const { isoWeekday, hhmm } = nowInIST();
   const { deliveryOpenTime: open, deliveryCloseTime: close } = pricing;
   const daysLabel = allowedDays.map((d) => ISO_WEEKDAY_LABEL[d]).join(", ");
   if (!allowedDays.includes(isoWeekday)) {
     return { ok: false, reason: `Home delivery is available ${daysLabel}, ${open}–${close}.` };
   }
-  const inWindow = open <= close ? nowHHMM >= open && nowHHMM < close : nowHHMM >= open || nowHHMM < close;
-  if (!inWindow) {
+  if (!timeInWindow(hhmm, open, close)) {
     return { ok: false, reason: `Home delivery is available ${daysLabel}, ${open}–${close}.` };
   }
   return { ok: true };

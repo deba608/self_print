@@ -31,6 +31,12 @@ const pricing: PricingConfig = {
   acceptingOrders: true,
   orderOpenTime: null,
   orderCloseTime: null,
+  orderOpenTime2: null,
+  orderCloseTime2: null,
+  orderDays: null,
+  deliveryOpenTime: null,
+  deliveryCloseTime: null,
+  deliveryDays: null,
 };
 
 describe("calculatePrice pagesPerSheet", () => {

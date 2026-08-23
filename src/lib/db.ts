@@ -328,6 +328,9 @@ async function ensurePricingColumns(database: any) {
     ['accepting_orders', 'INTEGER NOT NULL DEFAULT 1'],
     ['order_open_time', 'TEXT'],
     ['order_close_time', 'TEXT'],
+    ['order_open_time2', 'TEXT'],
+    ['order_close_time2', 'TEXT'],
+    ['order_days', "TEXT DEFAULT '1,2,3,4,5,6'"],
     ['delivery_open_time', "TEXT DEFAULT '18:00'"],
     ['delivery_close_time', "TEXT DEFAULT '20:30'"],
     ['delivery_days', "TEXT DEFAULT '1,2,3,4,5,6'"]
@@ -337,10 +340,13 @@ async function ensurePricingColumns(database: any) {
       database.prepare(`ALTER TABLE pricing_config ADD COLUMN ${name} ${definition}`).run();
     }
   }
-  // Shop pickup hours (9AM-9PM) requested as the initial default — only
-  // backfilled if an admin hasn't already configured a custom window.
+  // Shop pickup hours requested as the initial default (Mon-Sat, split
+  // 9am-1pm / 4:30-8:30pm, Sunday closed) — only backfilled if an admin
+  // hasn't already configured a custom window.
   database.prepare(
-    `UPDATE pricing_config SET order_open_time = '09:00', order_close_time = '21:00' WHERE id = 1 AND order_open_time IS NULL AND order_close_time IS NULL`
+    `UPDATE pricing_config SET order_open_time = '09:00', order_close_time = '13:00',
+       order_open_time2 = '16:30', order_close_time2 = '20:30'
+     WHERE id = 1 AND order_open_time IS NULL AND order_close_time IS NULL`
   ).run();
 }
 
@@ -1042,6 +1048,9 @@ export async function getPricing(): Promise<PricingConfig> {
     acceptingOrders: row.accepting_orders == null ? true : Boolean(row.accepting_orders),
     orderOpenTime: (row.order_open_time as string) || null,
     orderCloseTime: (row.order_close_time as string) || null,
+    orderOpenTime2: (row.order_open_time2 as string) || null,
+    orderCloseTime2: (row.order_close_time2 as string) || null,
+    orderDays: (row.order_days as string) || null,
     deliveryOpenTime: (row.delivery_open_time as string) || null,
     deliveryCloseTime: (row.delivery_close_time as string) || null,
     deliveryDays: (row.delivery_days as string) || null,
@@ -1070,6 +1079,7 @@ export async function updatePricing(pricing: PricingConfig): Promise<void> {
       spiral_binding_slab4_paise = ?, spiral_binding_slab5_paise = ?,
        expiry_minutes = ?, delivery_fee_paise = ?, free_delivery_threshold_paise = ?, service_area_config = ?,
        accepting_orders = ?, order_open_time = ?, order_close_time = ?,
+       order_open_time2 = ?, order_close_time2 = ?, order_days = ?,
        delivery_open_time = ?, delivery_close_time = ?, delivery_days = ?, updated_at = ?
     WHERE id = 1
   `).run(
@@ -1083,6 +1093,7 @@ export async function updatePricing(pricing: PricingConfig): Promise<void> {
      pricing.expiryMinutes, pricing.deliveryFeePaise, pricing.freeDeliveryThresholdPaise,
      serializeServiceAreaConfig(pricing.serviceArea),
      pricing.acceptingOrders ? 1 : 0, pricing.orderOpenTime, pricing.orderCloseTime,
+     pricing.orderOpenTime2, pricing.orderCloseTime2, pricing.orderDays,
      pricing.deliveryOpenTime, pricing.deliveryCloseTime, pricing.deliveryDays, now
   );
 }

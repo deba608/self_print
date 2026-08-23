@@ -5,7 +5,7 @@ import { Check, Clock, Loader2, X, Zap } from "lucide-react";
 import type { PricingConfig as Pricing } from "@/lib/types";
 import { calculatePrice } from "@/lib/pricing";
 
-type NumericPricing = Omit<Pricing, "serviceArea" | "acceptingOrders" | "orderOpenTime" | "orderCloseTime" | "deliveryOpenTime" | "deliveryCloseTime" | "deliveryDays">;
+type NumericPricing = Omit<Pricing, "serviceArea" | "acceptingOrders" | "orderOpenTime" | "orderCloseTime" | "orderOpenTime2" | "orderCloseTime2" | "orderDays" | "deliveryOpenTime" | "deliveryCloseTime" | "deliveryDays">;
 
 const WEEKDAYS: Array<{ iso: number; label: string }> = [
   { iso: 1, label: "Mon" }, { iso: 2, label: "Tue" }, { iso: 3, label: "Wed" },
@@ -111,13 +111,18 @@ export default function PricingPanel({
   onClose
 }: {
   pricing: Pricing | null;
-  onSave: (data: NumericPricing & { acceptingOrders: boolean; orderOpenTime: string | null; orderCloseTime: string | null; deliveryOpenTime: string | null; deliveryCloseTime: string | null; deliveryDays: string | null }) => Promise<void>;
+  onSave: (data: NumericPricing & { acceptingOrders: boolean; orderOpenTime: string | null; orderCloseTime: string | null; orderOpenTime2: string | null; orderCloseTime2: string | null; orderDays: string | null; deliveryOpenTime: string | null; deliveryCloseTime: string | null; deliveryDays: string | null }) => Promise<void>;
   onClose: () => void;
 }) {
   const [formData, setFormData] = useState<PricingDraft>(toDraft(pricing || defaultPricing));
   const [acceptingOrders, setAcceptingOrders] = useState(pricing?.acceptingOrders ?? true);
   const [orderOpenTime, setOrderOpenTime] = useState(pricing?.orderOpenTime ?? "");
   const [orderCloseTime, setOrderCloseTime] = useState(pricing?.orderCloseTime ?? "");
+  const [orderOpenTime2, setOrderOpenTime2] = useState(pricing?.orderOpenTime2 ?? "");
+  const [orderCloseTime2, setOrderCloseTime2] = useState(pricing?.orderCloseTime2 ?? "");
+  const [orderDays, setOrderDays] = useState(
+    (pricing?.orderDays ?? "1,2,3,4,5,6").split(",").map(Number).filter(Boolean)
+  );
   const [deliveryOpenTime, setDeliveryOpenTime] = useState(pricing?.deliveryOpenTime ?? "");
   const [deliveryCloseTime, setDeliveryCloseTime] = useState(pricing?.deliveryCloseTime ?? "");
   const [deliveryDays, setDeliveryDays] = useState(
@@ -165,6 +170,9 @@ export default function PricingPanel({
     setAcceptingOrders(pricing?.acceptingOrders ?? true);
     setOrderOpenTime(pricing?.orderOpenTime ?? "");
     setOrderCloseTime(pricing?.orderCloseTime ?? "");
+    setOrderOpenTime2(pricing?.orderOpenTime2 ?? "");
+    setOrderCloseTime2(pricing?.orderCloseTime2 ?? "");
+    setOrderDays((pricing?.orderDays ?? "1,2,3,4,5,6").split(",").map(Number).filter(Boolean));
     setDeliveryOpenTime(pricing?.deliveryOpenTime ?? "");
     setDeliveryCloseTime(pricing?.deliveryCloseTime ?? "");
     setDeliveryDays((pricing?.deliveryDays ?? "1,2,3,4,5,6").split(",").map(Number).filter(Boolean));
@@ -233,6 +241,10 @@ export default function PricingPanel({
       setError("Set both an opening and closing time, or clear both.");
       return;
     }
+    if ((orderOpenTime2 && !orderCloseTime2) || (!orderOpenTime2 && orderCloseTime2)) {
+      setError("Set both a start and end time for the second window, or clear both.");
+      return;
+    }
     if ((deliveryOpenTime && !deliveryCloseTime) || (!deliveryOpenTime && deliveryCloseTime)) {
       setError("Set both a delivery start and end time, or clear both.");
       return;
@@ -245,6 +257,9 @@ export default function PricingPanel({
         acceptingOrders,
         orderOpenTime: orderOpenTime || null,
         orderCloseTime: orderCloseTime || null,
+        orderOpenTime2: orderOpenTime2 || null,
+        orderCloseTime2: orderCloseTime2 || null,
+        orderDays: orderDays.length ? orderDays.sort((a, b) => a - b).join(",") : null,
         deliveryOpenTime: deliveryOpenTime || null,
         deliveryCloseTime: deliveryCloseTime || null,
         deliveryDays: deliveryDays.length ? deliveryDays.sort((a, b) => a - b).join(",") : null,
@@ -451,7 +466,7 @@ export default function PricingPanel({
                 </label>
               </div>
               <div className="pricing-field">
-                <label htmlFor="orderOpenTime">Daily order window</label>
+                <label htmlFor="orderOpenTime">Pickup window</label>
                 <div className="order-hours-range">
                   <Clock size={16} className="time-icon" aria-hidden="true" />
                   <input
@@ -471,6 +486,45 @@ export default function PricingPanel({
                 <span className="pricing-hint">
                   Leave both blank to accept orders any time (subject to the toggle above). Times are shop-local (IST).
                 </span>
+              </div>
+              <div className="pricing-field">
+                <label htmlFor="orderOpenTime2">Second window (optional, e.g. after lunch break)</label>
+                <div className="order-hours-range">
+                  <Clock size={16} className="time-icon" aria-hidden="true" />
+                  <input
+                    id="orderOpenTime2"
+                    type="time"
+                    value={orderOpenTime2}
+                    onChange={(e) => setOrderOpenTime2(e.target.value)}
+                  />
+                  <span>to</span>
+                  <input
+                    id="orderCloseTime2"
+                    type="time"
+                    value={orderCloseTime2}
+                    onChange={(e) => setOrderCloseTime2(e.target.value)}
+                  />
+                </div>
+                <span className="pricing-hint">Leave both blank if the shop has a single continuous window.</span>
+              </div>
+              <div className="pricing-field">
+                <label>Open days</label>
+                <div className="order-hours-range" role="group" aria-label="Pickup days">
+                  {WEEKDAYS.map((day) => (
+                    <label key={day.iso} className="pricing-toggle">
+                      <input
+                        type="checkbox"
+                        checked={orderDays.includes(day.iso)}
+                        onChange={(e) =>
+                          setOrderDays((prev) =>
+                            e.target.checked ? [...prev, day.iso] : prev.filter((d) => d !== day.iso)
+                          )
+                        }
+                      />
+                      <span>{day.label}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
             </div>
           </section>

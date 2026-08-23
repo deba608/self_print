@@ -218,7 +218,7 @@ export default function AdminDashboard() {
     }
   }
 
-  async function savePricing(data: Omit<Pricing, "serviceArea" | "acceptingOrders" | "orderOpenTime" | "orderCloseTime" | "deliveryOpenTime" | "deliveryCloseTime" | "deliveryDays"> & { acceptingOrders: boolean; orderOpenTime: string | null; orderCloseTime: string | null; deliveryOpenTime: string | null; deliveryCloseTime: string | null; deliveryDays: string | null }) {
+  async function savePricing(data: Omit<Pricing, "serviceArea" | "acceptingOrders" | "orderOpenTime" | "orderCloseTime" | "orderOpenTime2" | "orderCloseTime2" | "orderDays" | "deliveryOpenTime" | "deliveryCloseTime" | "deliveryDays"> & { acceptingOrders: boolean; orderOpenTime: string | null; orderCloseTime: string | null; orderOpenTime2: string | null; orderCloseTime2: string | null; orderDays: string | null; deliveryOpenTime: string | null; deliveryCloseTime: string | null; deliveryDays: string | null }) {
     const response = await fetch("/api/admin/pricing", {
       method: "PUT",
       credentials: "include",
