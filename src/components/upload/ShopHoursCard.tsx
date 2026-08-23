@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { ChevronDown, Clock, Store, Truck } from "lucide-react";
-import { isAcceptingOrders, isDeliveryAvailable, weeklyScheduleLines } from "@/lib/pricing";
+import { isAcceptingOrders, isDeliveryAvailable, nextOpenLabel, weeklyScheduleLines } from "@/lib/pricing";
 import type { Pricing } from "./shared";
 
 // Customer-facing hours summary: a one-line "open/closed now" status that
@@ -20,6 +20,9 @@ export default function ShopHoursCard({ pricing }: { pricing: Pricing }) {
   ]);
   const deliverySchedule = weeklyScheduleLines(pricing.deliveryDays, [[pricing.deliveryOpenTime, pricing.deliveryCloseTime]]);
   const showDeliveryRow = Boolean(pricing.deliveryOpenTime && pricing.deliveryCloseTime);
+  const reopenAt = !pickupStatus.ok
+    ? nextOpenLabel(pricing.orderDays, [[pricing.orderOpenTime, pricing.orderCloseTime], [pricing.orderOpenTime2, pricing.orderCloseTime2]])
+    : null;
 
   return (
     <div className={`shop-hours-card ${open ? "is-open" : ""}`}>
@@ -29,7 +32,9 @@ export default function ShopHoursCard({ pricing }: { pricing: Pricing }) {
           {pickupStatus.ok ? "Shop open now" : "Shop closed now"}
         </span>
         <span className="shop-hours-summary-text">
-          {pricing.orderOpenTime && pricing.orderCloseTime ? "See hours" : "Open anytime"}
+          {!pickupStatus.ok && reopenAt
+            ? `Reopens ${reopenAt}`
+            : pricing.orderOpenTime && pricing.orderCloseTime ? "See hours" : "Open anytime"}
         </span>
         <ChevronDown size={16} className="shop-hours-chevron" aria-hidden="true" />
       </button>

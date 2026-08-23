@@ -132,6 +132,29 @@ function nowInIST() {
   return { isoWeekday: WEEKDAY_ISO[weekdayShort] ?? 1, hhmm };
 }
 
+// When closed, tells the customer when they can come back instead of just
+// "closed" — checks whether a later window opens later today first, then
+// walks forward day by day (wrapping past Sunday) for the next allowed day.
+export function nextOpenLabel(days: string | null, windows: Array<[string | null, string | null]>): string | null {
+  const validWindows = windows.filter(([o, c]) => o && c) as Array<[string, string]>;
+  if (!validWindows.length) return null;
+  const allowedDays = days ? days.split(",").map((d) => Number(d.trim())) : [1, 2, 3, 4, 5, 6, 7];
+  if (!allowedDays.length) return null;
+  const { isoWeekday, hhmm } = nowInIST();
+  if (allowedDays.includes(isoWeekday)) {
+    const laterToday = validWindows.find(([open]) => hhmm < open);
+    if (laterToday) return `today at ${to12h(laterToday[0])}`;
+  }
+  for (let step = 1; step <= 7; step += 1) {
+    const iso = ((isoWeekday - 1 + step) % 7) + 1;
+    if (allowedDays.includes(iso)) {
+      const dayLabel = step === 1 ? "tomorrow" : WEEKDAY_FULL_LABEL[iso];
+      return `${dayLabel} at ${to12h(validWindows[0][0])}`;
+    }
+  }
+  return null;
+}
+
 function windowsLabel(pricing: PricingConfig) {
   const windows = [pricing.orderOpenTime && pricing.orderCloseTime ? `${pricing.orderOpenTime}–${pricing.orderCloseTime}` : null,
     pricing.orderOpenTime2 && pricing.orderCloseTime2 ? `${pricing.orderOpenTime2}–${pricing.orderCloseTime2}` : null]
@@ -155,8 +178,15 @@ export function isAcceptingOrders(pricing: PricingConfig): { ok: true } | { ok: 
   const allowedDays = pricing.orderDays
     ? pricing.orderDays.split(",").map((d) => Number(d.trim())).filter((d) => d >= 1 && d <= 7)
     : [1, 2, 3, 4, 5, 6, 7];
+  const windows: Array<[string | null, string | null]> = [
+    [pricing.orderOpenTime, pricing.orderCloseTime],
+    [pricing.orderOpenTime2, pricing.orderCloseTime2],
+  ];
+  const next = nextOpenLabel(pricing.orderDays, windows);
+  const reopenSuffix = next ? ` We reopen ${next}.` : "";
+
   if (!allowedDays.includes(isoWeekday)) {
-    return { ok: false, reason: `We're closed today. Shop hours: ${windowsLabel(pricing)}.` };
+    return { ok: false, reason: `We're closed today. Shop hours: ${windowsLabel(pricing)}.${reopenSuffix}` };
   }
 
   const inFirstWindow = timeInWindow(hhmm, pricing.orderOpenTime!, pricing.orderCloseTime!);
@@ -164,7 +194,7 @@ export function isAcceptingOrders(pricing: PricingConfig): { ok: true } | { ok: 
     ? timeInWindow(hhmm, pricing.orderOpenTime2, pricing.orderCloseTime2)
     : false;
   if (!inFirstWindow && !inSecondWindow) {
-    return { ok: false, reason: `We're currently closed. Shop hours: ${windowsLabel(pricing)}.` };
+    return { ok: false, reason: `We're currently closed. Shop hours: ${windowsLabel(pricing)}.${reopenSuffix}` };
   }
   return { ok: true };
 }
@@ -185,11 +215,13 @@ export function isDeliveryAvailable(pricing: PricingConfig): { ok: true } | { ok
   const { isoWeekday, hhmm } = nowInIST();
   const { deliveryOpenTime: open, deliveryCloseTime: close } = pricing;
   const daysLabel = allowedDays.map((d) => ISO_WEEKDAY_LABEL[d]).join(", ");
+  const next = nextOpenLabel(pricing.deliveryDays, [[open, close]]);
+  const reopenSuffix = next ? ` Next delivery slot: ${next}.` : "";
   if (!allowedDays.includes(isoWeekday)) {
-    return { ok: false, reason: `Home delivery is available ${daysLabel}, ${open}–${close}.` };
+    return { ok: false, reason: `Home delivery is available ${daysLabel}, ${open}–${close}.${reopenSuffix}` };
   }
   if (!timeInWindow(hhmm, open, close)) {
-    return { ok: false, reason: `Home delivery is available ${daysLabel}, ${open}–${close}.` };
+    return { ok: false, reason: `Home delivery is available ${daysLabel}, ${open}–${close}.${reopenSuffix}` };
   }
   return { ok: true };
 }

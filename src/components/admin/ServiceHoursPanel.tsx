@@ -35,7 +35,6 @@ function TimeRange({
 }) {
   return (
     <div className="order-hours-range">
-      <Clock size={16} className="time-icon" aria-hidden="true" />
       <input id={`${idPrefix}-open`} type="time" value={open} onChange={(e) => onOpen(e.target.value)} />
       <span>to</span>
       <input id={`${idPrefix}-close`} type="time" value={close} onChange={(e) => onClose(e.target.value)} />
@@ -79,7 +78,15 @@ export default function ServiceHoursPanel({
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
 
+  // A day list of [] reads as "no restriction, every day" everywhere it's
+  // consumed (isAcceptingOrders, weeklyScheduleLines) — so unchecking the
+  // last remaining day would silently flip "closed all week" into "open
+  // every day", the opposite of what the click looks like. Block it instead.
   const toggleDay = (list: number[], set: (v: number[]) => void, iso: number) => {
+    if (list.includes(iso) && list.length === 1) {
+      setError("At least one day must stay open.");
+      return;
+    }
     set(list.includes(iso) ? list.filter((d) => d !== iso) : [...list, iso].sort((a, b) => a - b));
     setSaved(false);
     setError("");
