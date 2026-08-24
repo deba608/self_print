@@ -183,10 +183,13 @@ export function isAcceptingOrders(pricing: PricingConfig): { ok: true } | { ok: 
     [pricing.orderOpenTime2, pricing.orderCloseTime2],
   ];
   const next = nextOpenLabel(pricing.orderDays, windows);
-  const reopenSuffix = next ? ` We reopen ${next}.` : "";
+  // When we can say exactly when we reopen, that's all the customer needs —
+  // appending the full weekly hours makes the banner a wall of text.
+  const closed = (headline: string) =>
+    next ? `${headline} We reopen ${next}.` : `${headline} Shop hours: ${windowsLabel(pricing)}.`;
 
   if (!allowedDays.includes(isoWeekday)) {
-    return { ok: false, reason: `We're closed today. Shop hours: ${windowsLabel(pricing)}.${reopenSuffix}` };
+    return { ok: false, reason: closed("We're closed today.") };
   }
 
   const inFirstWindow = timeInWindow(hhmm, pricing.orderOpenTime!, pricing.orderCloseTime!);
@@ -194,7 +197,7 @@ export function isAcceptingOrders(pricing: PricingConfig): { ok: true } | { ok: 
     ? timeInWindow(hhmm, pricing.orderOpenTime2, pricing.orderCloseTime2)
     : false;
   if (!inFirstWindow && !inSecondWindow) {
-    return { ok: false, reason: `We're currently closed. Shop hours: ${windowsLabel(pricing)}.${reopenSuffix}` };
+    return { ok: false, reason: closed("We're currently closed.") };
   }
   return { ok: true };
 }
