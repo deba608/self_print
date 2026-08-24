@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, useRef } from "react";
 import Link from "next/link";
 import { UploadCloud, FileText, Image, ArrowLeft, ArrowRight, Check, Eye, Loader2, File, Settings2, Printer, Copy, Store, X, Search, CreditCard, RefreshCw, Info, Truck, MapPin, Navigation, AlertCircle, ChevronDown, Heart } from "lucide-react";
-import { formatRupees, paperSizeLabels, allPaperSizes, calculateSpiralBindingPrice, calculatePrice, effectiveDeliveryFeePaise, effectiveFileSettings, isAcceptingOrders, isDeliveryAvailable } from "@/lib/pricing";
+import { formatRupees, paperSizeLabels, allPaperSizes, calculateSpiralBindingPrice, calculatePrice, effectiveDeliveryFeePaise, effectiveFileSettings, isAcceptingOrders, isDeliveryAvailable, weeklyScheduleLines, WEEKDAY_ISO } from "@/lib/pricing";
 import { estimatePdfPages } from "@/lib/pdf-pages";
 import { MAX_BULK_FILES } from "@/lib/limits";
 import type { FileSettingsOverride } from "@/lib/types";
@@ -1556,6 +1556,7 @@ export default function UploadForm() {
 
   const acceptingOrdersCheck = pricing ? isAcceptingOrders(pricing) : { ok: true as const };
   const shopClosed = !acceptingOrdersCheck.ok;
+  const [showShopHours, setShowShopHours] = useState(false);
 
   // Mobile bulk file list — thumbnails, names, per-file customize gear.
   // Shared between the settings step and the preview step so it shows up
@@ -1639,7 +1640,33 @@ export default function UploadForm() {
     <div className="upload-form">
       {shopClosed && (
         <div className="shop-closed-banner" role="alert">
-          {acceptingOrdersCheck.reason}
+          <div className="closed-main">
+            <span>{acceptingOrdersCheck.reason}</span>
+            {pricing && (
+              <button
+                type="button"
+                className={`closed-info-btn ${showShopHours ? "open" : ""}`}
+                aria-expanded={showShopHours}
+                aria-label="Shop timings"
+                onClick={() => setShowShopHours((v) => !v)}
+              >
+                <Info size={15} />
+              </button>
+            )}
+          </div>
+          {showShopHours && pricing && (
+            <div className="closed-hours">
+              {weeklyScheduleLines(pricing.orderDays, [
+                [pricing.orderOpenTime, pricing.orderCloseTime],
+                [pricing.orderOpenTime2, pricing.orderCloseTime2],
+              ]).map((line) => (
+                <div key={line.iso} className={`closed-hours-row ${line.hours === "Closed" ? "off" : ""} ${line.iso === WEEKDAY_ISO[new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Kolkata", weekday: "short" }).format(new Date())] ? "today" : ""}`}>
+                  <span>{line.day}</span>
+                  <span>{line.hours}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

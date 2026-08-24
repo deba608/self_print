@@ -574,6 +574,10 @@ input, select, button {
 .upload-form { display: flex; flex-direction: column; gap: var(--space-5); }
 
 .shop-closed-banner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
   padding: 12px 16px;
   border-radius: 10px;
   background: var(--warn-light, #fef3c7);
@@ -582,6 +586,58 @@ input, select, button {
   font-size: 13.5px;
   font-weight: 600;
   line-height: 1.4;
+  text-align: center;
+}
+
+.closed-main {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.closed-info-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1.5px solid currentColor;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s var(--ease-out), transform 0.15s var(--ease-out);
+}
+
+.closed-info-btn:hover { background: rgba(180, 83, 9, 0.1); }
+.closed-info-btn.open { background: var(--warn, #b45309); color: #fff; }
+
+.closed-hours {
+  width: 100%;
+  max-width: 280px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-weight: 500;
+  font-size: 13px;
+}
+
+.closed-hours-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 4px 10px;
+  border-radius: 6px;
+}
+
+.closed-hours-row.off { opacity: 0.55; text-decoration: line-through; }
+
+.closed-hours-row.today {
+  background: rgba(180, 83, 9, 0.12);
+  font-weight: 700;
 }
 
 .delivery-closed-note {
