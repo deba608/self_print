@@ -600,20 +600,31 @@ input, select, button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: 30px;
+  height: 30px;
   padding: 0;
   border-radius: 50%;
-  border: 1.5px solid currentColor;
-  background: transparent;
+  border: none;
+  background: rgba(180, 83, 9, 0.12);
   color: inherit;
   cursor: pointer;
   flex-shrink: 0;
-  transition: background 0.15s var(--ease-out), transform 0.15s var(--ease-out);
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.2s var(--ease-out), color 0.2s var(--ease-out),
+    transform 0.15s var(--ease-out), box-shadow 0.2s var(--ease-out);
 }
 
-.closed-info-btn:hover { background: rgba(180, 83, 9, 0.1); }
-.closed-info-btn.open { background: var(--warn, #b45309); color: #fff; }
+.closed-info-btn:hover { background: rgba(180, 83, 9, 0.22); }
+.closed-info-btn:active { transform: scale(0.88); }
+.closed-info-btn.open {
+  background: var(--warn, #b45309);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(180, 83, 9, 0.35);
+}
+.closed-info-btn svg {
+  transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.closed-info-btn.open svg { transform: rotate(180deg); }
 
 .closed-hours {
   width: 100%;
