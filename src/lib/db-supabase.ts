@@ -126,35 +126,6 @@ function mapJobFile(row: any): JobFile {
   };
 }
 
-export async function getDb() {
-  // Return a mock object that matches the SQLite interface
-  return {
-    prepare: (sql: string) => ({
-      get: async (...args: any[]) => {
-        // This is a simplified version - full implementation would parse SQL
-        throw new Error('Use Supabase-specific methods instead');
-      },
-      run: async (...args: any[]) => {
-        throw new Error('Use Supabase-specific methods instead');
-      },
-      all: async (...args: any[]) => {
-        throw new Error('Use Supabase-specific methods instead');
-      }
-    }),
-    exec: async (sql: string) => {
-      throw new Error('Use Supabase-specific methods instead');
-    },
-    transaction: (fn: Function) => {
-      return async () => {
-        await fn();
-      };
-    },
-    pragma: (query: string) => {
-      return null;
-    }
-  };
-}
-
 // Supabase-specific methods
 export async function getJobs() {
   const [{ data, error }, pricing] = await Promise.all([

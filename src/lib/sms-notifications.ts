@@ -10,19 +10,6 @@ export type JobNotificationInput = {
 };
 
 /**
- * Sends order creation / confirmation SMS.
- */
-export async function sendJobCreatedSms({ phone, token, queuePosition }: JobNotificationInput) {
-  if (!phone) return null;
-  const formatted = normalizePhoneNumber(phone);
-  if (!formatted) return null;
-
-  const queueText = queuePosition != null ? ` Queue position: #${queuePosition}.` : "";
-  const message = `Selfprint: Order #${token} has been received.${queueText} Thank you for your order!`;
-  return sendSms({ to: formatted, message });
-}
-
-/**
  * Sends SMS when print job is approved / ready for pickup.
  */
 export async function sendJobApprovedSms({ phone, token }: JobNotificationInput) {

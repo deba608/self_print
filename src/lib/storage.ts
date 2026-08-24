@@ -220,24 +220,6 @@ export async function deleteFile(storagePath: string): Promise<void> {
   }
 }
 
-export async function listFiles(prefix: string): Promise<string[]> {
-  if (cloudStorageEnabled) {
-    const supabase = getSupabase();
-    if (!supabase) return [];
-    const { data } = await supabase.storage.from(BUCKET).list(prefix);
-    if (!data) return [];
-    return data.map((f) => `${prefix}/${f.name}`);
-  }
-  const fs = await import('node:fs/promises');
-  const dir = prefix.includes('converted') ? CONVERTED_DIR : ORIGINALS_DIR;
-  try {
-    const files = await fs.readdir(dir);
-    return files.map((f) => path.join(dir, f));
-  } catch {
-    return [];
-  }
-}
-
 // Lists files in storage that are older than maxAgeMs.
 export async function listOldFiles(prefix: string, maxAgeMs: number): Promise<string[]> {
   const now = Date.now();

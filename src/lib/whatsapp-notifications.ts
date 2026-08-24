@@ -1,4 +1,4 @@
-import { normalizeWaPhone, sendWhatsAppTemplate } from "./whatsapp";
+import { sendWhatsAppTemplate } from "./whatsapp";
 
 export type WaNotificationInput = {
   phone: string | null;
@@ -8,21 +8,6 @@ export type WaNotificationInput = {
   driverPhone?: string | null;
   amountPaise?: number;
 };
-
-/** OTP login — Authentication template (Meta enforces fixed format). */
-export async function sendOtpWhatsApp(phone: string, code: string) {
-  const wa = normalizeWaPhone(phone);
-  if (!wa) return null;
-  return sendWhatsAppTemplate(wa, "otp_login", [code]);
-}
-
-/** Order received after upload. */
-export async function sendJobCreatedWa({ phone, token, queuePosition }: WaNotificationInput) {
-  if (!phone) return null;
-  const queueText = queuePosition != null ? `#${queuePosition}` : "—";
-  // template: "Your SelfPrint order *{{1}}* is received. Queue position: {{2}}. Thank you!"
-  return sendWhatsAppTemplate(phone, "order_created", [token, queueText]);
-}
 
 /** Job approved / ready for counter pickup. */
 export async function sendJobApprovedWa({ phone, token }: WaNotificationInput) {

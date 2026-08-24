@@ -58,10 +58,6 @@ export async function refundPayment(paymentId: string, amountPaise: number) {
   return razorpay().payments.refund(paymentId, { amount: Math.round(amountPaise) });
 }
 
-export function isWebhookConfigured(): boolean {
-  return Boolean(RAZORPAY_WEBHOOK_SECRET);
-}
-
 function timingSafeEqualHex(a: string, b: string): boolean {
   const bufA = Buffer.from(a, "hex");
   const bufB = Buffer.from(b, "hex");
