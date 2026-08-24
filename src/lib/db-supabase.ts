@@ -7,6 +7,7 @@ import type { AgentUpdateState } from './db';
 import { FILE_RETENTION_DAYS, CART_ABANDON_MINUTES, LOGIN_EVENT_RETENTION_DAYS, STRAY_FILE_RETENTION_HOURS } from './config';
 import { DEFAULT_SERVICE_AREA, parseServiceAreaConfig, serializeServiceAreaConfig } from './service-area';
 import { chunk } from './util';
+import { SEED_BW_PER_PAGE_PAISE, SEED_COLOR_PER_PAGE_PAISE, SEED_PHOTO_PRINT_PAISE } from './pricing';
 
 const supabaseUrl = process.env.SUPABASE_URL?.trim();
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
@@ -303,13 +304,19 @@ export async function getNextApprovedJob() {
 }
 
 export async function getJobFile(jobId: string) {
+  // Bulk jobs carry multiple job_files rows — .single() throws PGRST116 there.
+  // Take the first file by the same ordering convention as getJobFilesByJob.
   const { data, error } = await supabase
     .from('job_files')
     .select('*')
     .eq('job_id', jobId)
-    .single();
-  
+    .order('created_at', { ascending: true })
+    .order('id', { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
   if (error) throw error;
+  if (!data) throw new Error('Job file not found');
   return mapJobFile(data);
 }
 
@@ -514,29 +521,36 @@ export async function markJobPaid(
   via: 'online' | 'counter' = 'counter',
   paymentId?: string
 ): Promise<{ paidAt: string }> {
-  const { data: existing, error: selError } = await supabase
-    .from('jobs')
-    .select('paid_at')
-    .eq('id', id)
-    .single();
-  if (selError) throw selError;
-
-  if (existing?.paid_at) {
-    return { paidAt: String(existing.paid_at) };
-  }
-
   const now = new Date().toISOString();
-  const { error } = await supabase
+  // Atomic first-writer-wins: only claim paid_at when it is still null, then
+  // read back whether THIS call won. Prevents webhook-vs-counter races from
+  // overwriting each other's paid_via / payment id.
+  const { data: claimed, error } = await supabase
     .from('jobs')
     .update({ paid_at: now, paid_via: via, razorpay_payment_id: paymentId ?? null, updated_at: now })
-    .eq('id', id);
+    .eq('id', id)
+    .is('paid_at', null)
+    .select('paid_at')
+    .maybeSingle();
   if (error) throw error;
+
+  if (!claimed) {
+    // Lost the race — someone else marked it first; report their timestamp.
+    const { data: existing, error: selError } = await supabase
+      .from('jobs')
+      .select('paid_at')
+      .eq('id', id)
+      .single();
+    if (selError) throw selError;
+    if (!existing?.paid_at) throw new Error(`markJobPaid: job ${id} not found`);
+    return { paidAt: String(existing.paid_at) };
+  }
 
   await supabase
     .from('print_events')
     .insert([{ id: crypto.randomUUID(), job_id: id, event_type: 'paid', message: `Marked as paid (${via}).`, created_at: now }]);
 
-  return { paidAt: now };
+  return { paidAt: String(claimed.paid_at) };
 }
 
 // Records the outcome of a Razorpay refund attempt for a job.
@@ -604,9 +618,9 @@ export async function updateJobSettings(id: string, settings: {
 }
 
 const PRICING_DEFAULTS: PricingConfig = {
-  bwPerPagePaise: 200,
-  colorPerPagePaise: 800,
-  photoPrintPaise: 1500,
+    bwPerPagePaise: SEED_BW_PER_PAGE_PAISE,
+    colorPerPagePaise: SEED_COLOR_PER_PAGE_PAISE,
+    photoPrintPaise: SEED_PHOTO_PRINT_PAISE,
   copyMultiplier: 1.0,
   a3Multiplier: 2.5,
   a4Multiplier: 1.0,
@@ -1046,10 +1060,31 @@ export async function cleanupOldJobs(): Promise<{ deleted: number; storagePaths:
   const abandonedIds = (expired || []).map((r) => String(r.id));
 
   for (const idBatch of chunk(abandonedIds, 200)) {
+    // Guarded expire: a job paid or released between the SELECT above and now
+    // must not be force-expired, so the UPDATE re-checks state atomically.
+    const { error: expireErr } = await supabase
+      .from('jobs')
+      .update({ status: 'expired', updated_at: now })
+      .in('id', idBatch)
+      .eq('status', 'pending_payment')
+      .is('paid_at', null);
+    if (expireErr) throw expireErr;
+
+    // Purge file bytes only for jobs that actually expired.
+    const { data: actuallyExpired, error: reErr } = await supabase
+      .from('jobs')
+      .select('id')
+      .in('id', idBatch)
+      .eq('status', 'expired')
+      .is('paid_at', null);
+    if (reErr) throw reErr;
+    const expiredIds = (actuallyExpired || []).map((r) => String(r.id));
+    if (expiredIds.length === 0) continue;
+
     const { data: files, error: fileErr } = await supabase
       .from('job_files')
       .select('id, storage_path')
-      .in('job_id', idBatch)
+      .in('job_id', expiredIds)
       .is('purged_at', null)
       .neq('storage_path', '');
     if (fileErr) throw fileErr;
@@ -1063,12 +1098,6 @@ export async function cleanupOldJobs(): Promise<{ deleted: number; storagePaths:
         .in('id', batchFiles.map((f) => String(f.id)));
       if (purgeErr) throw purgeErr;
     }
-
-    const { error: expireErr } = await supabase
-      .from('jobs')
-      .update({ status: 'expired', updated_at: now })
-      .in('id', idBatch);
-    if (expireErr) throw expireErr;
   }
 
   // 2) Privacy purge: finished orders (printed/cancelled/failed, and delivery
@@ -1224,7 +1253,7 @@ export async function getJobsNeedingConversion(): Promise<Job[]> {
     .order('created_at', { ascending: true });
 
   if (error) throw error;
-  return (data || []).map(mapJob);
+  return (data || []).map((row) => mapJob(row));
 }
 
 export async function markJobConverted(
@@ -1431,10 +1460,10 @@ export async function getLatestOtp(phone: string, purpose: string) {
 }
 
 export async function incrementOtpAttempts(id: string): Promise<void> {
-  const { data } = await supabase.from('otps').select('attempts').eq('id', id).single();
-  if (data) {
-    await supabase.from('otps').update({ attempts: (data.attempts || 0) + 1 }).eq('id', id);
-  }
+  // Atomic server-side increment via RPC — a read-modify-write here loses
+  // updates under concurrent guesses, letting brute-force exceed max_attempts.
+  const { error } = await supabase.rpc('increment_otp_attempts', { p_id: id });
+  if (error) throw error;
 }
 
 export async function markOtpVerified(id: string): Promise<void> {

@@ -1,5 +1,13 @@
 import type { FileSettingsOverride, PaperSize, PricingConfig, PrintDuplex, PrintType } from "./types";
 
+// Fresh-install seed prices (paise). Single source of truth shared by the
+// SQLite seeder (db.ts seedDefaults) and the Supabase fallback defaults
+// (db-supabase.ts PRICING_DEFAULTS), so both backends price identically
+// before an admin customizes pricing.
+export const SEED_BW_PER_PAGE_PAISE = 100;
+export const SEED_COLOR_PER_PAGE_PAISE = 1000;
+export const SEED_PHOTO_PRINT_PAISE = 3000;
+
 // Resolves one bulk file's effective print settings: its own override where
 // present, falling back to the job-level value for every other field. The
 // single place this merge happens — the server (pricing + the bulk insert)

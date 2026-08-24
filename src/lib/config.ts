@@ -15,7 +15,18 @@ export const MAX_UPLOAD_MB = Number(process.env.MAX_UPLOAD_MB ?? 50);
 export const MAX_UPLOAD_BYTES = MAX_UPLOAD_MB * 1024 * 1024;
 // Used for upload-signing (src/lib/storage.ts: signStoredName/verifyStoredNameSig),
 // unrelated to admin sessions (those are Supabase Auth now).
-export const SESSION_SECRET = process.env.SESSION_SECRET ?? "dev-session-secret-change-me";
+function loadSessionSecret(): string {
+  const secret = process.env.SESSION_SECRET;
+  if (secret) return secret;
+  const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
+  if (process.env.NODE_ENV === "production" && !isBuildPhase) {
+    // Fail closed: with the fallback secret, upload-name HMACs are forgeable.
+    throw new Error("SESSION_SECRET must be set in production");
+  }
+  console.warn("[config] SESSION_SECRET not set — using insecure dev fallback");
+  return "dev-session-secret-change-me";
+}
+export const SESSION_SECRET = loadSessionSecret();
 // No hardcoded token default — AGENT_TOKEN must be set via env (.env locally,
 // Vercel env vars in production). Empty default fails closed: verifyAgentToken
 // rejects empty/missing bearer tokens, so no guessable secret ships in the repo.

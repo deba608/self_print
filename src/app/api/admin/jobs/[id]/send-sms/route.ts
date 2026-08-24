@@ -36,6 +36,14 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const type = body?.type || "custom";
   const customMessage = body?.message;
 
+  // Lowest-privilege role guard: delivery riders may send the fixed order
+  // templates for their workflow, but arbitrary custom text to any customer
+  // phone is an admin-only capability (phishing / SMS-cost abuse otherwise).
+  const TEMPLATE_TYPES = new Set(["approved", "out_for_delivery", "delivered", "payment"]);
+  if (!TEMPLATE_TYPES.has(type) && staff.role === "delivery") {
+    return NextResponse.json({ error: "Custom messages require an admin account" }, { status: 403 });
+  }
+
   try {
     const input = { phone: job.customerPhone, token: job.token };
     let result;

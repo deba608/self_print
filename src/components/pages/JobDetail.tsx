@@ -214,21 +214,26 @@ export default function JobDetail({ id }: { id: string }) {
     setError("");
     setSavingSettings(true);
     setSettingsSaved(false);
-    const response = await fetch(`/api/admin/jobs/${id}`, {
-      method: "PUT",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(settings)
-    });
-    const body = await response.json();
-    setSavingSettings(false);
-    if (!response.ok) {
-      setError(body.error ?? "Unable to save print settings");
-      return;
+    try {
+      const response = await fetch(`/api/admin/jobs/${id}`, {
+        method: "PUT",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(settings)
+      });
+      const body = await response.json().catch(() => null);
+      if (!response.ok) {
+        setError(body?.error ?? "Unable to save print settings");
+        return;
+      }
+      setSettingsSaved(true);
+      setTimeout(() => setSettingsSaved(false), 2000);
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to save print settings");
+    } finally {
+      setSavingSettings(false);
     }
-    setSettingsSaved(true);
-    setTimeout(() => setSettingsSaved(false), 2000);
-    await load();
   }
 
   function statusBadge(status: string) {

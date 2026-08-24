@@ -38,8 +38,17 @@ export function isRateLimited(
 }
 
 export function clientIp(headers: Headers): string {
-  // First hop of x-forwarded-for is the client as seen by the platform proxy.
+  // Prefer the platform-injected header — set by the hosting proxy from the
+  // real connection, so a client cannot spoof it. XFF entries are appended
+  // left-to-right by proxies, meaning the LEFTMOST value is whatever the
+  // client sent; trusting it lets one request rotate IPs and defeat every
+  // limiter. The rightmost entry is the last trusted proxy hop instead.
+  const realIp = headers.get("x-real-ip");
+  if (realIp) return realIp.trim();
   const xff = headers.get("x-forwarded-for");
-  if (xff) return xff.split(",")[0].trim();
-  return headers.get("x-real-ip") ?? "unknown";
+  if (xff) {
+    const hops = xff.split(",").map((h) => h.trim()).filter(Boolean);
+    if (hops.length > 0) return hops[hops.length - 1];
+  }
+  return "unknown";
 }

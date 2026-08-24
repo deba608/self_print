@@ -139,7 +139,10 @@ export default function CustomerManagementPage() {
     const escapeCsvField = (field: string | number | null | undefined): string => {
       if (field === null || field === undefined) return '""';
       const stringValue = String(field);
-      const escaped = stringValue.replace(/"/g, '""');
+      // Neutralize spreadsheet formula injection (=, +, -, @ lead-ins execute
+      // as formulas when staff opens the export; guest data is untrusted).
+      const guarded = /^[=+\-@\t\r]/.test(stringValue) ? `'${stringValue}` : stringValue;
+      const escaped = guarded.replace(/"/g, '""');
       return `"${escaped}"`;
     };
 

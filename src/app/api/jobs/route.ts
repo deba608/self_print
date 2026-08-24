@@ -396,11 +396,11 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ jobId, token, pricePaise, deliveryFeePaise, addonFeePaise, needsConversion: Boolean(needsConversion), pageCount, queuePosition: queuePos });
   } catch (error) {
-    // A Supabase/PostgREST rejection is a plain object, not an Error, so it
-    // collapses into a bare "Upload failed" with nothing to debug from. Log the
-    // real cause server-side; the customer still sees the generic message.
+    // A Supabase/PostgREST rejection is a plain object, not an Error. Log the
+    // real cause server-side only — raw messages leak table names, constraint
+    // names and connection hints to anonymous callers.
     console.error("[/api/jobs] job creation failed:", error);
-    return NextResponse.json({ error: error instanceof Error ? error.message : JSON.stringify(error) }, { status: 400 });
+    return NextResponse.json({ error: "Upload failed. Please try again." }, { status: 500 });
   }
 }
 

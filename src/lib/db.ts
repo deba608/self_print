@@ -2,6 +2,7 @@ import type { CustomerManagementRow, Job, JobFile, PricingConfig, PrinterOption,
 import { FILE_RETENTION_DAYS, CART_ABANDON_MINUTES, STRAY_FILE_RETENTION_HOURS, LOGIN_EVENT_RETENTION_DAYS } from './config';
 import { chunk } from './util';
 import { parseServiceAreaConfig, serializeServiceAreaConfig } from './service-area';
+import { SEED_BW_PER_PAGE_PAISE, SEED_COLOR_PER_PAGE_PAISE, SEED_PHOTO_PRINT_PAISE } from './pricing';
 
 // Check if Supabase is configured
 const isSupabase = Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
@@ -361,9 +362,9 @@ async function seedDefaults(database: any, agentToken: string, hashToken: (s: st
        spiral_binding_slab1_paise, spiral_binding_slab2_paise, spiral_binding_slab3_paise,
        spiral_binding_slab4_paise, spiral_binding_slab5_paise,
        expiry_minutes, delivery_fee_paise, updated_at
-    ) VALUES (1, 100, 1000, 3000, 1, 2.5, 1, 0.7, 0.5, 0.9, 1.25, 1, 100, 150, 1000, 100, 2000, 2500, 3000, 4000, 5000, 1440, 0, ?)
-  `).run(now);
-
+      ) VALUES (1, ?, ?, ?, 1, 2.5, 1, 0.7, 0.5, 0.9, 1.25, 1, 100, 150, 1000, 100, 2000, 2500, 3000, 4000, 
+5000, 1440, 0, ?)
+    `).run(SEED_BW_PER_PAGE_PAISE, SEED_COLOR_PER_PAGE_PAISE, SEED_PHOTO_PRINT_PAISE, now);
   database.prepare(`
     INSERT OR IGNORE INTO agent_config (id, printer_name, config_version, updated_at)
     VALUES (1, 'Microsoft Print to PDF', 0, ?)
@@ -691,7 +692,9 @@ export async function getJobFile(jobId: string): Promise<JobFile> {
     return mod.getJobFile(jobId);
   }
   const sqlite = await getDbInstance();
-  const row = sqlite.prepare('SELECT * FROM job_files WHERE job_id = ?').get(jobId) as Record<string, unknown> | undefined;
+  // Same ordering convention as the Supabase twin / getJobFilesByJob so both
+  // backends return the identical file for multi-file jobs.
+  const row = sqlite.prepare('SELECT * FROM job_files WHERE job_id = ? ORDER BY created_at ASC, id ASC LIMIT 1').get(jobId) as Record<string, unknown> | undefined;
   if (!row) throw new Error('Job file not found');
   return mapJobFile(row);
 }
@@ -1465,9 +1468,16 @@ export async function cleanupOldJobs(): Promise<{ deleted: number; storagePaths:
   const abandonedIds = abandoned.map((r) => r.id);
   for (const idBatch of chunk(abandonedIds, 200)) {
     const placeholders = idBatch.map(() => '?').join(',');
+    // Guarded expire: a job paid or released between the SELECT and now must
+    // not be force-expired, so the UPDATE re-checks state atomically.
+    sqlite.prepare(`UPDATE jobs SET status = 'expired', updated_at = ? WHERE id IN (${placeholders}) AND status = 'pending_payment' AND paid_at IS NULL`).run(now, ...idBatch);
+    const expiredRows = sqlite.prepare(`SELECT id FROM jobs WHERE id IN (${placeholders}) AND status = 'expired' AND paid_at IS NULL`).all(...idBatch) as Array<{ id: string }>;
+    const expiredIds = expiredRows.map((r) => r.id);
+    if (expiredIds.length === 0) continue;
+    const expPlaceholders = expiredIds.map(() => '?').join(',');
     const files = sqlite
-      .prepare(`SELECT id, storage_path FROM job_files WHERE job_id IN (${placeholders}) AND purged_at IS NULL AND storage_path <> ''`)
-      .all(...idBatch) as Array<{ id: string; storage_path: string }>;
+      .prepare(`SELECT id, storage_path FROM job_files WHERE job_id IN (${expPlaceholders}) AND purged_at IS NULL AND storage_path <> ''`)
+      .all(...expiredIds) as Array<{ id: string; storage_path: string }>;
     storagePaths.push(...files.map((f) => f.storage_path));
     if (files.length > 0) {
       const purgeStmt = sqlite.prepare(`UPDATE job_files SET storage_path = '', purged_at = ? WHERE id = ?`);
@@ -1475,7 +1485,6 @@ export async function cleanupOldJobs(): Promise<{ deleted: number; storagePaths:
         for (const f of rows) purgeStmt.run(now, f.id);
       })(files);
     }
-    sqlite.prepare(`UPDATE jobs SET status = 'expired', updated_at = ? WHERE id IN (${placeholders})`).run(now, ...idBatch);
   }
 
   // 2) Privacy purge: finished orders (printed/cancelled/failed, and delivery
