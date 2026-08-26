@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import path from "node:path";
 import { getJobById, getJobFile, getPricing, markJobConverted } from "@/lib/db";
 import { readFileBytes, saveBuffer, deleteFile } from "@/lib/storage";
@@ -39,7 +39,7 @@ export async function POST(_: NextRequest, { params }: { params: Promise<{ id: s
     const inputBytes = await readFileBytes(oldPath);
     const pdf = await convertDocToPdf(inputBytes, ext);
     const saved = await saveBuffer(pdf, ".pdf", "document", "application/pdf");
-    const pageCount = estimatePageCount("pdf", pdf);
+    const pageCount = await estimatePageCount("pdf", pdf);
     const pricing = await getPricing();
     const pricePaise =
       calculatePrice({

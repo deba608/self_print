@@ -531,11 +531,15 @@ export default function AdminDashboard() {
           selectedPrinter={printerPanelMode === "color" ? colorPrinterName : bwPrinterName}
           onSelect={async (name) => {
             const field = printerPanelMode === "color" ? "colorPrinterName" : "bwPrinterName";
-            await fetch("/api/admin/printer", {
+            const response = await fetch("/api/admin/printer", {
               method: "PUT", credentials: "include",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ [field]: name })
             });
+            if (!response.ok) {
+              pushToast("err", "Could not save printer selection. Please try again.");
+              return;
+            }
             mutatePrinter({
               bwPrinterName: printerPanelMode === "bw" ? name : bwPrinterName,
               colorPrinterName: printerPanelMode === "color" ? name : colorPrinterName,

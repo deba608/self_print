@@ -1,4 +1,4 @@
-import path from "node:path";
+﻿import path from "node:path";
 import { getJobsNeedingConversion, getJobFile, getPricing, markJobConverted } from "../src/lib/db";
 import { readFileBytes, saveBuffer, deleteFile } from "../src/lib/storage";
 import { convertDocToPdf, isLibreOfficeAvailable } from "../src/lib/convert";
@@ -29,7 +29,7 @@ async function main() {
       const inputBytes = await readFileBytes(oldPath);
       const pdf = await convertDocToPdf(inputBytes, ext);
       const saved = await saveBuffer(pdf, ".pdf", "document", "application/pdf");
-      const pageCount = estimatePageCount("pdf", pdf);
+      const pageCount = await estimatePageCount("pdf", pdf);
       const pricePaise =
         calculatePrice({
           printType: job.printType,

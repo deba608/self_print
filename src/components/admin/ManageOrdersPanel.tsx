@@ -68,6 +68,9 @@ export default function ManageOrdersPanel({
           onRefresh();
           setLeavingIds((prev) => { const next = new Set(prev); next.delete(jobId); return next; });
         }, 260);
+      } else {
+        const data = await response.json().catch(() => ({}));
+        setRestoreMsg(data.error ?? `Could not delete the order (${response.status}).`);
       }
     } finally {
       setDeleteLoading(null);
@@ -97,6 +100,9 @@ export default function ManageOrdersPanel({
           onRefresh();
           setLeavingIds((prev) => { const next = new Set(prev); ids.forEach((id) => next.delete(id)); return next; });
         }, 260);
+      } else {
+        const data = await response.json().catch(() => ({}));
+        setRestoreMsg(data.error ?? `Bulk delete failed (${response.status}).`);
       }
     } finally {
       setBulkDeleting(false);

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { cloneElement, isValidElement, useEffect, useId, useState } from "react";
 import {
   ChevronLeft, CreditCard, Printer, RotateCcw, Save, X,
   FileText, Image, CheckCircle2, AlertCircle, Loader2, Circle,
@@ -812,10 +812,11 @@ function SettingsCard({
 }
 
 function SettingsField({ label, children }: { label: string; children: React.ReactNode }) {
+  const id = useId();
   return (
     <div className="settings-field">
-      <label>{label}</label>
-      {children}
+      <label htmlFor={id}>{label}</label>
+      {isValidElement(children) ? cloneElement(children as React.ReactElement<{ id?: string }>, { id }) : children}
     </div>
   );
 }

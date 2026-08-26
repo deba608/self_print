@@ -244,6 +244,9 @@ export default function UploadForm() {
   const [deliveryAddress, setDeliveryAddress] = useState("");
   const [deliveryPincode, setDeliveryPincode] = useState("");
   const [deliveryArea, setDeliveryArea] = useState("");
+  // Active geolocation watch handle — cleared on re-click and unmount so a
+  // abandoned "locating" doesn't keep the GPS radio up to its full timeout.
+  const deliveryWatchRef = useRef<number | null>(null);
   const [deliveryLocation, setDeliveryLocation] = useState<{
     latitude: number;
     longitude: number;
@@ -692,12 +695,14 @@ export default function UploadForm() {
           settled = true;
           // Keep watching briefly in the background for a tighter fix, then stop.
           setTimeout(() => navigator.geolocation.clearWatch(watchId), 4000);
+          deliveryWatchRef.current = null;
         }
       },
       (geoError) => {
         if (settled) return;
         settled = true;
         navigator.geolocation.clearWatch(watchId);
+        deliveryWatchRef.current = null;
         setLocationState("idle");
         setLocationError(
           geoError.code === geoError.PERMISSION_DENIED
@@ -707,7 +712,15 @@ export default function UploadForm() {
       },
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
     );
+    deliveryWatchRef.current = watchId;
   }
+
+  // Stop an in-flight GPS watch when the form unmounts.
+  useEffect(() => () => {
+    if (deliveryWatchRef.current != null && typeof navigator !== "undefined" && navigator.geolocation) {
+      navigator.geolocation.clearWatch(deliveryWatchRef.current);
+    }
+  }, []);
 
   function appendDeliveryDetails(form: FormData) {
     form.set("deliveryMethod", deliveryMethod);
@@ -2802,6 +2815,7 @@ export default function UploadForm() {
                   />
                   {areaOptions.length > 0 && (
                     <select
+                      aria-label="Select your area"
                       value={deliveryArea}
                       onChange={(e) => setDeliveryArea(e.target.value)}
                       className="delivery-input"

@@ -1,4 +1,4 @@
-import crypto from "node:crypto";
+﻿import crypto from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { MAX_UPLOAD_BYTES } from "@/lib/config";
 import { MAX_BULK_FILES, parseBulkFiles } from "@/lib/bulk";
@@ -79,7 +79,7 @@ async function getCustomerUserId(): Promise<{ id: string; displayName: string | 
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return null;
     // Only stamp jobs for actual customer accounts. A staff member (or any
-    // non-customer session) uploading via the public form stays a guest job —
+    // non-customer session) uploading via the public form stays a guest job â€”
     // otherwise their jobs would surface under /my-jobs for that account.
     const { data: profile } = await supabase
       .from("customer_profiles")
@@ -312,19 +312,19 @@ export async function POST(request: NextRequest) {
       storedName = saved.storedName;
       storagePath = saved.storagePath;
       sizeBytes = saved.sizeBytes;
-      pageCount = estimatePageCount(kind, saved.bytes);
+      pageCount = await estimatePageCount(kind, saved.bytes);
       needsConversion = kind === "document" ? 1 : 0;
     }
 
     if (deliveryMethod === "delivery" && needsConversion) {
       return NextResponse.json(
-        { error: "Home delivery is not available for DOC/DOCX files — please upload a PDF" },
+        { error: "Home delivery is not available for DOC/DOCX files â€” please upload a PDF" },
         { status: 400 }
       );
     }
 
     // Pricing config, token allocation, and queue position are independent
-    // lookups — run them concurrently instead of serially.
+    // lookups â€” run them concurrently instead of serially.
     const [pricing, token, queuePos] = await Promise.all([getPricing(), randomToken(), nextQueuePosition()]);
     if (deliveryMethod === "delivery") {
       const check = checkDeliveryServiceable(
@@ -338,7 +338,7 @@ export async function POST(request: NextRequest) {
       );
       if (!check.ok) return NextResponse.json({ error: check.reason }, { status: 400 });
     }
-    // Duplex requires the document itself to have 2+ pages — copies don't count
+    // Duplex requires the document itself to have 2+ pages â€” copies don't count
     // (each copy prints as its own separate stack, so a 1-page doc can't duplex).
     if (duplex !== "simplex" && selectedPageCount(pageCount, pageRange) < 2) {
       return NextResponse.json({ error: "Double-sided printing requires a document with at least 2 pages." }, { status: 400 });
@@ -397,7 +397,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ jobId, token, pricePaise, deliveryFeePaise, addonFeePaise, needsConversion: Boolean(needsConversion), pageCount, queuePosition: queuePos });
   } catch (error) {
     // A Supabase/PostgREST rejection is a plain object, not an Error. Log the
-    // real cause server-side only — raw messages leak table names, constraint
+    // real cause server-side only â€” raw messages leak table names, constraint
     // names and connection hints to anonymous callers.
     console.error("[/api/jobs] job creation failed:", error);
     return NextResponse.json({ error: "Upload failed. Please try again." }, { status: 500 });
@@ -480,7 +480,7 @@ async function handleBulk(form: FormData, customer: { id: string; displayName: s
     }
     // Measure every uploaded object server-side. The client-reported pageCount
     // in filesJson is advisory only (used for the browser's price preview) and
-    // must not reach pricing — see measureStoredFile.
+    // must not reach pricing â€” see measureStoredFile.
     let measured: Array<{ sizeBytes: number; pageCount: number }>;
     try {
       measured = await Promise.all(
@@ -535,7 +535,7 @@ async function handleBulk(form: FormData, customer: { id: string; displayName: s
         return NextResponse.json({ error: "Bulk upload accepts PDF files only." }, { status: 400 });
       }
       const saved = await saveUpload(upload, ext, "pdf");
-      perFilePageCounts.push(Math.max(1, estimatePageCount("pdf", saved.bytes)));
+      perFilePageCounts.push(Math.max(1, await estimatePageCount("pdf", saved.bytes)));
       filesData.push({
         original_name: upload.name,
         stored_name: saved.storedName,
@@ -569,14 +569,14 @@ async function handleBulk(form: FormData, customer: { id: string; displayName: s
 
   const jobDefaults = { printType, duplex, paperSize, copies, pagesPerSheet };
   // Price per file at its own effective settings (override ?? job default)
-  // and sum, instead of one flat calculatePrice() over the total page count —
+  // and sum, instead of one flat calculatePrice() over the total page count â€”
   // that flat call was correct only because every file shared one setting.
   // A file downgrades its own duplex to simplex when it doesn't have enough
-  // pages for it, rather than erroring the whole order out — the old
+  // pages for it, rather than erroring the whole order out â€” the old
   // job-level "needs 2+ pages" guard doesn't make sense per-file since
   // duplex can now differ file to file. The downgrade is written back into
   // overrides[i] (not just used locally for pricing) so job_files.settings_json
-  // — and therefore the print agent's effectiveJobForFile() — agrees with what
+  // â€” and therefore the print agent's effectiveJobForFile() â€” agrees with what
   // was actually charged; otherwise the agent would still attempt a duplex
   // print the customer was billed simplex for.
   let printPricePaise = 0;
@@ -646,7 +646,7 @@ async function handleBulk(form: FormData, customer: { id: string; displayName: s
 
 // Tokens are the counter-facing order code, so they stay 6 digits. Uniqueness
 // was never enforced, and with a live queue the birthday bound makes collisions
-// realistic — two active jobs sharing a token break every token lookup
+// realistic â€” two active jobs sharing a token break every token lookup
 // (getJobByToken resolves one row, or errors outright). Retry until we find a
 // free one; the space is large enough that this almost always exits first try.
 async function randomToken(): Promise<string> {
@@ -654,7 +654,7 @@ async function randomToken(): Promise<string> {
     const candidate = crypto.randomInt(100000, 999999).toString();
     try {
       await getJobByToken(candidate);
-      // Found an existing job with this token — collision, try again.
+      // Found an existing job with this token â€” collision, try again.
     } catch {
       return candidate;
     }

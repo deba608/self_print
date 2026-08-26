@@ -249,9 +249,9 @@ async function renderBillPng(bill: BillData): Promise<Blob> {
    }
   if (bill.settings.hasCoverFile && bill.settings.coverFilePaise != null) {
     ctx.textAlign = "left";
-    ctx.fillText("Cover File", left, y);
+    ctx.fillText(`Cover File${(bill.settings.coverFileQty ?? 1) > 1 ? ` A-${bill.settings.coverFileQty}` : ""}`, left, y);
     ctx.textAlign = "right";
-    ctx.fillText(rupees(bill.settings.coverFilePaise), right, y);
+    ctx.fillText(rupees(bill.settings.coverFilePaise * (bill.settings.coverFileQty ?? 1)), right, y);
     y += lineH;
   }
   if (bill.deliveryFeePaise != null && bill.deliveryFeePaise > 0) {

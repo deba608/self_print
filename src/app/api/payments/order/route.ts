@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getJobByToken } from "@/lib/db";
 import { RAZORPAY_KEY_ID, isRazorpayConfigured, razorpay } from "@/lib/razorpay";
+import { clientIp, isRateLimited } from "@/lib/ratelimit";
 
 // Creates a Razorpay order for a job's price. The amount is read from the job
 // row on the server — never trusted from the client — so it can't be tampered.
@@ -17,6 +18,13 @@ export async function POST(request: NextRequest) {
   }
   if (!token || typeof token !== "string") {
     return NextResponse.json({ error: "Missing token." }, { status: 400 });
+  }
+
+  // Order creation is unauthenticated and mints real gateway orders — throttle
+  // per IP+token so a script can't spam Razorpay order creation.
+  const rateKey = `${clientIp(request.headers)}:${token}`;
+  if (isRateLimited("payments-order", rateKey, 10, 60 * 1000)) {
+    return NextResponse.json({ error: "Too many requests. Please try again later." }, { status: 429 });
   }
 
   let job;

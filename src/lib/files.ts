@@ -23,12 +23,31 @@ export async function saveUpload(file: File, ext: string, kind: FileKind = "pdf"
   return saveToStorage(file, ext, kind);
 }
 
-export function estimatePageCount(kind: FileKind, bytes: Buffer) {
+export async function estimatePageCount(kind: FileKind, bytes: Buffer): Promise<number> {
   if (kind === "image") return 1;
   if (kind === "document") return 0;
-  const text = bytes.toString("latin1");
-  const matches = text.match(/\/Type\s*\/Page\b/g);
-  return Math.max(matches?.length ?? 1, 1);
+  // Real page count via PDFium — the same engine the agent prints with. The
+  // old regex counted /Type /Page occurrences in raw bytes, which modern
+  // PDFs hide inside compressed object streams: a 300-page file was billed
+  // as ~1 page while the agent still printed all of them.
+  try {
+    const { PDFiumLibrary } = await import("@hyzyla/pdfium");
+    const lib = await PDFiumLibrary.init();
+    try {
+      const doc = await lib.loadDocument(new Uint8Array(bytes));
+      const count = doc.getPageCount();
+      doc.destroy();
+      return Math.max(count, 1);
+    } finally {
+      lib.destroy?.();
+    }
+  } catch {
+    // Malformed PDF or WASM unavailable — fall back to the byte-regex
+    // heuristic rather than failing the upload.
+    const text = bytes.toString("latin1");
+    const matches = text.match(/\/Type\s*\/Page\b/g);
+    return Math.max(matches?.length ?? 1, 1);
+  }
 }
 
 /**
@@ -47,5 +66,5 @@ export async function measureStoredFile(
   if (bytes.length > MAX_UPLOAD_BYTES) {
     throw new Error("File is too large");
   }
-  return { sizeBytes: bytes.length, pageCount: estimatePageCount(kind, bytes) };
+  return { sizeBytes: bytes.length, pageCount: await estimatePageCount(kind, bytes) };
 }

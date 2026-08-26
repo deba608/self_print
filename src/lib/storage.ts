@@ -31,14 +31,32 @@ export function isValidStoredName(storedName: string): boolean {
 // client-supplied storedName if it carries a matching signature. This stops a
 // client from attaching an object it never uploaded (IDOR) even if it somehow
 // learns another customer's storedName.
+//
+// Signatures embed an issue timestamp (`<ms>:<hex>`) and expire after
+// UPLOAD_SIG_TTL_MS — without expiry, one signed upload could be replayed to
+// create unlimited jobs indefinitely.
+
+const UPLOAD_SIG_TTL_MS = 15 * 60 * 1000; // 15 minutes
+
+function signStoredNamePayload(storedName: string, issuedAtMs: number): string {
+  return createHmac('sha256', SESSION_SECRET).update(`upload:${storedName}:${issuedAtMs}`).digest('hex');
+}
+
 export function signStoredName(storedName: string): string {
-  return createHmac('sha256', SESSION_SECRET).update(`upload:${storedName}`).digest('hex');
+  const issuedAt = Date.now();
+  return `${issuedAt}:${signStoredNamePayload(storedName, issuedAt)}`;
 }
 
 export function verifyStoredNameSig(storedName: string, sig: string): boolean {
-  const expected = signStoredName(storedName);
-  if (sig.length !== expected.length) return false;
-  return timingSafeEqual(Buffer.from(expected), Buffer.from(sig));
+  const sep = sig.indexOf(':');
+  if (sep <= 0) return false;
+  const issuedAtMs = Number(sig.slice(0, sep));
+  const mac = sig.slice(sep + 1);
+  if (!Number.isFinite(issuedAtMs) || issuedAtMs <= 0) return false;
+  if (Date.now() - issuedAtMs > UPLOAD_SIG_TTL_MS) return false;
+  const expected = signStoredNamePayload(storedName, issuedAtMs);
+  if (mac.length !== expected.length) return false;
+  return timingSafeEqual(Buffer.from(expected), Buffer.from(mac));
 }
 
 export interface SavedFile {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { readFileStream } from "@/lib/storage";
+import { requireStaff } from "@/lib/security";
 import { clientIp, isRateLimited } from "@/lib/ratelimit";
 
 // Lets a signed-in customer view/download an original upload for one of
@@ -14,6 +15,14 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   } = await supabase.auth.getUser();
   if (!user) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  }
+
+  // Staff sessions must not ride the customer file path: job_files RLS grants
+  // staff broad read access, which would let a delivery rider download any
+  // customer's document through this customer endpoint. Admins keep access.
+  const staff = await requireStaff();
+  if (staff && staff.role === "delivery") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   if (isRateLimited("file-serve-customer", clientIp(request.headers), 60, 60 * 1000)) {

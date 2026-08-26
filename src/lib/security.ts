@@ -30,11 +30,14 @@ export async function requireStaff(): Promise<StaffProfile | null> {
 }
 
 // Admin-tier only: delivery riders must never pass this gate.
-export async function requireAdmin(): Promise<StaffProfile | null> {
-  const staff = await requireStaff();
-  if (!staff || staff.role === "delivery") return null;
-  return staff;
-}
+  export async function requireAdmin(): Promise<StaffProfile | null> {
+    const ADMIN_ROLES = new Set(["super_admin", "admin"]);
+    const staff = await requireStaff();
+    // Allow-list on purpose: a role added to staff_profiles later must never
+    // silently pass the admin gate (deny-lists fail open by default).
+    if (!staff || !ADMIN_ROLES.has(staff.role)) return null;
+    return staff;
+  }
 
 export async function requireAdminResponse(): Promise<NextResponse | null> {
   const admin = await requireAdmin();

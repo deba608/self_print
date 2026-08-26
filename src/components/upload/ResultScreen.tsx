@@ -132,14 +132,21 @@ export default function ResultScreen({
   }, [result.token, result.needsConversion, liveStatusStatus, liveDeliveryStatus, deliveryMethod]);
 
   useEffect(() => {
-    createClient().auth.getUser().then(({ data }) => {
-      if (!data.user) setIsGuest(true);
-    });
-    setNudgeDismissed(localStorage.getItem("sp_login_nudge_dismissed") === "1");
+    // Safari private mode throws on localStorage access and on client init
+    // when env is missing — degrade to guest view instead of crashing the
+    // post-payment screen.
+    try {
+      createClient().auth.getUser().then(({ data }) => {
+        if (!data.user) setIsGuest(true);
+      });
+      setNudgeDismissed(localStorage.getItem("sp_login_nudge_dismissed") === "1");
+    } catch {}
   }, []);
 
   const dismissNudge = () => {
-    localStorage.setItem("sp_login_nudge_dismissed", "1");
+    try {
+      localStorage.setItem("sp_login_nudge_dismissed", "1");
+    } catch {}
     setNudgeDismissed(true);
   };
 
