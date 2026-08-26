@@ -192,7 +192,7 @@ function BulkFileCustomizePanel({
       <div className="bulk-customize-foot">
         <span className="bulk-customize-price">
           {filePricePaise != null ? (
-            <>This file ≈ <strong>{formatRupees(filePricePaise)}</strong></>
+            <>This file: <strong>{formatRupees(filePricePaise)}</strong></>
           ) : null}
         </span>
         {override ? (
