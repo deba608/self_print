@@ -1340,6 +1340,13 @@ input, select, button {
   box-shadow: 0 0 0 1px var(--accent);
 }
 
+/* Row sits directly above its own customize panel — when active, carry the
+   teal border down so the two read as one card instead of a seam. */
+.bulk-file-item:has(.bulk-file-row.active) .bulk-file-customize-panel {
+  border-color: var(--accent);
+  border-top-color: var(--accent-light);
+}
+
 /* Row exit — X clicked, collapses out before the array actually shrinks */
 .bulk-file-row.leaving {
   max-height: 0;
@@ -1500,13 +1507,14 @@ input, select, button {
      ~160px phone column fits them without stacking. */
   grid-template-columns: repeat(2, 1fr);
   gap: 10px 8px;
-  margin: -4px 0 8px;
+  margin: -1px 0 8px;
   padding: 12px;
-  background: var(--panel);
+  background: #fff;
   border: 1px solid var(--line);
-  border-top: none;
-  border-radius: 0 0 12px 12px;
-  box-shadow: inset 0 1px 3px rgba(23, 32, 42, 0.05);
+  border-top: 1px dashed var(--line);
+  /* Match the row's own radius so the panel reads as part of the same
+     card instead of a separate floating block underneath it. */
+  border-radius: 0 0 10px 10px;
   animation: fadeInUp 0.2s var(--ease-out) both;
 }
 
