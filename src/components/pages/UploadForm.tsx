@@ -268,7 +268,7 @@ export default function UploadForm() {
         if (d?.name) setCustomerName((prev) => prev || d.name);
         if (d?.phone) setCustomerPhone((prev) => prev || d.phone);
         if (d?.address) setDeliveryAddress((prev) => prev || d.address);
-        if (d?.pincode) setDeliveryPincode((prev) => prev || d.pincode);
+        if (d?.pincode) { setDeliveryPincode(d.pincode); setPincodeTouched(true); }
         if (d?.area) setDeliveryArea((prev) => prev || d.area);
       }
     } catch { /* private mode or corrupt data — ignore */ }
@@ -316,7 +316,11 @@ export default function UploadForm() {
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [deliveryAddress, setDeliveryAddress] = useState("");
-  const [deliveryPincode, setDeliveryPincode] = useState("");
+  // Prefilled with a real serviceable pincode for demo/testing so the
+  // delivery flow works out of the box — shown muted until the customer
+  // edits it, at which point it reads like any normal typed value.
+  const [deliveryPincode, setDeliveryPincode] = useState("768019");
+  const [pincodeTouched, setPincodeTouched] = useState(false);
   const [deliveryArea, setDeliveryArea] = useState("");
   // Active geolocation watch handle — cleared on re-click and unmount so a
   // abandoned "locating" doesn't keep the GPS radio up to its full timeout.
@@ -1533,20 +1537,23 @@ export default function UploadForm() {
         setCustomerName(d?.name || guestName || "");
         setCustomerPhone(d?.phone || guestPhone || "");
         setDeliveryAddress(d?.address || "");
-        setDeliveryPincode(d?.pincode || "");
+        setDeliveryPincode(d?.pincode || "768019");
+        setPincodeTouched(Boolean(d?.pincode));
         setDeliveryArea(d?.area || "");
       } else {
         setCustomerName(guestName || "");
         setCustomerPhone(guestPhone || "");
         setDeliveryAddress("");
-        setDeliveryPincode("");
+        setDeliveryPincode("768019");
+        setPincodeTouched(false);
         setDeliveryArea("");
       }
     } catch {
       setCustomerName(guestName || "");
       setCustomerPhone(guestPhone || "");
       setDeliveryAddress("");
-      setDeliveryPincode("");
+      setDeliveryPincode("768019");
+      setPincodeTouched(false);
       setDeliveryArea("");
     }
     setDeliveryLocation(null);
@@ -2869,8 +2876,9 @@ export default function UploadForm() {
                     maxLength={6}
                     placeholder="Pincode (6 digits)"
                     value={deliveryPincode}
-                    onChange={(e) => { setDeliveryPincode(e.target.value.replace(/\D/g, "")); setDeliveryArea(""); }}
-                    className="delivery-input"
+                    onChange={(e) => { setDeliveryPincode(e.target.value.replace(/\D/g, "")); setDeliveryArea(""); setPincodeTouched(true); }}
+                    onFocus={(e) => { if (!pincodeTouched) e.target.select(); }}
+                    className={`delivery-input ${!pincodeTouched ? "delivery-input-demo" : ""}`}
                     autoComplete="postal-code"
                     aria-invalid={deliveryPincode.length > 0 && (!pincodeValid || !serviceCheck.ok)}
                   />

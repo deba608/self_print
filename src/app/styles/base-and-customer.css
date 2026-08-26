@@ -4158,6 +4158,15 @@ input, select, button {
   border-color: var(--accent);
 }
 
+/* Demo pincode (768019) prefilled for out-of-the-box testing — shown faded
+   so it reads as a placeholder-like default rather than a real typed value.
+   Still a normal editable input; the moment it's edited or focused-and-typed
+   over, pincodeTouched flips true and this class drops off. */
+.delivery-input-demo {
+  color: var(--muted);
+  opacity: 0.65;
+}
+
 .delivery-input-invalid {
   border-color: var(--danger);
 }
