@@ -1495,10 +1495,10 @@ input, select, button {
 
 .bulk-file-customize-panel {
   display: grid;
-  /* Exactly 3 fields now (Print / Sides / Copies) — a fixed 3-up grid reads
-     cleaner than auto-fit's collapse-to-uneven-rows behavior; the footer
-     (live per-file estimate + reset) spans the full width below them. */
-  grid-template-columns: repeat(3, 1fr);
+  /* Four capsule fields (Print / Sides / Orientation / Copies) sit cleanly
+     as a 2×2 grid at every width — capsules are narrow enough that even a
+     ~160px phone column fits them without stacking. */
+  grid-template-columns: repeat(2, 1fr);
   gap: 10px 8px;
   margin: -4px 0 8px;
   padding: 12px;
@@ -1508,15 +1508,6 @@ input, select, button {
   border-radius: 0 0 12px 12px;
   box-shadow: inset 0 1px 3px rgba(23, 32, 42, 0.05);
   animation: fadeInUp 0.2s var(--ease-out) both;
-}
-
-/* Narrow phones: three controls squeezed into ~100px columns read cramped —
-   stack the fields and let each get the full row width instead. */
-@media (max-width: 430px) {
-  .bulk-file-customize-panel {
-    grid-template-columns: 1fr;
-    gap: 8px;
-  }
 }
 
 .bulk-customize-row {
@@ -1563,38 +1554,46 @@ input, select, button {
   min-height: 38px;
 }
 
-/* Per-file Print/Sides switches — segmented control, same visual language as
-   the job-level page-mode-grid toggle, just compact enough for a 3-up grid. */
+/* Per-file switches — capsule segmented control. Tinted track, pill options,
+   active option fills with the accent and lifts on a soft glow; press scales
+   down slightly for tactile feedback. Same visual language as the job-level
+   page-mode-grid toggle. */
 .bulk-switch {
   display: flex;
+  gap: 3px;
+  padding: 3px;
   border: 1px solid var(--line);
-  border-radius: 8px;
-  background: #fff;
+  border-radius: 999px;
+  background: var(--accent-bg);
   overflow: hidden;
   min-height: 38px;
 }
 .bulk-switch-opt {
   flex: 1;
   border: none;
+  border-radius: 999px;
   background: transparent;
   color: var(--muted);
   font-size: 12px;
   font-weight: 700;
   cursor: pointer;
   padding: 0 4px;
-  transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
-}
-.bulk-switch-opt + .bulk-switch-opt {
-  border-left: 1px solid var(--line);
+  transition:
+    background var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out);
 }
 .bulk-switch-opt.active {
   background: var(--accent);
   color: #fff;
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 1px 4px rgba(13, 122, 116, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.18);
 }
 .bulk-switch-opt:hover:not(.active):not(:disabled) {
-  background: var(--accent-bg);
   color: var(--accent);
+}
+.bulk-switch-opt:active:not(:disabled) {
+  transform: scale(0.96);
 }
 .bulk-switch-opt:disabled {
   color: var(--line);

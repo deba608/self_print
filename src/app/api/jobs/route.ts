@@ -31,6 +31,10 @@ function validateFileOverride(raw: unknown): FileSettingsOverride | null | { err
     if (!paperSizes.includes(o.paperSize as PaperSize)) return { error: "Invalid per-file paper size." };
     out.paperSize = o.paperSize as PaperSize;
   }
+  if (o.layout !== undefined) {
+    if (o.layout !== "portrait" && o.layout !== "landscape") return { error: "Invalid per-file orientation." };
+    out.layout = o.layout as PrintLayout;
+  }
   if (o.copies !== undefined) {
     const n = Math.floor(Number(o.copies));
     if (!Number.isFinite(n) || n < 1 || n > 99) return { error: "Per-file copies must be between 1 and 99." };

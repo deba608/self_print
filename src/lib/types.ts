@@ -145,6 +145,7 @@ export type FileSettingsOverride = {
   printType?: PrintType;
   duplex?: PrintDuplex;
   paperSize?: PaperSize;
+  layout?: PrintLayout;
   copies?: number;
   pagesPerSheet?: number;
 };

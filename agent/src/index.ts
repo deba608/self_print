@@ -59,7 +59,7 @@ type SupabaseJobFile = {
   created_at: string;
   // Per-file print-settings override for bulk jobs — see
   // docs/bulk-per-file-customization-plan.md. JSON-encoded partial of
-  // { print_type, duplex, paper_size, copies, pages_per_sheet }; null/absent
+  // { printType, duplex, paperSize, layout, copies, pagesPerSheet }; null/absent
   // means this file just uses the job's own settings.
   settings_json?: string | null;
 };
@@ -570,6 +570,7 @@ function effectiveJobForFile(job: SupabaseJob, file: SupabaseJobFile): SupabaseJ
     print_type: typeof override.printType === "string" ? override.printType : job.print_type,
     duplex: typeof override.duplex === "string" ? override.duplex : job.duplex,
     paper_size: typeof override.paperSize === "string" ? override.paperSize : job.paper_size,
+    layout: typeof override.layout === "string" ? override.layout : job.layout,
     copies: typeof override.copies === "number" ? override.copies : job.copies,
     pages_per_sheet: typeof override.pagesPerSheet === "number" ? override.pagesPerSheet : job.pages_per_sheet,
   };

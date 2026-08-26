@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useState, useRef } from "react";
 import Link from "next/link";
@@ -20,7 +20,7 @@ import { createClient } from "@/lib/supabase/client";
 type Step = "upload" | "settings" | "preview" | "converting" | "done" | "docx-warning";
 type PageRangeMode = "all" | "custom";
 
-// Per-file settings panel for bulk uploads — shared between the mobile
+// Per-file settings panel for bulk uploads â€” shared between the mobile
 // wizard's inline row list and the desktop thumbnail grid's drawer, so the
 // two surfaces can't drift apart on which fields are editable. See
 // docs/bulk-per-file-customization-plan.md.
@@ -33,8 +33,8 @@ function BulkFileCustomizePanel({
   onReset,
 }: {
   override: FileSettingsOverride | undefined;
-  jobDefaults: { printType: string; duplex: string; paperSize: string; copies: number; pagesPerSheet: number };
-  // This file's own page count — double-sided needs at least 2 pages to mean
+  jobDefaults: { printType: string; duplex: string; paperSize: string; layout: string; copies: number; pagesPerSheet: number };
+  // This file's own page count â€” double-sided needs at least 2 pages to mean
   // anything, same rule as the job-level Sides control (see canDuplex above).
   pageCount: number;
   // Present = show this file's own live estimate inside the panel, computed
@@ -46,6 +46,7 @@ function BulkFileCustomizePanel({
   const printType = override?.printType ?? jobDefaults.printType;
   const canDuplex = pageCount >= 2;
   const isDouble = canDuplex && (override?.duplex ?? jobDefaults.duplex) !== "simplex";
+  const layout = override?.layout ?? jobDefaults.layout;
   const copies = override?.copies ?? jobDefaults.copies;
 
   // Changed = this file's value actually differs from the job-level default.
@@ -53,13 +54,24 @@ function BulkFileCustomizePanel({
   // glance which fields were customized vs inherited.
   const printChanged = printType !== jobDefaults.printType;
   const sidesChanged = (isDouble ? "long-edge" : "simplex") !== jobDefaults.duplex;
+  const layoutChanged = layout !== jobDefaults.layout;
   const copiesChanged = copies !== jobDefaults.copies;
 
-  // Same math as the bulk priceBreakdown below — one file at its effective
+  // Same math as the bulk priceBreakdown below â€” one file at its effective
   // settings, addons excluded (those are job-level, shown in the summary).
   const filePricePaise = useMemo(() => {
     if (!pricing) return null;
-    const effective = effectiveFileSettings(jobDefaults as Parameters<typeof effectiveFileSettings>[0], override ?? null);
+    const effective = effectiveFileSettings(
+      {
+        printType: jobDefaults.printType as "bw" | "color",
+        duplex: jobDefaults.duplex as "simplex" | "long-edge" | "short-edge",
+        paperSize: jobDefaults.paperSize as "A3" | "A4" | "A5" | "A6" | "B5" | "Letter" | "Legal" | "Photo",
+        layout: jobDefaults.layout as "portrait" | "landscape",
+        copies: jobDefaults.copies,
+        pagesPerSheet: jobDefaults.pagesPerSheet,
+      },
+      override ?? null
+    );
     return calculatePrice({
       printType: effective.printType,
       copies: effective.copies,
@@ -74,7 +86,7 @@ function BulkFileCustomizePanel({
 
   // A single-page file can't stay set to double-sided once selected (e.g. the
   // job default was double but this file's override/page-range brings it to
-  // 1 page) — snap it back to simplex so the invalid state never persists.
+  // 1 page) â€” snap it back to simplex so the invalid state never persists.
   useEffect(() => {
     if (!canDuplex && override?.duplex && override.duplex !== "simplex") {
       onChange({ duplex: "simplex" });
@@ -120,7 +132,7 @@ function BulkFileCustomizePanel({
             type="button"
             className={`bulk-switch-opt ${isDouble ? "active" : ""}`}
             // Same 2-choice model as the job-level Sides control (page-mode-grid
-            // above) — "Double-sided" always means long-edge. Short-edge was a
+            // above) â€” "Double-sided" always means long-edge. Short-edge was a
             // 3rd option nobody asked for and never existed at job level either.
             onClick={() => canDuplex && onChange({ duplex: "long-edge" })}
             disabled={!canDuplex}
@@ -130,7 +142,28 @@ function BulkFileCustomizePanel({
             Double
           </button>
         </div>
-        {!canDuplex && <span className="bulk-customize-note">1-page file — single-sided only</span>}
+        {!canDuplex && <span className="bulk-customize-note">1-page file â€” single-sided only</span>}
+      </div>
+      <div className="bulk-customize-row">
+        <label className={layoutChanged ? "changed" : ""}>Orientation</label>
+        <div className="bulk-switch" role="group" aria-label="Orientation">
+          <button
+            type="button"
+            className={`bulk-switch-opt ${layout === "portrait" ? "active" : ""}`}
+            onClick={() => onChange({ layout: "portrait" })}
+            aria-pressed={layout === "portrait"}
+          >
+            Portrait
+          </button>
+          <button
+            type="button"
+            className={`bulk-switch-opt ${layout === "landscape" ? "active" : ""}`}
+            onClick={() => onChange({ layout: "landscape" })}
+            aria-pressed={layout === "landscape"}
+          >
+            Landscape
+          </button>
+        </div>
       </div>
       <div className="bulk-customize-row">
         <label className={copiesChanged ? "changed" : ""}>Copies</label>
@@ -142,7 +175,7 @@ function BulkFileCustomizePanel({
             disabled={copies <= 1}
             aria-label="Decrease copies"
           >
-            −
+            âˆ’
           </button>
           <span className="bulk-stepper-value">{copies}</span>
           <button
@@ -159,7 +192,7 @@ function BulkFileCustomizePanel({
       <div className="bulk-customize-foot">
         <span className="bulk-customize-price">
           {filePricePaise != null ? (
-            <>This file ≈ <strong>{formatRupees(filePricePaise)}</strong></>
+            <>This file â‰ˆ <strong>{formatRupees(filePricePaise)}</strong></>
           ) : null}
         </span>
         {override ? (
@@ -207,7 +240,7 @@ export default function UploadForm() {
         subscription.unsubscribe();
       };
     } catch {
-      // Supabase not configured (SQLite-only dev) — treat as no auth.
+      // Supabase not configured (SQLite-only dev) â€” treat as no auth.
       if (mounted) setCurrentUser(null);
     }
   }, []);
@@ -226,7 +259,7 @@ export default function UploadForm() {
           setGuestPhone(p.phone);
           setCustomerPhone((prev) => prev || p.phone);
         }
-        // Returning guest — allow uploads without re-showing the popup.
+        // Returning guest â€” allow uploads without re-showing the popup.
         setGuestAllowed(true);
       }
       const rawAddr = localStorage.getItem("selfprint:lastDeliveryAddress");
@@ -238,7 +271,7 @@ export default function UploadForm() {
         if (d?.pincode) setDeliveryPincode((prev) => prev || d.pincode);
         if (d?.area) setDeliveryArea((prev) => prev || d.area);
       }
-    } catch { /* private mode or corrupt data — ignore */ }
+    } catch { /* private mode or corrupt data â€” ignore */ }
   }, []);
   const [pricing, setPricing] = useState<Pricing | null>(null);
   const [file, setFile] = useState<File | null>(null);
@@ -246,7 +279,7 @@ export default function UploadForm() {
   const [copies, setCopies] = useState(1);
   const [pageRangeMode, setPageRangeMode] = useState<PageRangeMode>("all");
   const [customPageRange, setCustomPageRange] = useState("");
-  // Debounced copy of customPageRange used only for the preview/page-list —
+  // Debounced copy of customPageRange used only for the preview/page-list â€”
   // recomputing the pdf.js canvas render on every keystroke caused visible
   // jank while typing a range. Validation stays on the instant value.
   const [debouncedPageRange, setDebouncedPageRange] = useState("");
@@ -285,7 +318,7 @@ export default function UploadForm() {
   const [deliveryAddress, setDeliveryAddress] = useState("");
   const [deliveryPincode, setDeliveryPincode] = useState("");
   const [deliveryArea, setDeliveryArea] = useState("");
-  // Active geolocation watch handle — cleared on re-click and unmount so a
+  // Active geolocation watch handle â€” cleared on re-click and unmount so a
   // abandoned "locating" doesn't keep the GPS radio up to its full timeout.
   const deliveryWatchRef = useRef<number | null>(null);
   const [deliveryLocation, setDeliveryLocation] = useState<{
@@ -334,7 +367,7 @@ export default function UploadForm() {
   const stepAnim = stepAnimRef.current;
   // Desktop one-page mode: at >=1024px the Settings and Preview steps merge
   // into one two-column workspace (settings left, live preview + confirm
-  // right) — the wizard only exists on smaller screens. SSR renders the
+  // right) â€” the wizard only exists on smaller screens. SSR renders the
   // mobile wizard; the effect corrects on mount before first paint matters.
   const [isDesktop, setIsDesktop] = useState(false);
   useEffect(() => {
@@ -344,7 +377,7 @@ export default function UploadForm() {
     mq.addEventListener("change", apply);
     return () => mq.removeEventListener("change", apply);
   }, []);
-  // Desktop fulfillment stage — the workspace's Continue button flips to a
+  // Desktop fulfillment stage â€” the workspace's Continue button flips to a
   // dedicated "how will you get your prints?" screen before submitting.
   const [fulfilStage, setFulfilStage] = useState(false);
   useEffect(() => {
@@ -359,21 +392,21 @@ export default function UploadForm() {
   const [bulkFiles, setBulkFiles] = useState<File[]>([]);
   const [bulkPageCounts, setBulkPageCounts] = useState<number[]>([]);
   // Stable per-file ids, kept index-aligned with bulkFiles/bulkPageCounts and
-  // used to key the upload promises (see bulkUploadsRef) so storedName↔file
+  // used to key the upload promises (see bulkUploadsRef) so storedNameâ†”file
   // alignment survives any removal, independent of positional index.
   const [bulkIds, setBulkIds] = useState<string[]>([]);
   // Ids currently animating out (X clicked); actual removal happens on
   // transition-end so the collapse always plays against the correct file.
   const [leavingBulkIds, setLeavingBulkIds] = useState<Set<string>>(new Set());
   // Per-file settings overrides for bulk jobs, keyed by the same stable
-  // bulkIds used everywhere else — see docs/bulk-per-file-customization-plan.md.
+  // bulkIds used everywhere else â€” see docs/bulk-per-file-customization-plan.md.
   // A file with no entry here just inherits the job-level settings.
   const [bulkFileOverrides, setBulkFileOverrides] = useState<Record<string, FileSettingsOverride>>({});
-  // Which bulk file's customize panel is open — only one at a time.
+  // Which bulk file's customize panel is open â€” only one at a time.
   const [customizingBulkId, setCustomizingBulkId] = useState<string | null>(null);
   // Sticky: once a 2+ file selection enters bulk, we stay in bulk UI even if
-  // the user removes files down to 1 via the ✕ button. Cleared only on reset
-  // or an explicit fresh single-file selection — never derived from length.
+  // the user removes files down to 1 via the âœ• button. Cleared only on reset
+  // or an explicit fresh single-file selection â€” never derived from length.
   const [bulkMode, setBulkMode] = useState(false);
   // One-time onboarding pulse on the per-file customize (gear) icons, shown
   // to new users the first time they have 2+ bulk files until they either
@@ -398,15 +431,15 @@ export default function UploadForm() {
   // Which bulk file the full print preview shows; row taps switch it. Clamped
   // whenever files are removed so it always points at a real file.
   const [bulkPreviewIndex, setBulkPreviewIndex] = useState(0);
-  // True while background bulk uploads are still in flight — Confirm shows an
+  // True while background bulk uploads are still in flight â€” Confirm shows an
   // uploading state instead of failing (or waiting silently) when tapped early.
   const [bulkUploading, setBulkUploading] = useState(false);
-  // Mirror of bulkUploading for the single-file flow — lets the progress bar
-  // render "Preparing upload…" even before the first byte of a file moves,
+  // Mirror of bulkUploading for the single-file flow â€” lets the progress bar
+  // render "Preparing uploadâ€¦" even before the first byte of a file moves,
   // which the old `uploadPct > 0` gate never showed.
   const [singleUploading, setSingleUploading] = useState(false);
-  // Stable ids whose upload promise has settled (success or fallback) — drives
-  // the per-file ✓ in the bulk lists so every file visibly finishes instead of
+  // Stable ids whose upload promise has settled (success or fallback) â€” drives
+  // the per-file âœ“ in the bulk lists so every file visibly finishes instead of
   // one bar standing in for the whole batch.
   const [bulkUploadDoneIds, setBulkUploadDoneIds] = useState<Set<string>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -416,8 +449,8 @@ export default function UploadForm() {
   const uploadPromiseRef = useRef<Promise<{ isDirectUpload: boolean; storedName?: string; uploadSig?: string; error?: string }> | null>(null);
   const uploadAbortControllerRef = useRef<AbortController | null>(null);
   // Upload promises keyed by stable file id (all fed by a single shared
-  // /api/uploads/sign call, see startBulkUploads). Keyed by id — not array
-  // index — so removeBulkFile can drop one entry without any index desync.
+  // /api/uploads/sign call, see startBulkUploads). Keyed by id â€” not array
+  // index â€” so removeBulkFile can drop one entry without any index desync.
   const bulkUploadsRef = useRef<Map<string, Promise<{ storedName?: string; uploadSig?: string; error?: string; fallback?: boolean }>> | null>(null);
   const bulkUploadAbortControllerRef = useRef<AbortController | null>(null);
 
@@ -427,7 +460,7 @@ export default function UploadForm() {
 
   // PUTs a file straight to a signed storage URL via XHR (fetch has no upload
   // progress events). The signed URL is absolute and carries its own token, so
-  // this needs NO client-side Supabase config — works on any deployment where
+  // this needs NO client-side Supabase config â€” works on any deployment where
   // the server has cloud storage.
   function xhrPutFile(
     url: string,
@@ -460,7 +493,7 @@ export default function UploadForm() {
       };
       xhr.onerror = () => {
         signal.removeEventListener("abort", onAbort);
-        reject(new Error("Upload failed — check your connection."));
+        reject(new Error("Upload failed â€” check your connection."));
       };
       xhr.onabort = () => {
         signal.removeEventListener("abort", onAbort);
@@ -483,7 +516,7 @@ export default function UploadForm() {
 
   // Starts one shared sign request for the whole batch, then PUTs each file
   // directly to storage with progress. Falls back to sending bytes with the
-  // job form ONLY when the server has no cloud storage (local SQLite mode —
+  // job form ONLY when the server has no cloud storage (local SQLite mode â€”
   // the sign endpoint answers 400 "Direct upload not available").
   function startBulkUploads(selected: File[], ids: string[]): Map<string, Promise<{ storedName?: string; uploadSig?: string; error?: string; fallback?: boolean }>> {
     if (bulkUploadAbortControllerRef.current) {
@@ -528,7 +561,7 @@ export default function UploadForm() {
         });
       map.set(id, upload);
       // Flag the file as done the instant its upload settles (success or
-      // fallback) so its row shows a ✓ without waiting on a progress event.
+      // fallback) so its row shows a âœ“ without waiting on a progress event.
       void upload.then((r) => {
         if (r && !("error" in r)) {
           setBulkUploadDoneIds((prev) => { const next = new Set(prev); next.add(id); return next; });
@@ -558,7 +591,7 @@ export default function UploadForm() {
       });
       const signBody = await signRes.json().catch(() => ({}));
       if (!signRes.ok) {
-        // Server has no cloud storage — send the file bytes with the job form.
+        // Server has no cloud storage â€” send the file bytes with the job form.
         if (String(signBody.error ?? "").includes("not available")) return { isDirectUpload: false };
         throw new Error(signBody.error ?? "Could not start upload.");
       }
@@ -578,7 +611,7 @@ export default function UploadForm() {
   }
 
   // Remembered token for the "recent order" chip on the upload step, and
-  // saving the current order's token once it exists — both power /track.
+  // saving the current order's token once it exists â€” both power /track.
   const [recentToken, setRecentToken] = useState<string | null>(null);
   useEffect(() => {
     try { setRecentToken(localStorage.getItem("selfprint:lastToken")); } catch { /* private mode */ }
@@ -643,7 +676,7 @@ export default function UploadForm() {
   }
 
   const lastSettingsSummary = lastSettings
-    ? `${lastSettings.printType === "bw" ? "B&W" : "Color"} · ${lastSettings.paperSize} · ${lastSettings.copies} ${lastSettings.copies === 1 ? "copy" : "copies"}`
+    ? `${lastSettings.printType === "bw" ? "B&W" : "Color"} Â· ${lastSettings.paperSize} Â· ${lastSettings.copies} ${lastSettings.copies === 1 ? "copy" : "copies"}`
     : "";
 
   const effectivePageRange = useMemo(() => {
@@ -665,7 +698,7 @@ export default function UploadForm() {
   );
 
   // Duplex is only physical when the document itself has 2+ pages to print
-  // back-to-back. Copies don't help — each copy is its own stack of sheets, so
+  // back-to-back. Copies don't help â€” each copy is its own stack of sheets, so
   // a 1-page doc can never be double-sided regardless of copy count.
   const canDuplex = (isBulk ? bulkTotalPages : selectedPages) >= 2;
   const isDuplexInvalid = duplex !== "simplex" && !canDuplex;
@@ -675,13 +708,13 @@ export default function UploadForm() {
   }, [canDuplex, duplex]);
 
   // DOC/DOCX files need conversion before printing, and converted jobs can't
-  // pay online (see result.needsConversion gating below) — but delivery orders
+  // pay online (see result.needsConversion gating below) â€” but delivery orders
   // require online payment. So delivery is never offered for a doc/docx file.
   const isDocFile = Boolean(file && (file.name.toLowerCase().endsWith(".doc") || file.name.toLowerCase().endsWith(".docx")));
 
   // Without a Razorpay key configured there is no online payment rail at
   // all, so a delivery order (which must pay online) could never be settled
-  // — hide the delivery option entirely in that case.
+  // â€” hide the delivery option entirely in that case.
   const onlinePaymentRailAvailable = Boolean((pricing?.razorpayKeyId ?? "").trim());
 
   const deliveryHours = pricing ? isDeliveryAvailable(pricing) : { ok: true as const };
@@ -701,7 +734,7 @@ export default function UploadForm() {
   }, [pricing, deliveryOfferable, deliveryMethod]);
 
   // While the "GPS still fetching" dialog is open and the customer chose to
-  // wait, resolve automatically the moment the fetch settles — captured
+  // wait, resolve automatically the moment the fetch settles â€” captured
   // submits right away, a failure just closes the dialog back to the form.
   useEffect(() => {
     if (!showGpsWaitDialog || locationState === "locating") return;
@@ -718,7 +751,7 @@ export default function UploadForm() {
     }
     setLocationState("locating");
 
-    // watchPosition keeps firing as fixes arrive — take the FIRST one instead
+    // watchPosition keeps firing as fixes arrive â€” take the FIRST one instead
     // of waiting the full high-accuracy timeout for GPS to lock. A quick
     // network/cell fix now, refined automatically if a tighter one lands
     // before we stop watching, feels immediate instead of stalling ~15s on a
@@ -795,20 +828,20 @@ export default function UploadForm() {
     deliveryMethod === "delivery" &&
     !(pincodeValid && serviceCheck.ok && (areaOptions.length === 0 || deliveryArea));
 
-  // Single source of truth for the estimate breakdown — `estimate` (the
+  // Single source of truth for the estimate breakdown â€” `estimate` (the
   // grand total, in rupees) is kept as its own binding below since most call
   // sites only ever needed that number; the delivery-fee/free-delivery badge
   // reads the other fields instead of re-deriving the price math a second time.
   const priceBreakdown = useMemo(() => {
     const zero = { totalPaise: 0, printAndAddonPaise: 0, deliveryFeePaise: 0, isFreeDelivery: false };
     if (!pricing) return zero;
-    // Bulk mode has no page-range selector — price off the summed page count
+    // Bulk mode has no page-range selector â€” price off the summed page count
     // across the whole batch instead of the single-file selectedPages.
     const pages = isBulk ? bulkTotalPages : selectedPages;
 
     let printAndAddonPaise: number;
     if (isBulk) {
-      // Per-file settings override for bulk jobs — sum each file's own price
+      // Per-file settings override for bulk jobs â€” sum each file's own price
       // at its effective (override ?? job-level) settings instead of one flat
       // calculation, so a customized file's cost actually reflects its own
       // paper/duplex/copies. Mirrors the server (api/jobs/route.ts) exactly
@@ -850,7 +883,7 @@ export default function UploadForm() {
 
       // N-up printing (pagesPerSheet > 1) crams multiple document pages onto one
       // printed side, so only ceil(pages / pagesPerSheet) physical sides get
-      // billed — mirrors calculatePrice server-side.
+      // billed â€” mirrors calculatePrice server-side.
       const sides = Math.ceil(pages / Math.max(1, pagesPerSheet));
       let pageCostSum = 0;
       if (!isDuplex) {
@@ -933,7 +966,7 @@ export default function UploadForm() {
   }, [customPageRange]);
 
   // Actual page numbers the print will include (1-based, sorted), mirroring the
-  // agent's parsePageRange. null = all pages — also while a custom range is
+  // agent's parsePageRange. null = all pages â€” also while a custom range is
   // empty or invalid, so the preview never goes blank mid-typing.
   const selectedPageList = useMemo<number[] | null>(() => {
     const total = filePageCount ?? 0;
@@ -997,7 +1030,7 @@ export default function UploadForm() {
     setBulkIds(ids);
     setBulkMode(true);
     setBulkPreviewIndex(0);
-    // Show the settings step IMMEDIATELY — counting pages means reading every
+    // Show the settings step IMMEDIATELY â€” counting pages means reading every
     // file, which takes seconds for large PDFs. Placeholder 1s now; real
     // counts patch in when ready (guarded so a newer selection isn't clobbered).
     setBulkPageCounts(selected.map(() => 1));
@@ -1013,7 +1046,7 @@ export default function UploadForm() {
     bulkUploadsRef.current = uploadsMap;
     // Guard against an aborted batch settling late: startBulkUploads replaces
     // the abort controller for every new selection, so only the batch that
-    // still owns the current controller gets to flip bulkUploading off —
+    // still owns the current controller gets to flip bulkUploading off â€”
     // otherwise a stale allSettled hides the bar while the new batch uploads.
     const uploadsController = bulkUploadAbortControllerRef.current;
     setBulkUploading(true);
@@ -1041,19 +1074,19 @@ export default function UploadForm() {
 
     const oversized = added.find((f) => f.size > MAX_UPLOAD_BYTES);
     if (oversized) {
-      setError(`"${oversized.name}" is ${formatMb(oversized.size)}MB — over the ${MAX_UPLOAD_MB}MB limit. Please select files under ${MAX_UPLOAD_MB}MB.`);
+      setError(`"${oversized.name}" is ${formatMb(oversized.size)}MB â€” over the ${MAX_UPLOAD_MB}MB limit. Please select files under ${MAX_UPLOAD_MB}MB.`);
       return;
     }
 
     const current = isBulk ? bulkFiles : file && file.type === "application/pdf" ? [file] : [];
     if (!isBulk && file && file.type !== "application/pdf") {
-      setError("Adding more files needs a PDF batch — images print as single jobs.");
+      setError("Adding more files needs a PDF batch â€” images print as single jobs.");
       return;
     }
 
     let combined = [...current, ...added];
     if (combined.length > MAX_BULK_FILES) {
-      setError(`You can print up to ${MAX_BULK_FILES} files in one job — only the first ${MAX_BULK_FILES} were kept.`);
+      setError(`You can print up to ${MAX_BULK_FILES} files in one job â€” only the first ${MAX_BULK_FILES} were kept.`);
       combined = combined.slice(0, MAX_BULK_FILES);
     } else {
       setError("");
@@ -1075,14 +1108,14 @@ export default function UploadForm() {
 
       const oversized = selectedFiles.find((f) => f.size > MAX_UPLOAD_BYTES);
       if (oversized) {
-        setError(`"${oversized.name}" is ${formatMb(oversized.size)}MB — over the ${MAX_UPLOAD_MB}MB limit. Please select files under ${MAX_UPLOAD_MB}MB.`);
+        setError(`"${oversized.name}" is ${formatMb(oversized.size)}MB â€” over the ${MAX_UPLOAD_MB}MB limit. Please select files under ${MAX_UPLOAD_MB}MB.`);
         if (fileInputRef.current) fileInputRef.current.value = "";
         return;
       }
 
       let selected = selectedFiles;
       if (selected.length > MAX_BULK_FILES) {
-        setError(`You can upload up to ${MAX_BULK_FILES} files at once — only the first ${MAX_BULK_FILES} were kept.`);
+        setError(`You can upload up to ${MAX_BULK_FILES} files at once â€” only the first ${MAX_BULK_FILES} were kept.`);
         selected = selected.slice(0, MAX_BULK_FILES);
       } else {
         setError("");
@@ -1092,7 +1125,7 @@ export default function UploadForm() {
       return;
     }
 
-    // Exactly one file (or none) selected — original single-file path,
+    // Exactly one file (or none) selected â€” original single-file path,
     // unchanged. Clear any leftover bulk state from a prior selection, and
     // abort any bulk sign/upload still in flight.
     if (bulkUploadAbortControllerRef.current) {
@@ -1111,7 +1144,7 @@ export default function UploadForm() {
     const selectedFile = selectedFiles[0] ?? null;
 
     if (selectedFile && selectedFile.size > MAX_UPLOAD_BYTES) {
-      setError(`"${selectedFile.name}" is ${formatMb(selectedFile.size)}MB — over the ${MAX_UPLOAD_MB}MB limit. Please select a file under ${MAX_UPLOAD_MB}MB.`);
+      setError(`"${selectedFile.name}" is ${formatMb(selectedFile.size)}MB â€” over the ${MAX_UPLOAD_MB}MB limit. Please select a file under ${MAX_UPLOAD_MB}MB.`);
       if (fileInputRef.current) fileInputRef.current.value = "";
       return;
     }
@@ -1135,14 +1168,14 @@ export default function UploadForm() {
     setFilePageCount(null);
     if (selectedFile) {
       // A replacement file must not show the previous file's object URL for
-      // even a frame — revoke it so the next preview is clean.
+      // even a frame â€” revoke it so the next preview is clean.
       setPreviewUrl((old) => {
         if (old) URL.revokeObjectURL(old);
         return null;
       });
 
       // Start background upload immediately. singleUploading gives the
-      // progress bar something to render ("Preparing upload…") before the
+      // progress bar something to render ("Preparing uploadâ€¦") before the
       // first byte moves; controller identity stops a late-settling aborted
       // upload from clearing the flag of a newer one.
       const bgUpload = startBackgroundUpload(selectedFile);
@@ -1163,7 +1196,7 @@ export default function UploadForm() {
       if (selectedFile.type === "application/pdf") {
         const url = URL.createObjectURL(selectedFile);
         setPreviewUrl(url);
-        // Count pages in the background — reading a large PDF takes seconds
+        // Count pages in the background â€” reading a large PDF takes seconds
         // and must not block the step transition. UI shows "All pages" until
         // the count lands (filePageCount stays null meanwhile).
         estimatePdfPages(selectedFile).then((pages) => {
@@ -1207,7 +1240,7 @@ export default function UploadForm() {
     // Keep the full-preview selection pointing at a real file after removal.
     setBulkPreviewIndex((prev) => Math.min(prev > i ? prev - 1 : prev, Math.max(0, bulkFiles.length - 2)));
 
-    // Removing the last file empties the batch — there is nothing to configure
+    // Removing the last file empties the batch â€” there is nothing to configure
     // or submit, so return to the Upload step and drop bulk mode entirely. When
     // one file remains we deliberately STAY in bulk UI (a submittable list of 1)
     // rather than silently switching to the single-file flow mid-edit.
@@ -1269,11 +1302,11 @@ export default function UploadForm() {
       bulkForm.set("spiralBindingQty", String(spiralBindingQty));
       bulkForm.set("coverFileQty", String(coverFileQty));
       if (customNote.trim()) bulkForm.set("customNote", customNote.trim());
-      // Always include guest name/phone so the admin knows who ordered — even for pickup.
+      // Always include guest name/phone so the admin knows who ordered â€” even for pickup.
       if (guestName) bulkForm.set("guestName", guestName);
       if (guestPhone) bulkForm.set("guestPhone", guestPhone);
       appendDeliveryDetails(bulkForm);
-      // Index-aligned with bulkFiles — null for a file with no customization.
+      // Index-aligned with bulkFiles â€” null for a file with no customization.
       bulkForm.set("fileSettingsJson", JSON.stringify(
         bulkFiles.map((_f, i) => {
           const id = bulkIds[i];
@@ -1282,15 +1315,15 @@ export default function UploadForm() {
       ));
 
       if (uploadResults.some((r) => r.fallback)) {
-        // Direct upload unavailable — send the PDFs themselves; the server
+        // Direct upload unavailable â€” send the PDFs themselves; the server
         // saves them and derives page counts from the real bytes.
         // Serverless platforms (Vercel) cap request bodies at ~4.5MB, so a
-        // batch above that can never arrive — fail fast with a clear message
+        // batch above that can never arrive â€” fail fast with a clear message
         // instead of a cryptic network error.
         const totalBytes = bulkFiles.reduce((s, f) => s + f.size, 0);
         if (totalBytes > 4 * 1024 * 1024) {
           throw new Error(
-            `Files total ${(totalBytes / (1024 * 1024)).toFixed(1)} MB — too large to upload together right now (4 MB limit). Remove some files, or upload them one at a time.`
+            `Files total ${(totalBytes / (1024 * 1024)).toFixed(1)} MB â€” too large to upload together right now (4 MB limit). Remove some files, or upload them one at a time.`
           );
         }
         for (const f of bulkFiles) bulkForm.append("files", f);
@@ -1329,7 +1362,7 @@ export default function UploadForm() {
     }
   }
 
-  // GPS is optional — customers can proceed on the written address alone.
+  // GPS is optional â€” customers can proceed on the written address alone.
   // The only thing we guard against is submitting while a location fetch the
   // customer explicitly started is still in flight: silently racing ahead
   // would either drop the fix or submit half-captured coordinates, so we
@@ -1386,7 +1419,7 @@ export default function UploadForm() {
     form.set("spiralBindingQty", String(spiralBindingQty));
     form.set("coverFileQty", String(coverFileQty));
     if (customNote.trim()) form.set("customNote", customNote.trim());
-    // Always include guest name/phone so the admin knows who ordered — even for pickup.
+    // Always include guest name/phone so the admin knows who ordered â€” even for pickup.
     if (guestName) form.set("guestName", guestName);
     if (guestPhone) form.set("guestPhone", guestPhone);
     appendDeliveryDetails(form);
@@ -1408,7 +1441,7 @@ export default function UploadForm() {
           form.set("originalName", file.name);
           form.set("mimeType", file.type);
           // Send known values so server skips re-downloading the file just to
-          // measure size and count pages (saves 3-8 s on Vercel ↔ Supabase roundtrip).
+          // measure size and count pages (saves 3-8 s on Vercel â†” Supabase roundtrip).
           form.set("sizeBytes", String(file.size));
           form.set("pageCount", String(filePageCount ?? 1));
         } else {
@@ -1534,9 +1567,9 @@ export default function UploadForm() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
-  // Per-file upload status chip for the bulk lists: a ✓ once that file's
+  // Per-file upload status chip for the bulk lists: a âœ“ once that file's
   // upload settles, a live % while its bytes are moving, or a spinner during
-  // the preparing phase. Reads the byte-progress ref (a Map, not state) — the
+  // the preparing phase. Reads the byte-progress ref (a Map, not state) â€” the
   // uploadPct state updates that drive the transfers re-render these rows, so
   // values stay fresh without extra state churn per progress event.
   function bulkUploadStatus(id: string, file: File) {
@@ -1567,7 +1600,7 @@ export default function UploadForm() {
   }
 
   if (result) {
-    // Everything payment/receipt/live-status related lives in ResultScreen —
+    // Everything payment/receipt/live-status related lives in ResultScreen â€”
     // its own state resets automatically when this unmounts (Upload Another).
     const billFiles = isBulk
       ? bulkFiles.map((f, i) => ({ name: f.name, pages: bulkPageCounts[i] ?? 1 }))
@@ -1594,12 +1627,12 @@ export default function UploadForm() {
   const onePage = isDesktop && (step === "settings" || step === "preview");
   const showSettings = step === "settings" || (onePage && step === "preview");
   const showPreview = step === "preview" || (onePage && step === "settings");
-  // Same validity rule the Preview button uses on mobile — in one-page mode
+  // Same validity rule the Preview button uses on mobile â€” in one-page mode
   // it gates Confirm directly since there is no intermediate Preview click.
   const settingsInvalid =
     (pageRangeMode === "custom" && !!customPageRange.trim() && !isValidPageRange) || isDuplexInvalid || deliveryServiceInvalid;
   // Desktop's stage-1 "Continue" button advances to the fulfillment page,
-  // where the delivery pincode/address fields actually live (see fs-fulfil —
+  // where the delivery pincode/address fields actually live (see fs-fulfil â€”
   // deliveryMethod defaults to "delivery" but that section only renders once
   // fulfilStage is true). Gating this button on deliveryServiceInvalid was a
   // deadlock: with no pincode entered yet, it's always invalid, so desktop
@@ -1612,7 +1645,7 @@ export default function UploadForm() {
   const shopClosed = !acceptingOrdersCheck.ok;
   const [showShopHours, setShowShopHours] = useState(false);
 
-  // Mobile bulk file list — thumbnails, names, per-file customize gear.
+  // Mobile bulk file list â€” thumbnails, names, per-file customize gear.
   // Shared between the settings step and the preview step so it shows up
   // starting from step 2 (right after upload) instead of only at the final
   // review screen; desktop shows its own always-visible grid instead (see
@@ -1678,7 +1711,7 @@ export default function UploadForm() {
         {id && customizingBulkId === id && (
           <BulkFileCustomizePanel
             override={bulkFileOverrides[id]}
-            jobDefaults={{ printType, duplex, paperSize, copies, pagesPerSheet }}
+            jobDefaults={{ printType, duplex, paperSize, layout, copies, pagesPerSheet }}
             pageCount={bulkPageCounts[i] ?? 1}
             pricing={pricing}
             onChange={(patch) => setBulkFileOverrides((prev) => ({ ...prev, [id]: { ...prev[id], ...patch } }))}
@@ -1725,7 +1758,7 @@ export default function UploadForm() {
         </div>
       )}
 
-      {/* Intro copy — only makes sense on the upload screen itself; once the
+      {/* Intro copy â€” only makes sense on the upload screen itself; once the
           customer has a file in and is deep in settings/preview it's just
           dead weight pushing the actual controls further down. */}
       {step === "upload" && (
@@ -1735,9 +1768,9 @@ export default function UploadForm() {
         </div>
       )}
 
-      {/* Step indicator — hidden in the desktop one-page workspace, where
-          there are no steps to indicate — on desktop the flow is just
-          "pick a file → everything on one screen", so the 3-step wizard
+      {/* Step indicator â€” hidden in the desktop one-page workspace, where
+          there are no steps to indicate â€” on desktop the flow is just
+          "pick a file â†’ everything on one screen", so the 3-step wizard
           indicator would be lying even on the upload screen. */}
       {!isDesktop && (
       <nav className="step-indicator" aria-label="Upload progress">
@@ -1807,7 +1840,7 @@ export default function UploadForm() {
             >
               <UploadCloud size={56} className="upload-icon" aria-hidden="true" />
               <strong>Tap or drag & drop files here</strong>
-              <span className="muted">PDF, JPG, PNG up to 50MB · or drag 2-10 PDFs at once</span>
+              <span className="muted">PDF, JPG, PNG up to 50MB Â· or drag 2-10 PDFs at once</span>
             </label>
           </div>
           <div className="supported-formats">
@@ -1820,7 +1853,7 @@ export default function UploadForm() {
             <div className="track-link-row">
               <Link className="recent-order-chip" href={`/track?token=${recentToken}`}>
                 <Search size={14} aria-hidden="true" />
-                Recent order #{recentToken} — track it
+                Recent order #{recentToken} â€” track it
               </Link>
             </div>
           )}
@@ -1881,11 +1914,11 @@ export default function UploadForm() {
         </div>
       )}
 
-      {/* Steps 2+3 — a wizard on mobile, one two-column workspace on
+      {/* Steps 2+3 â€” a wizard on mobile, one two-column workspace on
           desktop (settings left, live preview + confirm right). */}
       <div className={onePage ? `flow-grid${fulfilStage ? " fulfil-stage" : ""}` : "flow-stack"}>
 
-      {/* Step 2: Settings — children are grouped into three zones so the
+      {/* Step 2: Settings â€” children are grouped into three zones so the
           desktop one-page grid can place them (file top-left, settings
           bottom-left, fulfillment+price bottom-right) while mobile just
           stacks the same zones in order. */}
@@ -1893,7 +1926,7 @@ export default function UploadForm() {
         <div className={`step-content ${onePage ? "flow-contents" : stepAnim}`} key="block-settings">
           <div className="fs-file-zone">
 
-          {/* Hidden add-more input — shared by the mobile button and the
+          {/* Hidden add-more input â€” shared by the mobile button and the
               desktop "+ Add more" tile. */}
           {(isBulk || file?.type === "application/pdf") && (
             <input
@@ -1909,11 +1942,11 @@ export default function UploadForm() {
 
           {onePage ? (
             /* Desktop: files as thumbnail cards (click = preview it,
-               × = remove) plus an add-more tile — no summary chip. */
+               Ã— = remove) plus an add-more tile â€” no summary chip. */
             <div className="file-zone-board">
               <h3 className="file-zone-title">
                 Your files
-                {isBulk && <span className="file-zone-count">{bulkFiles.length}/{MAX_BULK_FILES} · {bulkTotalPages} pages</span>}
+                {isBulk && <span className="file-zone-count">{bulkFiles.length}/{MAX_BULK_FILES} Â· {bulkTotalPages} pages</span>}
               </h3>
               <div className="file-thumb-grid">
                 {isBulk ? (
@@ -2042,7 +2075,7 @@ export default function UploadForm() {
                   </div>
                   <BulkFileCustomizePanel
                     override={bulkFileOverrides[customizingBulkId]}
-                    jobDefaults={{ printType, duplex, paperSize, copies, pagesPerSheet }}
+                    jobDefaults={{ printType, duplex, paperSize, layout, copies, pagesPerSheet }}
                     pageCount={bulkPageCounts[bulkIds.indexOf(customizingBulkId)] ?? 1}
                     pricing={pricing}
                     onChange={(patch) => setBulkFileOverrides((prev) => ({ ...prev, [customizingBulkId]: { ...prev[customizingBulkId], ...patch } }))}
@@ -2120,12 +2153,12 @@ export default function UploadForm() {
             </button>
           )}
 
-          {/* Per-file names/thumbnails/customize — visible from this step
+          {/* Per-file names/thumbnails/customize â€” visible from this step
               (right after upload) instead of only on the final Preview step. */}
           {isBulk && bulkFileListNode}
 
           {/* Add more PDFs to this job (converts a single PDF into a batch).
-              Hidden for images/docs — bulk is PDF-only. */}
+              Hidden for images/docs â€” bulk is PDF-only. */}
           {(isBulk || file?.type === "application/pdf") && (
               <button
                 type="button"
@@ -2153,7 +2186,7 @@ export default function UploadForm() {
             </>
           )}
 
-          {/* Live upload progress — large files take a while on mobile data. The
+          {/* Live upload progress â€” large files take a while on mobile data. The
               preparing phase (indeterminate sweep) covers the sign request and
               connection setup before the first byte moves, so the bar never
               sits frozen at 0% for the seconds an upload appears stuck. */}
@@ -2174,7 +2207,7 @@ export default function UploadForm() {
                 />
               </div>
               <span className="upload-progress-label">
-                {uploadPct === 0 ? "Preparing upload…" : `Uploading… ${uploadPct}%`}
+                {uploadPct === 0 ? "Preparing uploadâ€¦" : `Uploadingâ€¦ ${uploadPct}%`}
               </span>
             </div>
           )}
@@ -2205,7 +2238,7 @@ export default function UploadForm() {
             </button>
           </div>
 
-          {/* Sides — right after print type */}
+          {/* Sides â€” right after print type */}
           <div className="form-group">
             <label id="sides-label">Sides</label>
             <div className="page-mode-grid" role="group" aria-labelledby="sides-label">
@@ -2237,7 +2270,7 @@ export default function UploadForm() {
             )}
           </div>
 
-          {/* Page Range — not applicable in bulk mode */}
+          {/* Page Range â€” not applicable in bulk mode */}
           {!isBulk && (
             <div className="form-group">
               <label>Select Pages</label>
@@ -2445,9 +2478,9 @@ export default function UploadForm() {
                             <div className="addon-info-rows">
                               {([
                                 ["Up to 70 pages", pricing.spiralBindingSlab1Paise],
-                                ["71–100 pages", pricing.spiralBindingSlab2Paise],
-                                ["101–150 pages", pricing.spiralBindingSlab3Paise],
-                                ["151–200 pages", pricing.spiralBindingSlab4Paise],
+                                ["71â€“100 pages", pricing.spiralBindingSlab2Paise],
+                                ["101â€“150 pages", pricing.spiralBindingSlab3Paise],
+                                ["151â€“200 pages", pricing.spiralBindingSlab4Paise],
                                 ["200+ pages", pricing.spiralBindingSlab5Paise],
                               ] as const).map(([label, paise]) => (
                                 <div className="addon-info-row" key={label}>
@@ -2478,7 +2511,7 @@ export default function UploadForm() {
                           }}
                           aria-label="Decrease"
                         >
-                          −
+                          âˆ’
                         </button>
                         <span className="addon-qty-val">{spiralBindingQty}</span>
                         <button type="button" className="addon-qty-btn" onClick={() => setSpiralBindingQty(q => Math.min(99, q + 1))} aria-label="Increase">+</button>
@@ -2559,7 +2592,7 @@ export default function UploadForm() {
                           }}
                           aria-label="Decrease"
                         >
-                          −
+                          âˆ’
                         </button>
                         <span className="addon-qty-val">{coverFileQty}</span>
                         <button type="button" className="addon-qty-btn" onClick={() => setCoverFileQty(q => Math.min(99, q + 1))} aria-label="Increase">+</button>
@@ -2574,7 +2607,7 @@ export default function UploadForm() {
                 </div>
               </div>
 
-              {/* Bond Paper Card — checkbox toggle, no qty stepper */}
+              {/* Bond Paper Card â€” checkbox toggle, no qty stepper */}
               <div className={`addon-card ${hasBondPaper ? "active" : ""} ${bondInfoOpen ? "addon-info-open" : ""}`}>
                 <div className="addon-card-main">
                   <button
@@ -2632,7 +2665,7 @@ export default function UploadForm() {
             </div>
           </div>
 
-          {/* Layout, scale, margins, pages/sheet — most orders use the
+          {/* Layout, scale, margins, pages/sheet â€” most orders use the
               defaults, so these live behind a closed disclosure and only
               surface for the customer who actually needs to change them. */}
           <details className="advanced-settings">
@@ -2678,7 +2711,7 @@ export default function UploadForm() {
             </div>
           </details>
 
-          {/* Additional instructions — plain form-group style */}
+          {/* Additional instructions â€” plain form-group style */}
           <div className="form-group">
             <div className="note-label-row">
               <label htmlFor="custom-note-input">Additional Instructions</label>
@@ -2687,7 +2720,7 @@ export default function UploadForm() {
             <textarea
               id="custom-note-input"
               className="custom-note-textarea"
-              placeholder="e.g. Staple top-left, specific paper type, colour match notes…"
+              placeholder="e.g. Staple top-left, specific paper type, colour match notesâ€¦"
               maxLength={250}
               rows={3}
               value={customNote}
@@ -2696,7 +2729,7 @@ export default function UploadForm() {
             />
           </div>
 
-          {/* Contact card — always visible */}
+          {/* Contact card â€” always visible */}
           <div className="contact-card">
             <div className="contact-card-body">
               <div className="contact-card-text">
@@ -2719,7 +2752,7 @@ export default function UploadForm() {
           </div>{/* /fs-settings */}
 
           <div className="fs-fulfil">
-          {/* Desktop stage 2 header — this zone becomes its own page. */}
+          {/* Desktop stage 2 header â€” this zone becomes its own page. */}
           {onePage && fulfilStage && (
             <div className="fulfil-page-head">
               <button
@@ -2742,7 +2775,7 @@ export default function UploadForm() {
             <div className="delivery-method-section">
               <h4 className="delivery-method-title">How will you get your prints?</h4>
 
-              {/* Always-visible progress reminder — not gated on Home Delivery being
+              {/* Always-visible progress reminder â€” not gated on Home Delivery being
                   selected, since it's an incentive to add more / switch to delivery,
                   not just a receipt of a choice already made. */}
               {pricing && pricing.deliveryFeePaise > 0 && pricing.freeDeliveryThresholdPaise > 0 && (
@@ -2751,7 +2784,7 @@ export default function UploadForm() {
                     <Truck size={15} aria-hidden="true" />
                     <span className="free-delivery-widget-text">
                       {priceBreakdown.isFreeDelivery
-                        ? `Free delivery unlocked — you saved ${formatRupees(pricing.deliveryFeePaise)}!`
+                        ? `Free delivery unlocked â€” you saved ${formatRupees(pricing.deliveryFeePaise)}!`
                         : `Add ${formatRupees(Math.max(0, pricing.freeDeliveryThresholdPaise - priceBreakdown.printAndAddonPaise))} more for FREE delivery`}
                     </span>
                   </div>
@@ -2864,7 +2897,7 @@ export default function UploadForm() {
                       className="delivery-input"
                       required
                     >
-                      <option value="">Select your area…</option>
+                      <option value="">Select your areaâ€¦</option>
                       {areaOptions.map((a) => <option key={a} value={a}>{a}</option>)}
                     </select>
                   )}
@@ -2877,7 +2910,7 @@ export default function UploadForm() {
                       <div>
                         <strong>Pin your delivery location</strong>
                         <p>
-                          Optional — helps the rider find you faster. Your device shares
+                          Optional â€” helps the rider find you faster. Your device shares
                           coordinates only after you allow access; the written address is
                           used either way.
                         </p>
@@ -2922,7 +2955,7 @@ export default function UploadForm() {
           <div className="price-box">
             <div className="price-header">
               <span className="price-label">Estimated Price</span>
-              <span key={estimate} className="price-value price-pop">{pricing ? `₹${estimate.toFixed(2)}` : "…"}</span>
+              <span key={estimate} className="price-value price-pop">{pricing ? `â‚¹${estimate.toFixed(2)}` : "â€¦"}</span>
             </div>
             <div className="price-breakdown">
               <span className="breakdown-item">{isBulk ? `${bulkFiles.length} files, ${bulkTotalPages} pages` : pageInfo}</span>
@@ -2944,7 +2977,7 @@ export default function UploadForm() {
             </div>
           )}
 
-          {/* One-page mode: workspace stage shows Continue (→ fulfillment
+          {/* One-page mode: workspace stage shows Continue (â†’ fulfillment
               page) when a fulfillment choice exists; the fulfillment page
               (or workspace when there's no choice to make) shows the real
               submit. Same validation as the wizard throughout. */}
@@ -2971,12 +3004,12 @@ export default function UploadForm() {
             >
               {busy ? (
                 uploadPct > 0 && uploadPct < 100
-                  ? <><Loader2 size={20} className="spin" aria-hidden="true" /> Uploading… {uploadPct}%</>
+                  ? <><Loader2 size={20} className="spin" aria-hidden="true" /> Uploadingâ€¦ {uploadPct}%</>
                   : <><Loader2 size={20} className="spin" aria-hidden="true" /> Processing...</>
               ) : isBulk && bulkUploading ? (
                 uploadPct > 0
-                  ? <><Loader2 size={20} className="spin" aria-hidden="true" /> Uploading… {uploadPct}%</>
-                  : <><Loader2 size={20} className="spin" aria-hidden="true" /> Preparing upload…</>
+                  ? <><Loader2 size={20} className="spin" aria-hidden="true" /> Uploadingâ€¦ {uploadPct}%</>
+                  : <><Loader2 size={20} className="spin" aria-hidden="true" /> Preparing uploadâ€¦</>
               ) : (
                 deliveryMethod === "delivery"
                   ? <><CreditCard size={20} aria-hidden="true" /> Continue to Payment</>
@@ -2985,7 +3018,7 @@ export default function UploadForm() {
             </button>
           )}
 
-          {/* Actions — the wizard's Back/Preview navigation; pointless in
+          {/* Actions â€” the wizard's Back/Preview navigation; pointless in
               one-page mode where the preview is already on screen. */}
           {!onePage && (
           <div className="form-actions">
@@ -3018,16 +3051,16 @@ export default function UploadForm() {
           <div className="preview-pane">
           <h3 className="preview-title">{onePage ? "Live Preview" : "Review Your Print Job"}</h3>
 
-          {/* Preview area — grayscale simulation when printing B&W */}
+          {/* Preview area â€” grayscale simulation when printing B&W */}
           <div className={`preview-area ${printType === "bw" ? "bw-sim" : ""}`}>
             {isBulk && (
               <>
                 {/* File management lives in the desktop file zone; this row
-                    list is the mobile wizard's version only — also shown a
+                    list is the mobile wizard's version only â€” also shown a
                     step earlier, in Settings, so it's visible from the 2nd
                     page instead of only here at the end. */}
                 {!onePage && bulkFileListNode}
-                {/* Full print preview of the tapped file — same viewer as single mode */}
+                {/* Full print preview of the tapped file â€” same viewer as single mode */}
                 {bulkFiles[bulkPreviewIndex] && (
                   <PdfCanvasPreview
                     key={bulkIds[bulkPreviewIndex] ?? bulkPreviewIndex}
@@ -3058,7 +3091,7 @@ export default function UploadForm() {
             )}
           </div>
 
-          {/* Settings summary — redundant in one-page mode where the live
+          {/* Settings summary â€” redundant in one-page mode where the live
               settings sit in the adjacent column; only the physical-output
               line survives there (rendered below). */}
           {!onePage && (
@@ -3066,8 +3099,8 @@ export default function UploadForm() {
             <summary>
               <span className="summary-glance-title">Print Settings</span>
               <span className="summary-glance">
-                {printType === "bw" ? "B&W" : "Color"} · {copies > 1 ? `${copies}× · ` : ""}
-                {isBulk ? `${bulkTotalPages}p` : pageInfo} · {paperSizeLabels[paperSize as keyof typeof paperSizeLabels] || paperSize}
+                {printType === "bw" ? "B&W" : "Color"} Â· {copies > 1 ? `${copies}Ã— Â· ` : ""}
+                {isBulk ? `${bulkTotalPages}p` : pageInfo} Â· {paperSizeLabels[paperSize as keyof typeof paperSizeLabels] || paperSize}
               </span>
             </summary>
             <div className="settings-summary-body">
@@ -3126,7 +3159,7 @@ export default function UploadForm() {
               )}
 
             </div>
-            {/* Physical output line — the one fact the settings rows can't show */}
+            {/* Physical output line â€” the one fact the settings rows can't show */}
             <div className="summary-paper-note">
               <Printer size={14} aria-hidden="true" />
               Prints on {physicalSheets} sheet{physicalSheets === 1 ? "" : "s"} of paper
@@ -3145,7 +3178,7 @@ export default function UploadForm() {
           )}
           </div>{/* /preview-pane */}
 
-          {/* Everything below belongs to the wizard's review step only —
+          {/* Everything below belongs to the wizard's review step only â€”
               in one-page mode fulfillment, totals, and Confirm live in the
               fs-fulfil zone instead. */}
           {!onePage && deliveryMethod === "delivery" && (
@@ -3161,13 +3194,13 @@ export default function UploadForm() {
                 <div><dt>Customer</dt><dd>{customerName}</dd></div>
                 <div><dt>Phone</dt><dd>{customerPhone}</dd></div>
                 <div className="delivery-review-address"><dt>Address</dt><dd>{deliveryAddress}</dd></div>
-                <div className="delivery-review-address"><dt>Pincode</dt><dd>{deliveryPincode}{deliveryArea ? ` — ${deliveryArea}` : ""}</dd></div>
+                <div className="delivery-review-address"><dt>Pincode</dt><dd>{deliveryPincode}{deliveryArea ? ` â€” ${deliveryArea}` : ""}</dd></div>
                 <div>
                   <dt>Map pin</dt>
                   <dd>
                     {deliveryLocation
-                      ? `Captured (about ±${deliveryLocation.accuracyMeters} m)`
-                      : "Not shared — written address will be used"}
+                      ? `Captured (about Â±${deliveryLocation.accuracyMeters} m)`
+                      : "Not shared â€” written address will be used"}
                   </dd>
                 </div>
               </dl>
@@ -3181,25 +3214,25 @@ export default function UploadForm() {
                 {addonFeeTotal > 0 && (
                   <div className="total-price-row">
                     <span>Printing</span>
-                    <span>₹{(priceBreakdown.printAndAddonPaise / 100 - addonFeeTotal).toFixed(2)}</span>
+                    <span>â‚¹{(priceBreakdown.printAndAddonPaise / 100 - addonFeeTotal).toFixed(2)}</span>
                   </div>
                 )}
                 {hasSpiralBinding && (
                   <div className="total-price-row">
                     <span>Spiral Binding</span>
-                    <span>₹{(calculateSpiralBindingPrice((isBulk ? bulkTotalPages : selectedPages), pricing) / 100 * spiralBindingQty).toFixed(2)}</span>
+                    <span>â‚¹{(calculateSpiralBindingPrice((isBulk ? bulkTotalPages : selectedPages), pricing) / 100 * spiralBindingQty).toFixed(2)}</span>
                   </div>
                 )}
                 {hasCoverFile && (
                   <div className="total-price-row">
                     <span>Cover File</span>
-                    <span>₹{(pricing.coverFilePaise / 100 * coverFileQty).toFixed(2)}</span>
+                    <span>â‚¹{(pricing.coverFilePaise / 100 * coverFileQty).toFixed(2)}</span>
                   </div>
                 )}
                 {hasBondPaper && (
                   <div className="total-price-row">
                     <span>Bond Paper</span>
-                    <span>₹{((isBulk ? bulkTotalPages : selectedPages) * pricing.bondPaperPerPagePaise / 100).toFixed(2)}</span>
+                    <span>â‚¹{((isBulk ? bulkTotalPages : selectedPages) * pricing.bondPaperPerPagePaise / 100).toFixed(2)}</span>
                   </div>
                 )}
                 {deliveryMethod === "delivery" && (
@@ -3208,11 +3241,11 @@ export default function UploadForm() {
                     <span>
                       {priceBreakdown.isFreeDelivery ? (
                         <>
-                          <span className="delivery-fee-strike">₹{(pricing.deliveryFeePaise / 100).toFixed(2)}</span>{" "}
+                          <span className="delivery-fee-strike">â‚¹{(pricing.deliveryFeePaise / 100).toFixed(2)}</span>{" "}
                           <span className="delivery-fee-free-text">FREE</span>
                         </>
                       ) : pricing.deliveryFeePaise > 0 ? (
-                        `₹${(pricing.deliveryFeePaise / 100).toFixed(2)}`
+                        `â‚¹${(pricing.deliveryFeePaise / 100).toFixed(2)}`
                       ) : (
                         "Free"
                       )}
@@ -3221,18 +3254,18 @@ export default function UploadForm() {
                 )}
                 <div className="total-price">
                   <span>Total</span>
-                  <strong>₹{estimate.toFixed(2)}</strong>
+                  <strong>â‚¹{estimate.toFixed(2)}</strong>
                 </div>
               </div>
             ) : (
               <div className="total-price">
                 <span>Total</span>
-                <strong>{pricing ? `₹${estimate.toFixed(2)}` : "…"}</strong>
+                <strong>{pricing ? `â‚¹${estimate.toFixed(2)}` : "â€¦"}</strong>
               </div>
             )
           )}
 
-          {/* Submit errors must be visible HERE — Confirm lives on this step,
+          {/* Submit errors must be visible HERE â€” Confirm lives on this step,
               and the settings-step error block is not rendered here. */}
           {!onePage && error && (
             <div key={error} className="error-msg" role="alert">
@@ -3261,12 +3294,12 @@ export default function UploadForm() {
             >
               {busy ? (
                 uploadPct > 0 && uploadPct < 100
-                  ? <><Loader2 size={20} className="spin" aria-hidden="true" /> Uploading… {uploadPct}%</>
+                  ? <><Loader2 size={20} className="spin" aria-hidden="true" /> Uploadingâ€¦ {uploadPct}%</>
                   : <><Loader2 size={20} className="spin" aria-hidden="true" /> Processing...</>
               ) : isBulk && bulkUploading ? (
                 uploadPct > 0
-                  ? <><Loader2 size={20} className="spin" aria-hidden="true" /> Uploading… {uploadPct}%</>
-                  : <><Loader2 size={20} className="spin" aria-hidden="true" /> Preparing upload…</>
+                  ? <><Loader2 size={20} className="spin" aria-hidden="true" /> Uploadingâ€¦ {uploadPct}%</>
+                  : <><Loader2 size={20} className="spin" aria-hidden="true" /> Preparing uploadâ€¦</>
               ) : (
                 deliveryMethod === "delivery"
                   ? <><CreditCard size={20} aria-hidden="true" /> Continue to Payment</>
