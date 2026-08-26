@@ -1496,17 +1496,27 @@ input, select, button {
 .bulk-file-customize-panel {
   display: grid;
   /* Exactly 3 fields now (Print / Sides / Copies) — a fixed 3-up grid reads
-     cleaner than auto-fit's collapse-to-uneven-rows behavior. */
+     cleaner than auto-fit's collapse-to-uneven-rows behavior; the footer
+     (live per-file estimate + reset) spans the full width below them. */
   grid-template-columns: repeat(3, 1fr);
   gap: 10px 8px;
   margin: -4px 0 8px;
   padding: 12px;
-  background: var(--bg);
+  background: var(--panel);
   border: 1px solid var(--line);
   border-top: none;
-  border-radius: 0 0 10px 10px;
+  border-radius: 0 0 12px 12px;
   box-shadow: inset 0 1px 3px rgba(23, 32, 42, 0.05);
   animation: fadeInUp 0.2s var(--ease-out) both;
+}
+
+/* Narrow phones: three controls squeezed into ~100px columns read cramped —
+   stack the fields and let each get the full row width instead. */
+@media (max-width: 430px) {
+  .bulk-file-customize-panel {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
 }
 
 .bulk-customize-row {
@@ -1520,6 +1530,22 @@ input, select, button {
   font-size: 11px;
   font-weight: 700;
   color: var(--muted);
+}
+
+/* Field differs from the job-level default — teal dot so it's obvious at a
+   glance which settings were customized vs inherited. */
+.bulk-customize-row label.changed {
+  color: var(--accent-strong);
+}
+.bulk-customize-row label.changed::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+  vertical-align: 1px;
 }
 
 .bulk-customize-row select,
@@ -1614,6 +1640,39 @@ input, select, button {
   cursor: not-allowed;
 }
 .bulk-stepper-value {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Panel footer — live per-file estimate left, reset right. */
+.bulk-customize-foot {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 2px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--line);
+}
+.bulk-customize-price {
+  font-size: 12px;
+  color: var(--muted);
+}
+.bulk-customize-price strong {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--accent-strong);
+  font-variant-numeric: tabular-nums;
+}
+.bulk-customize-defaults-note {
+  font-size: 11px;
+  font-style: italic;
+  color: var(--muted);
+}
+.bulk-stepper-value {
   flex: 1;
   text-align: center;
   font-size: 13px;
@@ -1651,18 +1710,26 @@ input, select, button {
 }
 
 .bulk-customize-reset {
-  grid-column: 1 / -1;
   display: inline-flex;
   align-items: center;
   gap: 5px;
   justify-content: center;
-  border: none;
-  background: transparent;
+  border: 1px solid var(--line);
+  background: #fff;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
   cursor: pointer;
-  padding: 4px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  transition: color var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
+    background var(--duration-fast) var(--ease-out);
+}
+.bulk-customize-reset:hover {
+  color: var(--danger);
+  border-color: var(--danger);
+  background: var(--danger-light);
 }
 
 .bulk-customize-reset:hover {

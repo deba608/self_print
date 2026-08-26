@@ -28,6 +28,7 @@ function BulkFileCustomizePanel({
   override,
   jobDefaults,
   pageCount,
+  pricing,
   onChange,
   onReset,
 }: {
@@ -36,6 +37,9 @@ function BulkFileCustomizePanel({
   // This file's own page count — double-sided needs at least 2 pages to mean
   // anything, same rule as the job-level Sides control (see canDuplex above).
   pageCount: number;
+  // Present = show this file's own live estimate inside the panel, computed
+  // with the exact helpers the grand-total breakdown uses (no drift).
+  pricing?: Pricing | null;
   onChange: (patch: Partial<FileSettingsOverride>) => void;
   onReset: () => void;
 }) {
@@ -43,6 +47,30 @@ function BulkFileCustomizePanel({
   const canDuplex = pageCount >= 2;
   const isDouble = canDuplex && (override?.duplex ?? jobDefaults.duplex) !== "simplex";
   const copies = override?.copies ?? jobDefaults.copies;
+
+  // Changed = this file's value actually differs from the job-level default.
+  // Drives the teal dot on the row label so staff/customers can see at a
+  // glance which fields were customized vs inherited.
+  const printChanged = printType !== jobDefaults.printType;
+  const sidesChanged = (isDouble ? "long-edge" : "simplex") !== jobDefaults.duplex;
+  const copiesChanged = copies !== jobDefaults.copies;
+
+  // Same math as the bulk priceBreakdown below — one file at its effective
+  // settings, addons excluded (those are job-level, shown in the summary).
+  const filePricePaise = useMemo(() => {
+    if (!pricing) return null;
+    const effective = effectiveFileSettings(jobDefaults as Parameters<typeof effectiveFileSettings>[0], override ?? null);
+    return calculatePrice({
+      printType: effective.printType,
+      copies: effective.copies,
+      pageRange: null,
+      paperSize: effective.paperSize,
+      pageCount,
+      pricing,
+      duplex: !isDouble ? "simplex" : (effective.duplex as "long-edge" | "short-edge"),
+      pagesPerSheet: effective.pagesPerSheet,
+    });
+  }, [pricing, pageCount, isDouble, override, jobDefaults]);
 
   // A single-page file can't stay set to double-sided once selected (e.g. the
   // job default was double but this file's override/page-range brings it to
@@ -57,12 +85,13 @@ function BulkFileCustomizePanel({
   return (
     <div className="bulk-file-customize-panel" onClick={(e) => e.stopPropagation()}>
       <div className="bulk-customize-row">
-        <label>Print</label>
+        <label className={printChanged ? "changed" : ""}>Print</label>
         <div className="bulk-switch" role="group" aria-label="Print color">
           <button
             type="button"
             className={`bulk-switch-opt ${printType === "bw" ? "active" : ""}`}
             onClick={() => onChange({ printType: "bw" })}
+            aria-pressed={printType === "bw"}
           >
             B&amp;W
           </button>
@@ -70,18 +99,20 @@ function BulkFileCustomizePanel({
             type="button"
             className={`bulk-switch-opt ${printType === "color" ? "active" : ""}`}
             onClick={() => onChange({ printType: "color" })}
+            aria-pressed={printType === "color"}
           >
             Color
           </button>
         </div>
       </div>
       <div className="bulk-customize-row">
-        <label>Sides</label>
+        <label className={sidesChanged ? "changed" : ""}>Sides</label>
         <div className="bulk-switch" role="group" aria-label="Sides">
           <button
             type="button"
             className={`bulk-switch-opt ${!isDouble ? "active" : ""}`}
             onClick={() => onChange({ duplex: "simplex" })}
+            aria-pressed={!isDouble}
           >
             Single
           </button>
@@ -93,6 +124,7 @@ function BulkFileCustomizePanel({
             // 3rd option nobody asked for and never existed at job level either.
             onClick={() => canDuplex && onChange({ duplex: "long-edge" })}
             disabled={!canDuplex}
+            aria-pressed={isDouble}
             title={!canDuplex ? "Needs at least 2 pages" : undefined}
           >
             Double
@@ -101,7 +133,7 @@ function BulkFileCustomizePanel({
         {!canDuplex && <span className="bulk-customize-note">1-page file — single-sided only</span>}
       </div>
       <div className="bulk-customize-row">
-        <label>Copies</label>
+        <label className={copiesChanged ? "changed" : ""}>Copies</label>
         <div className="bulk-stepper">
           <button
             type="button"
@@ -124,11 +156,20 @@ function BulkFileCustomizePanel({
           </button>
         </div>
       </div>
-      {override && (
-        <button type="button" className="bulk-customize-reset" onClick={onReset}>
-          <RefreshCw size={13} /> Reset to job defaults
-        </button>
-      )}
+      <div className="bulk-customize-foot">
+        <span className="bulk-customize-price">
+          {filePricePaise != null ? (
+            <>This file ≈ <strong>{formatRupees(filePricePaise)}</strong></>
+          ) : null}
+        </span>
+        {override ? (
+          <button type="button" className="bulk-customize-reset" onClick={onReset}>
+            <RefreshCw size={12} /> Reset to defaults
+          </button>
+        ) : (
+          <span className="bulk-customize-defaults-note">Using job defaults</span>
+        )}
+      </div>
     </div>
   );
 }
@@ -1639,6 +1680,7 @@ export default function UploadForm() {
             override={bulkFileOverrides[id]}
             jobDefaults={{ printType, duplex, paperSize, copies, pagesPerSheet }}
             pageCount={bulkPageCounts[i] ?? 1}
+            pricing={pricing}
             onChange={(patch) => setBulkFileOverrides((prev) => ({ ...prev, [id]: { ...prev[id], ...patch } }))}
             onReset={() => setBulkFileOverrides((prev) => { const next = { ...prev }; delete next[id]; return next; })}
           />
@@ -2002,6 +2044,7 @@ export default function UploadForm() {
                     override={bulkFileOverrides[customizingBulkId]}
                     jobDefaults={{ printType, duplex, paperSize, copies, pagesPerSheet }}
                     pageCount={bulkPageCounts[bulkIds.indexOf(customizingBulkId)] ?? 1}
+                    pricing={pricing}
                     onChange={(patch) => setBulkFileOverrides((prev) => ({ ...prev, [customizingBulkId]: { ...prev[customizingBulkId], ...patch } }))}
                     onReset={() => setBulkFileOverrides((prev) => { const next = { ...prev }; delete next[customizingBulkId]; return next; })}
                   />
