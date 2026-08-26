@@ -332,6 +332,7 @@ export default function UploadForm() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [morePopoverOpen, setMorePopoverOpen] = useState(false);
+  const [showShopHours, setShowShopHours] = useState(false);
   const popoverRef = useRef<HTMLDivElement>(null);
 
 
@@ -1644,7 +1645,6 @@ export default function UploadForm() {
 
   const acceptingOrdersCheck = pricing ? isAcceptingOrders(pricing) : { ok: true as const };
   const shopClosed = !acceptingOrdersCheck.ok;
-  const [showShopHours, setShowShopHours] = useState(false);
 
   // Mobile bulk file list — thumbnails, names, per-file customize gear.
   // Shared between the settings step and the preview step so it shows up
