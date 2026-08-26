@@ -1,4 +1,4 @@
-﻿import { createClient } from '@supabase/supabase-js';
+import { createClient } from '@supabase/supabase-js';
 import crypto from 'node:crypto';
 import type { CustomerManagementRow, Job, JobFile, PricingConfig, PrinterOption, RetentionConfig } from './types';
 // Type-only import: erased at compile time, so this does not create a runtime
@@ -71,7 +71,7 @@ function mapJob(row: any, expiryMinutes: number = 1440): Job {
     deliveryAccuracyMeters: row.delivery_accuracy_meters == null ? null : Number(row.delivery_accuracy_meters),
     deliveryLocationCapturedAt: row.delivery_location_captured_at ? String(row.delivery_location_captured_at) : null,
     deliveryPersonId: row.delivery_person_id ? String(row.delivery_person_id) : null,
-    // Resolved separately by attachDeliveryPersonNames â€” a raw row never has
+    // Resolved separately by attachDeliveryPersonNames — a raw row never has
     // the joined staff name (delivery_person_id is a bare auth.users id).
     deliveryPersonName: null,
     customNote: row.custom_note ? String(row.custom_note) : null,
@@ -272,7 +272,7 @@ export async function getJobByToken(token: string) {
 
 // Live count of active (not yet printed/cancelled/failed) jobs queued ahead
 // of this one. queue_position itself is a fixed ticket number assigned once
-// at creation (MAX+1) and never changes â€” it does NOT shrink as earlier jobs
+// at creation (MAX+1) and never changes — it does NOT shrink as earlier jobs
 // finish, so it's wrong to use directly for a "how many ahead of you" ETA.
 export async function getJobsAhead(job: Job): Promise<number> {
   // queue_position resets daily (see nextQueuePosition), so "ahead" only
@@ -304,7 +304,7 @@ export async function getNextApprovedJob() {
 }
 
 export async function getJobFile(jobId: string) {
-  // Bulk jobs carry multiple job_files rows â€” .single() throws PGRST116 there.
+  // Bulk jobs carry multiple job_files rows — .single() throws PGRST116 there.
   // Take the first file by the same ordering convention as getJobFilesByJob.
   const { data, error } = await supabase
     .from('job_files')
@@ -397,7 +397,7 @@ export async function createJobWithFiles(jobData: any, filesData: any[]) {
     storage_path: fd.storage_path ?? fd.storagePath,
     // Offset each file's created_at by i ms so multi-file batches (which all
     // share the same wall-clock "now") still sort by insertion order via
-    // `ORDER BY created_at ASC, id ASC` â€” file ids are random UUIDs, so id
+    // `ORDER BY created_at ASC, id ASC` — file ids are random UUIDs, so id
     // alone can't be relied on as a tiebreaker across a shared timestamp.
     created_at: new Date(Date.parse(now) + i).toISOString(),
     settings_json: (fd.settings ?? fd.settingsOverride) ? JSON.stringify(fd.settings ?? fd.settingsOverride) : null,
@@ -513,7 +513,7 @@ export async function resolveJobIssue(id: string): Promise<void> {
     .insert([{ id: crypto.randomUUID(), job_id: id, event_type: 'issue_resolved', message: 'Staff resolved the reported issue.', created_at: now }]);
 }
 
-// Payment is tracked independently of print-progress status â€” a job can be
+// Payment is tracked independently of print-progress status — a job can be
 // released/printed before it's paid (pay-at-counter-after-print flow), so
 // marking paid only ever touches paid_at, never the status column.
 export async function markJobPaid(
@@ -535,7 +535,7 @@ export async function markJobPaid(
   if (error) throw error;
 
   if (!claimed) {
-    // Lost the race â€” someone else marked it first; report their timestamp.
+    // Lost the race — someone else marked it first; report their timestamp.
     const { data: existing, error: selError } = await supabase
       .from('jobs')
       .select('paid_at')
@@ -660,7 +660,7 @@ export async function getPricing(): Promise<PricingConfig> {
     .eq('id', 1)
     .single();
 
-  // PGRST116 = no rows â€” return defaults so the app works even if not seeded
+  // PGRST116 = no rows — return defaults so the app works even if not seeded
   if (error) {
     if ((error as any).code === 'PGRST116') return PRICING_DEFAULTS;
     throw error;
@@ -887,7 +887,7 @@ export async function replaceAgentPrinters(printers: Array<Omit<PrinterOption, '
   const now = new Date().toISOString();
 
   // Upsert (not delete-all) so multiple agents sharing this DB don't wipe each
-  // other's printers â€” the admin sees the union of all live machines.
+  // other's printers — the admin sees the union of all live machines.
   if (printers.length > 0) {
     const { error } = await supabase
       .from('agent_printers')
@@ -1015,7 +1015,7 @@ export async function bulkDeleteJobs(ids: string[]) {
 }
 
 // IDs of jobs that are done (printed/cancelled/failed/expired) and created
-// before `beforeIso` â€” the set eligible for a manual "clear old records"
+// before `beforeIso` — the set eligible for a manual "clear old records"
 // purge. Never includes jobs still in flight.
 export async function getFinishedJobIdsBefore(beforeIso: string): Promise<string[]> {
   const { data, error } = await supabase
@@ -1036,7 +1036,7 @@ export async function cleanupOldJobs(): Promise<{ deleted: number; storagePaths:
   const fileRetentionCutoff = new Date(Date.now() - retention.fileRetentionDays * 24 * 60 * 60000).toISOString();
   const now = new Date().toISOString();
 
-  // Reset stale "printing" leases â€” agent crashed before completing.
+  // Reset stale "printing" leases — agent crashed before completing.
   await supabase
     .from('jobs')
     .update({ status: 'approved', updated_at: now })
@@ -1046,7 +1046,7 @@ export async function cleanupOldJobs(): Promise<{ deleted: number; storagePaths:
   const storagePaths: string[] = [];
 
   // 1) Abandoned unpaid carts: no order was ever placed. Mark them "expired"
-  // and purge their file bytes, but keep the job + job_files rows â€” Accounts
+  // and purge their file bytes, but keep the job + job_files rows — Accounts
   // analytics reads directly from `jobs`, so hard-deleting these erased
   // revenue/job-count history for that day. A row with no bytes costs
   // nothing to keep around.
@@ -1139,7 +1139,7 @@ export async function cleanupOldJobs(): Promise<{ deleted: number; storagePaths:
     }
   }
 
-  // Auth audit log retention â€” independent of order-history retention.
+  // Auth audit log retention — independent of order-history retention.
   const loginEventCutoff = new Date(Date.now() - retention.loginEventRetentionDays * 24 * 60 * 60000).toISOString();
   try {
     const { error: loginPurgeErr } = await supabase
@@ -1317,13 +1317,13 @@ export async function updateJobStatusByAgent(id: string, status: string, message
   if (eventError) throw eventError;
 }
 
-// â”€â”€â”€ Analytics / Accounts â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Analytics / Accounts ────────────────────────────────────────────────────
 
 import type { DailyJobSummary, AccountsSummary } from './types';
 
 /**
  * Returns per-day aggregates for jobs created between `from` and `to` (inclusive, YYYY-MM-DD strings).
- * Aggregation happens in JavaScript over the raw rows â€” no custom SQL view needed.
+ * Aggregation happens in JavaScript over the raw rows — no custom SQL view needed.
  */
 export async function getDailyAnalytics(from: string, to: string): Promise<DailyJobSummary[]> {
   // Use the date boundaries directly as ISO timestamps so Supabase can use its index.
@@ -1375,7 +1375,7 @@ export async function getDailyAnalytics(from: string, to: string): Promise<Daily
     if (status === 'cancelled') d.cancelledJobs++;
     if (status === 'pending_payment') d.pendingJobs++;
 
-    // Photo is a paper size, not a print type â€” classify it first so photo
+    // Photo is a paper size, not a print type — classify it first so photo
     // jobs aren't miscounted as bw/color.
     if (String(row.paper_size) === 'Photo') d.photoJobs++;
     else if (printType === 'color') d.colorJobs++;

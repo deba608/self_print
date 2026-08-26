@@ -1,4 +1,4 @@
-﻿import type { FileSettingsOverride, PaperSize, PricingConfig, PrintDuplex, PrintLayout, PrintType } from "./types";
+import type { FileSettingsOverride, PaperSize, PricingConfig, PrintDuplex, PrintLayout, PrintType } from "./types";
 
 // Fresh-install seed prices (paise). Single source of truth shared by the
 // SQLite seeder (db.ts seedDefaults) and the Supabase fallback defaults
@@ -10,7 +10,7 @@ export const SEED_PHOTO_PRINT_PAISE = 3000;
 
 // Resolves one bulk file's effective print settings: its own override where
 // present, falling back to the job-level value for every other field. The
-// single place this merge happens â€” the server (pricing + the bulk insert)
+// single place this merge happens — the server (pricing + the bulk insert)
 // and the client estimate both call this instead of re-deriving it, so they
 // can't drift apart.
 export function effectiveFileSettings(
@@ -42,7 +42,7 @@ const paperMultipliers: Record<PaperSize, keyof Omit<PricingConfig, "bwPerPagePa
 export function selectedPageCount(pageCount?: number | null, pageRange?: string | null) {
   const total = Math.max(pageCount || 1, 1);
   if (!pageRange?.trim()) return total;
-  // "even"/"odd" select half the document â€” must match the client estimate,
+  // "even"/"odd" select half the document — must match the client estimate,
   // otherwise the final charge differs from the price shown to the customer.
   const normalized = pageRange.trim().toLowerCase();
   if (normalized === "even") return Math.max(Math.floor(total / 2), 1);
@@ -86,7 +86,7 @@ export function calculatePrice(input: {
 
   // N-up printing (pagesPerSheet > 1) crams multiple document pages onto one
   // printed side, so the shop only consumes ceil(pages / pagesPerSheet)
-  // physical sides â€” that's what must be billed, not the raw page count.
+  // physical sides — that's what must be billed, not the raw page count.
   const pagesPerSheetVal = typeof input.pagesPerSheet === "number" && input.pagesPerSheet > 0 ? input.pagesPerSheet : 1;
   const sides = Math.ceil(selectedPages / Math.max(1, Math.floor(pagesPerSheetVal)));
 
@@ -94,7 +94,7 @@ export function calculatePrice(input: {
   const baseSimplex = input.printType === "bw" ? input.pricing.bwPerPagePaise : input.pricing.colorPerPagePaise;
   const baseDuplex = input.printType === "bw" ? input.pricing.duplexBwPerPagePaise : input.pricing.colorPerPagePaise;
 
-  // Customers pay exactly the advertised per-side rate â€” no hidden multiplier.
+  // Customers pay exactly the advertised per-side rate — no hidden multiplier.
   // Duplex full pairs (of sides) use the duplex rate; a trailing odd side
   // prints single-sided and costs the simplex rate.
   let pageCostSum = 0;
@@ -112,7 +112,7 @@ export function calculatePrice(input: {
 }
 
 // Delivery is free once the order (print + add-ons, before the delivery fee
-// itself) crosses pricing.freeDeliveryThresholdPaise â€” admin-editable in the
+// itself) crosses pricing.freeDeliveryThresholdPaise — admin-editable in the
 // Pricing panel. A threshold of 0 disables the discount (fee always charged).
 export function effectiveDeliveryFeePaise(orderSubtotalPaise: number, deliveryFeePaise: number, freeDeliveryThresholdPaise: number) {
   if (freeDeliveryThresholdPaise <= 0) return deliveryFeePaise;
@@ -120,7 +120,7 @@ export function effectiveDeliveryFeePaise(orderSubtotalPaise: number, deliveryFe
 }
 
 export function formatRupees(paise: number) {
-  return `â‚¹${(paise / 100).toFixed(2)}`;
+  return `₹${(paise / 100).toFixed(2)}`;
 }
 
 function timeInWindow(nowHHMM: string, open: string, close: string) {
@@ -142,7 +142,7 @@ function nowInIST() {
 }
 
 // When closed, tells the customer when they can come back instead of just
-// "closed" â€” checks whether a later window opens later today first, then
+// "closed" — checks whether a later window opens later today first, then
 // walks forward day by day (wrapping past Sunday) for the next allowed day.
 export function nextOpenLabel(days: string | null, windows: Array<[string | null, string | null]>): string | null {
   const validWindows = windows.filter(([o, c]) => o && c) as Array<[string, string]>;
@@ -165,16 +165,16 @@ export function nextOpenLabel(days: string | null, windows: Array<[string | null
 }
 
 function windowsLabel(pricing: PricingConfig) {
-  const windows = [pricing.orderOpenTime && pricing.orderCloseTime ? `${to12h(pricing.orderOpenTime)}â€“${to12h(pricing.orderCloseTime)}` : null,
-    pricing.orderOpenTime2 && pricing.orderCloseTime2 ? `${to12h(pricing.orderOpenTime2)}â€“${to12h(pricing.orderCloseTime2)}` : null]
+  const windows = [pricing.orderOpenTime && pricing.orderCloseTime ? `${to12h(pricing.orderOpenTime)}–${to12h(pricing.orderCloseTime)}` : null,
+    pricing.orderOpenTime2 && pricing.orderCloseTime2 ? `${to12h(pricing.orderOpenTime2)}–${to12h(pricing.orderCloseTime2)}` : null]
     .filter(Boolean);
   return windows.join(", ");
 }
 
-// Shop hours check â€” staff toggle in the Pricing panel. acceptingOrders is a
+// Shop hours check — staff toggle in the Pricing panel. acceptingOrders is a
 // manual kill switch; when open/close times are set it's additionally gated
 // to those daily windows (a second window covers a lunch-break split
-// schedule) and to orderDays (shop-local, Asia/Kolkata â€” the deployment is
+// schedule) and to orderDays (shop-local, Asia/Kolkata — the deployment is
 // India-only, see CLAUDE.md's bom1/ap-south-1 region note).
 export function isAcceptingOrders(pricing: PricingConfig): { ok: true } | { ok: false; reason: string } {
   if (!pricing.acceptingOrders) {
@@ -192,7 +192,7 @@ export function isAcceptingOrders(pricing: PricingConfig): { ok: true } | { ok: 
     [pricing.orderOpenTime2, pricing.orderCloseTime2],
   ];
   const next = nextOpenLabel(pricing.orderDays, windows);
-  // When we can say exactly when we reopen, that's all the customer needs â€”
+  // When we can say exactly when we reopen, that's all the customer needs —
   // appending the full weekly hours makes the banner a wall of text.
   const closed = (headline: string) =>
     next ? `${headline} We reopen ${next}.` : `${headline} Shop hours: ${windowsLabel(pricing)}.`;
@@ -214,7 +214,7 @@ export function isAcceptingOrders(pricing: PricingConfig): { ok: true } | { ok: 
 export const WEEKDAY_ISO: Record<string, number> = { Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7 };
 const ISO_WEEKDAY_LABEL: Record<number, string> = { 1: "Mon", 2: "Tue", 3: "Wed", 4: "Thu", 5: "Fri", 6: "Sat", 7: "Sun" };
 
-// Home delivery window check â€” separate from isAcceptingOrders, since
+// Home delivery window check — separate from isAcceptingOrders, since
 // delivery riders keep narrower hours (and fewer days) than shop pickup.
 // Null open/close time disables the check entirely (delivery available
 // whenever the shop is accepting orders).
@@ -229,7 +229,7 @@ export function isDeliveryAvailable(pricing: PricingConfig): { ok: true } | { ok
   const daysLabel = allowedDays.map((d) => ISO_WEEKDAY_LABEL[d]).join(", ");
   const next = nextOpenLabel(pricing.deliveryDays, [[open, close]]);
   const reopenSuffix = next ? ` Next delivery slot: ${next}.` : "";
-  const windowLabel = `${to12h(open)}â€“${to12h(close)}`;
+  const windowLabel = `${to12h(open)}–${to12h(close)}`;
   if (!allowedDays.includes(isoWeekday)) {
     return { ok: false, reason: `Home delivery is available ${daysLabel}, ${windowLabel}.${reopenSuffix}` };
   }
@@ -251,14 +251,14 @@ export function to12h(hhmm: string): string {
 }
 
 // Renders a Mon-Sun table for a hours config (pickup's two windows, or
-// delivery's one) â€” shared by the admin hours panel and the customer-facing
+// delivery's one) — shared by the admin hours panel and the customer-facing
 // hours card so they can never drift out of sync with each other.
 export function weeklyScheduleLines(
   days: string | null,
   windows: Array<[string | null, string | null]>
 ): Array<{ iso: number; day: string; hours: string }> {
   const allowedDays = days ? days.split(",").map((d) => Number(d.trim())) : [1, 2, 3, 4, 5, 6, 7];
-  const windowLabels = windows.filter(([o, c]) => o && c).map(([o, c]) => `${to12h(o!)}â€“${to12h(c!)}`);
+  const windowLabels = windows.filter(([o, c]) => o && c).map(([o, c]) => `${to12h(o!)}–${to12h(c!)}`);
   const hoursLabel = windowLabels.length ? windowLabels.join(", ") : "Open all day";
   return [1, 2, 3, 4, 5, 6, 7].map((iso) => ({
     iso,
@@ -268,14 +268,14 @@ export function weeklyScheduleLines(
 }
 
 export const paperSizeLabels: Record<PaperSize, string> = {
-  A3: "A3 (297 Ã— 420 mm)",
-  A4: "A4 (210 Ã— 297 mm)",
-  A5: "A5 (148 Ã— 210 mm)",
-  A6: "A6 (105 Ã— 148 mm)",
-  B5: "B5 (176 Ã— 250 mm)",
-  Letter: "Letter (8.5 Ã— 11 in)",
-  Legal: "Legal (8.5 Ã— 14 in)",
-  Photo: "Photo (4 Ã— 6 in)"
+  A3: "A3 (297 × 420 mm)",
+  A4: "A4 (210 × 297 mm)",
+  A5: "A5 (148 × 210 mm)",
+  A6: "A6 (105 × 148 mm)",
+  B5: "B5 (176 × 250 mm)",
+  Letter: "Letter (8.5 × 11 in)",
+  Legal: "Legal (8.5 × 14 in)",
+  Photo: "Photo (4 × 6 in)"
 };
 
 export const allPaperSizes: PaperSize[] = ["A3", "A4", "A5", "A6", "B5", "Legal", "Letter", "Photo"];

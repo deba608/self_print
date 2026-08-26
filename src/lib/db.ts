@@ -1,4 +1,4 @@
-﻿import type { CustomerManagementRow, Job, JobFile, PricingConfig, PrinterOption, RetentionConfig } from './types';
+import type { CustomerManagementRow, Job, JobFile, PricingConfig, PrinterOption, RetentionConfig } from './types';
 import { FILE_RETENTION_DAYS, CART_ABANDON_MINUTES, STRAY_FILE_RETENTION_HOURS, LOGIN_EVENT_RETENTION_DAYS } from './config';
 import { chunk } from './util';
 import { parseServiceAreaConfig, serializeServiceAreaConfig } from './service-area';
@@ -329,7 +329,7 @@ async function ensurePricingColumns(database: any) {
     }
   }
   // Shop pickup hours requested as the initial default (Mon-Sat, split
-  // 9am-1pm / 4:30-8:30pm, Sunday closed) â€” only backfilled if an admin
+  // 9am-1pm / 4:30-8:30pm, Sunday closed) — only backfilled if an admin
   // hasn't already configured a custom window.
   database.prepare(
     `UPDATE pricing_config SET order_open_time = '09:00', order_close_time = '13:00',
@@ -423,7 +423,7 @@ function mapJob(row: Record<string, unknown>, expiryMinutes: number = 1440): Job
 }
 
 // Parses job_files.settings_json (a per-file print-settings override for
-// bulk jobs â€” see docs/bulk-per-file-customization-plan.md). Malformed JSON
+// bulk jobs — see docs/bulk-per-file-customization-plan.md). Malformed JSON
 // falls back to "no override" rather than throwing, since this is stored
 // client-supplied data feeding a display/pricing path, not a security check.
 export function parseFileSettings(raw: unknown): JobFile['settings'] {
@@ -635,7 +635,7 @@ export async function getJobByToken(token: string): Promise<Job> {
 
 // Live count of active (not yet printed/cancelled/failed) jobs queued ahead
 // of this one. queue_position itself is a fixed ticket number assigned once
-// at creation (MAX+1) and never changes â€” it does NOT shrink as earlier jobs
+// at creation (MAX+1) and never changes — it does NOT shrink as earlier jobs
 // finish, so it's wrong to use directly for a "how many ahead of you" ETA.
 export async function getJobsAhead(job: Job): Promise<number> {
   if (isSupabase) {
@@ -792,7 +792,7 @@ export async function createJobWithFiles(
     filesData.forEach((fd, i) => {
       // Offset each file's created_at by i ms so multi-file batches (which all
       // share the same wall-clock "now") still sort by insertion order via
-      // `ORDER BY created_at ASC, id ASC` â€” file ids are random UUIDs, so id
+      // `ORDER BY created_at ASC, id ASC` — file ids are random UUIDs, so id
       // alone can't be relied on as a tiebreaker across a shared timestamp.
       const fileCreatedAt = new Date(Date.parse(now) + i).toISOString();
       const settings = fd.settings ?? fd.settingsOverride ?? null;
@@ -854,7 +854,7 @@ export async function updateJobStatus(id: string, status: string): Promise<void>
 }
 
 // Delivery hand-off status, tracked independently of the print-progress
-// `status` column â€” mirrors how `paidAt` is decoupled from `status`. Only
+// `status` column — mirrors how `paidAt` is decoupled from `status`. Only
 // ever set on delivery-method jobs; the API route enforces that.
 export async function updateDeliveryStatus(
   id: string,
@@ -880,8 +880,8 @@ export async function updateDeliveryStatus(
 }
 
 // Customer-facing: flags a job for staff attention from the public /track
-// page (failed/cancelled state only â€” enforced by the API route, not here).
-// Idempotent â€” a second report just refreshes the note rather than stacking.
+// page (failed/cancelled state only — enforced by the API route, not here).
+// Idempotent — a second report just refreshes the note rather than stacking.
 export async function reportJobIssue(token: string, note: string): Promise<void> {
   if (isSupabase) {
     const mod = await import('./db-supabase');
@@ -912,7 +912,7 @@ export async function resolveJobIssue(id: string): Promise<void> {
     .run(crypto.randomUUID(), id, now);
 }
 
-// Payment is tracked independently of print-progress status â€” a job can be
+// Payment is tracked independently of print-progress status — a job can be
 // released/printed before it's paid (pay-at-counter-after-print flow), so
 // marking paid only ever touches paid_at, never the status column.
 export async function markJobPaid(
@@ -1269,7 +1269,7 @@ export async function replaceAgentPrinters(printers: Array<Omit<PrinterOption, '
   const cutoff = new Date(Date.now() - 5 * 60 * 1000).toISOString();
   sqlite.transaction(() => {
     // Upsert (not delete-all) so multiple agents sharing this DB don't wipe each
-    // other's printers â€” the admin sees the union of all live machines.
+    // other's printers — the admin sees the union of all live machines.
     const upsert = sqlite.prepare(`
       INSERT INTO agent_printers (name, driver_name, port_name, is_default, can_duplex, seen_at)
       VALUES (?, ?, ?, ?, ?, ?)
@@ -1377,7 +1377,7 @@ export async function bulkArchiveJobs(ids: string[]): Promise<void> {
 
 // Un-archives every archived job so it reappears in the admin queue/history.
 // Files already deleted at archive time (see DELETE /api/admin/jobs/[id])
-// stay deleted â€” this restores the row, not the uploaded content.
+// stay deleted — this restores the row, not the uploaded content.
 export async function restoreAllArchivedJobs(): Promise<number> {
   if (isSupabase) {
     const mod = await import('./db-supabase');
@@ -1388,7 +1388,7 @@ export async function restoreAllArchivedJobs(): Promise<number> {
   return result.changes ?? 0;
 }
 
-// Hard-delete for super-admin purge only â€” removes rows permanently.
+// Hard-delete for super-admin purge only — removes rows permanently.
 export async function bulkDeleteJobs(ids: string[]): Promise<void> {
   if (isSupabase) {
     const mod = await import('./db-supabase');
@@ -1399,7 +1399,7 @@ export async function bulkDeleteJobs(ids: string[]): Promise<void> {
 }
 
 // IDs of jobs that are done (printed/cancelled/failed/expired) and created
-// before `beforeIso` â€” the set eligible for a manual "clear old records"
+// before `beforeIso` — the set eligible for a manual "clear old records"
 // purge. Never includes jobs still in flight, so an accidental wide date
 // range can't delete an active order.
 export async function getFinishedJobIdsBefore(beforeIso: string): Promise<string[]> {
@@ -1416,7 +1416,7 @@ export async function getFinishedJobIdsBefore(beforeIso: string): Promise<string
 }
 
 // Deletes abandoned unpaid carts (never became a real order) and purges the
-// uploaded file bytes â€” but NOT the job row â€” of finished orders once they're
+// uploaded file bytes — but NOT the job row — of finished orders once they're
 // past FILE_RETENTION_DAYS old. The job row and job_files metadata row (name,
 // size, page count) are kept forever so order history and receipts still work
 // after the file is gone; only storage bytes are deleted for privacy.
@@ -1437,7 +1437,7 @@ export async function cleanupOldJobs(): Promise<{ deleted: number; storagePaths:
   const fileRetentionCutoff = new Date(Date.now() - retention.fileRetentionDays * 24 * 60 * 60000).toISOString();
   const now = new Date().toISOString();
 
-  // Reset stale "printing" leases â€” agent crashed before completing.
+  // Reset stale "printing" leases — agent crashed before completing.
   sqlite.prepare(`
     UPDATE jobs SET status = 'approved', updated_at = ?
     WHERE status = 'printing' AND updated_at < ?
@@ -1446,7 +1446,7 @@ export async function cleanupOldJobs(): Promise<{ deleted: number; storagePaths:
   const storagePaths: string[] = [];
 
   // 1) Abandoned unpaid carts: no order was ever placed. Mark them "expired"
-  // and purge their file bytes, but keep the row â€” Accounts analytics reads
+  // and purge their file bytes, but keep the row — Accounts analytics reads
   // directly from `jobs`, so hard-deleting these erased revenue/job-count
   // history for that day.
   const abandoned = sqlite.prepare(`
@@ -1581,7 +1581,7 @@ export async function getJobsNeedingConversion(): Promise<Job[]> {
   const rows = sqlite
     .prepare("SELECT * FROM jobs WHERE needs_conversion = 1 ORDER BY created_at ASC")
     .all() as Record<string, unknown>[];
-  // NOT rows.map(mapJob) â€” map would pass the array index as expiryMinutes.
+  // NOT rows.map(mapJob) — map would pass the array index as expiryMinutes.
   return rows.map(row => mapJob(row, pricing.expiryMinutes));
 }
 
@@ -1634,7 +1634,7 @@ export async function updateJobStatusByAgent(id: string, status: string, message
     .run(crypto.randomUUID(), id, status, message ?? '', now);
 }
 
-// â”€â”€â”€ Analytics / Accounts â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Analytics / Accounts ────────────────────────────────────────────────────
 
 import type { DailyJobSummary, AccountsSummary } from './types';
 
@@ -1675,7 +1675,7 @@ export async function getDailyAnalytics(from: string, to: string): Promise<Daily
     if (status === 'printed')          d.printedJobs++;
     if (status === 'cancelled')        d.cancelledJobs++;
     if (status === 'pending_payment')  d.pendingJobs++;
-    // Photo is a paper size, not a print type â€” classify it first so photo
+    // Photo is a paper size, not a print type — classify it first so photo
     // jobs aren't miscounted as bw/color.
     if (String(row.paper_size) === 'Photo') d.photoJobs++;
     else if (printType === 'color')         d.colorJobs++;
