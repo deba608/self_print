@@ -28,11 +28,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return NextResponse.json({ error: "This order can't move to that step." }, { status: 400 });
   }
 
-  // Notify customer on delivery status change (WhatsApp primary, SMS fallback — failures never block)
+  // Notify customer on delivery status change (SMS — failures never block)
   try {
     const { getJobById } = await import("@/lib/db");
     const { sendOutForDeliverySms, sendDeliveredSms } = await import("@/lib/sms-notifications");
-    const { sendOutForDeliveryWa, sendDeliveredWa } = await import("@/lib/whatsapp-notifications");
     const job = await getJobById(id);
     if (job?.customerPhone) {
       const input = {
@@ -42,9 +41,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         driverPhone: undefined,
       };
       if (next === "out_for_delivery") {
-        await Promise.allSettled([sendOutForDeliveryWa(input), sendOutForDeliverySms(input)]);
+        await sendOutForDeliverySms(input);
       } else if (next === "delivered") {
-        await Promise.allSettled([sendDeliveredWa(input), sendDeliveredSms(input)]);
+        await sendDeliveredSms(input);
       }
     }
   } catch (err) {

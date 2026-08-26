@@ -48,7 +48,7 @@ export default function CompleteProfileForm({ defaultName = "" }: { defaultName?
   };
 
   return (
-    <AuthShell title="One Last Step" subtitle="Enter your WhatsApp number to receive order updates and delivery tracking">
+    <AuthShell title="One Last Step" subtitle="Enter your phone number for order updates and delivery tracking">
       <form className="login-form" onSubmit={handleSubmit}>
         <AuthInput
           id="name"
@@ -63,7 +63,7 @@ export default function CompleteProfileForm({ defaultName = "" }: { defaultName?
         />
         <AuthInput
           id="phone"
-          label="WhatsApp Number"
+          label="Phone Number"
           icon={Phone}
           type="tel"
           inputMode="numeric"

@@ -8,12 +8,6 @@ import {
   sendDeliveredSms,
   sendPaymentReceivedSms,
 } from "@/lib/sms-notifications";
-import {
-  sendJobApprovedWa,
-  sendOutForDeliveryWa,
-  sendDeliveredWa,
-  sendPaymentReceivedWa,
-} from "@/lib/whatsapp-notifications";
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const staff = await requireStaff();
@@ -48,31 +42,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const input = { phone: job.customerPhone, token: job.token };
     let result;
     if (type === "approved") {
-      const [wa, sms] = await Promise.allSettled([
-        sendJobApprovedWa(input),
-        sendJobApprovedSms(input),
-      ]);
-      result = wa.status === "fulfilled" ? wa.value : sms.status === "fulfilled" ? sms.value : null;
+      result = await sendJobApprovedSms(input);
     } else if (type === "out_for_delivery") {
-      const delivery = { ...input, driverName: staff.displayName || "Delivery Executive" };
-      const [wa, sms] = await Promise.allSettled([
-        sendOutForDeliveryWa(delivery),
-        sendOutForDeliverySms(delivery),
-      ]);
-      result = wa.status === "fulfilled" ? wa.value : sms.status === "fulfilled" ? sms.value : null;
+      result = await sendOutForDeliverySms({ ...input, driverName: staff.displayName || "Delivery Executive" });
     } else if (type === "delivered") {
-      const [wa, sms] = await Promise.allSettled([
-        sendDeliveredWa(input),
-        sendDeliveredSms(input),
-      ]);
-      result = wa.status === "fulfilled" ? wa.value : sms.status === "fulfilled" ? sms.value : null;
+      result = await sendDeliveredSms(input);
     } else if (type === "payment") {
-      const payment = { ...input, amountPaise: job.pricePaise };
-      const [wa, sms] = await Promise.allSettled([
-        sendPaymentReceivedWa(payment),
-        sendPaymentReceivedSms(payment),
-      ]);
-      result = wa.status === "fulfilled" ? wa.value : sms.status === "fulfilled" ? sms.value : null;
+      result = await sendPaymentReceivedSms({ ...input, amountPaise: job.pricePaise });
     } else {
       const message = customMessage ? String(customMessage).trim() : `Selfprint update for order #${job.token}: Status is ${job.status}.`;
       result = await sendSms({ to: job.customerPhone, message });

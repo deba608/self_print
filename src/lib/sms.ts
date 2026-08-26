@@ -18,7 +18,7 @@ export function normalizePhoneNumber(phone: string): string {
   return `+${digits}`;
 }
 
-/** SMS dispatcher. Only 'console' provider active — WhatsApp handles real notifications. */
+/** SMS dispatcher. Only 'console' provider active — configure an SMS gateway for real notifications. */
 export async function sendSms({ to, message }: SendSmsOptions): Promise<SendSmsResult> {
   const formattedPhone = normalizePhoneNumber(to);
   if (!formattedPhone || formattedPhone.length < 10) {
