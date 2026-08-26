@@ -155,7 +155,7 @@ describe("effectiveFileSettings (bulk per-file customization)", () => {
   });
 
   it("applies every field when all are overridden", () => {
-    const override = { printType: "color", duplex: "long-edge", paperSize: "A3", copies: 3, pagesPerSheet: 2 } as const;
+    const override = { printType: "color", duplex: "long-edge", paperSize: "A3", layout: "landscape", copies: 3, pagesPerSheet: 2 } as const;
     expect(effectiveFileSettings(jobDefaults, override)).toEqual(override);
   });
 
