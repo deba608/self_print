@@ -2092,21 +2092,13 @@ export default function UploadForm() {
             <button
               className="file-summary"
               onClick={() => {
-                if (bulkUploadAbortControllerRef.current) {
-                  bulkUploadAbortControllerRef.current.abort();
-                  bulkUploadAbortControllerRef.current = null;
+                // Reopen the picker in place — picking new files replaces the
+                // current selection via handleFileChange without kicking the
+                // user back to step 1 and losing their place.
+                if (fileInputRef.current) {
+                  fileInputRef.current.value = "";
+                  fileInputRef.current.click();
                 }
-                bulkUploadsRef.current = null;
-                setBulkFiles([]);
-                setBulkPageCounts([]);
-                setBulkIds([]);
-                setBulkFileOverrides({});
-                setCustomizingBulkId(null);
-                setBulkMode(false);
-                setBulkUploading(false);
-                setError("");
-                if (fileInputRef.current) fileInputRef.current.value = "";
-                setStep("upload");
               }}
               aria-label="Change files"
             >
@@ -2123,21 +2115,13 @@ export default function UploadForm() {
             <button
               className="file-summary"
               onClick={() => {
-                if (uploadAbortControllerRef.current) {
-                  uploadAbortControllerRef.current.abort();
-                  uploadAbortControllerRef.current = null;
+                // Reopen the picker in place — picking a new file replaces
+                // the current one via handleFileChange without kicking the
+                // user back to step 1 and losing their place.
+                if (fileInputRef.current) {
+                  fileInputRef.current.value = "";
+                  fileInputRef.current.click();
                 }
-                uploadPromiseRef.current = null;
-                setSingleUploading(false);
-                setFile(null);
-                setFilePageCount(null);
-                if (previewUrl) {
-                  URL.revokeObjectURL(previewUrl);
-                  setPreviewUrl(null);
-                }
-                setError("");
-                if (fileInputRef.current) fileInputRef.current.value = "";
-                setStep("upload");
               }}
               aria-label="Change file"
             >
