@@ -850,6 +850,7 @@ export default function UploadForm() {
         printType: printType as "bw" | "color",
         duplex: duplex as "simplex" | "long-edge" | "short-edge",
         paperSize: paperSize as "A3" | "A4" | "A5" | "A6" | "B5" | "Letter" | "Legal" | "Photo",
+        layout: layout as "portrait" | "landscape",
         copies,
         pagesPerSheet,
       };

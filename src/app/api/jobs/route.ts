@@ -571,7 +571,7 @@ async function handleBulk(form: FormData, customer: { id: string; displayName: s
     if (!check.ok) return NextResponse.json({ error: check.reason }, { status: 400 });
   }
 
-  const jobDefaults = { printType, duplex, paperSize, copies, pagesPerSheet };
+  const jobDefaults = { printType, duplex, paperSize, layout, copies, pagesPerSheet };
   // Price per file at its own effective settings (override ?? job default)
   // and sum, instead of one flat calculatePrice() over the total page count â€”
   // that flat call was correct only because every file shared one setting.

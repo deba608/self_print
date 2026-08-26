@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+﻿import { describe, it, expect } from "vitest";
 import { calculatePrice, calculateSpiralBindingPrice, effectiveDeliveryFeePaise, effectiveFileSettings } from "./pricing";
 import type { PricingConfig } from "./types";
 import { DEFAULT_SERVICE_AREA } from "./service-area";
@@ -115,8 +115,8 @@ describe("calculateSpiralBindingPrice slabs", () => {
 });
 
 describe("effectiveDeliveryFeePaise free-delivery threshold", () => {
-  const feePaise = 4000; // ₹40 flat delivery fee
-  const threshold = 20000; // ₹200
+  const feePaise = 4000; // â‚¹40 flat delivery fee
+  const threshold = 20000; // â‚¹200
 
   it("charges the fee below the threshold", () => {
     expect(effectiveDeliveryFeePaise(threshold - 1, feePaise, threshold)).toBe(feePaise);
@@ -140,7 +140,7 @@ describe("effectiveDeliveryFeePaise free-delivery threshold", () => {
 });
 
 describe("effectiveFileSettings (bulk per-file customization)", () => {
-  const jobDefaults = { printType: "bw", duplex: "simplex", paperSize: "A4", copies: 1, pagesPerSheet: 1 } as const;
+  const jobDefaults = { printType: "bw", duplex: "simplex", paperSize: "A4", layout: "portrait", copies: 1, pagesPerSheet: 1 } as const;
 
   it("inherits every job default when there is no override", () => {
     expect(effectiveFileSettings(jobDefaults, null)).toEqual(jobDefaults);
