@@ -1345,6 +1345,9 @@ input, select, button {
 .bulk-file-item:has(.bulk-file-row.active) .bulk-file-customize-panel {
   border-color: var(--accent);
   border-top-color: var(--accent-light);
+  /* Row gets a 1px accent box-shadow on top of its 1px border when active —
+     match it here so the panel's edge reads the same thickness, not thinner. */
+  box-shadow: 0 0 0 1px var(--accent);
 }
 
 /* Panel open — square the row's bottom corners so they sit flush against
