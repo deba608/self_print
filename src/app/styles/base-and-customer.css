@@ -1347,6 +1347,13 @@ input, select, button {
   border-top-color: var(--accent-light);
 }
 
+/* Panel open — square the row's bottom corners so they sit flush against
+   the panel's square top edge instead of leaving a rounded notch. */
+.bulk-file-row.panel-open {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
 /* Row exit — X clicked, collapses out before the array actually shrinks */
 .bulk-file-row.leaving {
   max-height: 0;

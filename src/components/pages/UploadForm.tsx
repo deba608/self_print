@@ -1659,7 +1659,7 @@ export default function UploadForm() {
         return (
         <div key={id ?? i} className="bulk-file-item">
         <div
-          className={`bulk-file-row ${i === bulkPreviewIndex ? "active" : ""} ${isLeaving ? "leaving" : ""} ${dragOverIndex === i ? "drag-over" : ""}`}
+          className={`bulk-file-row ${i === bulkPreviewIndex ? "active" : ""} ${isLeaving ? "leaving" : ""} ${dragOverIndex === i ? "drag-over" : ""} ${id && customizingBulkId === id ? "panel-open" : ""}`}
           draggable={bulkFiles.length > 1}
           role="button"
           tabIndex={0}
