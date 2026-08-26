@@ -32,7 +32,10 @@ describe("stageUpdate", () => {
     return { dir, bytes: readFileSync(zip) };
   }
 
-  it("extracts a valid zip into payload/", async () => {
+  // stageUpdate shells out to PowerShell (Expand-Archive) — Windows only.
+  const itOnWindows = process.platform === "win32" ? it : it.skip;
+
+  itOnWindows("extracts a valid zip into payload/", async () => {
     const { dir, bytes } = zipOf((src) => {
       mkdirSync(path.join(src, "agent"));
       writeFileSync(path.join(src, "agent", "version.json"), '{"version":"1.1.0"}');
@@ -43,7 +46,7 @@ describe("stageUpdate", () => {
     expect(existsSync(path.join(dir, "payload", "agent", "version.json"))).toBe(true);
   });
 
-  it("rejects an incomplete payload and removes it", async () => {
+  itOnWindows("rejects an incomplete payload and removes it", async () => {
     const { dir, bytes } = zipOf((src) => {
       writeFileSync(path.join(src, "stray.txt"), "no agent dir here");
     });
