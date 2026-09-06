@@ -23,6 +23,15 @@ export type BillData = {
   };
   totalPaise: number;
   perPagePaise: number;
+  // Odd-side B&W duplex split — when present the rate line renders
+  // "6 sides × ₹1.00 + 1 side × ₹1.50" so pages × rate ties to the total.
+  // Null/undefined keeps the legacy "N pages × ₹X" single-rate line.
+  rateDetail?: {
+    pairedSides: number;
+    pairedPaise: number;
+    trailingSides: number;
+    trailingPaise: number;
+  } | null;
   totalPages: number;
   deliveryFeePaise?: number;
   paidVia: "online" | "counter";
@@ -54,6 +63,12 @@ export default function BillReceipt({ bill }: { bill: BillData }) {
     bill.settings.spiralBindingSlabPaise != null
       ? bill.settings.spiralBindingSlabPaise * (bill.settings.spiralBindingQty ?? 1)
       : 0;
+
+  // Odd-side B&W duplex: "6 sides × ₹1.00 + 1 side × ₹1.50" ties to the
+  // charge; otherwise the legacy "N pages × ₹X" line.
+  const rateLine = bill.rateDetail && bill.rateDetail.trailingSides > 0
+    ? `${bill.rateDetail.pairedSides} sides × ${rupees(bill.rateDetail.pairedPaise)} + ${bill.rateDetail.trailingSides} side × ${rupees(bill.rateDetail.trailingPaise)}`
+    : `${bill.totalPages} page${bill.totalPages !== 1 ? "s" : ""} × ${rupees(bill.perPagePaise)}`;
 
   async function saveAsImage() {
     setSaving(true);
@@ -97,7 +112,7 @@ export default function BillReceipt({ bill }: { bill: BillData }) {
 
         <p className="bill-settings">{settingsLine}</p>
         <div className="bill-line">
-          <span>{bill.totalPages} page{bill.totalPages !== 1 ? "s" : ""} × {rupees(bill.perPagePaise)}</span>
+          <span>{rateLine}</span>
         </div>
         {bill.settings.copies > 1 && (
           <div className="bill-line"><span>Copies × {bill.settings.copies}</span></div>
@@ -234,7 +249,10 @@ async function renderBillPng(bill: BillData): Promise<Blob> {
   ctx.fillText(settingsLine, left, y);
   y += lineH;
 
-  ctx.fillText(`${bill.totalPages} page${bill.totalPages !== 1 ? "s" : ""} × ${rupees(bill.perPagePaise)}`, left, y);
+  const pngRateLine = bill.rateDetail && bill.rateDetail.trailingSides > 0
+    ? `${bill.rateDetail.pairedSides} sides × ${rupees(bill.rateDetail.pairedPaise)} + ${bill.rateDetail.trailingSides} side × ${rupees(bill.rateDetail.trailingPaise)}`
+    : `${bill.totalPages} page${bill.totalPages !== 1 ? "s" : ""} × ${rupees(bill.perPagePaise)}`;
+  ctx.fillText(pngRateLine, left, y);
   y += lineH;
   if (bill.settings.copies > 1) {
     ctx.fillText(`Copies × ${bill.settings.copies}`, left, y);

@@ -4342,6 +4342,47 @@
   .slab-row {
     grid-template-columns: 1fr 108px;
   }
+
+  /* Service Hours panel — timing controls need full-width rows and 44px
+     touch targets on phones; the week table wraps instead of overflowing. */
+  .hours-panel {
+    max-width: 100%;
+  }
+
+  .hours-service-card {
+    padding: 12px 12px 14px;
+  }
+
+  .hours-day-pills {
+    gap: 8px;
+  }
+
+  .hours-day-pill {
+    flex: 1 1 calc(25% - 8px);
+    min-height: 44px;
+    padding: 10px 8px;
+    font-size: 13px;
+    text-align: center;
+  }
+
+  .order-hours-range {
+    flex-wrap: wrap;
+  }
+
+  .order-hours-range input[type="time"] {
+    flex: 1 1 128px;
+    min-height: 44px;
+    font-size: 16px;
+  }
+
+  .hours-week-table li {
+    align-items: baseline;
+    font-size: 13px;
+  }
+
+  .hours-week-table li span:last-child {
+    overflow-wrap: anywhere;
+  }
 }
 
 @media (max-width: 1024px) {

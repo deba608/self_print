@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getJobByToken, getJobFilesByJob, getPricing } from "@/lib/db";
-import { calculateSpiralBindingPrice, selectedPageCount } from "@/lib/pricing";
+import { billableSides, calculateSpiralBindingPrice, duplexRateSplit, selectedPageCount } from "@/lib/pricing";
 import { clientIp, isRateLimited } from "@/lib/ratelimit";
 
 // Public receipt data for the customer's status/track page. Only exposed once
@@ -33,6 +33,14 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const perPagePaise = job.duplex !== "simplex" && job.printType === "bw" && pricing.duplexBwPerPagePaise
     ? pricing.duplexBwPerPagePaise
     : job.printType === "bw" ? pricing.bwPerPagePaise : pricing.colorPerPagePaise;
+  // Odd-side B&W duplex bills the trailing side at the simplex rate — expose
+  // the split so the receipt line ties to the charged total.
+  const rateDetail = duplexRateSplit({
+    duplex: job.duplex,
+    printType: job.printType,
+    sides: billableSides(job.pageCount, job.pageRange, job.pagesPerSheet),
+    pricing,
+  });
 
   // Per-file page counts aren't persisted (only the job total is) — for a
   // multi-file batch, show one aggregate line rather than a guessed split.
@@ -59,6 +67,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       },
       totalPaise: job.pricePaise,
       perPagePaise,
+      rateDetail: rateDetail ?? null,
       totalPages: job.pageCount,
       deliveryFeePaise: job.deliveryFeePaise,
       paidVia: job.paidVia ?? "counter",

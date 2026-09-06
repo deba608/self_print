@@ -1726,6 +1726,27 @@ input, select, button {
   }
 }
 
+/* Mobile: shop timing rows carry long "9 am–1 pm, 4:30–8:30 pm" strings —
+   let them use the full width and wrap instead of squeezing at 280px. */
+@media (max-width: 480px) {
+  .shop-closed-banner {
+    font-size: 13px;
+    padding: 10px 12px;
+  }
+  .closed-hours {
+    max-width: 100%;
+    font-size: 12.5px;
+  }
+  .closed-hours-row {
+    gap: 10px;
+    padding: 5px 8px;
+  }
+  .closed-hours-row span:last-child {
+    text-align: right;
+    overflow-wrap: anywhere;
+  }
+}
+
 .bulk-customize-reset {
   display: inline-flex;
   align-items: center;
@@ -3269,6 +3290,7 @@ input, select, button {
 .bill-file-pages { color: var(--muted); flex-shrink: 0; }
 .bill-settings { font-size: 12px; color: var(--muted); font-weight: 600; margin-bottom: 6px; }
 .bill-line { font-size: 12px; color: var(--muted); font-weight: 600; margin-bottom: 4px; display: flex; justify-content: space-between; }
+.bill-line > span:first-child { min-width: 0; overflow-wrap: anywhere; }
 .bill-line-right { color: var(--text); }
 .bill-total { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; font-size: 16px; font-weight: 800; }
 .bill-foot-line { font-size: 12px; color: var(--muted); font-weight: 600; margin-bottom: 4px; }

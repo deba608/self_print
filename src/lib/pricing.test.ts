@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { calculatePrice, calculateSpiralBindingPrice, effectiveDeliveryFeePaise, effectiveFileSettings } from "./pricing";
+import { billableSides, calculatePrice, calculateSpiralBindingPrice, duplexRateSplit, effectiveDeliveryFeePaise, effectiveFileSettings } from "./pricing";
 import type { PricingConfig } from "./types";
 import { DEFAULT_SERVICE_AREA } from "./service-area";
 
@@ -161,5 +161,43 @@ describe("effectiveFileSettings (bulk per-file customization)", () => {
 
   it("an empty override object still falls back to job defaults field by field", () => {
     expect(effectiveFileSettings(jobDefaults, {})).toEqual(jobDefaults);
+  });
+});
+
+describe("duplexRateSplit (receipt rate line)", () => {
+  it("returns null for simplex, color, or even sides", () => {
+    expect(duplexRateSplit({ duplex: "simplex", printType: "bw", sides: 7, pricing })).toBeNull();
+    expect(duplexRateSplit({ duplex: "long-edge", printType: "color", sides: 7, pricing })).toBeNull();
+    expect(duplexRateSplit({ duplex: "long-edge", printType: "bw", sides: 8, pricing })).toBeNull();
+  });
+
+  it("splits an odd-side B&W duplex job into paired + trailing rates", () => {
+    // bw 200 / duplex 300 (test fixture): 7 sides -> 6 at 300 + 1 at 200,
+    // matching calculatePrice's pairing.
+    expect(duplexRateSplit({ duplex: "long-edge", printType: "bw", sides: 7, pricing })).toEqual({
+      pairedSides: 6,
+      pairedPaise: 300,
+      trailingSides: 1,
+      trailingPaise: 200,
+    });
+  });
+
+  it("returns null when the duplex rate equals the simplex rate (no visible split)", () => {
+    const sameRate = { ...pricing, duplexBwPerPagePaise: pricing.bwPerPagePaise };
+    expect(duplexRateSplit({ duplex: "long-edge", printType: "bw", sides: 7, pricing: sameRate })).toBeNull();
+  });
+
+  it("uses billable sides (N-up aware) for the split input", () => {
+    // 8 doc pages at 2-up -> 4 sides (even) -> no split.
+    expect(billableSides(8, null, 2)).toBe(4);
+    expect(duplexRateSplit({ duplex: "long-edge", printType: "bw", sides: billableSides(8, null, 2), pricing })).toBeNull();
+    // 9 doc pages at 4-up -> ceil(9/4) = 3 sides (odd) -> split 2+1.
+    expect(billableSides(9, null, 4)).toBe(3);
+    expect(duplexRateSplit({ duplex: "long-edge", printType: "bw", sides: billableSides(9, null, 4), pricing })).toEqual({
+      pairedSides: 2,
+      pairedPaise: 300,
+      trailingSides: 1,
+      trailingPaise: 200,
+    });
   });
 });

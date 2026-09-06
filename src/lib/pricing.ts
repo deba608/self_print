@@ -111,6 +111,51 @@ export function calculatePrice(input: {
   return Math.round(pageCostSum * copies * paperMultiplier * input.pricing.copyMultiplier);
 }
 
+// Billable physical sides for a job: selected document pages grouped
+// pagesPerSheet-per-side. Single place both the server receipt and the client
+// receipt compute "sides" so the rate line can never drift from the charge.
+export function billableSides(
+  pageCount?: number | null,
+  pageRange?: string | null,
+  pagesPerSheet?: number | null
+) {
+  const selectedPages = selectedPageCount(pageCount, pageRange);
+  const perSheet = typeof pagesPerSheet === "number" && pagesPerSheet > 0 ? Math.floor(pagesPerSheet) : 1;
+  return Math.ceil(selectedPages / Math.max(1, perSheet));
+}
+
+export type DuplexRateSplit = {
+  pairedSides: number;
+  pairedPaise: number;
+  trailingSides: number;
+  trailingPaise: number;
+};
+
+// Split behind the "N pages × ₹X" receipt line for odd-side B&W duplex jobs.
+// Returns null when no split is needed (simplex, color, even sides, or the
+// admin left the duplex rate equal to the simplex rate) so callers keep the
+// existing single-rate line instead of rendering a noisy "6 × ₹1 + 1 × ₹1".
+export function duplexRateSplit(input: {
+  duplex?: PrintDuplex | null;
+  printType: PrintType;
+  sides: number;
+  pricing: Pick<PricingConfig, "bwPerPagePaise" | "duplexBwPerPagePaise">;
+}): DuplexRateSplit | null {
+  const isDuplex = input.duplex && input.duplex !== "simplex";
+  if (!isDuplex || input.printType !== "bw") return null;
+  if (!Number.isFinite(input.sides) || input.sides < 2 || input.sides % 2 === 0) return null;
+  const pairedPaise = input.pricing.duplexBwPerPagePaise;
+  const trailingPaise = input.pricing.bwPerPagePaise;
+  if (!Number.isFinite(pairedPaise) || !Number.isFinite(trailingPaise)) return null;
+  if (pairedPaise === trailingPaise) return null;
+  return {
+    pairedSides: Math.floor(input.sides / 2) * 2,
+    pairedPaise,
+    trailingSides: input.sides % 2,
+    trailingPaise,
+  };
+}
+
 // Delivery is free once the order (print + add-ons, before the delivery fee
 // itself) crosses pricing.freeDeliveryThresholdPaise — admin-editable in the
 // Pricing panel. A threshold of 0 disables the discount (fee always charged).

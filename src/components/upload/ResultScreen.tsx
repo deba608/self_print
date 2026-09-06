@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Check, CreditCard, Loader2, Printer, Search, Smartphone, Star, Store, Truck, UploadCloud, X } from "lucide-react";
 import BillReceipt, { type BillData } from "../BillReceipt";
 import { loadRazorpayCheckout, type Pricing } from "./shared";
-import { calculateSpiralBindingPrice } from "@/lib/pricing";
+import { billableSides, calculateSpiralBindingPrice, duplexRateSplit } from "@/lib/pricing";
 import { createClient } from "@/lib/supabase/client";
 
 export type JobResult = {
@@ -168,6 +168,17 @@ export default function ResultScreen({
         ? pricing.duplexBwPerPagePaise
         : printType === "bw" ? pricing.bwPerPagePaise : pricing.colorPerPagePaise)
     : 0;
+  const billTotalPages = result.pageCount || billFiles.reduce((s, f) => s + f.pages, 0);
+  // Odd-side B&W duplex bills the trailing side at the simplex rate — expose
+  // the split so the receipt line ties to the charged total.
+  const billRateDetail = pricing
+    ? duplexRateSplit({
+        duplex: duplex as "simplex" | "long-edge" | "short-edge",
+        printType: printType as "bw" | "color",
+        sides: billableSides(billTotalPages, null, Number(pagesPerSheet) || 1),
+        pricing,
+      })
+    : null;
   const billData: BillData = {
     shopName,
     token: result.token,
@@ -182,7 +193,8 @@ export default function ResultScreen({
     },
     totalPaise: result.pricePaise,
     perPagePaise: billPerPage,
-    totalPages: result.pageCount || billFiles.reduce((s, f) => s + f.pages, 0),
+    rateDetail: billRateDetail ?? null,
+    totalPages: billTotalPages,
     deliveryFeePaise: result.deliveryFeePaise ?? 0,
     paidVia: paidInfo?.method ?? "counter",
     paidAt: paidInfo?.at ?? new Date().toISOString(),
