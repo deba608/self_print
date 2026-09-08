@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useState, useRef } from "react";
 import Link from "next/link";
-import { UploadCloud, FileText, Image, ArrowLeft, ArrowRight, Check, Eye, Loader2, File, Settings2, Printer, Copy, Store, X, Search, CreditCard, RefreshCw, Info, Truck, MapPin, Navigation, AlertCircle, ChevronDown, Heart } from "lucide-react";
-import { formatRupees, paperSizeLabels, allPaperSizes, calculateSpiralBindingPrice, calculatePrice, effectiveDeliveryFeePaise, effectiveFileSettings, isAcceptingOrders, isDeliveryAvailable, weeklyScheduleLines, WEEKDAY_ISO } from "@/lib/pricing";
+import { UploadCloud, FileText, Image, ArrowLeft, ArrowRight, Check, Eye, Loader2, File, Settings2, Printer, Copy, Store, X, Search, CreditCard, RefreshCw, Info, Truck, MapPin, Navigation, AlertCircle, Heart } from "lucide-react";
+import { formatRupees, paperSizeLabels, calculateSpiralBindingPrice, calculatePrice, effectiveDeliveryFeePaise, effectiveFileSettings, isAcceptingOrders, isDeliveryAvailable, weeklyScheduleLines, WEEKDAY_ISO } from "@/lib/pricing";
 import { estimatePdfPages } from "@/lib/pdf-pages";
 import { MAX_BULK_FILES } from "@/lib/limits";
 import type { FileSettingsOverride } from "@/lib/types";
@@ -335,16 +335,11 @@ export default function UploadForm() {
   const [locationError, setLocationError] = useState("");
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
-  const [morePopoverOpen, setMorePopoverOpen] = useState(false);
   const [showShopHours, setShowShopHours] = useState(false);
-  const popoverRef = useRef<HTMLDivElement>(null);
 
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
-      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
-        setMorePopoverOpen(false);
-      }
       if (spiralInfoRef.current && !spiralInfoRef.current.contains(e.target as Node)) {
         setSpiralInfoOpen(false);
       }
@@ -355,11 +350,11 @@ export default function UploadForm() {
         setBondInfoOpen(false);
       }
     }
-    if (morePopoverOpen || spiralInfoOpen || coverInfoOpen || bondInfoOpen) {
+    if (spiralInfoOpen || coverInfoOpen || bondInfoOpen) {
       document.addEventListener("mousedown", handleClickOutside);
       return () => document.removeEventListener("mousedown", handleClickOutside);
     }
-  }, [morePopoverOpen, spiralInfoOpen, coverInfoOpen, bondInfoOpen]);
+  }, [spiralInfoOpen, coverInfoOpen, bondInfoOpen]);
   // Direction-aware step transition: forward navigation slides in from the
   // right, backward from the left. Keyed on `step` so the animation replays.
   const stepAnimRef = useRef("fade-in");
@@ -668,7 +663,8 @@ export default function UploadForm() {
     if (!lastSettings) return;
     setPrintType(lastSettings.printType);
     setCopies(lastSettings.copies);
-    setPaperSize(lastSettings.paperSize);
+    // Paper is A4-only for now — never restore a saved non-A4 size.
+    setPaperSize("A4");
     setLayout(lastSettings.layout);
     setScale(lastSettings.scale);
     setMargins(lastSettings.margins);
@@ -681,7 +677,7 @@ export default function UploadForm() {
   }
 
   const lastSettingsSummary = lastSettings
-    ? `${lastSettings.printType === "bw" ? "B&W" : "Color"} · ${lastSettings.paperSize} · ${lastSettings.copies} ${lastSettings.copies === 1 ? "copy" : "copies"}`
+    ? `${lastSettings.printType === "bw" ? "B&W" : "Color"} · A4 · ${lastSettings.copies} ${lastSettings.copies === 1 ? "copy" : "copies"}`
     : "";
 
   const effectivePageRange = useMemo(() => {
@@ -1296,7 +1292,8 @@ export default function UploadForm() {
       bulkForm.set("bulk", "true");
       bulkForm.set("printType", printType);
       bulkForm.set("copies", String(copies));
-      bulkForm.set("paperSize", paperSize);
+      // A4-only for now — never submit a stale non-A4 size.
+      bulkForm.set("paperSize", "A4");
       bulkForm.set("layout", layout);
       bulkForm.set("scale", scale);
       bulkForm.set("margins", margins);
@@ -1413,7 +1410,8 @@ export default function UploadForm() {
     form.set("printType", printType);
     form.set("copies", String(copies));
     form.set("pageRange", effectivePageRange);
-    form.set("paperSize", paperSize);
+    // A4-only for now — never submit a stale non-A4 size.
+    form.set("paperSize", "A4");
     form.set("layout", layout);
     form.set("scale", scale);
     form.set("margins", margins);
@@ -2310,81 +2308,24 @@ export default function UploadForm() {
             </div>
           )}
 
-          {/* Paper Size Section (Unified Control with Top Popular Sizes + Styled More Dropdown) */}
+          {/* Paper Size — A4 only for now. Other sizes are hidden in the
+              customer UI (backend + pricing stay untouched), so bringing
+              them back is just restoring the chips below. */}
           <div className="form-group">
             <label id="paper-size-label" className="select-label">Paper Size</label>
             <div className="paper-chip-grid" role="group" aria-labelledby="paper-size-label">
-              {[
-                { id: "A4", label: "A4", sub: "Standard" },
-                { id: "A3", label: "A3", sub: "Large" },
-                { id: "A5", label: "A5", sub: "Compact" },
-              ].map((chip) => (
-                <button
-                  key={chip.id}
-                  type="button"
-                  className={`paper-chip ${paperSize === chip.id ? "active" : ""}`}
-                  onClick={() => setPaperSize(chip.id)}
-                  aria-pressed={paperSize === chip.id}
-                >
-                  <span className="paper-chip-name">{chip.label}</span>
-                  <span className="paper-chip-sub">{chip.sub}</span>
-                </button>
-              ))}
-
-              {/* More... Chip with custom popover menu */}
-              {(() => {
-                const primaryIds = ["A4", "A3", "A5"];
-                const isMoreSelected = !primaryIds.includes(paperSize);
-                const secondarySizes = allPaperSizes.filter((s) => !primaryIds.includes(s));
-                return (
-                  <div className="paper-more-popover-wrapper" ref={popoverRef}>
-                    <button
-                      type="button"
-                      className={`paper-chip paper-chip-more ${isMoreSelected ? "active" : ""}`}
-                      onClick={() => setMorePopoverOpen(!morePopoverOpen)}
-                      aria-haspopup="listbox"
-                      aria-expanded={morePopoverOpen}
-                    >
-                      <span className="paper-chip-name paper-chip-title-row">
-                        {isMoreSelected ? paperSize : "More"}
-                        <ChevronDown size={13} className="paper-chip-arrow" aria-hidden="true" />
-                      </span>
-                      <span className="paper-chip-sub">
-                        {isMoreSelected ? (paperSizeLabels[paperSize as keyof typeof paperSizeLabels] || "Custom") : "Legal, Photo, etc."}
-                      </span>
-                    </button>
-
-                    {morePopoverOpen && (
-                      <div className="paper-more-popover" role="listbox">
-                        {secondarySizes.map((s) => {
-                          const label = paperSizeLabels[s] || s;
-                          const isSelected = paperSize === s;
-                          return (
-                            <button
-                              key={s}
-                              type="button"
-                              role="option"
-                              aria-selected={isSelected}
-                              className={`paper-popover-item ${isSelected ? "active" : ""}`}
-                              onClick={() => {
-                                setPaperSize(s);
-                                setMorePopoverOpen(false);
-                              }}
-                            >
-                              <div className="paper-popover-item-info">
-                                <span className="paper-popover-item-name">{s}</span>
-                                <span className="paper-popover-item-sub">{label}</span>
-                              </div>
-                              {isSelected && <Check size={14} className="paper-popover-check" />}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                );
-              })()}
+              <button
+                type="button"
+                className="paper-chip active"
+                onClick={() => setPaperSize("A4")}
+                aria-pressed="true"
+                aria-label="A4 paper — the only size available right now"
+              >
+                <span className="paper-chip-name">A4</span>
+                <span className="paper-chip-sub">Standard</span>
+              </button>
             </div>
+            <span className="range-hint">A4 only for now — more sizes coming soon.</span>
           </div>
 
           {/* Quantity / Copies Section */}
