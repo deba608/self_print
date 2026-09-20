@@ -12,7 +12,7 @@ import { checkDeliveryServiceable, isValidPincode } from "@/lib/service-area";
 import BulkThumb from "../upload/BulkThumb";
 import PdfCanvasPreview from "../upload/PdfCanvasPreview";
 import ResultScreen from "../upload/ResultScreen";
-import { estimateRange, formatMb, MAX_UPLOAD_BYTES, MAX_UPLOAD_MB, type Pricing } from "../upload/shared";
+import { estimateRange, fallbackUploadLimit, formatMb, MAX_UPLOAD_BYTES, MAX_UPLOAD_MB, type Pricing } from "../upload/shared";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import LoginNudgePopup from "@/components/ui/LoginNudgePopup";
 import { createClient } from "@/lib/supabase/client";
@@ -1332,8 +1332,7 @@ export default function UploadForm() {
         // batch above that can never arrive — fail fast with a clear message
         // instead of a cryptic network error.
         const totalBytes = bulkFiles.reduce((s, f) => s + f.size, 0);
-        const isLocalhost = typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
-        const fallbackLimit = isLocalhost ? MAX_UPLOAD_BYTES : 4 * 1024 * 1024;
+        const fallbackLimit = fallbackUploadLimit(typeof window !== "undefined" ? window.location.hostname : undefined);
         if (totalBytes > fallbackLimit) {
           throw new Error(
             `Files total ${(totalBytes / (1024 * 1024)).toFixed(1)} MB — too large to upload together right now (${Math.round(fallbackLimit / (1024 * 1024))} MB limit). Remove some files, or upload them one at a time.`
@@ -1442,12 +1441,13 @@ export default function UploadForm() {
     const timeoutId = window.setTimeout(() => controller.abort(), 60000);
 
     try {
+      let inlineFallback = false;
       if (uploadPromiseRef.current) {
         const uploadResult = await uploadPromiseRef.current;
         if (uploadResult.error && uploadResult.error !== "Aborted") {
           throw new Error(uploadResult.error);
         }
-        
+
         if (uploadResult.isDirectUpload && uploadResult.storedName) {
           form.set("isDirectUpload", "true");
           form.set("storedName", uploadResult.storedName);
@@ -1461,11 +1461,25 @@ export default function UploadForm() {
         } else {
           form.set("isDirectUpload", "false");
           form.set("file", file);
+          inlineFallback = true;
         }
       } else {
         // Fallback
         form.set("isDirectUpload", "false");
         form.set("file", file);
+        inlineFallback = true;
+      }
+
+      if (inlineFallback) {
+        // Direct upload unavailable — the file bytes travel inside this POST,
+        // so the same platform body cap as the bulk fallback applies. Fail
+        // fast with a clear message instead of a cryptic network error.
+        const fallbackLimit = fallbackUploadLimit(typeof window !== "undefined" ? window.location.hostname : undefined);
+        if (file.size > fallbackLimit) {
+          throw new Error(
+            `"${file.name}" is ${formatMb(file.size)}MB — too large to upload right now (${Math.round(fallbackLimit / (1024 * 1024))}MB limit). Try a smaller file, or upload it from the shop's counter.`
+          );
+        }
       }
 
       const response = await fetch("/api/jobs", { method: "POST", body: form, signal: controller.signal });
