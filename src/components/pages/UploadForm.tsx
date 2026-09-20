@@ -1332,9 +1332,11 @@ export default function UploadForm() {
         // batch above that can never arrive — fail fast with a clear message
         // instead of a cryptic network error.
         const totalBytes = bulkFiles.reduce((s, f) => s + f.size, 0);
-        if (totalBytes > 4 * 1024 * 1024) {
+        const isLocalhost = typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
+        const fallbackLimit = isLocalhost ? MAX_UPLOAD_BYTES : 4 * 1024 * 1024;
+        if (totalBytes > fallbackLimit) {
           throw new Error(
-            `Files total ${(totalBytes / (1024 * 1024)).toFixed(1)} MB — too large to upload together right now (4 MB limit). Remove some files, or upload them one at a time.`
+            `Files total ${(totalBytes / (1024 * 1024)).toFixed(1)} MB — too large to upload together right now (${Math.round(fallbackLimit / (1024 * 1024))} MB limit). Remove some files, or upload them one at a time.`
           );
         }
         for (const f of bulkFiles) bulkForm.append("files", f);
