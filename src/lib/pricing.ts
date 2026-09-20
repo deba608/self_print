@@ -218,6 +218,17 @@ function windowsLabel(pricing: PricingConfig) {
 
 export type ActivePause = { until: Date; note: string | null };
 
+// Temporary forced open set by staff — same expiry semantics as the pause:
+// a future timestamp forces the shop open, expired/malformed values count
+// as no override so ending early is just clearing the field.
+export function activeForcedOpen(
+  pricing: Pick<PricingConfig, "forcedOpenUntil">
+): { until: Date } | null {
+  if (!pricing.forcedOpenUntil) return null;
+  const until = new Date(pricing.forcedOpenUntil);
+  if (!Number.isFinite(until.getTime()) || until.getTime() <= Date.now()) return null;
+  return { until };
+}
 // Temporary timed pause set by staff (Service Hours panel). Returns the
 // pause while pausedUntil is in the future; expired or malformed values
 // count as no pause, so auto-resume needs no cleanup job or cron.
@@ -268,6 +279,11 @@ export function isAcceptingOrders(pricing: PricingConfig): { ok: true } | { ok: 
   if (!pricing.acceptingOrders) {
     return { ok: false, reason: "We're not accepting new orders right now. Please check back later." };
   }
+  // Temporary forced open overrides the schedule below (but never a timed
+  // pause or the kill switch above — those are stronger closure intents).
+  if (activeForcedOpen(pricing)) {
+    return { ok: true };
+  }
   const hasWindow = Boolean(pricing.orderOpenTime && pricing.orderCloseTime);
   if (!hasWindow) return { ok: true };
 
@@ -312,6 +328,14 @@ export function isDeliveryAvailable(pricing: PricingConfig): { ok: true } | { ok
   const pause = activePause(pricing);
   if (pause) {
     return { ok: false, reason: pauseReason(pause.until, pause.note) };
+  }
+  // Mirror of the pickup precedence: pause and kill switch win, forced open
+  // beats the delivery window below.
+  if (!pricing.acceptingOrders) {
+    return { ok: false, reason: "We're not accepting new orders right now. Please check back later." };
+  }
+  if (activeForcedOpen(pricing)) {
+    return { ok: true };
   }
   if (!pricing.deliveryOpenTime || !pricing.deliveryCloseTime) return { ok: true };
   const allowedDays = (pricing.deliveryDays || "1,2,3,4,5,6")

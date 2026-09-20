@@ -1,2 +1,3 @@
 ALTER TABLE pricing_config ADD COLUMN IF NOT EXISTS paused_until TIMESTAMPTZ;
 ALTER TABLE pricing_config ADD COLUMN IF NOT EXISTS pause_note TEXT;
+ALTER TABLE pricing_config ADD COLUMN IF NOT EXISTS forced_open_until TIMESTAMPTZ;

@@ -5,7 +5,7 @@ import { Check, Clock, Loader2, X, Zap } from "lucide-react";
 import type { PricingConfig as Pricing } from "@/lib/types";
 import { calculatePrice } from "@/lib/pricing";
 
-type NumericPricing = Omit<Pricing, "serviceArea" | "acceptingOrders" | "orderOpenTime" | "orderCloseTime" | "orderOpenTime2" | "orderCloseTime2" | "orderDays" | "deliveryOpenTime" | "deliveryCloseTime" | "deliveryDays" | "pausedUntil" | "pauseNote">;
+type NumericPricing = Omit<Pricing, "serviceArea" | "acceptingOrders" | "orderOpenTime" | "orderCloseTime" | "orderOpenTime2" | "orderCloseTime2" | "orderDays" | "deliveryOpenTime" | "deliveryCloseTime" | "deliveryDays" | "pausedUntil" | "pauseNote" | "forcedOpenUntil">;
 
 type PricingDraft = {
   [Key in keyof NumericPricing]: NumericPricing[Key] | "";

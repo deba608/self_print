@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Check, Clock, Loader2, Pause, Play, Store, Timer, Truck, X } from "lucide-react";
+import { Check, Clock, Loader2, Pause, Play, Store, Timer, Truck, X, Zap } from "lucide-react";
 import type { PricingConfig as Pricing } from "@/lib/types";
-import { activePause, isAcceptingOrders, isDeliveryAvailable, pauseReason, weeklyScheduleLines } from "@/lib/pricing";
+import { activeForcedOpen, activePause, isAcceptingOrders, isDeliveryAvailable, pauseReason, weeklyScheduleLines } from "@/lib/pricing";
 
 const WEEKDAYS: Array<{ iso: number; label: string }> = [
   { iso: 1, label: "Mon" }, { iso: 2, label: "Tue" }, { iso: 3, label: "Wed" },
@@ -78,6 +78,7 @@ export default function ServiceHoursPanel({
   }) => Promise<void>;
   onPauseAction: (data: {
     pauseMinutes?: number; pausedUntil?: string | null; pauseNote?: string | null;
+    openMinutes?: number; forcedOpenUntil?: string | null;
   }) => Promise<void>;
   onClose: () => void;
 }) {
@@ -157,6 +158,59 @@ export default function ServiceHoursPanel({
       setPauseError(err instanceof Error ? err.message : "Unable to resume.");
     } finally {
       setPausing(false);
+    }
+  };
+
+  // Temporary forced open — same immediate-action pattern as the pause card.
+  const [openPreset, setOpenPreset] = useState<number | "custom" | null>(null);
+  const [openCustomTime, setOpenCustomTime] = useState("");
+  const [opening, setOpening] = useState(false);
+  const [openError, setOpenError] = useState("");
+  const savedOpen = activeForcedOpen(pricing);
+  // Schedule-only status (no override) — tells staff whether an override is
+  // even needed right now.
+  const baseScheduleOpen = isAcceptingOrders({ ...pricing, forcedOpenUntil: null }).ok;
+
+  const draftOpenUntil = openPreset === "custom"
+    ? (openCustomTime ? new Date(openCustomTime) : null)
+    : typeof openPreset === "number"
+      ? new Date(Date.now() + openPreset * 60000)
+      : null;
+  const draftOpenValid = draftOpenUntil !== null
+    && Number.isFinite(draftOpenUntil.getTime())
+    && draftOpenUntil.getTime() > Date.now();
+
+  const handleOpen = async () => {
+    if (!draftOpenValid || !draftOpenUntil) {
+      setOpenError(openPreset === "custom" ? "Pick a future end time." : "Pick a duration first.");
+      return;
+    }
+    setOpening(true);
+    setOpenError("");
+    try {
+      if (typeof openPreset === "number") {
+        await onPauseAction({ openMinutes: openPreset });
+      } else {
+        await onPauseAction({ forcedOpenUntil: draftOpenUntil.toISOString() });
+      }
+      setOpenPreset(null);
+      setOpenCustomTime("");
+    } catch (err) {
+      setOpenError(err instanceof Error ? err.message : "Unable to open.");
+    } finally {
+      setOpening(false);
+    }
+  };
+
+  const handleEndOpen = async () => {
+    setOpening(true);
+    setOpenError("");
+    try {
+      await onPauseAction({ forcedOpenUntil: null });
+    } catch (err) {
+      setOpenError(err instanceof Error ? err.message : "Unable to end the override.");
+    } finally {
+      setOpening(false);
     }
   };
 
@@ -247,9 +301,76 @@ export default function ServiceHoursPanel({
         </div>
 
         <div className="pricing-sections">
+          <section className="pricing-section">
+            <div className="pricing-field">
+              <label htmlFor="acceptingOrders">Accepting new orders</label>
+              <label className="pricing-toggle">
+                <input
+                  id="acceptingOrders"
+                  type="checkbox"
+                  checked={acceptingOrders}
+                  onChange={(e) => { setAcceptingOrders(e.target.checked); setSaved(false); setError(""); }}
+                />
+                <span>{acceptingOrders ? "Open" : "Closed — customers can't upload"}</span>
+              </label>
+              <span className="pricing-hint">Manual kill switch, independent of the schedules below.</span>
+            </div>
+          </section>
+
+          <section className="pricing-section hours-service-card">
+            <h3><Store size={15} aria-hidden="true" /> Shop Pickup</h3>
+            <StatusBadge status={pickupStatus} />
+            <div className="pricing-grid single">
+              <div className="pricing-field">
+                <label>Open days</label>
+                <DayPicker selected={orderDays} onToggle={(iso) => toggleDay(orderDays, setOrderDays, iso)} />
+              </div>
+              <div className="pricing-field">
+                <label htmlFor="pickup1-open">Hours</label>
+                <TimeRange idPrefix="pickup1" open={orderOpenTime} close={orderCloseTime} onOpen={setOrderOpenTime} onClose={setOrderCloseTime} />
+              </div>
+              <div className="pricing-field">
+                <label htmlFor="pickup2-open">Second window (optional — e.g. after a lunch break)</label>
+                <TimeRange idPrefix="pickup2" open={orderOpenTime2} close={orderCloseTime2} onOpen={setOrderOpenTime2} onClose={setOrderCloseTime2} />
+              </div>
+            </div>
+            <ul className="hours-week-table">
+              {pickupSchedule.map((row) => (
+                <li key={row.iso} className={row.hours === "Closed" ? "is-closed" : ""}>
+                  <span>{row.day}</span>
+                  <span>{row.hours}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+
+          <section className="pricing-section hours-service-card">
+            <h3><Truck size={15} aria-hidden="true" /> Home Delivery</h3>
+            <StatusBadge status={deliveryStatus} />
+            <div className="pricing-grid single">
+              <div className="pricing-field">
+                <label>Delivery days</label>
+                <DayPicker selected={deliveryDays} onToggle={(iso) => toggleDay(deliveryDays, setDeliveryDays, iso)} />
+              </div>
+              <div className="pricing-field">
+                <label htmlFor="delivery-open">Hours</label>
+                <TimeRange idPrefix="delivery" open={deliveryOpenTime} close={deliveryCloseTime} onOpen={setDeliveryOpenTime} onClose={setDeliveryCloseTime} />
+                <span className="pricing-hint">Leave blank to allow delivery whenever the shop is open.</span>
+              </div>
+            </div>
+            <ul className="hours-week-table">
+              {deliverySchedule.map((row) => (
+                <li key={row.iso} className={row.hours === "Closed" ? "is-closed" : ""}>
+                  <span>{row.day}</span>
+                  <span>{row.hours}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+
           <section className="pricing-section hours-service-card">
             <h3><Timer size={15} aria-hidden="true" /> Temporary pause</h3>
-            <span className="pricing-hint">Pauses pickup and delivery together, and reopens on its own. For longer closures use “Accepting new orders” below.</span>
+            <span className="pricing-hint">Pauses pickup and delivery together, and reopens on its own. For longer closures use “Accepting new orders” above.</span>
             {savedPause ? (
               <div className="pricing-field">
                 <span className="hours-status-badge is-closed">
@@ -333,71 +454,75 @@ export default function ServiceHoursPanel({
             {pauseError && <p className="panel-error" role="alert">{pauseError}</p>}
           </section>
 
-          <section className="pricing-section">
-            <div className="pricing-field">
-              <label htmlFor="acceptingOrders">Accepting new orders</label>
-              <label className="pricing-toggle">
-                <input
-                  id="acceptingOrders"
-                  type="checkbox"
-                  checked={acceptingOrders}
-                  onChange={(e) => { setAcceptingOrders(e.target.checked); setSaved(false); setError(""); }}
-                />
-                <span>{acceptingOrders ? "Open" : "Closed — customers can't upload"}</span>
-              </label>
-              <span className="pricing-hint">Manual kill switch, independent of the schedules below.</span>
-            </div>
-          </section>
-
           <section className="pricing-section hours-service-card">
-            <h3><Store size={15} aria-hidden="true" /> Shop Pickup</h3>
-            <StatusBadge status={pickupStatus} />
-            <div className="pricing-grid single">
+            <h3><Zap size={15} aria-hidden="true" /> Temporary open</h3>
+            <span className="pricing-hint">Opens pickup and delivery together until the time you set, even outside the schedules above. Ends on its own.</span>
+            {savedOpen ? (
               <div className="pricing-field">
-                <label>Open days</label>
-                <DayPicker selected={orderDays} onToggle={(iso) => toggleDay(orderDays, setOrderDays, iso)} />
+                <span className="hours-status-badge is-open">
+                  <span className="hours-status-dot" aria-hidden="true" />
+                  Open · {countdownLabel(savedOpen.until, nowTick)}
+                </span>
+                <button type="button" className="btn-primary" onClick={handleEndOpen} disabled={opening}>
+                  {opening ? (
+                    <><Loader2 size={16} className="spin" />Ending…</>
+                  ) : (
+                    <><X size={16} />End now</>
+                  )}
+                </button>
               </div>
-              <div className="pricing-field">
-                <label htmlFor="pickup1-open">Hours</label>
-                <TimeRange idPrefix="pickup1" open={orderOpenTime} close={orderCloseTime} onOpen={setOrderOpenTime} onClose={setOrderCloseTime} />
-              </div>
-              <div className="pricing-field">
-                <label htmlFor="pickup2-open">Second window (optional — e.g. after a lunch break)</label>
-                <TimeRange idPrefix="pickup2" open={orderOpenTime2} close={orderCloseTime2} onOpen={setOrderOpenTime2} onClose={setOrderCloseTime2} />
-              </div>
-            </div>
-            <ul className="hours-week-table">
-              {pickupSchedule.map((row) => (
-                <li key={row.iso} className={row.hours === "Closed" ? "is-closed" : ""}>
-                  <span>{row.day}</span>
-                  <span>{row.hours}</span>
-                </li>
-              ))}
-            </ul>
-          </section>
-
-          <section className="pricing-section hours-service-card">
-            <h3><Truck size={15} aria-hidden="true" /> Home Delivery</h3>
-            <StatusBadge status={deliveryStatus} />
-            <div className="pricing-grid single">
-              <div className="pricing-field">
-                <label>Delivery days</label>
-                <DayPicker selected={deliveryDays} onToggle={(iso) => toggleDay(deliveryDays, setDeliveryDays, iso)} />
-              </div>
-              <div className="pricing-field">
-                <label htmlFor="delivery-open">Hours</label>
-                <TimeRange idPrefix="delivery" open={deliveryOpenTime} close={deliveryCloseTime} onOpen={setDeliveryOpenTime} onClose={setDeliveryCloseTime} />
-                <span className="pricing-hint">Leave blank to allow delivery whenever the shop is open.</span>
-              </div>
-            </div>
-            <ul className="hours-week-table">
-              {deliverySchedule.map((row) => (
-                <li key={row.iso} className={row.hours === "Closed" ? "is-closed" : ""}>
-                  <span>{row.day}</span>
-                  <span>{row.hours}</span>
-                </li>
-              ))}
-            </ul>
+            ) : baseScheduleOpen ? (
+              <span className="pricing-hint">Already open per the schedule — no temporary override needed.</span>
+            ) : (
+              <>
+                <div className="pricing-field">
+                  <label>Open for</label>
+                  <div className="hours-day-pills" role="group" aria-label="Open duration">
+                    {PAUSE_PRESETS_MINUTES.map((m) => (
+                      <button
+                        key={m}
+                        type="button"
+                        className={`hours-day-pill ${openPreset === m ? "active" : ""}`}
+                        aria-pressed={openPreset === m}
+                        onClick={() => { setOpenPreset(m); setOpenError(""); }}
+                      >
+                        {m >= 60 ? `${m / 60} hr` : `${m} min`}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      className={`hours-day-pill ${openPreset === "custom" ? "active" : ""}`}
+                      aria-pressed={openPreset === "custom"}
+                      onClick={() => { setOpenPreset("custom"); setOpenError(""); }}
+                    >
+                      Custom
+                    </button>
+                  </div>
+                </div>
+                {openPreset === "custom" && (
+                  <div className="pricing-field">
+                    <label htmlFor="open-until-at">Open until</label>
+                    <input
+                      id="open-until-at"
+                      type="datetime-local"
+                      value={openCustomTime}
+                      min={customMin}
+                      onChange={(e) => { setOpenCustomTime(e.target.value); setOpenError(""); }}
+                    />
+                  </div>
+                )}
+                <div className="pricing-field">
+                  <button type="button" className="btn-secondary" onClick={handleOpen} disabled={opening || openPreset === null}>
+                    {opening ? (
+                      <><Loader2 size={16} className="spin" />Opening…</>
+                    ) : (
+                      <><Zap size={16} />Open now</>
+                    )}
+                  </button>
+                </div>
+              </>
+            )}
+            {openError && <p className="panel-error" role="alert">{openError}</p>}
           </section>
         </div>
 

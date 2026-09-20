@@ -64,6 +64,36 @@ function validatePause(body: Record<string, unknown>) {
   return { pausedUntil, pauseNote };
 }
 
+// Temporary forced open — mirror of validatePause without a note: an
+// explicit end timestamp (forcedOpenUntil, ISO, or null to end now) or a
+// duration (openMinutes). Absent = leave the current override untouched.
+function validateForcedOpen(body: Record<string, unknown>) {
+  if (body.forcedOpenUntil === undefined && body.openMinutes === undefined) {
+    return { skip: true as const };
+  }
+  let forcedOpenUntil: string | null = null;
+  if (body.openMinutes !== undefined) {
+    const minutes = Math.floor(Number(body.openMinutes));
+    if (!Number.isFinite(minutes) || minutes < 1 || minutes > MAX_PAUSE_MINUTES) {
+      return { error: `Open duration must be between 1 and ${MAX_PAUSE_MINUTES} minutes.` };
+    }
+    forcedOpenUntil = new Date(Date.now() + minutes * 60000).toISOString();
+  } else if (body.forcedOpenUntil !== undefined && body.forcedOpenUntil !== null) {
+    const until = new Date(String(body.forcedOpenUntil));
+    if (!Number.isFinite(until.getTime())) {
+      return { error: "End time must be a valid date and time." };
+    }
+    if (until.getTime() <= Date.now()) {
+      return { error: "End time must be in the future." };
+    }
+    if (until.getTime() - Date.now() > MAX_PAUSE_MINUTES * 60000) {
+      return { error: `Temporary open can last at most ${MAX_PAUSE_MINUTES / 60} hours — change the schedule for longer hours.` };
+    }
+    forcedOpenUntil = until.toISOString();
+  }
+  return { forcedOpenUntil };
+}
+
 export async function GET() {
   const unauthorized = await requireAdminResponse();
   if (unauthorized) return unauthorized;
@@ -93,6 +123,8 @@ export async function PUT(request: NextRequest) {
     if ("error" in deliveryDays) return NextResponse.json({ error: deliveryDays.error }, { status: 400 });
     const pause = validatePause(body as Record<string, unknown>);
     if ("error" in pause) return NextResponse.json({ error: pause.error }, { status: 400 });
+    const forcedOpen = validateForcedOpen(body as Record<string, unknown>);
+    if ("error" in forcedOpen) return NextResponse.json({ error: forcedOpen.error }, { status: 400 });
 
     await updatePricing({
       ...current,
@@ -107,6 +139,7 @@ export async function PUT(request: NextRequest) {
       deliveryDays: "skip" in deliveryDays ? current.deliveryDays : deliveryDays.days,
       pausedUntil: "skip" in pause ? current.pausedUntil : pause.pausedUntil,
       pauseNote: "skip" in pause ? current.pauseNote : pause.pauseNote,
+      forcedOpenUntil: "skip" in forcedOpen ? current.forcedOpenUntil : forcedOpen.forcedOpenUntil,
     });
 
     return NextResponse.json(await getPricing());

@@ -653,6 +653,7 @@ const PRICING_DEFAULTS: PricingConfig = {
   deliveryDays: "1,2,3,4,5,6",
   pausedUntil: null,
   pauseNote: null,
+  forcedOpenUntil: null,
 };
 
 export async function getPricing(): Promise<PricingConfig> {
@@ -704,6 +705,7 @@ export async function getPricing(): Promise<PricingConfig> {
     deliveryDays: data.delivery_days ?? PRICING_DEFAULTS.deliveryDays,
     pausedUntil: data.paused_until ?? null,
     pauseNote: data.pause_note ?? null,
+    forcedOpenUntil: data.forced_open_until ?? null,
   };
 }
 
@@ -747,6 +749,7 @@ export async function updatePricing(pricing: PricingConfig) {
       delivery_days: pricing.deliveryDays,
       paused_until: pricing.pausedUntil,
       pause_note: pricing.pauseNote,
+      forced_open_until: pricing.forcedOpenUntil,
       updated_at: now
     })
     .eq('id', 1);

@@ -200,6 +200,11 @@ export type PricingConfig = {
   // still uses acceptingOrders=false.
   pausedUntil: string | null;
   pauseNote: string | null;
+  // Temporary forced open (auto-expires). ISO UTC timestamp until which the
+  // shop reads as open despite the schedule — e.g. staying open an extra
+  // hour. Null = no override. Never overrides a timed pause or
+  // acceptingOrders=false; those are fresher/stronger closure intents.
+  forcedOpenUntil: string | null;
 };
 
 export type RetentionConfig = {

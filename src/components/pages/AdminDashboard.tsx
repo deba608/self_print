@@ -221,7 +221,7 @@ export default function AdminDashboard() {
     }
   }
 
-  async function savePricing(data: Omit<Pricing, "serviceArea" | "acceptingOrders" | "orderOpenTime" | "orderCloseTime" | "orderOpenTime2" | "orderCloseTime2" | "orderDays" | "deliveryOpenTime" | "deliveryCloseTime" | "deliveryDays" | "pausedUntil" | "pauseNote">) {
+  async function savePricing(data: Omit<Pricing, "serviceArea" | "acceptingOrders" | "orderOpenTime" | "orderCloseTime" | "orderOpenTime2" | "orderCloseTime2" | "orderDays" | "deliveryOpenTime" | "deliveryCloseTime" | "deliveryDays" | "pausedUntil" | "pauseNote" | "forcedOpenUntil">) {
     const response = await fetch("/api/admin/pricing", {
       method: "PUT",
       credentials: "include",
@@ -255,6 +255,7 @@ export default function AdminDashboard() {
   // endpoint as saveHours, but applies instantly without touching schedules.
   async function pauseAction(data: {
     pauseMinutes?: number; pausedUntil?: string | null; pauseNote?: string | null;
+    openMinutes?: number; forcedOpenUntil?: string | null;
   }) {
     const response = await fetch("/api/admin/hours", {
       method: "PUT",

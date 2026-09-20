@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { activePause, billableSides, calculatePrice, calculateSpiralBindingPrice, duplexRateSplit, effectiveDeliveryFeePaise, effectiveFileSettings, isAcceptingOrders, isDeliveryAvailable, pauseReason } from "./pricing";
+import { activeForcedOpen, activePause, billableSides, calculatePrice, calculateSpiralBindingPrice, duplexRateSplit, effectiveDeliveryFeePaise, effectiveFileSettings, isAcceptingOrders, isDeliveryAvailable, pauseReason } from "./pricing";
 import type { PricingConfig } from "./types";
 import { DEFAULT_SERVICE_AREA } from "./service-area";
 
@@ -39,6 +39,7 @@ const pricing: PricingConfig = {
   deliveryDays: null,
   pausedUntil: null,
   pauseNote: null,
+  forcedOpenUntil: null,
 };
 
 describe("calculatePrice pagesPerSheet", () => {
@@ -242,5 +243,54 @@ describe("temporary shop pause", () => {
     expect(pauseReason(inAnHour, null)).toContain("today at");
     const tomorrow = new Date(Date.now() + 26 * 3600000);
     expect(pauseReason(tomorrow, null)).toContain("tomorrow at");
+  });
+});
+
+describe("temporary forced open", () => {
+  const futureIso = new Date(Date.now() + 3600000).toISOString();
+  const pastIso = new Date(Date.now() - 60000).toISOString();
+
+  // A schedule that is deterministically closed right now: open almost all
+  // day, but only on a weekday that is not today (shop-local).
+  function scheduleClosed() {
+    const weekday = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Kolkata", weekday: "short" }).format(new Date());
+    const todayIso = { Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7 }[weekday] ?? 1;
+    const otherDay = (todayIso % 7) + 1;
+    return { ...pricing, orderOpenTime: "00:00", orderCloseTime: "23:59", orderDays: String(otherDay) };
+  }
+
+  it("activeForcedOpen ignores missing, expired, and malformed timestamps", () => {
+    expect(activeForcedOpen(pricing)).toBeNull();
+    expect(activeForcedOpen({ ...pricing, forcedOpenUntil: pastIso })).toBeNull();
+    expect(activeForcedOpen({ ...pricing, forcedOpenUntil: "not-a-date" })).toBeNull();
+    expect(activeForcedOpen({ ...pricing, forcedOpenUntil: futureIso })).not.toBeNull();
+  });
+
+  it("forced open beats a closed schedule for pickup", () => {
+    const closed = scheduleClosed();
+    expect(isAcceptingOrders(closed).ok).toBe(false);
+    expect(isAcceptingOrders({ ...closed, forcedOpenUntil: futureIso })).toEqual({ ok: true });
+  });
+
+  it("forced open never overrides a timed pause or the kill switch", () => {
+    const closed = scheduleClosed();
+    const paused = isAcceptingOrders({ ...closed, forcedOpenUntil: futureIso, pausedUntil: futureIso });
+    expect(paused.ok).toBe(false);
+    const killed = isAcceptingOrders({ ...closed, forcedOpenUntil: futureIso, acceptingOrders: false });
+    expect(killed.ok).toBe(false);
+  });
+
+  it("forced open also opens delivery (one action opens both)", () => {
+    const weekday = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Kolkata", weekday: "short" }).format(new Date());
+    const todayIso = { Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7 }[weekday] ?? 1;
+    const otherDay = (todayIso % 7) + 1;
+    const deliveryClosed = {
+      ...pricing,
+      deliveryOpenTime: "00:00",
+      deliveryCloseTime: "23:59",
+      deliveryDays: String(otherDay),
+    };
+    expect(isDeliveryAvailable(deliveryClosed).ok).toBe(false);
+    expect(isDeliveryAvailable({ ...deliveryClosed, forcedOpenUntil: futureIso })).toEqual({ ok: true });
   });
 });
