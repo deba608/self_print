@@ -35,10 +35,12 @@ export default function PdfCanvasPreview({
   file,
   fallbackPageCount,
   sim,
+  onPageCountResolved,
 }: {
   file: File;
   fallbackPageCount: number;
   sim?: PreviewSim;
+  onPageCountResolved?: (pageCount: number) => void;
 }) {
   const outerRef = useRef<HTMLDivElement>(null);      // outer layout wrapper (for ResizeObserver)
   const scrollRef = useRef<HTMLDivElement>(null);      // the scrollable stage
@@ -109,6 +111,7 @@ export default function PdfCanvasPreview({
         }
         pdfRef.current = doc;
         setPageCount(doc.numPages);
+        onPageCountResolved?.(doc.numPages);
         setPdfReady(true);
       } catch {
         if (!cancelled) setError("Unable to render PDF preview on this device.");

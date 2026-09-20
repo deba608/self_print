@@ -15,7 +15,9 @@ let workerConfigured = false;
 async function getPdfjs() {
   const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
   if (!workerConfigured) {
-    pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
+    if (typeof window !== "undefined") {
+      pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
+    }
     workerConfigured = true;
   }
   return pdfjs;

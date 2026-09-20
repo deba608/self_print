@@ -23,34 +23,42 @@ export default function UserNavbar() {
 
   useEffect(() => {
     let mounted = true;
-    const supabase = createClient();
+    let unsubscribe: (() => void) | null = null;
 
-    /** Return only the first name (+ avatar) from the registration profile */
-    const resolveIdentity = (user: import("@supabase/supabase-js").User): Identity => {
-      const meta = user.user_metadata as Record<string, unknown> | undefined;
-      const fullName =
-        (typeof meta?.display_name === "string" && meta.display_name) ||
-        (typeof meta?.full_name === "string" && meta.full_name) ||
-        (typeof meta?.name === "string" && meta.name) ||
-        "";
-      // Accounts created before the register route stopped falling back to
-      // email still carry the email in display_name — treat that as no name.
-      const name = fullName.includes("@") ? "" : fullName.trim().split(/\s+/)[0] || "";
-      const avatarUrl = typeof meta?.avatar_url === "string" && meta.avatar_url ? meta.avatar_url : null;
-      return { name, avatarUrl };
-    };
+    try {
+      const supabase = createClient();
 
-    // Subscribe to auth changes — fires immediately with the current session,
-    // so the navbar updates the moment the user logs in or out. A signed-in
-    // user with no usable name is still signed in (name: "") — never fall
-    // through to the logged-out null branch, which would show Log in/Sign up.
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (mounted) setIdentity(session?.user ? resolveIdentity(session.user) : null);
-    });
+      /** Return only the first name (+ avatar) from the registration profile */
+      const resolveIdentity = (user: import("@supabase/supabase-js").User): Identity => {
+        const meta = user.user_metadata as Record<string, unknown> | undefined;
+        const fullName =
+          (typeof meta?.display_name === "string" && meta.display_name) ||
+          (typeof meta?.full_name === "string" && meta.full_name) ||
+          (typeof meta?.name === "string" && meta.name) ||
+          "";
+        // Accounts created before the register route stopped falling back to
+        // email still carry the email in display_name — treat that as no name.
+        const name = fullName.includes("@") ? "" : fullName.trim().split(/\s+/)[0] || "";
+        const avatarUrl = typeof meta?.avatar_url === "string" && meta.avatar_url ? meta.avatar_url : null;
+        return { name, avatarUrl };
+      };
+
+      // Subscribe to auth changes — fires immediately with the current session,
+      // so the navbar updates the moment the user logs in or out. A signed-in
+      // user with no usable name is still signed in (name: "") — never fall
+      // through to the logged-out null branch, which would show Log in/Sign up.
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+        if (mounted) setIdentity(session?.user ? resolveIdentity(session.user) : null);
+      });
+      unsubscribe = () => subscription.unsubscribe();
+    } catch {
+      // Supabase env not configured (e.g. pure local SQLite dev) — treat as logged out
+      if (mounted) setIdentity(null);
+    }
 
     return () => {
       mounted = false;
-      subscription.unsubscribe();
+      unsubscribe?.();
     };
   }, []);
 

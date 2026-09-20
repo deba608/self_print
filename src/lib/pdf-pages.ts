@@ -25,6 +25,21 @@ export async function estimatePdfPages(
   file: File,
   chunkSize = 2 * 1024 * 1024
 ): Promise<number> {
+  // Try accurate page count via pdf.js first. Modern PDFs (PDF 1.5+) compress
+  // page objects inside /ObjStm object streams which hide /Type /Page markers
+  // from raw byte searches.
+  try {
+    const { loadPdfDocument } = await import("./pdf-client");
+    const doc = await loadPdfDocument(file);
+    const num = doc.numPages;
+    await doc.destroy?.();
+    if (typeof num === "number" && num >= 1) {
+      return num;
+    }
+  } catch {
+    // Fall back to chunked regex if pdf.js is unavailable, file is mock data, or parsing fails
+  }
+
   try {
     const decoder = new TextDecoder("latin1");
     let count = 0;

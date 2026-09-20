@@ -395,6 +395,8 @@ export default function UploadForm() {
   // used to key the upload promises (see bulkUploadsRef) so storedName→file
   // alignment survives any removal, independent of positional index.
   const [bulkIds, setBulkIds] = useState<string[]>([]);
+  const bulkSelectionIdsRef = useRef<string[]>([]);
+  const currentSingleFileRef = useRef<File | null>(null);
   // Ids currently animating out (X clicked); actual removal happens on
   // transition-end so the collapse always plays against the correct file.
   const [leavingBulkIds, setLeavingBulkIds] = useState<Set<string>>(new Set());
@@ -1028,6 +1030,7 @@ export default function UploadForm() {
     // Preserve delivery details when a single PDF becomes a batch.
 
     const ids = selected.map(() => crypto.randomUUID());
+    bulkSelectionIdsRef.current = ids;
     setBulkFiles(selected);
     setBulkIds(ids);
     setBulkMode(true);
@@ -1036,12 +1039,17 @@ export default function UploadForm() {
     // file, which takes seconds for large PDFs. Placeholder 1s now; real
     // counts patch in when ready (guarded so a newer selection isn't clobbered).
     setBulkPageCounts(selected.map(() => 1));
-    Promise.all(selected.map((f) => estimatePdfPages(f))).then((counts) => {
-      setBulkIds((currentIds) => {
-        if (currentIds.length === ids.length && currentIds.every((v, i) => v === ids[i])) {
-          setBulkPageCounts(counts);
+    selected.forEach((f, i) => {
+      estimatePdfPages(f).then((count) => {
+        if (bulkSelectionIdsRef.current === ids) {
+          setBulkPageCounts((prev) => {
+            if (prev.length !== selected.length) return prev;
+            if (prev[i] === count) return prev;
+            const next = [...prev];
+            next[i] = count;
+            return next;
+          });
         }
-        return currentIds;
       });
     });
     const uploadsMap = startBulkUploads(selected, ids);
@@ -1166,6 +1174,7 @@ export default function UploadForm() {
       }
     }
 
+    currentSingleFileRef.current = selectedFile;
     setFile(selectedFile);
     setFilePageCount(null);
     if (selectedFile) {
@@ -1202,10 +1211,9 @@ export default function UploadForm() {
         // and must not block the step transition. UI shows "All pages" until
         // the count lands (filePageCount stays null meanwhile).
         estimatePdfPages(selectedFile).then((pages) => {
-          setFile((current) => {
-            if (current === selectedFile) setFilePageCount(pages);
-            return current;
-          });
+          if (currentSingleFileRef.current === selectedFile) {
+            setFilePageCount(pages);
+          }
         });
       } else if (selectedFile.type.startsWith("image/")) {
         const url = URL.createObjectURL(selectedFile);
@@ -3000,6 +3008,14 @@ export default function UploadForm() {
                     key={bulkIds[bulkPreviewIndex] ?? bulkPreviewIndex}
                     file={bulkFiles[bulkPreviewIndex]}
                     fallbackPageCount={bulkPageCounts[bulkPreviewIndex] ?? 1}
+                    onPageCountResolved={(count) => {
+                      setBulkPageCounts((prev) => {
+                        if (prev[bulkPreviewIndex] === count) return prev;
+                        const next = [...prev];
+                        next[bulkPreviewIndex] = count;
+                        return next;
+                      });
+                    }}
                     sim={{ pagesPerSheet, layout, paperSize, margins, scale }}
                   />
                 )}
@@ -3010,6 +3026,9 @@ export default function UploadForm() {
                 key={`${file.name}-${file.size}-${file.lastModified}`}
                 file={file}
                 fallbackPageCount={filePageCount ?? 1}
+                onPageCountResolved={(count) => {
+                  setFilePageCount((prev) => (prev === count ? prev : count));
+                }}
                 sim={{ pagesPerSheet, layout, paperSize, margins, scale, pages: selectedPageList }}
               />
             )}

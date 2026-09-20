@@ -60,4 +60,11 @@ describe("estimatePdfPages", () => {
     }
     expect(await estimatePdfPages(pdfFile(body), 256)).toBe(expected);
   });
+
+  it("accurately counts pages in a real PDF document", async () => {
+    const fs = await import("node:fs");
+    const buf = fs.readFileSync("docs/CUSTOMER_USER_GUIDE.pdf");
+    const file = new File([buf], "CUSTOMER_USER_GUIDE.pdf", { type: "application/pdf" });
+    expect(await estimatePdfPages(file)).toBe(5);
+  });
 });
