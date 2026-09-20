@@ -221,7 +221,7 @@ export default function AdminDashboard() {
     }
   }
 
-  async function savePricing(data: Omit<Pricing, "serviceArea" | "acceptingOrders" | "orderOpenTime" | "orderCloseTime" | "orderOpenTime2" | "orderCloseTime2" | "orderDays" | "deliveryOpenTime" | "deliveryCloseTime" | "deliveryDays">) {
+  async function savePricing(data: Omit<Pricing, "serviceArea" | "acceptingOrders" | "orderOpenTime" | "orderCloseTime" | "orderOpenTime2" | "orderCloseTime2" | "orderDays" | "deliveryOpenTime" | "deliveryCloseTime" | "deliveryDays" | "pausedUntil" | "pauseNote">) {
     const response = await fetch("/api/admin/pricing", {
       method: "PUT",
       credentials: "include",
@@ -248,6 +248,22 @@ export default function AdminDashboard() {
     });
     const body = await response.json();
     if (!response.ok) throw new Error(body.error ?? "Hours update failed");
+    mutatePricing(body);
+  }
+
+  // Immediate pause/resume action from the Service Hours panel — same
+  // endpoint as saveHours, but applies instantly without touching schedules.
+  async function pauseAction(data: {
+    pauseMinutes?: number; pausedUntil?: string | null; pauseNote?: string | null;
+  }) {
+    const response = await fetch("/api/admin/hours", {
+      method: "PUT",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data)
+    });
+    const body = await response.json();
+    if (!response.ok) throw new Error(body.error ?? "Pause update failed");
     mutatePricing(body);
   }
 
@@ -520,6 +536,7 @@ export default function AdminDashboard() {
         <ServiceHoursPanel
           pricing={pricing}
           onSave={saveHours}
+          onPauseAction={pauseAction}
           onClose={() => setShowHours(false)}
         />
       )}

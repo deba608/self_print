@@ -135,7 +135,10 @@ export async function PUT(request: NextRequest) {
       orderDays,
       deliveryOpenTime,
       deliveryCloseTime,
-      deliveryDays
+      deliveryDays,
+      // The pricing panel never touches the timed pause — preserve it.
+      pausedUntil: currentPricing.pausedUntil,
+      pauseNote: currentPricing.pauseNote
     });
 
     return NextResponse.json(await getPricing());

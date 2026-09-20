@@ -194,6 +194,12 @@ export type PricingConfig = {
   deliveryOpenTime: string | null;
   deliveryCloseTime: string | null;
   deliveryDays: string | null;
+  // Temporary timed pause (auto-resumes on expiry). pausedUntil is an ISO
+  // UTC timestamp; pauseNote is an optional staff message shown to customers
+  // in the closed banner. Both null = no timed pause. Indefinite closure
+  // still uses acceptingOrders=false.
+  pausedUntil: string | null;
+  pauseNote: string | null;
 };
 
 export type RetentionConfig = {

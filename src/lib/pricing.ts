@@ -216,12 +216,55 @@ function windowsLabel(pricing: PricingConfig) {
   return windows.join(", ");
 }
 
+export type ActivePause = { until: Date; note: string | null };
+
+// Temporary timed pause set by staff (Service Hours panel). Returns the
+// pause while pausedUntil is in the future; expired or malformed values
+// count as no pause, so auto-resume needs no cleanup job or cron.
+export function activePause(
+  pricing: Pick<PricingConfig, "pausedUntil" | "pauseNote">
+): ActivePause | null {
+  if (!pricing.pausedUntil) return null;
+  const until = new Date(pricing.pausedUntil);
+  if (!Number.isFinite(until.getTime()) || until.getTime() <= Date.now()) return null;
+  return { until, note: pricing.pauseNote?.trim() ? pricing.pauseNote.trim() : null };
+}
+
+function istCalendarDay(d: Date): string {
+  // YYYY-MM-DD wall-clock day in shop-local time.
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kolkata", year: "numeric", month: "2-digit", day: "2-digit",
+  }).format(d);
+}
+
+// Customer-facing pause message, e.g. "We're taking a short break and
+// reopen today at 2:30 pm. Out for lunch." All labels are shop-local.
+export function pauseReason(until: Date, note: string | null): string {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit", hourCycle: "h23",
+  }).formatToParts(until);
+  const hhmm = `${parts.find((p) => p.type === "hour")?.value ?? "00"}:${parts.find((p) => p.type === "minute")?.value ?? "00"}`;
+  const time = to12h(hhmm);
+  const dayDiff = Math.round((Date.parse(istCalendarDay(until)) - Date.parse(istCalendarDay(new Date()))) / 86400000);
+  const when = dayDiff <= 0
+    ? `today at ${time}`
+    : dayDiff === 1
+      ? `tomorrow at ${time}`
+      : `on ${new Intl.DateTimeFormat("en-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "short" }).format(until)} at ${time}`;
+  const base = `We're taking a short break and reopen ${when}.`;
+  return note ? `${base} ${note}` : base;
+}
+
 // Shop hours check — staff toggle in the Pricing panel. acceptingOrders is a
 // manual kill switch; when open/close times are set it's additionally gated
 // to those daily windows (a second window covers a lunch-break split
 // schedule) and to orderDays (shop-local, Asia/Kolkata — the deployment is
 // India-only, see CLAUDE.md's bom1/ap-south-1 region note).
 export function isAcceptingOrders(pricing: PricingConfig): { ok: true } | { ok: false; reason: string } {
+  const pause = activePause(pricing);
+  if (pause) {
+    return { ok: false, reason: pauseReason(pause.until, pause.note) };
+  }
   if (!pricing.acceptingOrders) {
     return { ok: false, reason: "We're not accepting new orders right now. Please check back later." };
   }
@@ -264,6 +307,12 @@ const ISO_WEEKDAY_LABEL: Record<number, string> = { 1: "Mon", 2: "Tue", 3: "Wed"
 // Null open/close time disables the check entirely (delivery available
 // whenever the shop is accepting orders).
 export function isDeliveryAvailable(pricing: PricingConfig): { ok: true } | { ok: false; reason: string } {
+  // One action pauses both: a timed shop pause also suspends delivery, so a
+  // paused shop never shows delivery as bookable on its own.
+  const pause = activePause(pricing);
+  if (pause) {
+    return { ok: false, reason: pauseReason(pause.until, pause.note) };
+  }
   if (!pricing.deliveryOpenTime || !pricing.deliveryCloseTime) return { ok: true };
   const allowedDays = (pricing.deliveryDays || "1,2,3,4,5,6")
     .split(",")

@@ -25,6 +25,45 @@ function validateDays(days: unknown, label: string) {
   return { days: days as string | null };
 }
 
+const MAX_PAUSE_MINUTES = 720; // 12h — longer closures use the acceptingOrders toggle
+const MAX_PAUSE_NOTE_CHARS = 120;
+
+// Temporary timed pause: either an explicit resume timestamp (pausedUntil,
+// ISO string, or null to resume now) or a duration (pauseMinutes, server
+// computes now + minutes to avoid client-clock skew). Explicit timestamp
+// wins when both are sent. Absent = leave the current pause untouched.
+function validatePause(body: Record<string, unknown>) {
+  if (body.pausedUntil === undefined && body.pauseMinutes === undefined && body.pauseNote === undefined) {
+    return { skip: true as const };
+  }
+  let pausedUntil: string | null = null;
+  if (body.pauseMinutes !== undefined) {
+    const minutes = Math.floor(Number(body.pauseMinutes));
+    if (!Number.isFinite(minutes) || minutes < 1 || minutes > MAX_PAUSE_MINUTES) {
+      return { error: `Pause duration must be between 1 and ${MAX_PAUSE_MINUTES} minutes.` };
+    }
+    pausedUntil = new Date(Date.now() + minutes * 60000).toISOString();
+  } else if (body.pausedUntil !== undefined && body.pausedUntil !== null) {
+    const until = new Date(String(body.pausedUntil));
+    if (!Number.isFinite(until.getTime())) {
+      return { error: "Resume time must be a valid date and time." };
+    }
+    if (until.getTime() <= Date.now()) {
+      return { error: "Resume time must be in the future." };
+    }
+    if (until.getTime() - Date.now() > MAX_PAUSE_MINUTES * 60000) {
+      return { error: `Pause can be at most ${MAX_PAUSE_MINUTES / 60} hours — use the Accepting orders toggle for longer closures.` };
+    }
+    pausedUntil = until.toISOString();
+  }
+  let pauseNote: string | null = null;
+  if (body.pauseNote !== undefined && body.pauseNote !== null) {
+    if (typeof body.pauseNote !== "string") return { error: "Pause note must be text." };
+    pauseNote = body.pauseNote.trim().slice(0, MAX_PAUSE_NOTE_CHARS) || null;
+  }
+  return { pausedUntil, pauseNote };
+}
+
 export async function GET() {
   const unauthorized = await requireAdminResponse();
   if (unauthorized) return unauthorized;
@@ -52,6 +91,8 @@ export async function PUT(request: NextRequest) {
     if ("error" in orderDays) return NextResponse.json({ error: orderDays.error }, { status: 400 });
     const deliveryDays = validateDays(body.deliveryDays, "Delivery days");
     if ("error" in deliveryDays) return NextResponse.json({ error: deliveryDays.error }, { status: 400 });
+    const pause = validatePause(body as Record<string, unknown>);
+    if ("error" in pause) return NextResponse.json({ error: pause.error }, { status: 400 });
 
     await updatePricing({
       ...current,
@@ -64,6 +105,8 @@ export async function PUT(request: NextRequest) {
       deliveryOpenTime: delivery.open,
       deliveryCloseTime: delivery.close,
       deliveryDays: "skip" in deliveryDays ? current.deliveryDays : deliveryDays.days,
+      pausedUntil: "skip" in pause ? current.pausedUntil : pause.pausedUntil,
+      pauseNote: "skip" in pause ? current.pauseNote : pause.pauseNote,
     });
 
     return NextResponse.json(await getPricing());

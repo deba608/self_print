@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Check, Clock, Loader2, Store, Truck, X } from "lucide-react";
+import { Check, Clock, Loader2, Pause, Play, Store, Timer, Truck, X } from "lucide-react";
 import type { PricingConfig as Pricing } from "@/lib/types";
-import { isAcceptingOrders, isDeliveryAvailable, weeklyScheduleLines } from "@/lib/pricing";
+import { activePause, isAcceptingOrders, isDeliveryAvailable, pauseReason, weeklyScheduleLines } from "@/lib/pricing";
 
 const WEEKDAYS: Array<{ iso: number; label: string }> = [
   { iso: 1, label: "Mon" }, { iso: 2, label: "Tue" }, { iso: 3, label: "Wed" },
@@ -42,6 +42,18 @@ function TimeRange({
   );
 }
 
+const PAUSE_PRESETS_MINUTES = [15, 30, 60, 120];
+
+function countdownLabel(until: Date, now: number): string {
+  const ms = until.getTime() - now;
+  if (ms <= 0) return "resuming…";
+  const mins = Math.ceil(ms / 60000);
+  if (mins < 60) return `${mins} min left`;
+  const hrs = Math.floor(mins / 60);
+  const rest = mins % 60;
+  return rest ? `${hrs} hr ${rest} min left` : `${hrs} hr left`;
+}
+
 function StatusBadge({ status }: { status: { ok: true } | { ok: false; reason: string } }) {
   return (
     <span className={`hours-status-badge ${status.ok ? "is-open" : "is-closed"}`}>
@@ -54,6 +66,7 @@ function StatusBadge({ status }: { status: { ok: true } | { ok: false; reason: s
 export default function ServiceHoursPanel({
   pricing,
   onSave,
+  onPauseAction,
   onClose,
 }: {
   pricing: Pricing;
@@ -62,6 +75,9 @@ export default function ServiceHoursPanel({
     orderOpenTime: string | null; orderCloseTime: string | null;
     orderOpenTime2: string | null; orderCloseTime2: string | null; orderDays: string | null;
     deliveryOpenTime: string | null; deliveryCloseTime: string | null; deliveryDays: string | null;
+  }) => Promise<void>;
+  onPauseAction: (data: {
+    pauseMinutes?: number; pausedUntil?: string | null; pauseNote?: string | null;
   }) => Promise<void>;
   onClose: () => void;
 }) {
@@ -77,6 +93,72 @@ export default function ServiceHoursPanel({
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
+
+  // Temporary timed pause — applied immediately via onPauseAction, separate
+  // from the Save Changes flow for the schedules below.
+  const [pausePreset, setPausePreset] = useState<number | "custom" | null>(null);
+  const [pauseCustomTime, setPauseCustomTime] = useState("");
+  const [pauseNoteDraft, setPauseNoteDraft] = useState(pricing.pauseNote ?? "");
+  const [pausing, setPausing] = useState(false);
+  const [pauseError, setPauseError] = useState("");
+  // Ticks the paused countdown; doubles as a re-render so an expiry flips
+  // the card back to the open state without reopening the panel.
+  const [nowTick, setNowTick] = useState(() => Date.now());
+  useEffect(() => {
+    const id = window.setInterval(() => setNowTick(Date.now()), 30000);
+    return () => window.clearInterval(id);
+  }, []);
+  const savedPause = activePause(pricing);
+
+  // Earliest selectable custom resume time (device-local, for datetime-local).
+  const customMin = useMemo(() => {
+    const d = new Date(Date.now() + 60000);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }, []);
+
+  const draftResumeAt = pausePreset === "custom"
+    ? (pauseCustomTime ? new Date(pauseCustomTime) : null)
+    : typeof pausePreset === "number"
+      ? new Date(Date.now() + pausePreset * 60000)
+      : null;
+  const draftResumeValid = draftResumeAt !== null
+    && Number.isFinite(draftResumeAt.getTime())
+    && draftResumeAt.getTime() > Date.now();
+
+  const handlePause = async () => {
+    if (!draftResumeValid || !draftResumeAt) {
+      setPauseError(pausePreset === "custom" ? "Pick a future reopen time." : "Pick a pause duration first.");
+      return;
+    }
+    setPausing(true);
+    setPauseError("");
+    try {
+      if (typeof pausePreset === "number") {
+        await onPauseAction({ pauseMinutes: pausePreset, pauseNote: pauseNoteDraft.trim() || null });
+      } else {
+        await onPauseAction({ pausedUntil: draftResumeAt.toISOString(), pauseNote: pauseNoteDraft.trim() || null });
+      }
+      setPausePreset(null);
+      setPauseCustomTime("");
+    } catch (err) {
+      setPauseError(err instanceof Error ? err.message : "Unable to pause.");
+    } finally {
+      setPausing(false);
+    }
+  };
+
+  const handleResume = async () => {
+    setPausing(true);
+    setPauseError("");
+    try {
+      await onPauseAction({ pausedUntil: null, pauseNote: null });
+    } catch (err) {
+      setPauseError(err instanceof Error ? err.message : "Unable to resume.");
+    } finally {
+      setPausing(false);
+    }
+  };
 
   // A day list of [] reads as "no restriction, every day" everywhere it's
   // consumed (isAcceptingOrders, weeklyScheduleLines) — so unchecking the
@@ -165,6 +247,92 @@ export default function ServiceHoursPanel({
         </div>
 
         <div className="pricing-sections">
+          <section className="pricing-section hours-service-card">
+            <h3><Timer size={15} aria-hidden="true" /> Temporary pause</h3>
+            <span className="pricing-hint">Pauses pickup and delivery together, and reopens on its own. For longer closures use “Accepting new orders” below.</span>
+            {savedPause ? (
+              <div className="pricing-field">
+                <span className="hours-status-badge is-closed">
+                  <span className="hours-status-dot" aria-hidden="true" />
+                  Paused · {countdownLabel(savedPause.until, nowTick)}
+                </span>
+                {savedPause.note && <span className="pricing-hint">Showing customers: “{savedPause.note}”</span>}
+                <button type="button" className="btn-primary" onClick={handleResume} disabled={pausing}>
+                  {pausing ? (
+                    <><Loader2 size={16} className="spin" />Resuming…</>
+                  ) : (
+                    <><Play size={16} />Resume now</>
+                  )}
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="pricing-field">
+                  <label>Pause for</label>
+                  <div className="hours-day-pills" role="group" aria-label="Pause duration">
+                    {PAUSE_PRESETS_MINUTES.map((m) => (
+                      <button
+                        key={m}
+                        type="button"
+                        className={`hours-day-pill ${pausePreset === m ? "active" : ""}`}
+                        aria-pressed={pausePreset === m}
+                        onClick={() => { setPausePreset(m); setPauseError(""); }}
+                      >
+                        {m >= 60 ? `${m / 60} hr` : `${m} min`}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      className={`hours-day-pill ${pausePreset === "custom" ? "active" : ""}`}
+                      aria-pressed={pausePreset === "custom"}
+                      onClick={() => { setPausePreset("custom"); setPauseError(""); }}
+                    >
+                      Custom
+                    </button>
+                  </div>
+                </div>
+                {pausePreset === "custom" && (
+                  <div className="pricing-field">
+                    <label htmlFor="pause-resume-at">Reopen at</label>
+                    <input
+                      id="pause-resume-at"
+                      type="datetime-local"
+                      value={pauseCustomTime}
+                      min={customMin}
+                      onChange={(e) => { setPauseCustomTime(e.target.value); setPauseError(""); }}
+                    />
+                  </div>
+                )}
+                <div className="pricing-field">
+                  <label htmlFor="pause-note">Note for customers (optional)</label>
+                  <input
+                    id="pause-note"
+                    type="text"
+                    value={pauseNoteDraft}
+                    maxLength={120}
+                    placeholder="e.g. Out for lunch — back soon"
+                    onChange={(e) => setPauseNoteDraft(e.target.value)}
+                  />
+                </div>
+                {pausePreset !== null && (
+                  <span className="pricing-hint">
+                    Customers will see: “{draftResumeValid && draftResumeAt ? pauseReason(draftResumeAt, pauseNoteDraft.trim() || null) : "…"}”
+                  </span>
+                )}
+                <div className="pricing-field">
+                  <button type="button" className="btn-secondary" onClick={handlePause} disabled={pausing || pausePreset === null}>
+                    {pausing ? (
+                      <><Loader2 size={16} className="spin" />Pausing…</>
+                    ) : (
+                      <><Pause size={16} />Pause now</>
+                    )}
+                  </button>
+                </div>
+              </>
+            )}
+            {pauseError && <p className="panel-error" role="alert">{pauseError}</p>}
+          </section>
+
           <section className="pricing-section">
             <div className="pricing-field">
               <label htmlFor="acceptingOrders">Accepting new orders</label>

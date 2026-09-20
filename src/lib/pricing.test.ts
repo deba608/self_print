@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { billableSides, calculatePrice, calculateSpiralBindingPrice, duplexRateSplit, effectiveDeliveryFeePaise, effectiveFileSettings } from "./pricing";
+import { activePause, billableSides, calculatePrice, calculateSpiralBindingPrice, duplexRateSplit, effectiveDeliveryFeePaise, effectiveFileSettings, isAcceptingOrders, isDeliveryAvailable, pauseReason } from "./pricing";
 import type { PricingConfig } from "./types";
 import { DEFAULT_SERVICE_AREA } from "./service-area";
 
@@ -37,6 +37,8 @@ const pricing: PricingConfig = {
   deliveryOpenTime: null,
   deliveryCloseTime: null,
   deliveryDays: null,
+  pausedUntil: null,
+  pauseNote: null,
 };
 
 describe("calculatePrice pagesPerSheet", () => {
@@ -187,8 +189,7 @@ describe("duplexRateSplit (receipt rate line)", () => {
     expect(duplexRateSplit({ duplex: "long-edge", printType: "bw", sides: 7, pricing: sameRate })).toBeNull();
   });
 
-  it("uses billable sides (N-up aware) for the split input", () => {
-    // 8 doc pages at 2-up -> 4 sides (even) -> no split.
+  it("uses billable sides (N-up aware) for the split input", () => {    // 8 doc pages at 2-up -> 4 sides (even) -> no split.
     expect(billableSides(8, null, 2)).toBe(4);
     expect(duplexRateSplit({ duplex: "long-edge", printType: "bw", sides: billableSides(8, null, 2), pricing })).toBeNull();
     // 9 doc pages at 4-up -> ceil(9/4) = 3 sides (odd) -> split 2+1.
@@ -199,5 +200,47 @@ describe("duplexRateSplit (receipt rate line)", () => {
       trailingSides: 1,
       trailingPaise: 200,
     });
+  });
+});
+
+describe("temporary shop pause", () => {
+  const futureIso = new Date(Date.now() + 3600000).toISOString();
+  const pastIso = new Date(Date.now() - 60000).toISOString();
+
+  it("activePause returns the pause while pausedUntil is in the future", () => {
+    const pause = activePause({ ...pricing, pausedUntil: futureIso, pauseNote: "  Out for lunch  " });
+    expect(pause).not.toBeNull();
+    expect(pause!.note).toBe("Out for lunch");
+  });
+
+  it("activePause ignores missing, expired, and malformed timestamps", () => {
+    expect(activePause(pricing)).toBeNull();
+    expect(activePause({ ...pricing, pausedUntil: pastIso })).toBeNull();
+    expect(activePause({ ...pricing, pausedUntil: "not-a-date" })).toBeNull();
+  });
+
+  it("isAcceptingOrders blocks pickup during a pause, with the staff note", () => {
+    const res = isAcceptingOrders({ ...pricing, pausedUntil: futureIso, pauseNote: "Back soon" });
+    expect(res.ok).toBe(false);
+    if (!res.ok) {
+      expect(res.reason).toContain("short break");
+      expect(res.reason).toContain("Back soon");
+    }
+  });
+
+  it("isAcceptingOrders reopens on its own once the pause expires", () => {
+    expect(isAcceptingOrders({ ...pricing, pausedUntil: pastIso })).toEqual({ ok: true });
+  });
+
+  it("isDeliveryAvailable is also paused (one action pauses both)", () => {
+    const res = isDeliveryAvailable({ ...pricing, pausedUntil: futureIso, pauseNote: null });
+    expect(res.ok).toBe(false);
+  });
+
+  it("pauseReason labels today/tomorrow reopenings", () => {
+    const inAnHour = new Date(Date.now() + 3600000);
+    expect(pauseReason(inAnHour, null)).toContain("today at");
+    const tomorrow = new Date(Date.now() + 26 * 3600000);
+    expect(pauseReason(tomorrow, null)).toContain("tomorrow at");
   });
 });

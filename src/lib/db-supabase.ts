@@ -651,6 +651,8 @@ const PRICING_DEFAULTS: PricingConfig = {
   deliveryOpenTime: "18:00",
   deliveryCloseTime: "20:30",
   deliveryDays: "1,2,3,4,5,6",
+  pausedUntil: null,
+  pauseNote: null,
 };
 
 export async function getPricing(): Promise<PricingConfig> {
@@ -700,6 +702,8 @@ export async function getPricing(): Promise<PricingConfig> {
     deliveryOpenTime: data.delivery_open_time ?? PRICING_DEFAULTS.deliveryOpenTime,
     deliveryCloseTime: data.delivery_close_time ?? PRICING_DEFAULTS.deliveryCloseTime,
     deliveryDays: data.delivery_days ?? PRICING_DEFAULTS.deliveryDays,
+    pausedUntil: data.paused_until ?? null,
+    pauseNote: data.pause_note ?? null,
   };
 }
 
@@ -741,6 +745,8 @@ export async function updatePricing(pricing: PricingConfig) {
       delivery_open_time: pricing.deliveryOpenTime,
       delivery_close_time: pricing.deliveryCloseTime,
       delivery_days: pricing.deliveryDays,
+      paused_until: pricing.pausedUntil,
+      pause_note: pricing.pauseNote,
       updated_at: now
     })
     .eq('id', 1);

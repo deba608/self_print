@@ -321,7 +321,9 @@ async function ensurePricingColumns(database: any) {
     ['order_days', "TEXT DEFAULT '1,2,3,4,5,6'"],
     ['delivery_open_time', "TEXT DEFAULT '18:00'"],
     ['delivery_close_time', "TEXT DEFAULT '20:30'"],
-    ['delivery_days', "TEXT DEFAULT '1,2,3,4,5,6'"]
+    ['delivery_days', "TEXT DEFAULT '1,2,3,4,5,6'"],
+    ['paused_until', 'TEXT'],
+    ['pause_note', 'TEXT']
   ];
   for (const [name, definition] of additions) {
     if (!columns.has(name)) {
@@ -1044,6 +1046,8 @@ export async function getPricing(): Promise<PricingConfig> {
     deliveryOpenTime: (row.delivery_open_time as string) || null,
     deliveryCloseTime: (row.delivery_close_time as string) || null,
     deliveryDays: (row.delivery_days as string) || null,
+    pausedUntil: (row.paused_until as string) || null,
+    pauseNote: (row.pause_note as string) || null,
   };
   return pricingCache;
 }
@@ -1070,7 +1074,8 @@ export async function updatePricing(pricing: PricingConfig): Promise<void> {
        expiry_minutes = ?, delivery_fee_paise = ?, free_delivery_threshold_paise = ?, service_area_config = ?,
        accepting_orders = ?, order_open_time = ?, order_close_time = ?,
        order_open_time2 = ?, order_close_time2 = ?, order_days = ?,
-       delivery_open_time = ?, delivery_close_time = ?, delivery_days = ?, updated_at = ?
+       delivery_open_time = ?, delivery_close_time = ?, delivery_days = ?,
+       paused_until = ?, pause_note = ?, updated_at = ?
     WHERE id = 1
   `).run(
      pricing.bwPerPagePaise, pricing.colorPerPagePaise, pricing.photoPrintPaise,
@@ -1084,7 +1089,8 @@ export async function updatePricing(pricing: PricingConfig): Promise<void> {
      serializeServiceAreaConfig(pricing.serviceArea),
      pricing.acceptingOrders ? 1 : 0, pricing.orderOpenTime, pricing.orderCloseTime,
      pricing.orderOpenTime2, pricing.orderCloseTime2, pricing.orderDays,
-     pricing.deliveryOpenTime, pricing.deliveryCloseTime, pricing.deliveryDays, now
+     pricing.deliveryOpenTime, pricing.deliveryCloseTime, pricing.deliveryDays,
+     pricing.pausedUntil, pricing.pauseNote, now
   );
 }
 

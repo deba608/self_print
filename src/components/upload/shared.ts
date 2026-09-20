@@ -75,6 +75,8 @@ export type Pricing = {
   deliveryOpenTime: string | null;
   deliveryCloseTime: string | null;
   deliveryDays: string | null;
+  pausedUntil: string | null;
+  pauseNote: string | null;
 };
 
 // Loads the Razorpay Standard Checkout script once and resolves when ready.

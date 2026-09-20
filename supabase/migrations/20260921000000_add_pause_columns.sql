@@ -1,0 +1,2 @@
+ALTER TABLE pricing_config ADD COLUMN IF NOT EXISTS paused_until TIMESTAMPTZ;
+ALTER TABLE pricing_config ADD COLUMN IF NOT EXISTS pause_note TEXT;
