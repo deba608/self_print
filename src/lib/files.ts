@@ -23,15 +23,27 @@ export async function saveUpload(file: File, ext: string, kind: FileKind = "pdf"
   return saveToStorage(file, ext, kind);
 }
 
+// Which engine produced a page count. Exposed in the job-creation response
+// (`pageCountSource`) so a miscount can be traced to its layer without
+// server-log access. "fixed" = trivial image/document answer, no parse.
+export type PageCountSource = "pdfium" | "pdfjs" | "regex" | "fixed";
+
 export async function estimatePageCount(kind: FileKind, bytes: Buffer): Promise<number> {
-  if (kind === "image") return 1;
-  if (kind === "document") return 0;
+  return (await estimatePageCountWithSource(kind, bytes)).count;
+}
+
+export async function estimatePageCountWithSource(
+  kind: FileKind,
+  bytes: Buffer
+): Promise<{ count: number; source: PageCountSource }> {
+  if (kind === "image") return { count: 1, source: "fixed" };
+  if (kind === "document") return { count: 0, source: "fixed" };
   // Real page count via PDFium — the same engine the agent prints with. The
   // old regex counted /Type /Page occurrences in raw bytes, which modern
   // PDFs hide inside compressed object streams: a 300-page file was billed
   // as ~1 page while the agent still printed all of them.
   const viaPdfium = await countPagesViaPdfium(bytes);
-  if (viaPdfium !== null) return Math.max(viaPdfium, 1);
+  if (viaPdfium !== null) return { count: Math.max(viaPdfium, 1), source: "pdfium" };
   // Second real parse via pdf.js (follows the live page tree, ignores
   // orphaned / dead objects). This is what saves non-optimized extracts:
   // e.g. a "print 3 pages from a book" PDF that shows 3 pages but still
@@ -41,7 +53,7 @@ export async function estimatePageCount(kind: FileKind, bytes: Buffer): Promise<
   const viaPdfjs = await countPagesViaPdfJs(bytes);
   if (viaPdfjs !== null) {
     console.warn("[estimatePageCount] PDFium failed, used pdf.js fallback");
-    return Math.max(viaPdfjs, 1);
+    return { count: Math.max(viaPdfjs, 1), source: "pdfjs" };
   }
   // Both real parsers failed (malformed PDF or engine unavailable) — fall
   // back to the byte-regex heuristic rather than failing the upload. Known
@@ -50,7 +62,7 @@ export async function estimatePageCount(kind: FileKind, bytes: Buffer): Promise<
   console.warn("[estimatePageCount] PDFium and pdf.js failed, used regex heuristic");
   const text = bytes.toString("latin1");
   const matches = text.match(/\/Type\s*\/Page\b/g);
-  return Math.max(matches?.length ?? 1, 1);
+  return { count: Math.max(matches?.length ?? 1, 1), source: "regex" };
 }
 
 // PDFium parse. Returns null (instead of throwing) when the engine or the
@@ -105,10 +117,11 @@ export async function countPagesViaPdfJs(bytes: Buffer): Promise<number | null> 
 export async function measureStoredFile(
   kind: FileKind,
   storagePath: string
-): Promise<{ sizeBytes: number; pageCount: number }> {
+): Promise<{ sizeBytes: number; pageCount: number; pageCountSource: PageCountSource }> {
   const bytes = await readFileBytes(storagePath);
   if (bytes.length > MAX_UPLOAD_BYTES) {
     throw new Error("File is too large");
   }
-  return { sizeBytes: bytes.length, pageCount: await estimatePageCount(kind, bytes) };
+  const { count, source } = await estimatePageCountWithSource(kind, bytes);
+  return { sizeBytes: bytes.length, pageCount: count, pageCountSource: source };
 }

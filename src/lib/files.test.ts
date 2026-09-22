@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { countPagesViaPdfJs, estimatePageCount } from "./files";
+import { countPagesViaPdfJs, estimatePageCount, estimatePageCountWithSource } from "./files";
 
 // Simulates a non-optimized "extract pages" PDF like the reported token
 // 561440 case: 5 live pages, but stale /Type /Page markers from the source
@@ -34,6 +34,18 @@ describe("estimatePageCount", () => {
   it("never throws on garbage bytes", async () => {
     const count = await estimatePageCount("pdf", Buffer.from("not a pdf at all"));
     expect(count).toBeGreaterThanOrEqual(1);
+  });
+
+  it("reports which engine produced the count", async () => {
+    const fs = await import("node:fs");
+    const bytes = fs.readFileSync("docs/CUSTOMER_USER_GUIDE.pdf");
+    const { count, source } = await estimatePageCountWithSource("pdf", bytes);
+    expect(count).toBe(5);
+    // Locally PDFium serves; in runtimes where it can't load, pdf.js does.
+    expect(["pdfium", "pdfjs"]).toContain(source);
+    const garbage = await estimatePageCountWithSource("pdf", Buffer.from("not a pdf at all"));
+    expect(garbage.source).toBe("regex");
+    expect(garbage.count).toBeGreaterThanOrEqual(1);
   });
 });
 

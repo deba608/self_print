@@ -3,7 +3,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { MAX_UPLOAD_BYTES } from "@/lib/config";
 import { MAX_BULK_FILES, parseBulkFiles } from "@/lib/bulk";
 import { createJob, createJobWithFiles, getJobByToken, getPricing, nextQueuePosition } from "@/lib/db";
-import { estimatePageCount, measureStoredFile, saveUpload, validateUpload } from "@/lib/files";
+import { estimatePageCountWithSource, measureStoredFile, saveUpload, validateUpload } from "@/lib/files";
+import type { PageCountSource } from "@/lib/files";
 import { bucketPathFor, isValidStoredName, verifyStoredNameSig } from "@/lib/storage";
 import { clientIp, isRateLimited } from "@/lib/ratelimit";
 import { calculatePrice, calculateSpiralBindingPrice, effectiveDeliveryFeePaise, effectiveFileSettings, isAcceptingOrders, selectedPageCount } from "@/lib/pricing";
@@ -248,6 +249,7 @@ export async function POST(request: NextRequest) {
     let storagePath = "";
     let sizeBytes = 0;
     let pageCount = 0;
+    let pageCountSource: PageCountSource = "fixed";
     let kind: any = "pdf";
     let needsConversion = 0;
     let originalName = "";
@@ -290,7 +292,7 @@ export async function POST(request: NextRequest) {
         }
       } else {
         try {
-          ({ sizeBytes, pageCount } = await measureStoredFile(kind, storagePath));
+          ({ sizeBytes, pageCount, pageCountSource } = await measureStoredFile(kind, storagePath));
         } catch {
           return NextResponse.json({ error: "Uploaded file could not be read" }, { status: 400 });
         }
@@ -316,7 +318,7 @@ export async function POST(request: NextRequest) {
       storedName = saved.storedName;
       storagePath = saved.storagePath;
       sizeBytes = saved.sizeBytes;
-      pageCount = await estimatePageCount(kind, saved.bytes);
+      ({ count: pageCount, source: pageCountSource } = await estimatePageCountWithSource(kind, saved.bytes));
       needsConversion = kind === "document" ? 1 : 0;
     }
 
@@ -398,7 +400,7 @@ export async function POST(request: NextRequest) {
 
     const { jobId } = await createJob(jobData, fileData);
 
-    return NextResponse.json({ jobId, token, pricePaise, deliveryFeePaise, addonFeePaise, needsConversion: Boolean(needsConversion), pageCount, queuePosition: queuePos });
+    return NextResponse.json({ jobId, token, pricePaise, deliveryFeePaise, addonFeePaise, needsConversion: Boolean(needsConversion), pageCount, pageCountSource, queuePosition: queuePos });
   } catch (error) {
     // A Supabase/PostgREST rejection is a plain object, not an Error. Log the
     // real cause server-side only — raw messages leak table names, constraint
@@ -461,6 +463,7 @@ async function handleBulk(form: FormData, customer: { id: string; displayName: s
     storage_path: string;
   }>;
   let perFilePageCounts: number[];
+  let perFileSources: PageCountSource[] = [];
 
   const filesJsonRaw = form.get("filesJson");
   if (filesJsonRaw !== null) {
@@ -485,7 +488,7 @@ async function handleBulk(form: FormData, customer: { id: string; displayName: s
     // Measure every uploaded object server-side. The client-reported pageCount
     // in filesJson is advisory only (used for the browser's price preview) and
     // must not reach pricing — see measureStoredFile.
-    let measured: Array<{ sizeBytes: number; pageCount: number }>;
+    let measured: Array<{ sizeBytes: number; pageCount: number; pageCountSource: PageCountSource }>;
     try {
       measured = await Promise.all(
         files.map((f) => measureStoredFile("pdf", bucketPathFor("pdf", f.storedName)))
@@ -500,6 +503,7 @@ async function handleBulk(form: FormData, customer: { id: string; displayName: s
     }
 
     perFilePageCounts = measured.map((m) => Math.max(1, m.pageCount));
+    perFileSources = measured.map((m) => m.pageCountSource);
     filesData = files.map((f, i) => ({
       original_name: f.originalName,
       stored_name: f.storedName,
@@ -539,7 +543,9 @@ async function handleBulk(form: FormData, customer: { id: string; displayName: s
         return NextResponse.json({ error: "Bulk upload accepts PDF files only." }, { status: 400 });
       }
       const saved = await saveUpload(upload, ext, "pdf");
-      perFilePageCounts.push(Math.max(1, await estimatePageCount("pdf", saved.bytes)));
+      const { count, source } = await estimatePageCountWithSource("pdf", saved.bytes);
+      perFilePageCounts.push(Math.max(1, count));
+      perFileSources.push(source);
       filesData.push({
         original_name: upload.name,
         stored_name: saved.storedName,
@@ -645,7 +651,7 @@ async function handleBulk(form: FormData, customer: { id: string; displayName: s
   const filesDataWithSettings = filesData.map((fd, i) => ({ ...fd, settings: overrides[i] }));
   const { jobId } = await createJobWithFiles(jobData, filesDataWithSettings);
 
-  return NextResponse.json({ jobId, token, pricePaise, deliveryFeePaise, addonFeePaise, needsConversion: false, pageCount, queuePosition: queuePos });
+  return NextResponse.json({ jobId, token, pricePaise, deliveryFeePaise, addonFeePaise, needsConversion: false, pageCount, pageCountSources: perFileSources, queuePosition: queuePos });
 }
 
 // Tokens are the counter-facing order code, so they stay 6 digits. Uniqueness
