@@ -68,17 +68,51 @@ export async function estimatePageCountWithSource(
 // PDFium parse. Returns null (instead of throwing) when the engine or the
 // file can't be handled, so the caller can try the next parser.
 async function countPagesViaPdfium(bytes: Buffer): Promise<number | null> {
+  // Attempt 1: default init — the library locates pdfium.wasm next to its
+  // own package. Works in plain Node / local dev.
   try {
-    const { PDFiumLibrary } = await import("@hyzyla/pdfium");
-    const lib = await PDFiumLibrary.init();
-    try {
-      const doc = await lib.loadDocument(new Uint8Array(bytes));
-      const count = doc.getPageCount();
-      doc.destroy();
-      return typeof count === "number" && Number.isFinite(count) ? count : null;
-    } finally {
-      lib.destroy?.();
-    }
+    return await loadWithPdfium(bytes);
+  } catch {
+    // Fall through to the explicit-binary retry below.
+  }
+  // Attempt 2: pass the wasm binary explicitly. Bundled servers (Next.js
+  // production, serverless) relocate the importing chunk, so the library's
+  // `new URL("pdfium.wasm", import.meta.url)` no longer points at
+  // node_modules and default init fails — resolving the real path ourselves
+  // survives that. Without this, every PDF in prod fell through to the
+  // regex heuristic (e.g. a 3-page extract billed as 55).
+  try {
+    const wasmBinary = await readPdfiumWasmBinary();
+    if (wasmBinary) return await loadWithPdfium(bytes, wasmBinary);
+  } catch {
+    // Fall through to null — the caller tries pdf.js next.
+  }
+  return null;
+}
+
+async function loadWithPdfium(bytes: Buffer, wasmBinary?: ArrayBuffer): Promise<number> {
+  const { PDFiumLibrary } = await import("@hyzyla/pdfium");
+  const lib = await PDFiumLibrary.init(wasmBinary ? { wasmBinary } : undefined);
+  try {
+    const doc = await lib.loadDocument(new Uint8Array(bytes));
+    const count = doc.getPageCount();
+    doc.destroy();
+    if (typeof count !== "number" || !Number.isFinite(count)) throw new Error("bad page count");
+    return count;
+  } finally {
+    lib.destroy?.();
+  }
+}
+
+// Reads the PDFium wasm binary from its installed package. Exported for tests.
+export async function readPdfiumWasmBinary(): Promise<ArrayBuffer | null> {
+  try {
+    const { createRequire } = await import("node:module");
+    const require = createRequire(import.meta.url);
+    const wasmPath = require.resolve("@hyzyla/pdfium/pdfium.wasm");
+    const fs = await import("node:fs/promises");
+    const buf = await fs.readFile(wasmPath);
+    return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer;
   } catch {
     return null;
   }

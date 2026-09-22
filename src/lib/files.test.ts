@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { countPagesViaPdfJs, estimatePageCount, estimatePageCountWithSource } from "./files";
+import { countPagesViaPdfJs, estimatePageCount, estimatePageCountWithSource, readPdfiumWasmBinary } from "./files";
 
 // Simulates a non-optimized "extract pages" PDF like the reported token
 // 561440 case: 5 live pages, but stale /Type /Page markers from the source
@@ -57,5 +57,28 @@ describe("countPagesViaPdfJs", () => {
 
   it("returns null for garbage instead of throwing", async () => {
     expect(await countPagesViaPdfJs(Buffer.from("not a pdf at all"))).toBeNull();
+  });
+});
+
+describe("readPdfiumWasmBinary", () => {
+  it("resolves the installed wasm binary (serverless fallback path)", async () => {
+    const bin = await readPdfiumWasmBinary();
+    expect(bin).not.toBeNull();
+    expect(bin!.byteLength).toBeGreaterThan(1_000_000);
+  });
+
+  it("explicit-binary init counts accurately (bundled-server path)", async () => {
+    const { PDFiumLibrary } = await import("@hyzyla/pdfium");
+    const bin = await readPdfiumWasmBinary();
+    const lib = await PDFiumLibrary.init({ wasmBinary: bin! });
+    try {
+      const fs = await import("node:fs");
+      const bytes = fs.readFileSync("docs/CUSTOMER_USER_GUIDE.pdf");
+      const doc = await lib.loadDocument(new Uint8Array(bytes));
+      expect(doc.getPageCount()).toBe(5);
+      doc.destroy();
+    } finally {
+      (lib as unknown as { destroy?: () => void }).destroy?.();
+    }
   });
 });
