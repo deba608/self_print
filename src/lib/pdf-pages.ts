@@ -1,9 +1,10 @@
-// Fast client-side page-count estimate: counts "/Type /Page" object markers
-// in the raw bytes. Not a real PDF parse — linearized/compressed object
-// streams can hide markers — but right for the overwhelming majority of
-// uploads, and the server recounts authoritatively anyway.
+// Client-side page count: accurate pdf.js parse first (follows the live page
+// tree, so non-optimized extracts with orphaned /Type /Page markers in dead
+// bytes still count correctly), chunked raw-byte scan only as a last resort
+// when pdf.js can't parse (mock data in tests, malformed files). The server
+// recounts authoritatively anyway (see estimatePageCount in lib/files.ts).
 //
-// Scans in chunks instead of decoding the whole file at once: a 25MB upload
+// The fallback scans in chunks instead of decoding the whole file at once: a 25MB upload
 // decoded to a single latin1 string froze the main thread for seconds on
 // mid-range phones (and briefly doubled memory). Each chunk decode is a few
 // ms, and the awaited slice reads yield to the event loop between chunks.

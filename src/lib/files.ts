@@ -30,6 +30,32 @@ export async function estimatePageCount(kind: FileKind, bytes: Buffer): Promise<
   // old regex counted /Type /Page occurrences in raw bytes, which modern
   // PDFs hide inside compressed object streams: a 300-page file was billed
   // as ~1 page while the agent still printed all of them.
+  const viaPdfium = await countPagesViaPdfium(bytes);
+  if (viaPdfium !== null) return Math.max(viaPdfium, 1);
+  // Second real parse via pdf.js (follows the live page tree, ignores
+  // orphaned / dead objects). This is what saves non-optimized extracts:
+  // e.g. a "print 3 pages from a book" PDF that shows 3 pages but still
+  // carries the book's stale /Type /Page markers in dead bytes — the naive
+  // regex below would bill all of them (reported case: 6 real pages billed
+  // as 58). pdf.js counts only live pages, like PDFium and the viewer.
+  const viaPdfjs = await countPagesViaPdfJs(bytes);
+  if (viaPdfjs !== null) {
+    console.warn("[estimatePageCount] PDFium failed, used pdf.js fallback");
+    return Math.max(viaPdfjs, 1);
+  }
+  // Both real parsers failed (malformed PDF or engine unavailable) — fall
+  // back to the byte-regex heuristic rather than failing the upload. Known
+  // to overcount unoptimized extracts with orphaned markers and undercount
+  // compressed object streams, so this is strictly a last resort.
+  console.warn("[estimatePageCount] PDFium and pdf.js failed, used regex heuristic");
+  const text = bytes.toString("latin1");
+  const matches = text.match(/\/Type\s*\/Page\b/g);
+  return Math.max(matches?.length ?? 1, 1);
+}
+
+// PDFium parse. Returns null (instead of throwing) when the engine or the
+// file can't be handled, so the caller can try the next parser.
+async function countPagesViaPdfium(bytes: Buffer): Promise<number | null> {
   try {
     const { PDFiumLibrary } = await import("@hyzyla/pdfium");
     const lib = await PDFiumLibrary.init();
@@ -37,16 +63,34 @@ export async function estimatePageCount(kind: FileKind, bytes: Buffer): Promise<
       const doc = await lib.loadDocument(new Uint8Array(bytes));
       const count = doc.getPageCount();
       doc.destroy();
-      return Math.max(count, 1);
+      return typeof count === "number" && Number.isFinite(count) ? count : null;
     } finally {
       lib.destroy?.();
     }
   } catch {
-    // Malformed PDF or WASM unavailable — fall back to the byte-regex
-    // heuristic rather than failing the upload.
-    const text = bytes.toString("latin1");
-    const matches = text.match(/\/Type\s*\/Page\b/g);
-    return Math.max(matches?.length ?? 1, 1);
+    return null;
+  }
+}
+
+// pdf.js parse (no worker — Node has no WebWorker here; the library falls
+// back to the main-thread "fake worker"). Exported for tests.
+export async function countPagesViaPdfJs(bytes: Buffer): Promise<number | null> {
+  try {
+    const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+    const doc = await pdfjs.getDocument({
+      data: new Uint8Array(bytes),
+      isEvalSupported: false,
+      useWorkerFetch: false,
+    } as unknown as Parameters<typeof pdfjs.getDocument>[0]).promise;
+    const num = (doc as unknown as { numPages?: unknown }).numPages;
+    try {
+      await (doc as unknown as { destroy?: () => Promise<void> }).destroy?.();
+    } catch {
+      // Ignore cleanup errors — the count was already read.
+    }
+    return typeof num === "number" && Number.isFinite(num) ? num : null;
+  } catch {
+    return null;
   }
 }
 
