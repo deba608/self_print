@@ -17,6 +17,17 @@ import type { FileSettingsOverride, PaperSize, PrintDuplex, PrintLayout, PrintMa
 // for a Rs 717 order (token 772168: 657 pages billed as 1).
 const UNREADABLE_PDF_ERROR =
   "We couldn't read the page count of your PDF. Please re-save or compress it and try again, or contact the shop for help.";
+const ENCRYPTED_PDF_ERROR =
+  "This PDF is password-protected. Please remove the password (Print to PDF) and upload again.";
+
+// One helper for all four PageCountError sites — logs server-side cause
+// (was swallowed, made prod failures untraceable) and picks message.
+function unreadablePdfResponse(error: unknown, prefix = "") {
+  const encrypted = error instanceof PageCountError && error.encrypted;
+  const details = error instanceof PageCountError ? error.details : null;
+  console.warn(`[/api/jobs] page count failed${prefix ? ` ${prefix}` : ""}: ${details ?? "unknown"}`);
+  return NextResponse.json({ error: encrypted ? ENCRYPTED_PDF_ERROR : UNREADABLE_PDF_ERROR }, { status: 400 });
+}
 
 // Validates one bulk file's settings override against the same enums/ranges
 // as the job-level fields. Returns null (meaning "no override", i.e. inherit
@@ -303,7 +314,7 @@ export async function POST(request: NextRequest) {
           ({ sizeBytes, pageCount, pageCountSource } = await measureStoredFile(kind, storagePath));
         } catch (error) {
           if (error instanceof PageCountError) {
-            return NextResponse.json({ error: UNREADABLE_PDF_ERROR }, { status: 400 });
+            return unreadablePdfResponse(error);
           }
           return NextResponse.json({ error: "Uploaded file could not be read" }, { status: 400 });
         }
@@ -333,7 +344,7 @@ export async function POST(request: NextRequest) {
         ({ count: pageCount, source: pageCountSource } = await estimatePageCountWithSource(kind, saved.bytes));
       } catch (error) {
         if (error instanceof PageCountError) {
-          return NextResponse.json({ error: UNREADABLE_PDF_ERROR }, { status: 400 });
+          return unreadablePdfResponse(error);
         }
         throw error;
       }
@@ -513,7 +524,7 @@ async function handleBulk(form: FormData, customer: { id: string; displayName: s
       );
     } catch (error) {
       if (error instanceof PageCountError) {
-        return NextResponse.json({ error: UNREADABLE_PDF_ERROR }, { status: 400 });
+        return unreadablePdfResponse(error, "(bulk)");
       }
       return NextResponse.json({ error: "An uploaded file could not be read." }, { status: 400 });
     }
@@ -570,7 +581,9 @@ async function handleBulk(form: FormData, customer: { id: string; displayName: s
         ({ count, source } = await estimatePageCountWithSource("pdf", saved.bytes));
       } catch (error) {
         if (error instanceof PageCountError) {
-          return NextResponse.json({ error: `"${upload.name}": ${UNREADABLE_PDF_ERROR}` }, { status: 400 });
+          console.warn(`[/api/jobs] page count failed (bulk ${upload.name}): ${error.details ?? "unknown"}`);
+          const msg = error.encrypted ? ENCRYPTED_PDF_ERROR : `${UNREADABLE_PDF_ERROR}`;
+          return NextResponse.json({ error: `"${upload.name}": ${msg}` }, { status: 400 });
         }
         throw error;
       }
