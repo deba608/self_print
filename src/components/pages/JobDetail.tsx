@@ -52,7 +52,7 @@ type Detail = {
     deliveryLocationCapturedAt?: string | null;
   };
   file: { id: string; originalName: string; mimeType: string; fileKind: string; sizeBytes: number; purgedAt: string | null } | null;
-  files: Array<{ id: string; originalName: string; mimeType: string; fileKind: string; sizeBytes: number; purgedAt: string | null }>;
+  files: Array<{ id: string; originalName: string; mimeType: string; fileKind: string; sizeBytes: number; purgedAt: string | null; settings?: { copies?: number; printType?: string } | null }>;
   events: Array<{ id: string; event_type: string; message: string; created_at: string }>;
 };
 
@@ -366,7 +366,7 @@ export default function JobDetail({ id }: { id: string }) {
           aria-hidden={activeTab !== "details"}
           className={`detail-pane detail-pane-details ${activeTab === "details" ? "active" : ""}`}
         >
-          <FileCard files={files} />
+          <FileCard files={files} jobCopies={job.copies} />
           <SummaryCard job={job} files={files} />
           <CustomNoteCard job={job} />
           <DeliveryCard job={job} />
@@ -415,10 +415,11 @@ export default function JobDetail({ id }: { id: string }) {
   );
 }
 
-function FileCard({ files }: { files: Detail["files"] }) {
+function FileCard({ files, jobCopies }: { files: Detail["files"]; jobCopies: number }) {
   if (files.length === 0) return null;
   if (files.length === 1) {
     const file = files[0];
+    const copies = file.settings?.copies ?? jobCopies;
     return (
       <div className="detail-card">
         <h3 className="card-title">
@@ -432,6 +433,12 @@ function FileCard({ files }: { files: Detail["files"] }) {
           <span>{(file.sizeBytes / 1024).toFixed(1)} KB</span>
           <span className="dot">·</span>
           <span>{file.fileKind.toUpperCase()}</span>
+          {copies > 1 && (
+            <>
+              <span className="dot">·</span>
+              <span>× {copies} copies</span>
+            </>
+          )}
         </div>
       </div>
     );
@@ -450,6 +457,8 @@ function FileCard({ files }: { files: Detail["files"] }) {
               <span>{(file.sizeBytes / 1024).toFixed(1)} KB</span>
               <span className="dot">·</span>
               <span>{file.fileKind.toUpperCase()}</span>
+              <span className="dot">·</span>
+              <span>× {file.settings?.copies ?? jobCopies} {(file.settings?.copies ?? jobCopies) === 1 ? "copy" : "copies"}</span>
             </div>
           </div>
         ))}
@@ -459,9 +468,15 @@ function FileCard({ files }: { files: Detail["files"] }) {
 }
 
 function SummaryCard({ job, files }: { job: Detail["job"]; files: Detail["files"] }) {
+  // Bulk jobs can carry per-file copy counts (job_files.settings_json) that
+  // differ from the job-level default — show each file's effective count so
+  // staff see what the agent will actually print before releasing.
+  const copiesLabel = files.length > 1 && files.some((f) => f.settings?.copies != null)
+    ? files.map((f) => `×${f.settings?.copies ?? job.copies}`).join(" + ")
+    : String(job.copies);
   const rows = [
     ["Type", job.printType === "bw" ? "Black & White" : "Color"],
-    ["Copies", String(job.copies)],
+    ["Copies", copiesLabel],
     ["Pages", files.length > 1 ? `${job.pageCount} pages, ${files.length} files` : (job.pageRange || "All")],
     ["Paper", paperSizeLabels[job.paperSize as keyof typeof paperSizeLabels] || job.paperSize],
     ["Layout", titleCase(job.layout)],

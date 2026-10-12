@@ -62,7 +62,12 @@ if ($blockingError) {
 }
 
 if ($Copies -lt 1) { $Copies = 1 }
-$doc.PrinterSettings.Copies = [int16]$Copies
+# Copies are produced by spooling the document N times, NOT via
+# PrinterSettings.Copies — host-based/GDI drivers silently ignore DEVMODE
+# dmCopies for custom PrintDocument output (job printed once despite Copies=3).
+# Looping here is collated by construction. Keep the driver setting at 1 so a
+# driver that DOES honor it can't multiply (N x N).
+$doc.PrinterSettings.Copies = [int16]1
 $doc.PrinterSettings.Collate = ($Collate -eq "true")
 $doc.DefaultPageSettings.Landscape = ($Landscape -eq "true")
 $doc.DefaultPageSettings.Color = ($Color -eq "true")
@@ -265,5 +270,6 @@ $doc.add_PrintPage({
 }.GetNewClosure())
 
 $doc.Print()
+for ($c = 2; $c -le $Copies; $c++) { $doc.Print() }
 $doc.Dispose()
-Write-Output ("PRINTED " + $sheets.Count + " sheet(s), " + $files.Count + " page(s) on " + $Printer)
+Write-Output ("PRINTED " + $sheets.Count + " sheet(s), " + $files.Count + " page(s) x" + $Copies + " copie(s) on " + $Printer)
