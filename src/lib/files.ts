@@ -114,7 +114,9 @@ async function loadWithPdfium(bytes: Buffer, wasmBinary?: ArrayBuffer): Promise<
   const { PDFiumLibrary } = await import("@hyzyla/pdfium");
   const lib = await PDFiumLibrary.init(wasmBinary ? { wasmBinary } : undefined);
   try {
-    const doc = await lib.loadDocument(new Uint8Array(bytes));
+    // Zero-copy view — new Uint8Array(bytes) duplicates 50MB uploads, which
+    // OOMs small serverless functions before parsing even starts.
+    const doc = await lib.loadDocument(new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength));
     const count = doc.getPageCount();
     doc.destroy();
     if (typeof count !== "number" || !Number.isFinite(count)) throw new Error("bad page count");
@@ -144,7 +146,7 @@ export async function countPagesViaPdfJs(bytes: Buffer, failures?: string[]): Pr
   try {
     const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
     const doc = await pdfjs.getDocument({
-      data: new Uint8Array(bytes),
+      data: new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength),
       isEvalSupported: false,
       useWorkerFetch: false,
     } as unknown as Parameters<typeof pdfjs.getDocument>[0]).promise;
