@@ -11,6 +11,7 @@ import { checkDeliveryServiceable, isValidPincode } from "@/lib/service-area";
 
 import BulkThumb from "../upload/BulkThumb";
 import PdfCanvasPreview from "../upload/PdfCanvasPreview";
+import ImageSheetPreview from "../upload/ImageSheetPreview";
 import ResultScreen from "../upload/ResultScreen";
 import { estimateRange, fallbackUploadLimit, formatMb, MAX_UPLOAD_BYTES, MAX_UPLOAD_MB, type Pricing } from "../upload/shared";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
@@ -3062,7 +3063,14 @@ export default function UploadForm() {
               />
             )}
             {file && file.type.startsWith("image/") && previewUrl && (
-              <img src={previewUrl} alt="Image Preview" className="preview-image" />
+              <ImageSheetPreview
+                src={previewUrl}
+                alt="Image Preview"
+                paperSize={paperSize}
+                layout={layout}
+                margins={margins}
+                scale={scale}
+              />
             )}
             {file && (file.name.endsWith(".doc") || file.name.endsWith(".docx")) && (
               <div className="doc-preview">

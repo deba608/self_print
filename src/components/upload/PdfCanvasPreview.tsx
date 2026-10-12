@@ -6,7 +6,8 @@ import { loadPdfDocument, type PdfJsDoc } from "@/lib/pdf-client";
 import { shouldAutoRotate } from "@/lib/print-layout";
 
 // Paper dimensions in mm, portrait width × height. Landscape swaps them.
-const PAPER_MM: Record<string, [number, number]> = {
+// Exported for ImageSheetPreview so both previews share one paper table.
+export const PAPER_MM: Record<string, [number, number]> = {
   A3: [297, 420],
   A4: [210, 297],
   A5: [148, 210],
@@ -17,8 +18,8 @@ const PAPER_MM: Record<string, [number, number]> = {
   Photo: [102, 152],
 };
 
-// Margin fractions of sheet width
-const MARGIN_FRACTION: Record<string, number> = { default: 0.05, minimum: 0.02, none: 0 };
+// Margin fractions of sheet width. Exported for ImageSheetPreview.
+export const MARGIN_FRACTION: Record<string, number> = { default: 0.05, minimum: 0.02, none: 0 };
 
 export type PreviewSim = {
   pagesPerSheet: number;
