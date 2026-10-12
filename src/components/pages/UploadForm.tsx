@@ -1443,15 +1443,15 @@ export default function UploadForm() {
     try {
       let inlineFallback = false;
       let uploadResult = uploadPromiseRef.current ? await uploadPromiseRef.current : null;
-      if (uploadResult?.error && uploadResult.error !== "Aborted") {
-        throw new Error(uploadResult.error);
-      }
-      if (!uploadResult || uploadResult.error === "Aborted" || !uploadResult.isDirectUpload) {
-        // No usable background upload (never started, aborted, or the sign
-        // call predates working storage) — try one fresh direct upload now
-        // instead of stranding the file under the 4MB inline cap. A server
-        // genuinely without storage answers "not available" again and the
-        // fallback below still applies.
+      // A dead background upload must not strand the order under the 4MB
+      // inline cap: retry once here for missing/aborted/network-ish failures
+      // (a 47MB PUT dying on mobile data is the classic case). Validation
+      // errors would just fail again — surface those immediately.
+      const retryable = (r: typeof uploadResult) =>
+        !r || r.error === "Aborted" || (r.error != null && !/too large|invalid|too many requests|file name|failed \(4\d\d\)/i.test(r.error));
+      if (retryable(uploadResult)) {
+        // No usable background upload — try one fresh direct upload now
+        // instead of falling back to inline bytes.
         setSingleUploading(true);
         try {
           uploadResult = await startBackgroundUpload(file);
@@ -1459,9 +1459,12 @@ export default function UploadForm() {
           setSingleUploading(false);
         }
         uploadPromiseRef.current = Promise.resolve(uploadResult);
-        if (uploadResult.error && uploadResult.error !== "Aborted") {
-          throw new Error(uploadResult.error);
-        }
+      }
+      if (!uploadResult) {
+        throw new Error("Upload failed. Please try again.");
+      }
+      if (uploadResult.error && uploadResult.error !== "Aborted") {
+        throw new Error(uploadResult.error);
       }
 
       if (uploadResult.isDirectUpload && uploadResult.storedName) {

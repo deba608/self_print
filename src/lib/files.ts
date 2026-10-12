@@ -34,8 +34,12 @@ export type PageCountSource = "pdfium" | "pdfjs" | "fixed";
 // and on extracts with dead markers it overbills. Refusing is cheaper than
 // misbilling — callers turn this into a 400 asking for a re-saved file.
 export class PageCountError extends Error {
-  constructor() {
+  encrypted: boolean;
+  details: string | null;
+  constructor(opts?: { encrypted?: boolean; details?: string | null }) {
     super("Could not determine the page count of this PDF");
+    this.encrypted = opts?.encrypted ?? false;
+    this.details = opts?.details ?? null;
   }
 }
 
@@ -49,11 +53,12 @@ export async function estimatePageCountWithSource(
 ): Promise<{ count: number; source: PageCountSource }> {
   if (kind === "image") return { count: 1, source: "fixed" };
   if (kind === "document") return { count: 0, source: "fixed" };
+  const failures: string[] = [];
   // Real page count via PDFium — the same engine the agent prints with. The
   // old regex counted /Type /Page occurrences in raw bytes, which modern
   // PDFs hide inside compressed object streams: a 300-page file was billed
   // as ~1 page while the agent still printed all of them.
-  const viaPdfium = await countPagesViaPdfium(bytes);
+  const viaPdfium = await countPagesViaPdfium(bytes, failures);
   if (viaPdfium !== null) return { count: Math.max(viaPdfium, 1), source: "pdfium" };
   // Second real parse via pdf.js (follows the live page tree, ignores
   // orphaned / dead objects). This is what saves non-optimized extracts:
@@ -61,7 +66,7 @@ export async function estimatePageCountWithSource(
   // carries the book's stale /Type /Page markers in dead bytes — the naive
   // regex below would bill all of them (reported case: 6 real pages billed
   // as 58). pdf.js counts only live pages, like PDFium and the viewer.
-  const viaPdfjs = await countPagesViaPdfJs(bytes);
+  const viaPdfjs = await countPagesViaPdfJs(bytes, failures);
   if (viaPdfjs !== null) {
     console.warn("[estimatePageCount] PDFium failed, used pdf.js fallback");
     return { count: Math.max(viaPdfjs, 1), source: "pdfjs" };
@@ -72,17 +77,20 @@ export async function estimatePageCountWithSource(
   // compressed object streams, overcounts dead markers in extracts), and a
   // wrong count becomes a wrong price. The caller rejects the upload so the
   // customer re-saves the file instead of being misbilled.
-  throw new PageCountError();
+  const details = failures.length > 0 ? failures.join(" | ").slice(0, 500) : null;
+  console.warn(`[estimatePageCount] both parsers failed (${bytes.length} bytes): ${details ?? "unknown"}`);
+  throw new PageCountError({ encrypted: isEncryptedPdf(bytes, failures), details });
 }
 
 // PDFium parse. Returns null (instead of throwing) when the engine or the
 // file can't be handled, so the caller can try the next parser.
-async function countPagesViaPdfium(bytes: Buffer): Promise<number | null> {
+async function countPagesViaPdfium(bytes: Buffer, failures?: string[]): Promise<number | null> {
   // Attempt 1: default init — the library locates pdfium.wasm next to its
   // own package. Works in plain Node / local dev.
   try {
     return await loadWithPdfium(bytes);
-  } catch {
+  } catch (e) {
+    failures?.push(`pdfium-default: ${errMsg(e)}`);
     // Fall through to the explicit-binary retry below.
   }
   // Attempt 2: pass the wasm binary explicitly. Bundled servers (Next.js
@@ -94,7 +102,9 @@ async function countPagesViaPdfium(bytes: Buffer): Promise<number | null> {
   try {
     const wasmBinary = await readPdfiumWasmBinary();
     if (wasmBinary) return await loadWithPdfium(bytes, wasmBinary);
-  } catch {
+    failures?.push("pdfium-explicit: wasm binary missing");
+  } catch (e) {
+    failures?.push(`pdfium-explicit: ${errMsg(e)}`);
     // Fall through to null — the caller tries pdf.js next.
   }
   return null;
@@ -130,7 +140,7 @@ export async function readPdfiumWasmBinary(): Promise<ArrayBuffer | null> {
 
 // pdf.js parse (no worker — Node has no WebWorker here; the library falls
 // back to the main-thread "fake worker"). Exported for tests.
-export async function countPagesViaPdfJs(bytes: Buffer): Promise<number | null> {
+export async function countPagesViaPdfJs(bytes: Buffer, failures?: string[]): Promise<number | null> {
   try {
     const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
     const doc = await pdfjs.getDocument({
@@ -145,9 +155,25 @@ export async function countPagesViaPdfJs(bytes: Buffer): Promise<number | null> 
       // Ignore cleanup errors — the count was already read.
     }
     return typeof num === "number" && Number.isFinite(num) ? num : null;
-  } catch {
+  } catch (e) {
+    failures?.push(`pdfjs: ${errMsg(e)}`);
     return null;
   }
+}
+
+function errMsg(e: unknown): string {
+  if (e instanceof Error) return `${e.name}: ${e.message}`.slice(0, 200);
+  return String(e).slice(0, 200);
+}
+
+// Password-protected PDFs fail both parsers by design — detect so caller
+// can tell user to remove password instead of generic re-save advice.
+function isEncryptedPdf(bytes: Buffer, failures: string[]): boolean {
+  const joined = failures.join(" ").toLowerCase();
+  if (joined.includes("password") || joined.includes("encrypt")) return true;
+  // ponytail: latin1 scan of whole buffer, runs only on double-parser failure
+  if (bytes.length >= 5 && bytes.subarray(0, 5).toString("latin1") !== "%PDF-") return false;
+  return bytes.toString("latin1", 0, Math.min(bytes.length, 1_000_000)).includes("/Encrypt");
 }
 
 /**
