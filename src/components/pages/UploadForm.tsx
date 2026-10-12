@@ -1442,29 +1442,39 @@ export default function UploadForm() {
 
     try {
       let inlineFallback = false;
-      if (uploadPromiseRef.current) {
-        const uploadResult = await uploadPromiseRef.current;
+      let uploadResult = uploadPromiseRef.current ? await uploadPromiseRef.current : null;
+      if (uploadResult?.error && uploadResult.error !== "Aborted") {
+        throw new Error(uploadResult.error);
+      }
+      if (!uploadResult || uploadResult.error === "Aborted" || !uploadResult.isDirectUpload) {
+        // No usable background upload (never started, aborted, or the sign
+        // call predates working storage) — try one fresh direct upload now
+        // instead of stranding the file under the 4MB inline cap. A server
+        // genuinely without storage answers "not available" again and the
+        // fallback below still applies.
+        setSingleUploading(true);
+        try {
+          uploadResult = await startBackgroundUpload(file);
+        } finally {
+          setSingleUploading(false);
+        }
+        uploadPromiseRef.current = Promise.resolve(uploadResult);
         if (uploadResult.error && uploadResult.error !== "Aborted") {
           throw new Error(uploadResult.error);
         }
+      }
 
-        if (uploadResult.isDirectUpload && uploadResult.storedName) {
-          form.set("isDirectUpload", "true");
-          form.set("storedName", uploadResult.storedName);
-          form.set("uploadSig", uploadResult.uploadSig ?? "");
-          form.set("originalName", file.name);
-          form.set("mimeType", file.type);
-          // Send known values so server skips re-downloading the file just to
-          // measure size and count pages (saves 3-8 s on Vercel → Supabase roundtrip).
-          form.set("sizeBytes", String(file.size));
-          form.set("pageCount", String(filePageCount ?? 1));
-        } else {
-          form.set("isDirectUpload", "false");
-          form.set("file", file);
-          inlineFallback = true;
-        }
+      if (uploadResult.isDirectUpload && uploadResult.storedName) {
+        form.set("isDirectUpload", "true");
+        form.set("storedName", uploadResult.storedName);
+        form.set("uploadSig", uploadResult.uploadSig ?? "");
+        form.set("originalName", file.name);
+        form.set("mimeType", file.type);
+        // Send known values so server skips re-downloading the file just to
+        // measure size and count pages (saves 3-8 s on Vercel → Supabase roundtrip).
+        form.set("sizeBytes", String(file.size));
+        form.set("pageCount", String(filePageCount ?? 1));
       } else {
-        // Fallback
         form.set("isDirectUpload", "false");
         form.set("file", file);
         inlineFallback = true;
