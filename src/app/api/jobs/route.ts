@@ -84,7 +84,7 @@ function parseFileOverrides(form: FormData, fileCount: number): (FileSettingsOve
 // Unauthenticated requests (guests) resolve to `{ user: null }` with no error,
 // so this is safe to call unconditionally; any failure (e.g. Supabase env not
 // configured in pure-SQLite local dev) is swallowed and treated as a guest.
-async function getCustomerUserId(): Promise<{ id: string; displayName: string | null } | null> {
+async function getCustomerUserId(): Promise<{ id: string; displayName: string | null; phone: string | null } | null> {
   try {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
@@ -94,10 +94,12 @@ async function getCustomerUserId(): Promise<{ id: string; displayName: string | 
     // otherwise their jobs would surface under /my-jobs for that account.
     const { data: profile } = await supabase
       .from("customer_profiles")
-      .select("id, display_name")
+      .select("id, display_name, phone")
       .eq("id", user.id)
       .maybeSingle();
-    return profile ? { id: user.id, displayName: profile.display_name ?? null } : null;
+    if (!profile) return null;
+    const digits = String(profile.phone ?? "").replace(/\D/g, "");
+    return { id: user.id, displayName: profile.display_name ?? null, phone: digits.length === 10 ? digits : null };
   } catch {
     return null;
   }
@@ -393,7 +395,7 @@ export async function POST(request: NextRequest) {
       queue_position: queuePos,
       delivery_method: deliveryMethod,
       customer_name: deliveryDetails.customerName ?? customer?.displayName ?? null,
-      customer_phone: deliveryDetails.customerPhone,
+      customer_phone: deliveryDetails.customerPhone ?? customer?.phone ?? null,
       delivery_address: deliveryDetails.deliveryAddress,
       delivery_pincode: deliveryDetails.deliveryPincode,
       delivery_area: deliveryDetails.deliveryArea,
@@ -426,7 +428,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-async function handleBulk(form: FormData, customer: { id: string; displayName: string | null } | null): Promise<NextResponse> {
+async function handleBulk(form: FormData, customer: { id: string; displayName: string | null; phone: string | null } | null): Promise<NextResponse> {
   const customerUserId = customer?.id ?? null;
   // Shared settings (page range intentionally omitted for bulk).
   const printType = String(form.get("printType") ?? "bw") as PrintType;
@@ -664,7 +666,7 @@ async function handleBulk(form: FormData, customer: { id: string; displayName: s
     queue_position: queuePos,
     delivery_method: deliveryMethod,
     customer_name: deliveryDetails.customerName ?? customer?.displayName ?? null,
-    customer_phone: deliveryDetails.customerPhone,
+    customer_phone: deliveryDetails.customerPhone ?? customer?.phone ?? null,
     delivery_address: deliveryDetails.deliveryAddress,
     delivery_pincode: deliveryDetails.deliveryPincode,
     delivery_area: deliveryDetails.deliveryArea,
