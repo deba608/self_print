@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { countPagesViaPdfJs, estimatePageCount, estimatePageCountWithSource, readPdfiumWasmBinary } from "./files";
+import { PageCountError, countPagesViaPdfJs, estimatePageCount, estimatePageCountWithSource, readPdfiumWasmBinary } from "./files";
 
 // Simulates a non-optimized "extract pages" PDF like the reported token
 // 561440 case: 5 live pages, but stale /Type /Page markers from the source
@@ -31,9 +31,9 @@ describe("estimatePageCount", () => {
     expect(await estimatePageCount("document", bytes)).toBe(0);
   });
 
-  it("never throws on garbage bytes", async () => {
-    const count = await estimatePageCount("pdf", Buffer.from("not a pdf at all"));
-    expect(count).toBeGreaterThanOrEqual(1);
+  it("throws PageCountError on garbage bytes instead of guessing a count", async () => {
+    // Guessing once billed a 657-page scan as 1 page (token 772168) — refuse.
+    await expect(estimatePageCount("pdf", Buffer.from("not a pdf at all"))).rejects.toBeInstanceOf(PageCountError);
   });
 
   it("reports which engine produced the count", async () => {
@@ -43,9 +43,8 @@ describe("estimatePageCount", () => {
     expect(count).toBe(5);
     // Locally PDFium serves; in runtimes where it can't load, pdf.js does.
     expect(["pdfium", "pdfjs"]).toContain(source);
-    const garbage = await estimatePageCountWithSource("pdf", Buffer.from("not a pdf at all"));
-    expect(garbage.source).toBe("regex");
-    expect(garbage.count).toBeGreaterThanOrEqual(1);
+    // Total parser failure surfaces instead of a byte-regex guess.
+    await expect(estimatePageCountWithSource("pdf", Buffer.from("not a pdf at all"))).rejects.toBeInstanceOf(PageCountError);
   });
 });
 

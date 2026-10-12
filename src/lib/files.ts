@@ -26,7 +26,18 @@ export async function saveUpload(file: File, ext: string, kind: FileKind = "pdf"
 // Which engine produced a page count. Exposed in the job-creation response
 // (`pageCountSource`) so a miscount can be traced to its layer without
 // server-log access. "fixed" = trivial image/document answer, no parse.
-export type PageCountSource = "pdfium" | "pdfjs" | "regex" | "fixed";
+export type PageCountSource = "pdfium" | "pdfjs" | "fixed";
+
+// Thrown when neither real PDF parser can read a file. The old byte-regex
+// fallback is gone on purpose: on compressed scans it finds zero markers and
+// bills a 657-page file as 1 page (token 772168: Rs 717 billed as Rs 31),
+// and on extracts with dead markers it overbills. Refusing is cheaper than
+// misbilling — callers turn this into a 400 asking for a re-saved file.
+export class PageCountError extends Error {
+  constructor() {
+    super("Could not determine the page count of this PDF");
+  }
+}
 
 export async function estimatePageCount(kind: FileKind, bytes: Buffer): Promise<number> {
   return (await estimatePageCountWithSource(kind, bytes)).count;
@@ -55,14 +66,13 @@ export async function estimatePageCountWithSource(
     console.warn("[estimatePageCount] PDFium failed, used pdf.js fallback");
     return { count: Math.max(viaPdfjs, 1), source: "pdfjs" };
   }
-  // Both real parsers failed (malformed PDF or engine unavailable) — fall
-  // back to the byte-regex heuristic rather than failing the upload. Known
-  // to overcount unoptimized extracts with orphaned markers and undercount
-  // compressed object streams, so this is strictly a last resort.
-  console.warn("[estimatePageCount] PDFium and pdf.js failed, used regex heuristic");
-  const text = bytes.toString("latin1");
-  const matches = text.match(/\/Type\s*\/Page\b/g);
-  return { count: Math.max(matches?.length ?? 1, 1), source: "regex" };
+  // Both real parsers failed (malformed PDF, encrypted file, or the
+  // engines couldn't load in this runtime) — throw instead of guessing.
+  // A regex heuristic here is known-wrong in both directions (undercounts
+  // compressed object streams, overcounts dead markers in extracts), and a
+  // wrong count becomes a wrong price. The caller rejects the upload so the
+  // customer re-saves the file instead of being misbilled.
+  throw new PageCountError();
 }
 
 // PDFium parse. Returns null (instead of throwing) when the engine or the

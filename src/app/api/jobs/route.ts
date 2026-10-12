@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { MAX_UPLOAD_BYTES } from "@/lib/config";
 import { MAX_BULK_FILES, parseBulkFiles } from "@/lib/bulk";
 import { createJob, createJobWithFiles, getJobByToken, getPricing, nextQueuePosition } from "@/lib/db";
-import { estimatePageCountWithSource, measureStoredFile, saveUpload, validateUpload } from "@/lib/files";
+import { PageCountError, estimatePageCountWithSource, measureStoredFile, saveUpload, validateUpload } from "@/lib/files";
 import type { PageCountSource } from "@/lib/files";
 import { bucketPathFor, isValidStoredName, verifyStoredNameSig } from "@/lib/storage";
 import { clientIp, isRateLimited } from "@/lib/ratelimit";
@@ -11,6 +11,12 @@ import { calculatePrice, calculateSpiralBindingPrice, effectiveDeliveryFeePaise,
 import { createClient } from "@/lib/supabase/server";
 import { checkDeliveryServiceable, isValidPincode } from "@/lib/service-area";
 import type { FileSettingsOverride, PaperSize, PrintDuplex, PrintLayout, PrintMargins, PrintScale, PrintType } from "@/lib/types";
+
+// Fail-closed page-count errors: when neither PDF parser can read an upload,
+// reject it instead of billing a guessed count — a guess once charged Rs 31
+// for a Rs 717 order (token 772168: 657 pages billed as 1).
+const UNREADABLE_PDF_ERROR =
+  "We couldn't read the page count of your PDF. Please re-save or compress it and try again, or contact the shop for help.";
 
 // Validates one bulk file's settings override against the same enums/ranges
 // as the job-level fields. Returns null (meaning "no override", i.e. inherit
@@ -293,7 +299,10 @@ export async function POST(request: NextRequest) {
       } else {
         try {
           ({ sizeBytes, pageCount, pageCountSource } = await measureStoredFile(kind, storagePath));
-        } catch {
+        } catch (error) {
+          if (error instanceof PageCountError) {
+            return NextResponse.json({ error: UNREADABLE_PDF_ERROR }, { status: 400 });
+          }
           return NextResponse.json({ error: "Uploaded file could not be read" }, { status: 400 });
         }
       }
@@ -318,7 +327,14 @@ export async function POST(request: NextRequest) {
       storedName = saved.storedName;
       storagePath = saved.storagePath;
       sizeBytes = saved.sizeBytes;
-      ({ count: pageCount, source: pageCountSource } = await estimatePageCountWithSource(kind, saved.bytes));
+      try {
+        ({ count: pageCount, source: pageCountSource } = await estimatePageCountWithSource(kind, saved.bytes));
+      } catch (error) {
+        if (error instanceof PageCountError) {
+          return NextResponse.json({ error: UNREADABLE_PDF_ERROR }, { status: 400 });
+        }
+        throw error;
+      }
       needsConversion = kind === "document" ? 1 : 0;
     }
 
@@ -493,7 +509,10 @@ async function handleBulk(form: FormData, customer: { id: string; displayName: s
       measured = await Promise.all(
         files.map((f) => measureStoredFile("pdf", bucketPathFor("pdf", f.storedName)))
       );
-    } catch {
+    } catch (error) {
+      if (error instanceof PageCountError) {
+        return NextResponse.json({ error: UNREADABLE_PDF_ERROR }, { status: 400 });
+      }
       return NextResponse.json({ error: "An uploaded file could not be read." }, { status: 400 });
     }
 
@@ -543,7 +562,16 @@ async function handleBulk(form: FormData, customer: { id: string; displayName: s
         return NextResponse.json({ error: "Bulk upload accepts PDF files only." }, { status: 400 });
       }
       const saved = await saveUpload(upload, ext, "pdf");
-      const { count, source } = await estimatePageCountWithSource("pdf", saved.bytes);
+      let count: number;
+      let source: PageCountSource;
+      try {
+        ({ count, source } = await estimatePageCountWithSource("pdf", saved.bytes));
+      } catch (error) {
+        if (error instanceof PageCountError) {
+          return NextResponse.json({ error: `"${upload.name}": ${UNREADABLE_PDF_ERROR}` }, { status: 400 });
+        }
+        throw error;
+      }
       perFilePageCounts.push(Math.max(1, count));
       perFileSources.push(source);
       filesData.push({
