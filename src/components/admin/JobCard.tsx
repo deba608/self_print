@@ -100,6 +100,16 @@ function JobCard({
             <span className="queue-num">#{job.queuePosition}</span>
             <span className="job-token">Token {job.token}</span>
             {job.customerName && <span className="job-customer-name">{job.customerName}</span>}
+            {job.customerPhone && (
+              <a
+                className="job-customer-name"
+                href={`tel:${job.customerPhone}`}
+                onClick={(e) => e.stopPropagation()}
+                title={`Call ${job.customerName ?? "customer"}`}
+              >
+                · {job.customerPhone}
+              </a>
+            )}
           </div>
         </div>
 

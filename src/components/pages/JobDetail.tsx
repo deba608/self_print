@@ -312,6 +312,12 @@ export default function JobDetail({ id }: { id: string }) {
                 <span>{job.customerName}</span>
               </>
             )}
+            {job.customerPhone && (
+              <>
+                <span className="dot">·</span>
+                <a href={`tel:${job.customerPhone}`}>{job.customerPhone}</a>
+              </>
+            )}
           </div>
         </div>
         <div className="job-detail-right">
