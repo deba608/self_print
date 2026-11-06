@@ -2289,27 +2289,41 @@ export default function UploadForm() {
               </button>
               <button
                 type="button"
-                className={`page-mode-btn ${duplex === "long-edge" ? "active" : ""}`}
+                className={`page-mode-btn ${duplex !== "simplex" ? "active" : ""}`}
                 onClick={() => canDuplex && setDuplex("long-edge")}
-                aria-pressed={duplex === "long-edge"}
+                aria-pressed={duplex !== "simplex"}
                 disabled={!canDuplex}
                 title={!canDuplex ? "Needs a document with at least 2 pages" : undefined}
               >
                 <Copy size={18} className="page-mode-icon" aria-hidden="true" />
-                <span className="page-mode-label">Double-sided (long edge)</span>
-              </button>
-              <button
-                type="button"
-                className={`page-mode-btn ${duplex === "short-edge" ? "active" : ""}`}
-                onClick={() => canDuplex && setDuplex("short-edge")}
-                aria-pressed={duplex === "short-edge"}
-                disabled={!canDuplex}
-                title={!canDuplex ? "Needs a document with at least 2 pages" : undefined}
-              >
-                <Copy size={18} className="page-mode-icon" aria-hidden="true" />
-                <span className="page-mode-label">Double-sided (short edge)</span>
+                <span className="page-mode-label">Double-sided</span>
               </button>
             </div>
+            {duplex !== "simplex" && canDuplex && (
+              <div className="duplex-edge-sub">
+                <span className="duplex-edge-label">Flip on</span>
+                <div className="page-mode-grid duplex-edge-grid">
+                  <button
+                    type="button"
+                    className={`page-mode-btn ${duplex === "long-edge" ? "active" : ""}`}
+                    onClick={() => setDuplex("long-edge")}
+                    aria-pressed={duplex === "long-edge"}
+                  >
+                    <Copy size={16} className="page-mode-icon" aria-hidden="true" />
+                    <span className="page-mode-label">Long edge</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`page-mode-btn ${duplex === "short-edge" ? "active" : ""}`}
+                    onClick={() => setDuplex("short-edge")}
+                    aria-pressed={duplex === "short-edge"}
+                  >
+                    <Copy size={16} className="page-mode-icon" aria-hidden="true" />
+                    <span className="page-mode-label">Short edge</span>
+                  </button>
+                </div>
+              </div>
+            )}
             {!canDuplex && (
               <span className="range-hint" style={{ marginTop: "0.25rem", display: "block" }}>
                 Double-sided needs a document with at least 2 pages.
