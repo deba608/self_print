@@ -21,6 +21,7 @@
     &nbsp;·&nbsp; <a href="#quick-start">Quick start</a>
     &nbsp;·&nbsp; <a href="#how-it-works">How it works</a>
     &nbsp;·&nbsp; <a href="#commands">Commands</a>
+    &nbsp;·&nbsp; <a href="#security--rate-limiting">Security</a>
     &nbsp;·&nbsp; <a href="#docs">Docs</a>
   </p>
 </div>
@@ -341,6 +342,44 @@ New agent versions are pushed from the admin dashboard — nobody touches the sh
 - Self-update through the database with health-gated rollback
 - Cleanup cron: stale print leases, abandoned carts, file-byte retention, login-event retention
 - One-click shop-PC package (`scripts/package-for-shop.mjs` + `agent/SETUP.bat`)
+
+## Security & Rate Limiting
+
+Everything below is enforced server-side. The browser only ever holds the Supabase **anon** key; the service-role key stays on the server and on the shop PC.
+
+| Boundary | Control | Lives in |
+|:---|:---|:---|
+| **Staff access** | Supabase session **plus** a matching `staff_profiles` row. Role allow-list: `super_admin` · `admin` · `delivery`. Invite-only. | `src/lib/security.ts` |
+| **Customer / job access** | Guests: 6-digit token only. Registered: RLS scopes rows to `customer_user_id = auth.uid()`. | `supabase/migrations`, `requireStaff` |
+| **Cleanup cron** | `Authorization: Bearer <CRON_SECRET>`, compared with `crypto.timingSafeEqual`. Prod fails closed. | `src/app/api/cleanup/route.ts` |
+| **Uploads** | MIME **and** extension must both match the allow-list; size capped by `MAX_UPLOAD_MB`. Stored names are always `<uuid>.<ext>`, validated by `STORED_NAME_RE` (no path traversal). | `src/lib/files.ts`, `src/lib/storage.ts` |
+| **File serving** | HMAC-SHA256 signature over the stored name (`SESSION_SECRET`, timing-safe verify); Supabase files via 10-min signed URLs from a **private** bucket. `Content-Disposition` names are ASCII-sanitized + RFC 5987 encoded. | `src/lib/storage.ts` |
+| **Payments** | Razorpay signature recomputed server-side; webhook signature verified with `RAZORPAY_WEBHOOK_SECRET`; amounts read from the DB record, never the client. | `src/lib/razorpay.ts` |
+| **Secrets** | `.env` gitignored; boot warns in production if `SESSION_SECRET` is default or `AGENT_TOKEN` is unset. | `src/lib/config.ts` |
+
+### Rate limits
+
+In-memory fixed-window limiter in `src/lib/ratelimit.ts` — `isRateLimited(bucket, key, max, windowMs)`, keyed by client IP (`x-real-ip`, else the rightmost `x-forwarded-for` hop). Exceeding a limit returns a generic `429`.
+
+| Bucket | Endpoint | Limit | Window |
+|:---|:---|---:|:---|
+| `jobs-create` | `POST /api/jobs` | 10 | 1 min |
+| `uploads-sign` | `POST /api/uploads/sign` | 5 | 1 min |
+| `file-serve-admin` | `GET /api/uploads/[id]` | 120 | 1 min |
+| `file-serve-customer` | `GET /api/user/files/[id]` | 60 | 1 min |
+| `job-status` | `GET /api/jobs/[token]/status` | 60 | 1 min |
+| `job-receipt` | `GET /api/jobs/[token]/receipt` | 30 | 1 min |
+| `report-issue` | `POST /api/jobs/[token]/report` | 5 | 10 min |
+| `payments-order` | `POST /api/payments/order` | 10 | 1 min |
+| `admin-login` | `POST /api/admin/login` | 8 | 1 min |
+| `user-login` | `POST /api/user/login` | 10 | 1 min |
+| `user-register` | `POST /api/user/register` | 6 | 1 hour |
+| `forgot-password` | `POST /api/user/forgot-password` | 5 | 1 hour |
+| `resend-confirmation` | `POST /api/user/resend-confirmation` | 3 | 10 min |
+
+> **Limits of the limiter.** It is per-instance, so on Vercel the effective ceiling is `limit × instances`; it is fixed-window, so a burst straddling two windows can briefly double the rate; and it is IP-keyed, so one NAT shares a bucket. Good enough to stop a single-source flood — not a hard quota. Upgrade path is a distributed limiter (Upstash/Redis).
+
+> **Known gaps.** No CAPTCHA on login/register, no CSP/security headers yet, and 6-digit guest tokens are enumerable by a distributed scan (metadata only — never file bytes). Full threat model: [`docs/SECURITY.md`](docs/SECURITY.md).
 
 ## Project Layout
 

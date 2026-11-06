@@ -9,7 +9,7 @@ What SelfPrint implements today, where it lives in the code, and its known limit
 A basic in-memory, fixed-window limiter:
 
 - `isRateLimited(bucket, key, maxRequests, windowMs)` — each `bucket` (endpoint) holds a map of `key → { count, lastReset }`. First request in a window resets the counter; requests beyond `maxRequests` within `windowMs` return `true` (caller responds `429`).
-- The key is always the client IP via `clientIp(headers)` — first hop of `x-forwarded-for`, falling back to `x-real-ip`, then `"unknown"`.
+- The key is the client IP via `clientIp(headers)` — `x-real-ip` when the proxy sets it, otherwise the **rightmost** `x-forwarded-for` hop (the last trusted proxy), falling back to `"unknown"`. Leftmost hops are client-controlled and are deliberately ignored.
 - Maps are swept lazily when a bucket exceeds 1000 keys.
 
 **Caveats (by design, documented in the file):**
@@ -25,9 +25,11 @@ A basic in-memory, fixed-window limiter:
 | `jobs-create` | `POST /api/jobs` | 10 | 1 min | Job/upload spam — each job creates DB rows + stored files |
 | `uploads-sign` | `POST /api/uploads/sign` | 5 | 1 min | Signed-URL minting for direct-to-Supabase uploads |
 | `file-serve-admin` | `GET /api/uploads/[id]` | 120 | 1 min | File preview serving (admin dashboard iterates jobs) |
+| `file-serve-customer` | `GET /api/user/files/[id]` | 60 | 1 min | Customer saved-file downloads |
 | `job-status` | `GET /api/jobs/[token]/status` | 60 | 1 min | Customer status polling on the token page |
 | `job-receipt` | `GET /api/jobs/[token]/receipt` | 30 | 1 min | Receipt generation |
 | `report-issue` | `POST /api/jobs/[token]/report` | 5 | 10 min | Customer issue reports — writes print_events, pings admins |
+| `payments-order` | `POST /api/payments/order` | 10 | 1 min | Unauthenticated Razorpay order creation — keyed by `IP:token` |
 | `admin-login` | `POST /api/admin/login` | 8 | 1 min | Staff credential brute force |
 | `user-login` | `POST /api/user/login` | 10 | 1 min | Customer credential brute force |
 | `user-register` | `POST /api/user/register` | 6 | 1 hour | Account/email spam |
