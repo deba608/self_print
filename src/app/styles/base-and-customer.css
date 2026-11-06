@@ -2053,6 +2053,13 @@ input, select, button {
   min-height: 70px;
 }
 
+.duplex-edge-hint {
+  font-size: 11px;
+  color: var(--muted);
+  text-align: center;
+  margin-top: 6px;
+}
+
 /* Custom Range Input */
 .custom-range-input {
   display: flex;

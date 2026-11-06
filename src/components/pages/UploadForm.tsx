@@ -211,8 +211,11 @@ function BulkFileCustomizePanel({
         ) : (
           <span className="bulk-customize-defaults-note">Using job defaults</span>
         )}
-      </div>
-    </div>
+                </div>
+                <span className="duplex-edge-hint">
+                  Long edge: flip like a book. Short edge: flip like a notepad.
+                </span>
+              </div>
   );
 }
 
