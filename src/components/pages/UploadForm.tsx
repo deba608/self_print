@@ -132,26 +132,46 @@ function BulkFileCustomizePanel({
           </button>
           <button
             type="button"
-            className={`bulk-switch-opt ${effectiveDuplex === "long-edge" ? "active" : ""}`}
+            className={`bulk-switch-opt ${effectiveDuplex !== "simplex" ? "active" : ""}`}
             onClick={() => canDuplex && onChange({ duplex: "long-edge" })}
             disabled={!canDuplex}
-            aria-pressed={effectiveDuplex === "long-edge"}
+            aria-pressed={effectiveDuplex !== "simplex"}
             title={!canDuplex ? "Needs at least 2 pages" : undefined}
           >
-            Double (long)
-          </button>
-          <button
-            type="button"
-            className={`bulk-switch-opt ${effectiveDuplex === "short-edge" ? "active" : ""}`}
-            onClick={() => canDuplex && onChange({ duplex: "short-edge" })}
-            disabled={!canDuplex}
-            aria-pressed={effectiveDuplex === "short-edge"}
-            title={!canDuplex ? "Needs at least 2 pages" : undefined}
-          >
-            Double (short)
+            Double
           </button>
         </div>
-        {!canDuplex && <span className="bulk-customize-note">1-page file — single-sided only</span>}
+        {effectiveDuplex !== "simplex" && canDuplex && (
+          <div className="duplex-edge-sub">
+            <span className="duplex-edge-label">Flip on</span>
+            <div className="page-mode-grid duplex-edge-grid">
+              <button
+                type="button"
+                className={`page-mode-btn ${effectiveDuplex === "long-edge" ? "active" : ""}`}
+                onClick={() => onChange({ duplex: "long-edge" })}
+                aria-pressed={effectiveDuplex === "long-edge"}
+              >
+                <Copy size={16} className="page-mode-icon" aria-hidden="true" />
+                <span className="page-mode-label">Long edge</span>
+              </button>
+              <button
+                type="button"
+                className={`page-mode-btn ${effectiveDuplex === "short-edge" ? "active" : ""}`}
+                onClick={() => onChange({ duplex: "short-edge" })}
+                aria-pressed={effectiveDuplex === "short-edge"}
+              >
+                <Copy size={16} className="page-mode-icon" aria-hidden="true" />
+                <span className="page-mode-label">Short edge</span>
+              </button>
+            </div>
+            <span className="duplex-edge-hint">
+              Long edge: flip like a book. Short edge: flip like a notepad.
+            </span>
+          </div>
+        )}
+        {!canDuplex && (
+          <span className="bulk-customize-note">1-page file — single-sided only</span>
+        )}
       </div>
       <div className="bulk-customize-row">
         <label className={layoutChanged ? "changed" : ""}>Orientation</label>
