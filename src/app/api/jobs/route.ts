@@ -634,7 +634,11 @@ async function handleBulk(form: FormData, customer: { id: string; displayName: s
   // print the customer was billed simplex for.
   let printPricePaise = 0;
   filesData.forEach((_, i) => {
-    const effective = effectiveFileSettings(jobDefaults, overrides[i]);
+    // effectiveFileSettings returns jobDefaults by reference when there's no
+    // per-file override, so copy it before mutating — otherwise downgrading
+    // one file's duplex (< 2 pages) would silently flip jobDefaults for every
+    // later file that inherits the job default.
+    const effective = { ...effectiveFileSettings(jobDefaults, overrides[i]) };
     const pages = perFilePageCounts[i];
     if (effective.duplex !== "simplex" && pages < 2) {
       effective.duplex = "simplex";

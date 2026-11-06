@@ -380,7 +380,8 @@ async function processJob(jobId: string) {
             const printer = printerForJob(fileJob);
             if (!printer) throw new Error("No printer selected. Set a printer in admin dashboard.");
 
-            log(`Printing ${fileJob.copies} copy(s), paper: ${fileJob.paper_size}, type: ${fileJob.print_type}, printer: ${printer}...`);
+            const overrideSrc = file.settings_json ? "per-file override" : "job default";
+            log(`Printing ${fileJob.copies} copy(s), paper: ${fileJob.paper_size}, type: ${fileJob.print_type}, duplex: ${fileJob.duplex} (${overrideSrc}), printer: ${printer}...`);
             await logEvent(jobId, "spooling", `Printing ${file.original_name} (${idx + 1}/${files.length}) on ${printer}.`);
             const PRINT_TIMEOUT_MS = 5 * 60 * 1000; // 5 min — covers PDF rasterisation + GDI spool
             await Promise.race([
