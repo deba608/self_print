@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { activeForcedOpen, activePause, billableSides, calculatePrice, calculateSpiralBindingPrice, duplexRateSplit, effectiveDeliveryFeePaise, effectiveFileSettings, isAcceptingOrders, isDeliveryAvailable, pauseReason } from "./pricing";
 import type { PricingConfig } from "./types";
 import { DEFAULT_SERVICE_AREA } from "./service-area";
@@ -239,10 +239,17 @@ describe("temporary shop pause", () => {
   });
 
   it("pauseReason labels today/tomorrow reopenings", () => {
-    const inAnHour = new Date(Date.now() + 3600000);
-    expect(pauseReason(inAnHour, null)).toContain("today at");
-    const tomorrow = new Date(Date.now() + 26 * 3600000);
-    expect(pauseReason(tomorrow, null)).toContain("tomorrow at");
+    // Fix "now" to midday IST so the today/tomorrow boundary is deterministic
+    // regardless of when CI runs.
+    vi.setSystemTime(new Date("2026-11-06T12:00:00+05:30"));
+    try {
+      const inAnHour = new Date(Date.now() + 3600000);
+      expect(pauseReason(inAnHour, null)).toContain("today at");
+      const tomorrow = new Date(Date.now() + 26 * 3600000);
+      expect(pauseReason(tomorrow, null)).toContain("tomorrow at");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 
