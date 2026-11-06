@@ -15,6 +15,12 @@ type AgentUpdateResponse = {
 // success/failed/rolled_back, so the button stays disabled and we poll.
 const IN_FLIGHT = ["requested", "downloading", "swapping"];
 
+// Matches the API's stale window. A live agent moves off "requested" within
+// one 30s poll, so ten minutes of silence means it is not listening (old
+// build without the updater, wrong folder layout, or the PC is off) — stop
+// spinning and let the super admin retry.
+const STALLED_MS = 10 * 60 * 1000;
+
 // The agent heartbeats every ~2.5 min; two missed beats is our "offline" line.
 const HEALTHY_WINDOW_MS = 5 * 60 * 1000;
 
@@ -85,6 +91,10 @@ export default function PrintAgentCard() {
   const latest = data?.latest ?? null;
   const status = state?.updateStatus ?? null;
   const inFlight = IN_FLIGHT.includes(status ?? "");
+  const startedAt = state?.updateStartedAt ? new Date(state.updateStartedAt).getTime() : NaN;
+  // In flight but silent long enough that the server will accept a retry.
+  const stalled = inFlight && Number.isFinite(startedAt) && Date.now() - startedAt > STALLED_MS;
+  const busy = inFlight && !stalled;
   const running = state?.agentVersion ?? null;
   // Nothing to offer when no manifest is published, or the agent is already
   // on the published build.
@@ -162,9 +172,9 @@ export default function PrintAgentCard() {
               type="button"
               className="btn-primary agent-update-btn"
               onClick={install}
-              disabled={inFlight || posting}
+              disabled={busy || posting}
             >
-              {inFlight ? (
+              {busy ? (
                 <>
                   <Loader2 size={16} className="spin" aria-hidden="true" />
                   Installing… ({status})
@@ -177,10 +187,17 @@ export default function PrintAgentCard() {
               ) : (
                 <>
                   <Download size={16} aria-hidden="true" />
-                  Install update
+                  {stalled ? "Retry install" : "Install update"}
                 </>
               )}
             </button>
+          )}
+
+          {stalled && (
+            <p className="agent-update-stale" role="status">
+              No response from the shop PC since this update was requested. Check the PC is
+              on and the printer service is running, then retry.
+            </p>
           )}
 
           {loadError && (

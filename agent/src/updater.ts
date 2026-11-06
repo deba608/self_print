@@ -11,6 +11,8 @@ import { compareVersions, parseLatestJson, sha256Hex } from "./update-lib";
 // the parent of the whole repo — guard against that to prevent the updater from
 // staging into ~/Desktop or registering a real scheduled task on the dev box.
 const IS_ENGINE_CWD = path.basename(process.cwd()) === "engine";
+/** False on a dev checkout: dashboard update commands are ignored by design. */
+export const selfUpdateEnabled = IS_ENGINE_CWD;
 const shopRoot = IS_ENGINE_CWD ? path.resolve(process.cwd(), "..") : process.cwd();
 const stagingDir = path.join(shopRoot, "update-staging");
 const agentDir = path.join(process.cwd(), "agent");

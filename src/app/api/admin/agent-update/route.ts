@@ -82,11 +82,13 @@ export async function POST() {
   }
   if (IN_FLIGHT.includes(state.updateStatus ?? "")) {
     // If the shop PC died mid-update, update_started_at can be arbitrarily old
-    // and nothing will ever clear it. Treat it as stale after 30 minutes so
-    // a new install attempt isn't blocked forever.
+    // and nothing will ever clear it. A live agent leaves "requested" on its
+    // next 30s poll, so 10 minutes of silence means it is not listening —
+    // allow a fresh install attempt instead of blocking forever. The UI uses
+    // the same window to swap "Installing…" for a retry.
     const stale =
       state.updateStartedAt &&
-      Date.now() - new Date(state.updateStartedAt).getTime() > 30 * 60 * 1000;
+      Date.now() - new Date(state.updateStartedAt).getTime() > 10 * 60 * 1000;
     if (!stale) {
       return NextResponse.json(
         { error: `Update already in progress (${state.updateStatus})` },

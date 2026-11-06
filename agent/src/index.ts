@@ -10,7 +10,8 @@ import {
   checkForUpdateCommand,
   reportPostUpdateStatus,
   writeHealthHeartbeat,
-  currentVersion
+  currentVersion,
+  selfUpdateEnabled
 } from "./updater";
 
 type AgentConfig = {
@@ -104,6 +105,9 @@ async function main() {
   log("=== SelfPrint Agent (Supabase Realtime + Polling) ===");
   log(`Supabase: ${config.supabaseUrl}`);
   log(`Fallback printer: ${config.fallbackPrinter || "(none)"}`);
+  if (!selfUpdateEnabled) {
+    log('Self-update disabled: no "engine" working folder (dev checkout). Dashboard update commands are ignored here.');
+  }
 
   // Crash-proofing: a transient Supabase/network error must NOT kill the agent.
   process.on("uncaughtException", (err) => {
