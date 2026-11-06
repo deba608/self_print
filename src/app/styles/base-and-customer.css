@@ -2027,6 +2027,32 @@ input, select, button {
   color: var(--accent);
 }
 
+/* Duplex flip-edge sub-options (shown only after picking Double-sided) */
+.duplex-edge-sub {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.duplex-edge-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.duplex-edge-grid {
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.duplex-edge-grid .page-mode-btn {
+  padding: 12px 8px;
+  min-height: 70px;
+}
+
 /* Custom Range Input */
 .custom-range-input {
   display: flex;
