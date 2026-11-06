@@ -1,10 +1,35 @@
-# Self_Print
+<div align="center">
+  <img src="docs/selfprint-logo.svg" alt="SelfPrint logo" width="112" height="112" />
 
-QR-friendly self-service print queue for Xerox/print shops. Customers scan a QR code, upload files from their phone, pick print settings, get a token, pay online or at the counter, and staff release the job from an admin dashboard. A Windows agent on the shop PC polls approved jobs and prints them through the GDI spooler.
+  <h1>Self_Print</h1>
 
-**Stack:** Next.js 15 (App Router) · React 19 · TypeScript · Tailwind-free custom CSS · Supabase (Postgres + Storage + Auth + Realtime) · SQLite for local dev · Razorpay · Node/TSX print agent · Vitest
+  <p><strong>Scan. Upload. Pay. Print.</strong><br />
+  QR-friendly self-service print queue for Xerox shops — phone uploads, a live staff dashboard,
+  and a Windows agent that just prints.</p>
 
-**Live:** https://selfprint-six.vercel.app
+  <p>
+    <img alt="Next.js 15" src="https://img.shields.io/badge/Next.js-15-000000?style=flat-square&logo=nextdotjs&logoColor=white" />
+    <img alt="React 19" src="https://img.shields.io/badge/React-19-087EA4?style=flat-square&logo=react&logoColor=white" />
+    <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-5-3178C6?style=flat-square&logo=typescript&logoColor=white" />
+    <img alt="Supabase" src="https://img.shields.io/badge/Supabase-Postgres%20%2B%20Storage-3ECF8E?style=flat-square&logo=supabase&logoColor=white" />
+    <img alt="Vercel" src="https://img.shields.io/badge/Vercel-bom1-000000?style=flat-square&logo=vercel&logoColor=white" />
+    <img alt="Status" src="https://img.shields.io/badge/status-live-0d7a74?style=flat-square" />
+  </p>
+
+  <p>
+    <a href="https://selfprint-six.vercel.app"><strong>Live app</strong></a>
+    &nbsp;·&nbsp; <a href="#quick-start">Quick start</a>
+    &nbsp;·&nbsp; <a href="#how-it-works">How it works</a>
+    &nbsp;·&nbsp; <a href="#commands">Commands</a>
+    &nbsp;·&nbsp; <a href="#docs">Docs</a>
+  </p>
+</div>
+
+---
+
+| 🖨️ A queue that runs itself | 💸 Payments, both ways | 📦 Pickup **or** delivery |
+|:---|:---|:---|
+| Customer scans → uploads → gets a token. Staff release the job, the shop-PC agent prints it and reports back. | Razorpay online checkout with webhook backup, or pay-at-counter. Refunds tracked, free-delivery threshold applied automatically. | Riders get their own `/delivery` dashboard with atomic job claim and staged progress. Pincode service area keeps orders local. |
 
 ---
 
