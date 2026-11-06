@@ -46,7 +46,8 @@ function BulkFileCustomizePanel({
 }) {
   const printType = override?.printType ?? jobDefaults.printType;
   const canDuplex = pageCount >= 2;
-  const isDouble = canDuplex && (override?.duplex ?? jobDefaults.duplex) !== "simplex";
+  const effectiveDuplex = override?.duplex ?? jobDefaults.duplex;
+  const isDouble = canDuplex && effectiveDuplex !== "simplex";
   const layout = override?.layout ?? jobDefaults.layout;
   const copies = override?.copies ?? jobDefaults.copies;
 
@@ -54,7 +55,7 @@ function BulkFileCustomizePanel({
   // Drives the teal dot on the row label so staff/customers can see at a
   // glance which fields were customized vs inherited.
   const printChanged = printType !== jobDefaults.printType;
-  const sidesChanged = (isDouble ? "long-edge" : "simplex") !== jobDefaults.duplex;
+  const sidesChanged = effectiveDuplex !== jobDefaults.duplex;
   const layoutChanged = layout !== jobDefaults.layout;
   const copiesChanged = copies !== jobDefaults.copies;
 
@@ -123,24 +124,31 @@ function BulkFileCustomizePanel({
         <div className="bulk-switch" role="group" aria-label="Sides">
           <button
             type="button"
-            className={`bulk-switch-opt ${!isDouble ? "active" : ""}`}
+            className={`bulk-switch-opt ${effectiveDuplex === "simplex" ? "active" : ""}`}
             onClick={() => onChange({ duplex: "simplex" })}
-            aria-pressed={!isDouble}
+            aria-pressed={effectiveDuplex === "simplex"}
           >
             Single
           </button>
           <button
             type="button"
-            className={`bulk-switch-opt ${isDouble ? "active" : ""}`}
-            // Same 2-choice model as the job-level Sides control (page-mode-grid
-            // above) — "Double-sided" always means long-edge. Short-edge was a
-            // 3rd option nobody asked for and never existed at job level either.
+            className={`bulk-switch-opt ${effectiveDuplex === "long-edge" ? "active" : ""}`}
             onClick={() => canDuplex && onChange({ duplex: "long-edge" })}
             disabled={!canDuplex}
-            aria-pressed={isDouble}
+            aria-pressed={effectiveDuplex === "long-edge"}
             title={!canDuplex ? "Needs at least 2 pages" : undefined}
           >
-            Double
+            Double (long)
+          </button>
+          <button
+            type="button"
+            className={`bulk-switch-opt ${effectiveDuplex === "short-edge" ? "active" : ""}`}
+            onClick={() => canDuplex && onChange({ duplex: "short-edge" })}
+            disabled={!canDuplex}
+            aria-pressed={effectiveDuplex === "short-edge"}
+            title={!canDuplex ? "Needs at least 2 pages" : undefined}
+          >
+            Double (short)
           </button>
         </div>
         {!canDuplex && <span className="bulk-customize-note">1-page file — single-sided only</span>}
@@ -2281,14 +2289,25 @@ export default function UploadForm() {
               </button>
               <button
                 type="button"
-                className={`page-mode-btn ${duplex !== "simplex" ? "active" : ""}`}
+                className={`page-mode-btn ${duplex === "long-edge" ? "active" : ""}`}
                 onClick={() => canDuplex && setDuplex("long-edge")}
-                aria-pressed={duplex !== "simplex"}
+                aria-pressed={duplex === "long-edge"}
                 disabled={!canDuplex}
                 title={!canDuplex ? "Needs a document with at least 2 pages" : undefined}
               >
                 <Copy size={18} className="page-mode-icon" aria-hidden="true" />
-                <span className="page-mode-label">Double-sided</span>
+                <span className="page-mode-label">Double-sided (long edge)</span>
+              </button>
+              <button
+                type="button"
+                className={`page-mode-btn ${duplex === "short-edge" ? "active" : ""}`}
+                onClick={() => canDuplex && setDuplex("short-edge")}
+                aria-pressed={duplex === "short-edge"}
+                disabled={!canDuplex}
+                title={!canDuplex ? "Needs a document with at least 2 pages" : undefined}
+              >
+                <Copy size={18} className="page-mode-icon" aria-hidden="true" />
+                <span className="page-mode-label">Double-sided (short edge)</span>
               </button>
             </div>
             {!canDuplex && (
@@ -3121,7 +3140,7 @@ export default function UploadForm() {
               </div>
               <div className="summary-item">
                 <span className="summary-label">Sides</span>
-                <span className="summary-value">{duplex === "simplex" ? "Single-sided" : "Double-sided"}</span>
+                <span className="summary-value">{duplex === "simplex" ? "Single-sided" : duplex === "long-edge" ? "Double-sided (long edge)" : "Double-sided (short edge)"}</span>
               </div>
               {pagesPerSheet > 1 && (
                 <div className="summary-item">
