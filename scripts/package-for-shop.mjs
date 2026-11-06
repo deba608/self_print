@@ -231,7 +231,7 @@ if (process.argv.includes('--publish')) {
   // the payload has to carry the whole engine instead.
   const lastDeps = lastManifest?.deps ?? null;
   const depsChanged = !lastDeps || AGENT_DEPS.some(d => lastDeps[d] !== pinned[d]);
-  const kind = 'full';
+  const kind = depsChanged ? 'full' : 'code';
 
   // config.json holds this shop's own credentials — it must never travel in
   // an update payload, or an upgrade would overwrite them.
