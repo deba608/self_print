@@ -1,0 +1,49 @@
+SelfPrint — Duplex / Per-File Customization / Agent Update Summary
+==================================================================
+
+Date: 2026-11-06
+Agent version published: 1.0.1.3 (sha256=37e9c1b62a703e00f9a85e8bf3b2a7983a21e1aa18e728ef49f8faf1f203c7ed)
+Zip: dist-shop-package/agent-1.0.1.3.zip (code update, uploaded to Supabase Storage bucket agent-updates)
+
+WHAT CHANGED
+------------
+
+1. Double-sided UI now offers Long edge AND Short edge
+   - Job-level Sides control: Single / Double-sided (long edge) / Double-sided (short edge)
+   - Bulk per-file customize panel: Same three options (Single / Double long-edge / Double short-edge)
+   - UI is two-level: "Single" vs "Double" at top level; "Long edge" / "Short edge" sub-options appear only after picking "Double", with flip hint ("Long edge: flip like a book. Short edge: flip like a notepad.")
+   - Summary label shows the specific edge choice
+   - Files: src/components/pages/UploadForm.tsx, src/app/styles/base-and-customer.css
+
+2. Per-file customization now actually works in bulk uploads (was falling back to job default)
+   - Bug fixed in src/app/api/jobs/route.ts: effectiveFileSettings() returned the jobDefaults object by reference; when a 1-page file downgraded its duplex to simplex, it mutated jobDefaults for every later file without an override, so they all inherited simplex instead of the job default. Fix: wrap in { ...effectiveFileSettings(...) } before mutating.
+   - Agent logs now show per-file duplex: "Printing ..., duplex: <value> (per-file override | job default)" so admins can verify each file got its own setting.
+   - Full path already supported short-edge end-to-end: API validation, pricing (duplex pairs at duplex rate, odd side at simplex), agent DEVMODE + Set-PrintConfiguration (TwoSidedLongEdge / TwoSidedShortEdge / OneSided).
+   - Files: src/app/api/jobs/route.ts, agent/src/index.ts
+
+3. Admin print preview should match per-file customization input
+   - settings_json is stored per file in job_files at creation (db.ts / db-supabase.ts already correct)
+   - Agent merges each file's settings_json onto the job via effectiveJobForFile() before printing
+   - No code change needed here; the bug fix in route.ts ensures settings_json matches what was charged
+
+4. Agent update script fixed
+   - scripts/package-for-shop.mjs: npm v12 on this machine blocks lifecycle scripts (sharp/pdfium native binaries). Changed to copy pinned deps from root node_modules instead of running npm install. Also fixed zip step (Compress-Archive glob failed on Windows) and cleanup (EPERM on locked zip → PowerShell fallback).
+   - agent/version.json bumped 1.0.1.2 → 1.0.1.3
+   - Published via: npm run package:shop -- --publish
+
+HOW CLIENT PCS GET THE UPDATE
+-----------------------------
+The published update is a "code" update (only agent/ replaced; node_modules unchanged). Shop PCs that already ran SETUP.bat poll agent_config.update_target_version every cycle. Admin triggers install via:
+  - /admin Printer panel → "Install update" (super_admin only), or
+  - npm run agent:push-update
+
+The client agent downloads agent-1.0.1.3.zip from Supabase Storage (agent-updates bucket), verifies SHA256, stages it, registers a one-shot Windows Scheduled Task "SelfPrintUpdater", then exits. The task swaps files in place, restarts the agent, and waits for a health heartbeat. If the new version misses its heartbeat, it auto-rolls back to 1.0.1.2.
+
+KNOWN CAVEAT
+------------
+Host-based/GDI drivers (e.g. Konica Minolta 205i) ignore per-document DEVMODE and rely on Set-PrintConfiguration rewriting the print queue. If Set-PrintConfiguration fails on a shop's driver, ALL files print with the queue's last duplex mode instead of per-file duplex. Check agent logs for "WARN: could not set queue duplex/paper mode". The agent's claim-time duplex-capability check is disabled because host-based drivers report canDuplex unreliably — a duplex job sent to a simplex-only printer will print single-sided without a print-time alert (only an informational warning in JobCard).
+
+TESTS
+-----
+npm run typecheck — passes
+npm run test — 124 passed, 2 pre-existing failures (better-sqlite3 native bindings not compiled in this environment, unrelated to this change)

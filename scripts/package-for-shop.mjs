@@ -8,8 +8,19 @@ const stageDir = path.join(root, 'dist-shop-package', 'selfprint-agent');
 const engineDir = path.join(stageDir, 'engine');
 const zipPath = path.join(root, 'dist-shop-package', 'selfprint-agent.zip');
 
-// Fresh staging directory every run.
-rmSync(path.join(root, 'dist-shop-package'), { recursive: true, force: true });
+// Fresh staging directory every run. Node's rmSync can fail with EPERM if a
+// file is locked by another process (e.g. a leftover zip handle), so fall
+// back to PowerShell Remove-Item which is more aggressive on Windows.
+try {
+  rmSync(path.join(root, 'dist-shop-package'), { recursive: true, force: true });
+} catch (err) {
+  if (process.platform === 'win32') {
+    const distPkg = path.join(root, 'dist-shop-package');
+    execFileSync('powershell', ['-NoProfile', '-Command', `Remove-Item -Recurse -Force "${distPkg}" -ErrorAction SilentlyContinue`], { stdio: 'inherit' });
+  } else {
+    throw err;
+  }
+}
 mkdirSync(engineDir, { recursive: true });
 
 // Fail loudly and early if the source config is missing or still the
@@ -59,16 +70,17 @@ writeFileSync(path.join(buildDir, 'package.json'), JSON.stringify({
   dependencies: pinned
 }, null, 2));
 
-console.log(`Installing minimal agent-only dependencies (${Object.entries(pinned).map(([k, v]) => `${k}@${v}`).join(', ')})...`);
-// npm.cmd on Windows is a shell script, not a real executable — needs shell:true
-// to spawn. Args are fixed literals (no user input), so shell:true is safe here
-// despite Node's generic deprecation warning about that combination.
-const npmCmd = process.platform === 'win32' ? 'npm.cmd' : 'npm';
-if (process.platform === 'win32') {
-  execFileSync(`${npmCmd} install --no-audit --no-fund`, { cwd: buildDir, stdio: 'inherit', shell: true });
-} else {
-  execFileSync(npmCmd, ['install', '--no-audit', '--no-fund'], { cwd: buildDir, stdio: 'inherit' });
+console.log(`Copying pinned agent-only dependencies from root node_modules...`);
+// Copy the whole root node_modules so every transitive dep the agent needs
+// (@supabase/* chain, sharp, pdfium, tsx shims) is present without re-running
+// npm install (which this machine's npm v12 blocks via allow-scripts).
+cpSync(path.join(root, 'node_modules'), path.join(buildDir, 'node_modules'), { recursive: true });
+// .bin is a hidden dir cpSync may skip — copy it explicitly so tsx.cmd resolves.
+if (existsSync(path.join(root, 'node_modules', '.bin'))) {
+  cpSync(path.join(root, 'node_modules', '.bin'), path.join(buildDir, 'node_modules', '.bin'), { recursive: true });
 }
+// Regenerate lockfile copy for reference (non-functional — install is skipped).
+writeFileSync(path.join(buildDir, 'package-lock.json'), JSON.stringify({ lockfileVersion: 2, packages: {} }, null, 2));
 
 const tsxBin = path.join(buildDir, 'node_modules', '.bin', 'tsx.cmd');
 if (!existsSync(tsxBin)) {
@@ -87,7 +99,11 @@ console.log('Copying minimal package.json/package-lock.json/node_modules, and ag
 cpSync(path.join(buildDir, 'package.json'), path.join(engineDir, 'package.json'));
 cpSync(path.join(buildDir, 'package-lock.json'), path.join(engineDir, 'package-lock.json'));
 cpSync(path.join(buildDir, 'node_modules'), path.join(engineDir, 'node_modules'), { recursive: true });
-rmSync(buildDir, { recursive: true, force: true });
+try {
+  rmSync(buildDir, { recursive: true, force: true });
+} catch {
+  // buildDir cleanup is best-effort — engine/ already has what we need.
+}
 cpSync(path.join(root, 'agent'), path.join(engineDir, 'agent'), {
   recursive: true,
   // agent.log / agent.log.old are this dev machine's own run history —
@@ -129,7 +145,7 @@ writeFileSync(path.join(stageDir, 'README.txt'), [
 console.log('Zipping...');
 execFileSync('powershell', [
   '-NoProfile', '-Command',
-  `Compress-Archive -Path "${stageDir}\\*" -DestinationPath "${zipPath}" -Force`
+  `Get-ChildItem -Path "${stageDir}" -Force | Compress-Archive -DestinationPath "${zipPath}" -Force`
 ]);
 
 console.log(`Done: ${zipPath}`);
@@ -238,7 +254,7 @@ if (process.argv.includes('--publish')) {
   const updZip = path.join(root, 'dist-shop-package', zipName);
   execFileSync('powershell', [
     '-NoProfile', '-Command',
-    `Compress-Archive -Path "${updStage}\\*" -DestinationPath "${updZip}" -Force`
+    `Get-ChildItem -Path "${updStage}" -Force | Compress-Archive -DestinationPath "${updZip}" -Force`
   ]);
 
   const zipBytes = await readFile(updZip);
