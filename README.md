@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="docs/selfprint-logo.svg" alt="SelfPrint logo" width="112" height="112" />
+  <img src="public/web-app-manifest-512x512.png" alt="SelfPrint logo" width="128" height="128" />
 
   <h1>Self_Print</h1>
 
