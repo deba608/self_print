@@ -111,7 +111,6 @@ export default function AdminTopbar({
 
 
             <ManageMenu />
-            {isSuperAdmin && <AgentUpdateBadge />}
 
             <button
               type="button"
@@ -135,6 +134,10 @@ export default function AdminTopbar({
               <span>Hours</span>
             </button>
           </div>
+
+          {/* Kept outside the first action group: that group is hidden at
+              <=480px, and the agent badge must stay reachable on phones. */}
+          {isSuperAdmin && <AgentUpdateBadge />}
 
           <TopbarMoreMenu
             newJobCount={newJobCount}

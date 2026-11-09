@@ -12,6 +12,8 @@ type UpdateResponse = {
 
 const IN_FLIGHT = ["requested", "downloading", "swapping"];
 const SESSION_KEY = "sp-update-notified";
+// The agent heartbeats every ~2.5 min; two missed beats is our "offline" line.
+const HEALTHY_WINDOW_MS = 5 * 60 * 1000;
 
 const fetcher = (url: string) => fetch(url).then((r) => {
   if (r.status === 403 || r.status === 401) return null; // not super_admin
@@ -86,16 +88,16 @@ export default function AgentUpdateBadge() {
 
   const { state, latest } = data;
   const isInFlight = IN_FLIGHT.includes(state.updateStatus ?? "");
-  const updateAvailable = latest && state.agentVersion !== latest.version;
+  const updateAvailable = latest !== null && state.agentVersion !== latest.version;
   const isFailed = state.updateStatus === "failed" || state.updateStatus === "rolled_back";
+  const healthyAt = state.agentHealthyAt ? new Date(state.agentHealthyAt).getTime() : NaN;
+  const healthy = Number.isFinite(healthyAt) && Date.now() - healthyAt < HEALTHY_WINDOW_MS;
 
-  // Hide button if nothing to report
-  if (!updateAvailable && !isInFlight && !isFailed) return null;
-
-  // Button appearance
-  let dotClass = "";
-  let label = "Update";
-  let title = "";
+  // Button appearance: always visible for super admins so the running version
+  // is one click away; the dot carries the state.
+  let dotClass = healthy ? "update-dot-ok" : "update-dot-offline";
+  let label = "Agent";
+  let title = `Print agent ${state.agentVersion ? `v${state.agentVersion}` : "version unknown"} · ${healthy ? "healthy" : "offline"}`;
   if (isInFlight) {
     dotClass = "update-dot-progress";
     label = "Updating…";
@@ -105,7 +107,7 @@ export default function AgentUpdateBadge() {
     title = `Last update ${state.updateStatus}: ${state.updateMessage ?? ""}`;
   } else if (updateAvailable) {
     dotClass = "update-dot-available";
-    title = `Agent update available: v${latest!.version}`;
+    title += ` — update available: v${latest!.version}`;
   }
 
   async function install() {
@@ -186,7 +188,9 @@ export default function AgentUpdateBadge() {
                 <span className="update-popup-val">
                   {state.agentVersion ?? "—"}
                   {state.agentHealthyAt && (
-                    <span className="update-popup-sub"> · healthy · {relTime(state.agentHealthyAt)}</span>
+                    <span className={`update-popup-sub ${healthy ? "" : "update-popup-failed"}`}>
+                      {" "}· {healthy ? "healthy" : "offline"} · {relTime(state.agentHealthyAt)}
+                    </span>
                   )}
                 </span>
               </div>

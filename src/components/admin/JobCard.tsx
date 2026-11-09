@@ -7,8 +7,24 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { manualPrint } from "@/lib/manualPrint";
+import { billableSides, selectedPageCount } from "@/lib/pricing";
 import Badge, { type BadgeVariant } from "@/components/ui/Badge";
 import type { Job } from "@/lib/types";
+
+// What the agent will actually feed the printer after the customer's page
+// range, N-up layout and copies are applied. Job-level values only — bulk
+// per-file overrides aren't on the queue payload.
+function pageTotalsLabel(job: Job) {
+  const pages = selectedPageCount(job.pageCount, job.pageRange);
+  const sheets = billableSides(job.pageCount, job.pageRange, job.pagesPerSheet);
+  const copies = Math.max(1, job.copies);
+  const sides = sheets * copies;
+  const parts = [`${pages} ${pages === 1 ? "page" : "pages"}`];
+  if (sheets !== pages) parts.push(`${sheets} sheets`);
+  if (copies > 1) parts.push(`× ${copies}`);
+  if (sides !== pages) parts.push(`= ${sides} sides`);
+  return parts.join(" · ");
+}
 
 // Memoized (see export below): the dashboard re-renders on every poll tick /
 // poll, and without memo every card re-rendered each time. Callbacks take the
@@ -125,6 +141,9 @@ function JobCard({
           </span>
           <div className="job-time">
             <span>{new Date(job.createdAt).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "2-digit" })} at {new Date(job.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+          </div>
+          <div className="job-time job-total-pages" title="After page range, pages per sheet and copies">
+            <span>{pageTotalsLabel(job)}</span>
           </div>
         </div>
 

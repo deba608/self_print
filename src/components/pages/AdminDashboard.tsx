@@ -18,7 +18,6 @@ import EmptyState from "@/components/admin/EmptyState";
 import PricingPanel from "@/components/admin/PricingPanel";
 import ServiceHoursPanel from "@/components/admin/ServiceHoursPanel";
 import PrinterPanel from "@/components/admin/PrinterPanel";
-import PrintAgentCard from "@/components/admin/PrintAgentCard";
 import ManageOrdersPanel from "@/components/admin/ManageOrdersPanel";
 import { createClient } from "@/lib/supabase/client";
 
@@ -589,9 +588,6 @@ export default function AdminDashboard() {
           </button>
         </div>
       )}
-
-      {/* Owner-only: renders nothing for admins/delivery staff. */}
-      <PrintAgentCard />
 
       <div className="admin-search-row">
         <label className="management-search admin-token-search" htmlFor="dashboard-token-search">
