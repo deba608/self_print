@@ -9,7 +9,7 @@ import {
   Upload, Send, FileCheck, IndianRupee, MapPinned, Truck,
   Eye, SlidersHorizontal, ScrollText, Info, Clock, User, MessageSquare
 } from "lucide-react";
-import { paperSizeLabels } from "@/lib/pricing";
+import { billableSides, paperSizeLabels, selectedPageCount } from "@/lib/pricing";
 import { manualPrint } from "@/lib/manualPrint";
 import AdminManagementNav from "@/components/AdminManagementNav";
 import JobFileViewButton from "@/components/JobFileViewButton";
@@ -474,10 +474,16 @@ function SummaryCard({ job, files }: { job: Detail["job"]; files: Detail["files"
   const copiesLabel = files.length > 1 && files.some((f) => f.settings?.copies != null)
     ? files.map((f) => `×${f.settings?.copies ?? job.copies}`).join(" + ")
     : String(job.copies);
+  // Pages after the customer's page range / N-up / copies — the count that
+  // actually comes out of the printer, not the uploaded page count.
+  const pages = selectedPageCount(job.pageCount, job.pageRange);
+  const perCopy = billableSides(job.pageCount, job.pageRange, job.pagesPerSheet);
+  const totalPages = perCopy * Math.max(1, job.copies);
   const rows = [
     ["Type", job.printType === "bw" ? "Black & White" : "Color"],
     ["Copies", copiesLabel],
-    ["Pages", files.length > 1 ? `${job.pageCount} pages, ${files.length} files` : (job.pageRange || "All")],
+    ["Pages", job.pageRange?.trim() ? `${pages} of ${job.pageCount} selected` : String(job.pageCount)],
+    ["Total pages", perCopy !== pages || job.copies > 1 ? `${totalPages} (${perCopy} × ${job.copies})` : String(totalPages)],
     ["Paper", paperSizeLabels[job.paperSize as keyof typeof paperSizeLabels] || job.paperSize],
     ["Layout", titleCase(job.layout)],
     ["Scale", scaleLabel(job.scale)],

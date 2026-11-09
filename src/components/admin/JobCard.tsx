@@ -16,14 +16,16 @@ import type { Job } from "@/lib/types";
 // per-file overrides aren't on the queue payload.
 function pageTotalsLabel(job: Job) {
   const pages = selectedPageCount(job.pageCount, job.pageRange);
-  const sheets = billableSides(job.pageCount, job.pageRange, job.pagesPerSheet);
+  const perCopy = billableSides(job.pageCount, job.pageRange, job.pagesPerSheet);
   const copies = Math.max(1, job.copies);
-  const sides = sheets * copies;
-  const parts = [`${pages} ${pages === 1 ? "page" : "pages"}`];
-  if (sheets !== pages) parts.push(`${sheets} sheets`);
+  const total = perCopy * copies;
+  const plural = (n: number) => (n === 1 ? "page" : "pages");
+  if (total === pages) return `${total} ${plural(total)} total`;
+  const parts = [`${pages} ${plural(pages)}`];
+  if (job.pageRange?.trim()) parts[0] += " selected";
+  if (perCopy !== pages) parts.push(`${perCopy}/copy`);
   if (copies > 1) parts.push(`× ${copies}`);
-  if (sides !== pages) parts.push(`= ${sides} sides`);
-  return parts.join(" · ");
+  return `${parts.join(" · ")} = ${total} ${plural(total)} total`;
 }
 
 // Memoized (see export below): the dashboard re-renders on every poll tick /
@@ -142,7 +144,7 @@ function JobCard({
           <div className="job-time">
             <span>{new Date(job.createdAt).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "2-digit" })} at {new Date(job.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
           </div>
-          <div className="job-time job-total-pages" title="After page range, pages per sheet and copies">
+          <div className="job-time job-total-pages" title="Total pages the printer will produce after page range, pages per sheet and copies">
             <span>{pageTotalsLabel(job)}</span>
           </div>
         </div>
