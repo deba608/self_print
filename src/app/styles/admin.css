@@ -1875,7 +1875,7 @@
   cursor: not-allowed;
 }
 
-/* Print agent version / self-update card (owner only, inside the printer panel) */
+/* Print agent version / self-update card (owner only, on the dashboard) */
 .agent-update-card {
   margin-top: 14px;
   padding: 14px;
