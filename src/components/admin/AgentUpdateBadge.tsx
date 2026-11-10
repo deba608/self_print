@@ -170,7 +170,10 @@ export default function AgentUpdateBadge() {
             ? <Loader2 size={16} className="spin" />
             : <RefreshCw size={16} />}
           <span>{label}</span>
-          <span className={`update-dot ${dotClass}`} aria-hidden="true" />
+          {/* Dot only when there's a new update to alert about — not always on. */}
+          {updateAvailable && (
+            <span className={`update-dot ${dotClass}`} aria-hidden="true" />
+          )}
         </button>
 
         {open && (
