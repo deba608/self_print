@@ -368,17 +368,19 @@ export default function ServiceHoursPanel({
             </ul>
           </section>
 
-          <section className="pricing-section hours-service-card">
-            <h3><Timer size={15} aria-hidden="true" /> Temporary pause</h3>
-            <span className="pricing-hint">Pauses pickup and delivery together, and reopens on its own. For longer closures use “Accepting new orders” above.</span>
+          <section className="pricing-section hours-service-card pause-card">
+            <div className="pause-header">
+              <h3><Timer size={15} aria-hidden="true" /> Temporary pause</h3>
+              <span className="pricing-hint">Pauses pickup and delivery together, and reopens on its own. For longer closures use “Accepting new orders” above.</span>
+            </div>
             {savedPause ? (
-              <div className="pricing-field">
-                <span className="hours-status-badge is-closed">
+              <div className="pause-state">
+                <span className="hours-status-badge is-closed pause-badge">
                   <span className="hours-status-dot" aria-hidden="true" />
                   Paused · {countdownLabel(savedPause.until, nowTick)}
                 </span>
-                {savedPause.note && <span className="pricing-hint">Showing customers: “{savedPause.note}”</span>}
-                <button type="button" className="btn-primary" onClick={handleResume} disabled={pausing}>
+                {savedPause.note && <span className="pricing-hint pause-note">Showing customers: “{savedPause.note}”</span>}
+                <button type="button" className="btn-primary pause-resume" onClick={handleResume} disabled={pausing}>
                   {pausing ? (
                     <><Loader2 size={16} className="spin" />Resuming…</>
                   ) : (
@@ -388,7 +390,7 @@ export default function ServiceHoursPanel({
               </div>
             ) : (
               <>
-                <div className="pricing-field">
+                <div className="pricing-field pause-duration-field">
                   <label>Pause for</label>
                   <div className="hours-day-pills" role="group" aria-label="Pause duration">
                     {PAUSE_PRESETS_MINUTES.map((m) => (
@@ -436,12 +438,12 @@ export default function ServiceHoursPanel({
                   />
                 </div>
                 {pausePreset !== null && (
-                  <span className="pricing-hint">
+                  <span className="pricing-hint preview-hint">
                     Customers will see: “{draftResumeValid && draftResumeAt ? pauseReason(draftResumeAt, pauseNoteDraft.trim() || null) : "…"}”
                   </span>
                 )}
-                <div className="pricing-field">
-                  <button type="button" className="btn-secondary" onClick={handlePause} disabled={pausing || pausePreset === null}>
+                <div className="pricing-field pause-action-field">
+                  <button type="button" className="btn-secondary pause-now" onClick={handlePause} disabled={pausing || pausePreset === null}>
                     {pausing ? (
                       <><Loader2 size={16} className="spin" />Pausing…</>
                     ) : (
